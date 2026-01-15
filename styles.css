@@ -16,7 +16,7 @@
 }
 
 body {
-  font-family: "Montserrat", sans-serif;
+  font-family: "Helvetica Neue", "Segoe UI", Arial, sans-serif;
   background: #f3f3f3;
   color: var(--text);
   min-height: 100vh;
@@ -47,7 +47,7 @@ body {
 }
 
 .brand-title {
-  font-family: "Oswald", sans-serif;
+  font-family: "Futura", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
   font-size: 1.4rem;
   letter-spacing: 3px;
 }
@@ -80,9 +80,10 @@ body {
 }
 
 .hero {
-  background: linear-gradient(120deg, rgba(9, 11, 15, 0.9), rgba(9, 11, 15, 0.4)),
-    url("https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1400&q=80")
-      center/cover;
+  background: linear-gradient(120deg, rgba(9, 11, 15, 0.92), rgba(9, 11, 15, 0.5)),
+    radial-gradient(circle at 20% 20%, rgba(236, 171, 85, 0.25), transparent 60%),
+    radial-gradient(circle at 80% 0%, rgba(94, 135, 182, 0.35), transparent 55%),
+    linear-gradient(135deg, #1b1e26, #0b0c0f);
   padding: 80px 48px;
   border-bottom: 1px solid var(--line);
 }
@@ -140,19 +141,23 @@ body {
 }
 
 .portfolio-card[data-image="fashion"]::before {
-  background-image: url("https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1400&q=80");
+  background-image: radial-gradient(circle at 70% 30%, rgba(239, 196, 156, 0.5), transparent 55%),
+    linear-gradient(115deg, #2a2d34, #0f1116);
 }
 
 .portfolio-card[data-image="food"]::before {
-  background-image: url("https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1400&q=80");
+  background-image: radial-gradient(circle at 25% 65%, rgba(213, 116, 84, 0.5), transparent 55%),
+    linear-gradient(115deg, #2e2620, #0f1116);
 }
 
 .portfolio-card[data-image="real-estate"]::before {
-  background-image: url("https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80");
+  background-image: radial-gradient(circle at 65% 40%, rgba(137, 178, 199, 0.45), transparent 55%),
+    linear-gradient(115deg, #1f2b36, #0f1116);
 }
 
 .portfolio-card[data-image="design"]::before {
-  background-image: url("https://images.unsplash.com/photo-1487014679447-9f8336841d58?auto=format&fit=crop&w=1400&q=80");
+  background-image: radial-gradient(circle at 30% 35%, rgba(235, 117, 97, 0.45), transparent 55%),
+    linear-gradient(115deg, #2b1d24, #0f1116);
 }
 
 .card-content {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
+import Navbar from "../components/Navbar";
 import "./globals.css";
 
 const sans = Manrope({
@@ -19,7 +20,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${sans.variable} antialiased`}>{children}</body>
+      <body className={`${sans.variable} antialiased`}>
+        <Navbar />
+        {children}
+      </body>
     </html>
   );
 }

@@ -3,61 +3,27 @@ import Link from "next/link";
 
 const sections = [
   {
+    title: "COMMERCIAL PHOTOGRAPHY",
+    subtitle: "Spaces that sell.",
+    href: "/portfolio/commercial-photography",
+    image: "/images/real-estate.jpg",
+    align: "left",
+  },
+  {
+    title: "HOSPITALITY",
+    subtitle: "Warm. Inviting. Elevated.",
+    href: "/portfolio/hospitality",
+    image: "/images/hospitality.jpg",
+    align: "right",
+  },
+  {
     title: "FASHION",
     subtitle: "Style. Elegance. Impact.",
     href: "/portfolio/fashion",
     image: "/images/fashion.jpg",
     align: "left",
   },
-  {
-    title: "FOOD",
-    subtitle: "Delicious. Inviting. Artful.",
-    href: "/portfolio/food",
-    image: "/images/food.jpg",
-    align: "right",
-  },
-  {
-    title: "COMMERCIAL REAL ESTATE",
-    subtitle: "Spaces that sell.",
-    href: "/portfolio/commercial-real-estate",
-    image: "/images/real-estate.jpg",
-    align: "left",
-  },
-  {
-    title: "GRAPHIC DESIGN",
-    subtitle: "Creative. Strategic. Bold.",
-    href: "/portfolio/design",
-    image: "/images/design.jpg",
-    align: "right",
-  },
 ] as const;
-
-function Nav() {
-  return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-black/50 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <Link href="/" className="tracking-[0.25em] font-semibold text-sm">
-          BRIGHT LINE <span className="opacity-70 font-normal">PHOTOGRAPHY</span>
-        </Link>
-
-        <nav className="hidden md:flex items-center gap-8 text-sm uppercase tracking-widest opacity-90">
-          <Link href="#portfolio" className="hover:opacity-70">Portfolio</Link>
-          <Link href="/services" className="hover:opacity-70">Services</Link>
-          <Link href="/about" className="hover:opacity-70">About</Link>
-          <Link href="/contact" className="hover:opacity-70">Contact</Link>
-        </nav>
-
-        {/* Mobile button (simple, no JS menu yet) */}
-        <Link
-          href="/contact"
-          className="md:hidden rounded border border-white/20 px-3 py-2 text-xs uppercase tracking-widest hover:border-white/40"
-        >
-          Contact
-        </Link>
-      </div>
-    </header>
-  );
-}
 
 function Hero() {
   return (
@@ -79,7 +45,7 @@ function Hero() {
                 CAPTURING VISUAL EXCELLENCE
               </h1>
               <p className="mt-3 text-sm md:text-base opacity-80 tracking-wide">
-                Photography&nbsp;&nbsp;|&nbsp;&nbsp;Design&nbsp;&nbsp;|&nbsp;&nbsp;Branding
+                Photography&nbsp;&nbsp;|&nbsp;&nbsp;Branding
               </p>
             </div>
           </div>
@@ -167,7 +133,6 @@ function CTA() {
 export default function Page() {
   return (
     <div className="min-h-screen">
-      <Nav />
       <Hero />
 
       <main id="portfolio" className="mx-auto max-w-6xl">

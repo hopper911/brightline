@@ -1,0 +1,13 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0E1A22"/>
+      <stop offset="100%" stop-color="#4A8FB2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="900" fill="url(#g)"/>
+  <rect x="120" y="140" width="1160" height="620" rx="40" fill="white" fill-opacity="0.1"/>
+  <text x="140" y="320" fill="#E3F0F6" font-family="Georgia, serif" font-size="72">Northpoint Tower</text>
+  <text x="140" y="400" fill="#E3F0F6" font-family="Arial, sans-serif" font-size="28" letter-spacing="4">REAL ESTATE • CHICAGO</text>
+  <text x="140" y="700" fill="#E3F0F6" font-family="Arial, sans-serif" font-size="22">Cover Placeholder</text>
+</svg>

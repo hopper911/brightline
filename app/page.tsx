@@ -30,7 +30,7 @@ const sections = [
     image: "/images/design.jpg",
     align: "right",
   },
-];
+] as const;
 
 function Nav() {
   return (

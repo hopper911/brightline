@@ -1,8 +1,22 @@
-import Image from "next/image";
 import Link from "next/link";
-import { workItems } from "../lib/work";
+import { cookies } from "next/headers";
+import Reveal from "@/components/Reveal";
+import PortfolioCard from "@/components/PortfolioCard";
+import { getPublishedPortfolio } from "@/lib/portfolio";
 
-export default function PortfolioPage() {
+export const metadata = {
+  title: "Portfolio | Bright Line Photography",
+  description:
+    "Selected commercial photography projects across hospitality, real estate, and fashion.",
+};
+
+export default async function PortfolioPage() {
+  const cookieStore = await cookies();
+  const includeDrafts = cookieStore.get("admin_access")?.value === "true";
+  const items = await getPublishedPortfolio({ includeDrafts });
+  const categories = Array.from(
+    new Map(items.map((item) => [item.categorySlug, item.category])).entries()
+  );
   return (
     <div>
       <h1 className="section-title">Portfolio</h1>
@@ -10,14 +24,27 @@ export default function PortfolioPage() {
         Campaign-ready photography for hospitality, commercial real estate, and fashion clients across the U.S.
       </p>
       <div className="card-grid">
-        {workItems.map((item, index) => (
-          <Link key={item.slug} className="card" href={`/work/${item.slug}`} style={{ animationDelay: `${index * 120}ms` }}>
-            <Image src={item.cover} alt={item.title} width={1200} height={800} />
-            <div className="card-body">
-              <span className="card-tag">{item.category}</span>
-              <h2 className="card-title">{item.title}</h2>
-              <p className="card-meta">{item.location} · {item.year}</p>
-            </div>
+        {items.map((item, index) => (
+          <Reveal key={item.slug} delay={index * 0.05}>
+            <PortfolioCard
+              href={`/portfolio/${item.categorySlug}/${item.slug}`}
+              cover={item.cover}
+              alt={item.coverAlt || item.title}
+              tag={item.category}
+              title={item.title}
+              meta={`${item.location} · ${item.year}`}
+            />
+          </Reveal>
+        ))}
+      </div>
+      <div className="mt-10 flex flex-wrap gap-3">
+        {categories.map(([slug, label]) => (
+          <Link
+            key={slug}
+            href={`/portfolio/${slug}`}
+            className="rounded-full border border-black/20 px-4 py-2 text-xs uppercase tracking-[0.3em] text-black/60"
+          >
+            {label}
           </Link>
         ))}
       </div>

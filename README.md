@@ -1,5 +1,13 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Environment & secrets parity (Vercel)
+
+- Keep Preview and Production env vars in parity. Missing secrets often surface only at runtime.
+- Use `brightline/.env.example` as the canonical list for both environments.
+- Prefer identical values across Preview and Production unless a setting is destructive (e.g., seed flags).
+- Prisma runs only in the Node runtime; avoid Edge for any Prisma-backed routes.
+- For Neon, use a pooled `DATABASE_URL` and set `DIRECT_URL` for migrations.
+
 ## Getting Started
 
 First, run the development server:

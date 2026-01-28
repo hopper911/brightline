@@ -1,42 +1,30 @@
-import Link from "next/link";
+export const metadata = {
+  title: "About | Bright Line Photography",
+  description:
+    "A commercial photography studio specializing in hospitality, real estate, and editorial work.",
+};
 
 export default function AboutPage() {
   return (
-    <div>
-      <h1 className="section-title">About the studio</h1>
-      <p className="section-subtitle">
-        Bright Line Photography is a boutique studio specializing in commercial real estate, hospitality, and editorial imagery. We partner with developers, brokers, and creative teams to build imagery that feels editorial and performs commercially.
+    <div className="mx-auto max-w-5xl px-4 py-16">
+      <p className="text-xs uppercase tracking-[0.35em] text-black/50">
+        About Bright Line
       </p>
-
-      <section className="hero">
-        <div className="hero-card">
-          <p className="card-tag">Our approach</p>
-          <h2 className="section-title">Planning-forward, art-directed, on time.</h2>
-          <p className="section-subtitle">
-            Every shoot begins with a visual brief and location walkthrough. We align on light windows, hero moments, and story beats so production feels smooth and intentional.
-          </p>
-        </div>
-        <div className="hero-card">
-          <p className="card-tag">Capabilities</p>
-          <ul className="section-subtitle">
-            <li>Architecture and interiors</li>
-            <li>Twilight and skyline composites</li>
-            <li>Editorial lifestyle inserts</li>
-            <li>On-set art direction</li>
-          </ul>
-        </div>
-      </section>
-
-      <section className="callout">
-        <p className="card-tag">Let’s collaborate</p>
-        <h2 className="callout-title">Need a photo partner who can scale with your pipeline?</h2>
-        <p className="section-subtitle">
-          We work with teams managing multi-property portfolios and fast-paced leasing cycles.
-        </p>
-        <Link className="btn btn-primary" href="/contact">
-          Schedule a consult
-        </Link>
-      </section>
+      <h1 className="font-display text-4xl text-black">Crafted for modern brands.</h1>
+      <p className="mt-4 text-base text-black/70">
+        Bright Line is a commercial photography studio delivering imagery for
+        hospitality, real estate, retail, and fashion teams that demand clarity
+        and quiet luxury. We collaborate on creative direction, shot lists, and
+        post-production to keep every channel cohesive.
+      </p>
+      <h2 className="mt-10 font-display text-2xl text-black">
+        A focused, efficient workflow.
+      </h2>
+      <p className="mt-3 text-base text-black/70">
+        From pre-production to final delivery, we optimize each shoot for
+        timeline, budget, and usage needs. Our team works across New York, Miami,
+        and destination locations to build visual systems that last.
+      </p>
     </div>
   );
 }

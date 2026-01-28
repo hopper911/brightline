@@ -1,35 +1,19 @@
 import { NextResponse } from "next/server";
-import { prisma } from "../../lib/prisma";
+import { assertServerEnv } from "@/lib/env";
+import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
+import {
+  createContactMessage,
+  normalizeContactPayload,
+  notifyContact,
+  validateContactPayload,
+} from "@/lib/services/contact";
 
-const WINDOW_MS = 60_000;
-const MAX_REQUESTS = 5;
-
-const rateLimit = new Map<string, { count: number; resetAt: number }>();
-
-function getClientIp(req: Request) {
-  const forwardedFor = req.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0].trim();
-  }
-  return "unknown";
-}
-
-function isRateLimited(key: string) {
-  const now = Date.now();
-  const entry = rateLimit.get(key);
-  if (!entry || now > entry.resetAt) {
-    rateLimit.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  if (entry.count >= MAX_REQUESTS) {
-    return true;
-  }
-  entry.count += 1;
-  return false;
-}
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    assertServerEnv();
+
     if (isRateLimited(getClientIp(req))) {
       return NextResponse.json(
         { ok: false, error: "Too many requests." },
@@ -37,52 +21,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json();
-    const name = typeof body?.name === "string" ? body.name.trim() : "";
-    const email = typeof body?.email === "string" ? body.email.trim() : "";
-    const message = typeof body?.message === "string" ? body.message.trim() : "";
-    const honeypot = typeof body?.company === "string" ? body.company.trim() : "";
+    const payload = normalizeContactPayload(await req.json());
+    const validation = validateContactPayload(payload);
 
-    if (honeypot) {
-      return NextResponse.json({ ok: true });
-    }
-
-    if (!name || !email || !message) {
+    if (!validation.ok) {
       return NextResponse.json(
-        { ok: false, error: "Missing required fields." },
+        { ok: false, error: validation.error },
         { status: 400 }
       );
     }
 
-    await prisma.contactMessage.create({
-      data: { name, email, message },
-    });
-
-    const adminEmail = process.env.CONTACT_NOTIFY_EMAIL;
-    const resendKey = process.env.RESEND_API_KEY;
-    if (adminEmail && resendKey) {
-      const subject = `New inquiry from ${name}`;
-      const content = [
-        `Name: ${name}`,
-        `Email: ${email}`,
-        "",
-        message,
-      ].join("\n");
-
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "Bright Line <no-reply@brightlinephotography.co>",
-          to: [adminEmail],
-          subject,
-          text: content,
-        }),
-      });
+    if (validation.silent) {
+      return NextResponse.json({ ok: true });
     }
+
+    await createContactMessage(payload);
+    await notifyContact(payload);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

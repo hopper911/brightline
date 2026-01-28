@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model ContactMessage {
@@ -13,4 +14,50 @@ model ContactMessage {
   email     String
   message   String
   createdAt DateTime @default(now())
+}
+
+model PortfolioProject {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  category     String
+  categorySlug String
+  categoryId   String?
+  location     String?
+  year         String?
+  description  String?
+  coverUrl     String?
+  coverAlt     String?
+  seoTitle     String?
+  seoDescription String?
+  ogImageUrl   String?
+  published    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  categoryRef  PortfolioCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  images       PortfolioImage[]
+}
+
+model PortfolioCategory {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects  PortfolioProject[]
+}
+
+model PortfolioImage {
+  id        String   @id @default(cuid())
+  projectId String
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  project   PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
 }

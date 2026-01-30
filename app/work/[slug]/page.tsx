@@ -14,12 +14,13 @@ export function generateStaticParams() {
   return getProjects().map((item) => ({ slug: item.slug }));
 }
 
-export function generateMetadata({
+export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
-}): Metadata {
-  const project = getProjectBySlug(params.slug);
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const project = getProjectBySlug(slug);
   if (!project) {
     return {
       title: "Project · Bright Line Photography",
@@ -28,7 +29,7 @@ export function generateMetadata({
   }
 
   const title = `${project.title} · Bright Line Photography`;
-  const description = project.description || `${project.category} photography for ${project.title}. ${project.location}, ${project.year}.`;
+  const description = project.overview || `${project.category} photography for ${project.title}. ${project.location}, ${project.year}.`;
 
   return {
     title,
@@ -54,9 +55,10 @@ export function generateMetadata({
 export default async function WorkDetailPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const project = getProjectBySlug(params.slug);
+  const { slug } = await params;
+  const project = getProjectBySlug(slug);
   if (!project) {
     notFound();
   }

@@ -8,14 +8,15 @@ export const metadata = {
   },
 };
 
-export default function ClientGalleryPage({
+export default async function ClientGalleryPage({
   params,
 }: {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }) {
+  const { token } = await params;
   return (
     <div className="mx-auto max-w-6xl px-4 py-16">
-      <ClientGalleryView token={params.token} />
+      <ClientGalleryView token={token} />
     </div>
   );
 }

@@ -2,9 +2,8 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    root: __dirname,
-  },
+  // Disable Turbopack for builds due to ESM compatibility issues with framer-motion
+  // Turbopack is still used in development (next dev --turbopack)
   productionBrowserSourceMaps: true,
   images: {
     remotePatterns: [

@@ -1,7 +1,8 @@
 import { getPublicUrl, getSignedUploadUrl } from "@/lib/storage";
 import { signGet, signPut } from "@/lib/storage-r2";
 
-export type ImageMode = "marketing" | "client";
+// Re-export client-safe utilities for backward compatibility
+export { type ImageMode, getImageModeForUrl } from "@/lib/image-utils";
 
 export const MARKETING_CACHE_CONTROL = "public, max-age=31536000, immutable";
 export const CLIENT_CACHE_CONTROL = "private, max-age=300";
@@ -65,13 +66,4 @@ export function assertClientImage(storageKey?: string | null) {
   if (!storageKey) {
     throw new Error("Private image is missing a storageKey.");
   }
-}
-
-export function getImageModeForUrl(url: string): ImageMode {
-  if (!url) return "marketing";
-  const lowered = url.toLowerCase();
-  if (lowered.includes("x-amz-signature") || lowered.includes("x-amz-expires")) {
-    return "client";
-  }
-  return "marketing";
 }

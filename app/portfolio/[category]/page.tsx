@@ -8,15 +8,16 @@ import { getPublishedPortfolio } from "@/lib/portfolio";
 export async function generateMetadata({
   params,
 }: {
-  params: { category: string };
+  params: Promise<{ category: string }>;
 }): Promise<Metadata> {
+  const { category } = await params;
   const session = await getAdminSession();
   const includeDrafts = Boolean(session);
   const items = await getPublishedPortfolio({ includeDrafts });
   const categories = Array.from(
     new Map(items.map((item) => [item.categorySlug, item.category])).entries()
   );
-  const categoryLabel = categories.find(([slug]) => slug === params.category)?.[1];
+  const categoryLabel = categories.find(([slug]) => slug === category)?.[1];
   const label = categoryLabel ?? "Portfolio";
   const description = `View ${label.toLowerCase()} photography projects and case studies from Bright Line Photography.`;
 
@@ -24,12 +25,12 @@ export async function generateMetadata({
     title: `${label} · Bright Line Photography`,
     description,
     alternates: {
-      canonical: `/portfolio/${params.category}`,
+      canonical: `/portfolio/${category}`,
     },
     openGraph: {
       title: `${label} · Bright Line Photography`,
       description,
-      url: `/portfolio/${params.category}`,
+      url: `/portfolio/${category}`,
       images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: `${label} Photography` }],
     },
     twitter: {
@@ -44,21 +45,22 @@ export async function generateMetadata({
 export default async function PortfolioCategoryPage({
   params,
 }: {
-  params: { category: string };
+  params: Promise<{ category: string }>;
 }) {
+  const { category } = await params;
   const session = await getAdminSession();
   const includeDrafts = Boolean(session);
   const items = await getPublishedPortfolio({ includeDrafts });
   const categories = Array.from(
     new Map(items.map((item) => [item.categorySlug, item.category])).entries()
   );
-  const rawCategory = typeof params.category === "string" ? params.category : "";
+  const rawCategory = typeof category === "string" ? category : "";
   const categoryLabel =
     categories.find(([slug]) => slug === rawCategory)?.[1] ??
     (rawCategory ? rawCategory.replace(/-/g, " ") : "Portfolio");
 
   const categoryItems = items.filter(
-    (item) => item.categorySlug === params.category
+    (item) => item.categorySlug === category
   );
 
   return (

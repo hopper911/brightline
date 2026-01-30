@@ -26,16 +26,19 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Create demo client
-    const client = await prisma.client.upsert({
+    // Create or find demo client (email is not unique in schema)
+    let client = await prisma.client.findFirst({
       where: { email: "demo@example.com" },
-      update: {},
-      create: {
-        name: "Demo Client",
-        email: "demo@example.com",
-        company: "Demo Company",
-      },
     });
+    if (!client) {
+      client = await prisma.client.create({
+        data: {
+          name: "Demo Client",
+          email: "demo@example.com",
+          company: "Demo Company",
+        },
+      });
+    }
 
     // Create demo project
     const project = await prisma.project.upsert({

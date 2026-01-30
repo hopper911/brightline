@@ -14,13 +14,14 @@ const BLUR_DATA =
 export async function generateMetadata({
   params,
 }: {
-  params: { category: string; slug: string };
+  params: Promise<{ category: string; slug: string }>;
 }): Promise<Metadata> {
+  const { category, slug } = await params;
   const session = await getAdminSession();
   const includeDrafts = Boolean(session);
   const work =
-    (await getPortfolioByCategoryAndSlug(params.category, params.slug, { includeDrafts })) ??
-    (await getPortfolioBySlug(params.slug, { includeDrafts }));
+    (await getPortfolioByCategoryAndSlug(category, slug, { includeDrafts })) ??
+    (await getPortfolioBySlug(slug, { includeDrafts }));
   if (!work) {
     return {
       title: "Case Study · Bright Line Photography",
@@ -30,7 +31,7 @@ export async function generateMetadata({
 
   const title = work.seoTitle || `${work.title} · Bright Line Photography`;
   const description = work.seoDescription || work.description || `${work.category} photography case study.`;
-  const canonicalUrl = `/portfolio/${params.category}/${params.slug}`;
+  const canonicalUrl = `/portfolio/${category}/${slug}`;
   
   // Use custom OG image, cover image, or dynamic OG
   const ogImageUrl = work.ogImageUrl || work.cover || 
@@ -60,13 +61,14 @@ export async function generateMetadata({
 export default async function PortfolioProjectPage({
   params,
 }: {
-  params: { category: string; slug: string };
+  params: Promise<{ category: string; slug: string }>;
 }) {
+  const { category, slug } = await params;
   const session = await getAdminSession();
   const includeDrafts = Boolean(session);
   const work =
-    (await getPortfolioByCategoryAndSlug(params.category, params.slug, { includeDrafts })) ??
-    (await getPortfolioBySlug(params.slug, { includeDrafts }));
+    (await getPortfolioByCategoryAndSlug(category, slug, { includeDrafts })) ??
+    (await getPortfolioBySlug(slug, { includeDrafts }));
   if (!work) {
     redirect("/portfolio");
   }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
 type LeadDetail = {
   id: string;
@@ -30,15 +31,18 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleDateString();
 }
 
-export default function AdminLeadDetailPage({ params }: { params: { id: string } }) {
+export default function AdminLeadDetailPage() {
+  const params = useParams();
+  const id = params?.id as string;
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "error" | "saved">("idle");
 
   useEffect(() => {
+    if (!id) return;
     let active = true;
     async function load() {
-      const res = await fetch(`/api/admin/leads/${params.id}`);
+      const res = await fetch(`/api/admin/leads/${id}`);
       if (!res.ok || !active) return;
       const data = (await res.json()) as { lead: LeadDetail };
       setLead(data.lead);
@@ -48,7 +52,7 @@ export default function AdminLeadDetailPage({ params }: { params: { id: string }
     return () => {
       active = false;
     };
-  }, [params.id]);
+  }, [id]);
 
   const dateRange = useMemo(() => {
     if (!lead) return "";

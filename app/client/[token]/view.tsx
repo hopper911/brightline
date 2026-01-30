@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState, useCallback } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { getImageModeForUrl } from "@/lib/image-strategy";
+import { getImageModeForUrl } from "@/lib/image-utils";
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";

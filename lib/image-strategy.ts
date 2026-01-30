@@ -43,14 +43,17 @@ export function getClientUploadUrl({
 export function getClientDownloadUrl({
   key,
   expiresIn = CLIENT_URL_TTL,
+  disposition,
 }: {
   key: string;
   expiresIn?: number;
+  disposition?: string;
 }) {
   return signGet({
     key,
     expiresIn,
     responseCacheControl: CLIENT_CACHE_CONTROL,
+    responseContentDisposition: disposition,
   });
 }
 

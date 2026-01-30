@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import MagneticButton from "./MagneticButton";
 import PrimaryCTA from "./PrimaryCTA";
+import { BRAND } from "@/lib/config/brand";
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
@@ -61,9 +62,9 @@ export default function HomeHero() {
             transition={{ duration: 0.55, ease: "easeOut", delay: 0.45 }}
             className="flex items-center gap-6 text-xs uppercase tracking-[0.32em] text-black/50"
           >
-            <span>Miami</span>
-            <span>New York</span>
-            <span>Available Worldwide</span>
+            {BRAND.contact.locations.map((location) => (
+              <span key={location}>{location}</span>
+            ))}
           </motion.div>
         </div>
         <motion.div

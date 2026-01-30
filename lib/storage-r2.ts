@@ -56,10 +56,12 @@ export async function signGet({
   key,
   expiresIn = DEFAULT_EXPIRES,
   responseCacheControl = "private, max-age=0, no-store",
+  responseContentDisposition,
 }: {
   key: string;
   expiresIn?: number;
   responseCacheControl?: string;
+  responseContentDisposition?: string;
 }) {
   const client = getR2Client();
   const bucket = getBucket();
@@ -68,6 +70,7 @@ export async function signGet({
     Bucket: bucket,
     Key: key,
     ResponseCacheControl: responseCacheControl,
+    ResponseContentDisposition: responseContentDisposition,
   });
 
   const url = await getSignedUrl(client, command, { expiresIn });

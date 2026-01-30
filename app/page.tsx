@@ -4,6 +4,8 @@ import HomeHero from "@/components/HomeHero";
 import Reveal from "@/components/Reveal";
 import PortfolioCard from "@/components/PortfolioCard";
 import PrimaryCTA from "@/components/PrimaryCTA";
+import { BRAND, getUrl } from "@/lib/config/brand";
+import { CREDIBILITY } from "@/lib/config/credibility";
 
 export const metadata = {
   title: "Commercial Photography | Bright Line Photography",
@@ -39,9 +41,9 @@ export const metadata = {
 const localBusinessSchema = {
   "@context": "https://schema.org",
   "@type": ["ProfessionalService", "LocalBusiness"],
-  name: "Bright Line Photography",
-  url: "https://brightlinephotography.co",
-  image: "https://brightlinephotography.co/og-image.svg",
+  name: BRAND.name,
+  url: BRAND.url,
+  image: getUrl(BRAND.metadata.ogImage),
   areaServed: "United States",
   address: {
     "@type": "PostalAddress",
@@ -49,7 +51,7 @@ const localBusinessSchema = {
     addressRegion: "NY",
     addressCountry: "US",
   },
-  sameAs: [],
+  sameAs: Object.values(BRAND.social).filter(Boolean),
   serviceType: [
     "Commercial Photography",
     "Hospitality Photography",
@@ -354,8 +356,8 @@ export default function Page() {
                 </p>
                 {index === 0 && (
                   <div className="mt-6 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-black/50">
-                    <span>5/5 Client Satisfaction</span>
-                    <span>28 Brands Served</span>
+                    <span>{CREDIBILITY.stats[1].value} {CREDIBILITY.stats[1].label}</span>
+                    <span>{CREDIBILITY.stats[0].value} {CREDIBILITY.stats[0].label}</span>
                   </div>
                 )}
               </div>

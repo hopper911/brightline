@@ -8,20 +8,22 @@ import { createLead, notifyLead } from "@/lib/services/contact";
 export const runtime = "nodejs";
 
 const baseSchema = z.object({
-  type: z.enum(["inquiry", "availability"]),
   name: z.string().min(2, "Please include your name."),
   email: z.string().email("Please use a valid email."),
   company: z.string().optional(),
   service: z.string().optional(),
   budget: z.string().optional(),
   turnstileToken: z.string().min(1, "Spam check required."),
+  website: z.string().optional(), // honeypot field
 });
 
 const inquirySchema = baseSchema.extend({
+  type: z.literal("inquiry"),
   message: z.string().min(5, "Please include a short message.").max(2000),
 });
 
 const availabilitySchema = baseSchema.extend({
+  type: z.literal("availability"),
   availabilityStart: z.string().min(1, "Please include a start date."),
   availabilityEnd: z.string().min(1, "Please include an end date."),
   location: z.string().min(2, "Please include a location."),
@@ -80,6 +82,15 @@ export async function POST(req: Request) {
     }
 
     const payload = parsed.data;
+    
+    // Honeypot check (server-side)
+    if (payload.website) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid submission." },
+        { status: 400 }
+      );
+    }
+    
     const isValid = await verifyTurnstile(payload.turnstileToken);
     if (!isValid) {
       return NextResponse.json(

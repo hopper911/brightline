@@ -18,10 +18,26 @@ export async function generateMetadata({
   );
   const categoryLabel = categories.find(([slug]) => slug === params.category)?.[1];
   const label = categoryLabel ?? "Portfolio";
+  const description = `View ${label.toLowerCase()} photography projects and case studies from Bright Line Photography.`;
 
   return {
-    title: `${label} | Bright Line Photography`,
-    description: `View ${label.toLowerCase()} photography projects and case studies.`,
+    title: `${label} · Bright Line Photography`,
+    description,
+    alternates: {
+      canonical: `/portfolio/${params.category}`,
+    },
+    openGraph: {
+      title: `${label} · Bright Line Photography`,
+      description,
+      url: `/portfolio/${params.category}`,
+      images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: `${label} Photography` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${label} · Bright Line Photography`,
+      description,
+      images: ["/og-image.svg"],
+    },
   };
 }
 

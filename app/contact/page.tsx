@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import Script from "next/script";
-import PrimaryCTA from "@/components/PrimaryCTA";
 import { useSearchParams } from "next/navigation";
+import { trackContactSubmit } from "@/lib/analytics";
 
 const initialState = {
   type: "inquiry" as "inquiry" | "availability",
@@ -131,6 +131,9 @@ export default function ContactPage() {
       }));
       setStatus("sent");
       setTurnstileToken("");
+      
+      // Track successful submission
+      trackContactSubmit({ type: form.type, service: form.service });
 
       Sentry.addBreadcrumb({
         category: "contact",
@@ -157,22 +160,21 @@ export default function ContactPage() {
       />
       <section className="border-t border-white/10">
         <div className="mx-auto max-w-6xl px-4 py-14">
-          <p className="text-xs uppercase tracking-[0.35em] text-white/50">
-            Get in touch
-          </p>
-          <h1 className="section-title mt-2">Contact</h1>
-          <p className="section-subtitle mt-2 max-w-xl">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-wide">
+            Contact
+          </h1>
+          <p className="mt-2 text-sm opacity-80">
             Share your project details and timeline. We reply within 24 hours with
             availability and a tailored scope.
           </p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-20">
-        <div className="grid gap-10 md:grid-cols-[1.1fr_0.9fr] md:gap-12">
+      <section className="mx-auto max-w-6xl px-4 pb-16">
+        <div className="grid gap-8 md:grid-cols-[1.1fr_0.9fr]">
           <form
             onSubmit={handleSubmit}
-            className="rounded-[28px] border border-white/10 bg-black/40 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.2)] md:p-8"
+            className="rounded border border-white/10 bg-black/40 p-6"
             aria-describedby="contact-status"
           >
             <div className="flex flex-wrap gap-2">
@@ -202,188 +204,166 @@ export default function ContactPage() {
               </button>
             </div>
 
-            <div className="mt-6 space-y-6">
-              <div>
-                <label className="block text-xs uppercase tracking-[0.28em] text-white/60" htmlFor="name">
-                  Name
-                </label>
-                <input
-                  className="mt-2 w-full rounded-xl border border-white/20 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/40 transition-colors focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  id="name"
-                  name="name"
-                  aria-invalid={status === "error"}
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Your name"
-                  required
-                />
-              </div>
+            <label className="text-xs uppercase tracking-widest opacity-70" htmlFor="name">
+              Name
+            </label>
+            <input
+              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              id="name"
+              name="name"
+              aria-invalid={status === "error"}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Your name"
+              required
+            />
 
-              <div>
-                <label className="block text-xs uppercase tracking-[0.28em] text-white/60" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  className="mt-2 w-full rounded-xl border border-white/20 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/40 transition-colors focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  id="email"
-                  name="email"
-                  type="email"
-                  aria-invalid={status === "error"}
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="you@company.com"
-                  required
-                />
-              </div>
+            <label className="mt-4 block text-xs uppercase tracking-widest opacity-70" htmlFor="email">
+              Email
+            </label>
+            <input
+              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              id="email"
+              name="email"
+              type="email"
+              aria-invalid={status === "error"}
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="you@company.com"
+              required
+            />
 
-              <div>
-                <label className="block text-xs uppercase tracking-[0.28em] text-white/60" htmlFor="company">
-                  Company (optional)
-                </label>
-                <input
-                  className="mt-2 w-full rounded-xl border border-white/20 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/40 transition-colors focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  id="company"
-                  name="company"
-                  aria-invalid={status === "error"}
-                  value={form.company}
-                  onChange={(e) => setForm({ ...form, company: e.target.value })}
-                  placeholder="Company or brand"
-                />
-              </div>
+            <label className="mt-4 block text-xs uppercase tracking-widest opacity-70" htmlFor="company">
+              Company (optional)
+            </label>
+            <input
+              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              id="company"
+              name="company"
+              aria-invalid={status === "error"}
+              value={form.company}
+              onChange={(e) => setForm({ ...form, company: e.target.value })}
+              placeholder="Company or brand"
+            />
 
-              <div>
-                <label className="block text-xs uppercase tracking-[0.28em] text-white/60" htmlFor="service">
-                  Service
-                </label>
-                <select
-                  className="mt-2 w-full rounded-xl border border-white/20 bg-black/60 px-4 py-3 text-sm text-white transition-colors focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 [&>option]:bg-[#0b0e12]"
-                  id="service"
-                  name="service"
-                  value={form.service}
-                  onChange={(e) => setForm({ ...form, service: e.target.value })}
-                >
-                  {serviceOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            <label className="mt-4 block text-xs uppercase tracking-widest opacity-70" htmlFor="service">
+              Service
+            </label>
+            <select
+              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              id="service"
+              name="service"
+              value={form.service}
+              onChange={(e) => setForm({ ...form, service: e.target.value })}
+            >
+              {serviceOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
 
             {form.type === "availability" && (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs uppercase tracking-[0.28em] text-white/60">
-                    Date range
-                  </label>
-                  <div className="mt-2 grid gap-3 md:grid-cols-2">
-                    <input
-                      className="w-full rounded-xl border border-white/20 bg-black/60 px-4 py-3 text-sm text-white transition-colors focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
-                      id="availabilityStart"
-                      name="availabilityStart"
-                      type="date"
-                      aria-invalid={status === "error"}
-                      value={form.availabilityStart}
-                      onChange={(e) =>
-                        setForm({ ...form, availabilityStart: e.target.value })
-                      }
-                      required
-                    />
-                    <input
-                      className="w-full rounded-xl border border-white/20 bg-black/60 px-4 py-3 text-sm text-white transition-colors focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
-                      id="availabilityEnd"
-                      name="availabilityEnd"
-                      type="date"
-                      aria-invalid={status === "error"}
-                      value={form.availabilityEnd}
-                      onChange={(e) =>
-                        setForm({ ...form, availabilityEnd: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs uppercase tracking-[0.28em] text-white/60" htmlFor="location">
-                    Location
-                  </label>
+              <>
+                <label className="mt-4 block text-xs uppercase tracking-widest opacity-70">
+                  Date range
+                </label>
+                <div className="mt-2 grid gap-3 md:grid-cols-2">
                   <input
-                    className="mt-2 w-full rounded-xl border border-white/20 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/40 transition-colors focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
-                    id="location"
-                    name="location"
+                    className="w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+                    id="availabilityStart"
+                    name="availabilityStart"
+                    type="date"
                     aria-invalid={status === "error"}
-                    value={form.location}
-                    onChange={(e) => setForm({ ...form, location: e.target.value })}
-                    placeholder="City, state"
+                    value={form.availabilityStart}
+                    onChange={(e) =>
+                      setForm({ ...form, availabilityStart: e.target.value })
+                    }
+                    required
+                  />
+                  <input
+                    className="w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+                    id="availabilityEnd"
+                    name="availabilityEnd"
+                    type="date"
+                    aria-invalid={status === "error"}
+                    value={form.availabilityEnd}
+                    onChange={(e) =>
+                      setForm({ ...form, availabilityEnd: e.target.value })
+                    }
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs uppercase tracking-[0.28em] text-white/60" htmlFor="shootType">
-                    Shoot type
-                  </label>
-                  <select
-                    className="mt-2 w-full rounded-xl border border-white/20 bg-black/60 px-4 py-3 text-sm text-white transition-colors focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 [&>option]:bg-[#0b0e12]"
-                    id="shootType"
-                    name="shootType"
-                    value={form.shootType}
-                    onChange={(e) => setForm({ ...form, shootType: e.target.value })}
-                    required
-                  >
-                    {shootTypeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
+                <label className="mt-4 block text-xs uppercase tracking-widest opacity-70" htmlFor="location">
+                  Location
+                </label>
+                <input
+                  className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+                  id="location"
+                  name="location"
+                  aria-invalid={status === "error"}
+                  value={form.location}
+                  onChange={(e) => setForm({ ...form, location: e.target.value })}
+                  placeholder="City, state"
+                  required
+                />
 
-            <div className="mt-6 space-y-6">
-              <div>
-                <label className="block text-xs uppercase tracking-[0.28em] text-white/60" htmlFor="budget">
-                  Budget range
+                <label className="mt-4 block text-xs uppercase tracking-widest opacity-70" htmlFor="shootType">
+                  Shoot type
                 </label>
                 <select
-                  className="mt-2 w-full rounded-xl border border-white/20 bg-black/60 px-4 py-3 text-sm text-white transition-colors focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 [&>option]:bg-[#0b0e12]"
-                  id="budget"
-                  name="budget"
-                  value={form.budget}
-                  onChange={(e) => setForm({ ...form, budget: e.target.value })}
+                  className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+                  id="shootType"
+                  name="shootType"
+                  value={form.shootType}
+                  onChange={(e) => setForm({ ...form, shootType: e.target.value })}
+                  required
                 >
-                  {budgetOptions.map((option) => (
+                  {shootTypeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
                 </select>
-              </div>
+              </>
+            )}
 
-              <div>
-                <label className="block text-xs uppercase tracking-[0.28em] text-white/60" htmlFor="message">
-                  {form.type === "availability" ? "Additional details (optional)" : "Project details"}
-                </label>
-                <textarea
-                  className="mt-2 w-full rounded-xl border border-white/20 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/40 transition-colors focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 resize-none"
-                  id="message"
-                  name="message"
-                  rows={5}
-                  aria-invalid={status === "error"}
-                  value={form.message}
-                  onChange={(e) => setForm({ ...form, message: e.target.value })}
-                  placeholder="Location, number of spaces, target launch date"
-                  required={form.type === "inquiry"}
-                />
-              </div>
-            </div>
+            <label className="mt-4 block text-xs uppercase tracking-widest opacity-70" htmlFor="budget">
+              Budget range
+            </label>
+            <select
+              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              id="budget"
+              name="budget"
+              value={form.budget}
+              onChange={(e) => setForm({ ...form, budget: e.target.value })}
+            >
+              {budgetOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <label className="mt-4 block text-xs uppercase tracking-widest opacity-70" htmlFor="message">
+              {form.type === "availability" ? "Additional details (optional)" : "Project details"}
+            </label>
+            <textarea
+              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              id="message"
+              name="message"
+              rows={5}
+              aria-invalid={status === "error"}
+              value={form.message}
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
+              placeholder="Location, number of spaces, target launch date"
+              required={form.type === "inquiry"}
+            />
 
             <button
               type="submit"
-              className="btn btn-light mt-8 w-full md:w-auto"
+              className="hover-border mt-6 inline-flex items-center justify-center rounded border border-white/25 px-6 py-3 text-xs uppercase tracking-widest hover:border-white/50"
               disabled={status === "sending" || !turnstileToken}
             >
               {status === "sending" ? "Sending..." : "Send inquiry"}
@@ -417,27 +397,20 @@ export default function ContactPage() {
             </div>
           </form>
 
-          <div className="rounded-[28px] border border-white/10 bg-black/40 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.2)] md:p-8">
-            <p className="text-xs uppercase tracking-[0.28em] text-white/60">Studio contact</p>
-            <h2 className="font-display mt-4 text-xl md:text-2xl text-white tracking-wide">
-              Let’s talk details.
-            </h2>
-            <p className="mt-3 text-sm text-white/70">
+          <div className="rounded border border-white/10 bg-black/40 p-6">
+            <p className="text-xs uppercase tracking-widest opacity-70">Studio contact</p>
+            <h2 className="mt-4 text-xl font-semibold tracking-wide">Let’s talk details.</h2>
+            <p className="mt-2 text-sm opacity-80">
               Email or call to discuss timelines, scope, and usage needs.
             </p>
-            <a
-              href="mailto:hello@brightlinephotography.co"
-              className="mt-5 block text-sm text-white/90 hover:text-white transition-colors"
+            <p className="mt-4 text-sm">hello@brightlinephotography.co</p>
+            <p className="text-sm">+1 (212) 555-0139</p>
+            <Link
+              className="hover-border mt-6 inline-flex items-center justify-center rounded border border-white/25 px-6 py-3 text-xs uppercase tracking-widest hover:border-white/50"
+              href="/portfolio"
             >
-              hello@brightlinephotography.co
-            </a>
-            <p className="mt-1 text-sm text-white/70">+1 (212) 555-0139</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <PrimaryCTA service="general" className="btn btn-light" />
-              <Link href="/portfolio" className="btn btn-outline-light">
-                View portfolio
-              </Link>
-            </div>
+              View portfolio
+            </Link>
           </div>
         </div>
       </section>

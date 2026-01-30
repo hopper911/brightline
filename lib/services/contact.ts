@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { BRAND } from "@/lib/config/brand";
 
 export type LeadPayload = {
   type: "inquiry" | "availability";
@@ -70,7 +71,7 @@ function formatDate(date?: Date) {
 export async function notifyLead(payload: LeadPayload) {
   const adminEmail = process.env.CONTACT_NOTIFY_EMAIL;
   const resendKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM || "Bright Line <no-reply@brightlinephotography.co>";
+  const from = process.env.RESEND_FROM || BRAND.notifications.from;
   if (!adminEmail || !resendKey) return;
 
   const subject =

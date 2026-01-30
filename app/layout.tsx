@@ -4,6 +4,8 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Providers from "./providers";
 import PageTransition from "../components/PageTransition";
+import Analytics from "../components/Analytics";
+import { BRAND } from "@/lib/config/brand";
 import "./globals.css";
 
 const inter = Inter({
@@ -18,31 +20,29 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://brightlinephotography.co"),
-  title: "Bright Line Photography",
-  description: "Commercial photography for hospitality, real estate, and fashion brands.",
+  metadataBase: new URL(BRAND.url),
+  title: BRAND.name,
+  description: BRAND.metadata.description,
   openGraph: {
-    title: "Bright Line Photography",
-    description:
-      "Commercial photography for hospitality, real estate, and fashion brands.",
+    title: BRAND.name,
+    description: BRAND.metadata.description,
     url: "/",
-    siteName: "Bright Line Photography",
+    siteName: BRAND.name,
     images: [
       {
-        url: "/og-image.svg",
+        url: BRAND.metadata.ogImage,
         width: 1200,
         height: 630,
-        alt: "Bright Line Photography",
+        alt: BRAND.name,
       },
     ],
     type: "website",
   },
   twitter: {
-    card: "summary_large_image",
-    title: "Bright Line Photography",
-    description:
-      "Commercial photography for hospitality, real estate, and fashion brands.",
-    images: ["/og-image.svg"],
+    card: BRAND.metadata.twitterCard,
+    title: BRAND.name,
+    description: BRAND.metadata.description,
+    images: [BRAND.metadata.ogImage],
   },
 };
 
@@ -59,6 +59,7 @@ export default function RootLayout({
           <PageTransition>{children}</PageTransition>
           <Footer />
         </Providers>
+        <Analytics />
       </body>
     </html>
   );

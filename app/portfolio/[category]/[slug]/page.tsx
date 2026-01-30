@@ -23,19 +23,37 @@ export async function generateMetadata({
     (await getPortfolioBySlug(params.slug, { includeDrafts }));
   if (!work) {
     return {
-      title: "Case Study | Bright Line Photography",
+      title: "Case Study · Bright Line Photography",
       description: "Commercial photography case study.",
     };
   }
 
+  const title = work.seoTitle || `${work.title} · Bright Line Photography`;
+  const description = work.seoDescription || work.description || `${work.category} photography case study.`;
+  const canonicalUrl = `/portfolio/${params.category}/${params.slug}`;
+  
+  // Use custom OG image, cover image, or dynamic OG
+  const ogImageUrl = work.ogImageUrl || work.cover || 
+    `/api/og?title=${encodeURIComponent(work.title)}&subtitle=${encodeURIComponent(`${work.location} · ${work.year}`)}&category=${encodeURIComponent(work.category)}`;
+
   return {
-    title: work.seoTitle || `${work.title} | Bright Line Photography`,
-    description: work.seoDescription || work.description,
-    openGraph: work.ogImageUrl
-      ? {
-          images: [{ url: work.ogImageUrl }],
-        }
-      : undefined,
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: work.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImageUrl],
+    },
   };
 }
 
@@ -198,7 +216,15 @@ export default async function PortfolioProjectPage({
               <p className="mt-3 text-sm text-white/70">
                 Share timeline, scope, and usage needs and we’ll craft a tailored proposal.
               </p>
-              <PrimaryCTA service={work.categorySlug} className="btn btn-solid mt-6" />
+              <div className="mt-6 flex flex-wrap gap-3">
+                <PrimaryCTA service={work.categorySlug} className="btn btn-solid" location="case-study" />
+                <Link
+                  href={`/services/${work.categorySlug === "hospitality" ? "hospitality-photography" : work.categorySlug === "commercial-real-estate" ? "commercial-real-estate-photography" : "fashion-campaign-photography"}`}
+                  className="btn btn-ghost text-white/80 hover:text-white"
+                >
+                  View services
+                </Link>
+              </div>
             </div>
           </Reveal>
         </div>
@@ -217,22 +243,6 @@ export default async function PortfolioProjectPage({
               </li>
             ))}
           </ul>
-            {work.stats.length > 0 && (
-              <>
-                <div className="divider my-6" />
-                <p className="section-kicker">Results</p>
-                <ul className="mt-4 space-y-4">
-                  {work.stats.map((stat) => (
-                    <li key={stat.label}>
-                      <p className="text-xs uppercase tracking-[0.3em] text-black/50">
-                        {stat.label}
-                      </p>
-                      <p className="text-lg text-black">{stat.value}</p>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
           </aside>
         </Reveal>
       </div>

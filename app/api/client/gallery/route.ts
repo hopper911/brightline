@@ -5,6 +5,14 @@ import { getClientDownloadUrl, assertClientImage } from "@/lib/image-strategy";
 
 export const runtime = "nodejs";
 
+function getClientIp(req: Request): string | null {
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { token?: string };
@@ -27,6 +35,7 @@ export async function POST(req: Request) {
             project: true,
           },
         },
+        favorites: true,
       },
     });
 
@@ -44,7 +53,22 @@ export async function POST(req: Request) {
       );
     }
 
+    // Log gallery view
+    try {
+      await prisma.galleryAccessLog.create({
+        data: {
+          tokenId: access.id,
+          action: "view",
+          ip: getClientIp(req),
+          userAgent: req.headers.get("user-agent"),
+        },
+      });
+    } catch (logError) {
+      console.error("Failed to log gallery access:", logError);
+    }
+
     const { gallery } = access;
+    const favoriteImageIds = new Set(access.favorites.map((f) => f.imageId));
 
     let missingPrivate = 0;
     const images = await Promise.all(
@@ -61,8 +85,10 @@ export async function POST(req: Request) {
           id: image.id,
           url: signed.url,
           alt: image.alt,
+          filename: image.filename,
           sortOrder: image.sortOrder,
           storageKey: image.storageKey,
+          isFavorite: favoriteImageIds.has(image.id),
         };
       })
     );
@@ -85,11 +111,15 @@ export async function POST(req: Request) {
         title: gallery.title,
         slug: gallery.slug,
         description: gallery.description,
+        clientNotes: gallery.clientNotes,
         coverUrl: gallery.coverUrl,
         clientName: gallery.client?.name ?? null,
         projectTitle: gallery.project?.title ?? null,
         images: images.filter(Boolean),
+        allowDownload: access.allowDownload,
+        expiresAt: access.expiresAt?.toISOString() ?? null,
       },
+      tokenId: access.id,
     });
   } catch (error) {
     Sentry.captureException(error);

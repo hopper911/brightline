@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">(
@@ -39,37 +39,45 @@ export default function AdminLoginPage() {
   }
 
   return (
+    <form onSubmit={onSubmit} className="mt-8 space-y-4">
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Email address"
+        className="w-full rounded border border-black/20 bg-white/80 px-4 py-3 text-sm"
+        required
+      />
+      <button
+        type="submit"
+        className="w-full rounded-full bg-black px-6 py-3 text-xs uppercase tracking-[0.32em] text-white"
+        disabled={status === "loading"}
+      >
+        {status === "loading" ? "Checking..." : "Continue"}
+      </button>
+      {message ? (
+        <p
+          className={`text-xs uppercase tracking-[0.3em] ${
+            status === "error" ? "text-red-500" : "text-black/60"
+          }`}
+        >
+          {message}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
       <p className="text-xs uppercase tracking-[0.35em] text-black/50">
         Admin Access
       </p>
       <h1 className="font-display mt-4 text-4xl text-black">Sign in</h1>
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email address"
-          className="w-full rounded border border-black/20 bg-white/80 px-4 py-3 text-sm"
-          required
-        />
-        <button
-          type="submit"
-          className="w-full rounded-full bg-black px-6 py-3 text-xs uppercase tracking-[0.32em] text-white"
-          disabled={status === "loading"}
-        >
-          {status === "loading" ? "Checking..." : "Continue"}
-        </button>
-        {message ? (
-          <p
-            className={`text-xs uppercase tracking-[0.3em] ${
-              status === "error" ? "text-red-500" : "text-black/60"
-            }`}
-          >
-            {message}
-          </p>
-        ) : null}
-      </form>
+      <Suspense fallback={<div className="mt-8 h-24 animate-pulse rounded bg-white/10" />}>
+        <AdminLoginForm />
+      </Suspense>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
@@ -10,10 +11,11 @@ const updateSchema = z.object({
 });
 
 export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
-  const lead = await prisma.lead.findUnique({ where: { id: params.id } });
+  const { id } = await context.params;
+  const lead = await prisma.lead.findUnique({ where: { id } });
 
   if (!lead) {
     return NextResponse.json({ ok: false, error: "Lead not found." }, { status: 404 });
@@ -23,9 +25,10 @@ export async function GET(
 }
 
 export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params;
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
@@ -48,7 +51,7 @@ export async function PATCH(
   }
 
   const lead = await prisma.lead.update({
-    where: { id: params.id },
+    where: { id },
     data: update,
   });
 

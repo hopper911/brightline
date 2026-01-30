@@ -188,6 +188,8 @@ model Gallery {
   slug        String   @unique
   description String?
   coverUrl    String?
+  clientNotes String?  // notes visible to client in gallery view
+  internalNotes String? // admin-only notes
   published   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -206,10 +208,12 @@ model GalleryImage {
   url       String
   alt       String?
   storageKey String?
+  filename  String?  // original filename for downloads
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 
   gallery   Gallery @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  favorites GalleryFavorite[]
 
   @@index([galleryId, sortOrder])
 }
@@ -218,11 +222,59 @@ model GalleryAccessToken {
   id        String   @id @default(cuid())
   galleryId String
   token     String   @unique
+  label     String?  // e.g., "Marketing Team", "Client Review"
   expiresAt DateTime?
+  allowDownload Boolean @default(true)
+  maxDownloads  Int?    // null = unlimited
   createdAt DateTime @default(now())
 
   gallery   Gallery @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  accessLogs GalleryAccessLog[]
+  favorites  GalleryFavorite[]
+  downloads  GalleryDownload[]
+  
   @@index([galleryId])
+}
+
+model GalleryAccessLog {
+  id        String   @id @default(cuid())
+  tokenId   String
+  action    String   // "view", "download", "favorite", "unfavorite"
+  imageId   String?  // null for gallery-level actions
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  token     GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  
+  @@index([tokenId])
+  @@index([createdAt])
+}
+
+model GalleryFavorite {
+  id        String   @id @default(cuid())
+  tokenId   String
+  imageId   String
+  note      String?  // client can add notes to favorites
+  createdAt DateTime @default(now())
+
+  token     GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  image     GalleryImage @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  
+  @@unique([tokenId, imageId])
+  @@index([tokenId])
+}
+
+model GalleryDownload {
+  id        String   @id @default(cuid())
+  tokenId   String
+  imageId   String?  // null for bulk download
+  type      String   @default("single") // "single", "bulk", "favorites"
+  createdAt DateTime @default(now())
+
+  token     GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  
+  @@index([tokenId])
 }
 
 model User {

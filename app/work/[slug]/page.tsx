@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -11,6 +12,43 @@ const BLUR_DATA =
 
 export function generateStaticParams() {
   return getProjects().map((item) => ({ slug: item.slug }));
+}
+
+export function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Metadata {
+  const project = getProjectBySlug(params.slug);
+  if (!project) {
+    return {
+      title: "Project · Bright Line Photography",
+      description: "Commercial photography case study.",
+    };
+  }
+
+  const title = `${project.title} · Bright Line Photography`;
+  const description = project.description || `${project.category} photography for ${project.title}. ${project.location}, ${project.year}.`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/work/${project.slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `/work/${project.slug}`,
+      images: [{ url: project.cover, width: 1200, height: 630, alt: project.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [project.cover],
+    },
+  };
 }
 
 export default async function WorkDetailPage({

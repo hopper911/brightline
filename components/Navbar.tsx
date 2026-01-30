@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 const navLinks = [
   { href: "/#portfolio", label: "Portfolio" },
+  { href: "/work", label: "Work" },
   { href: "/services", label: "Services" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
@@ -49,7 +50,7 @@ export default function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 z-50 border-b border-white/10 transition-transform duration-300 ${
+      className={`sticky top-0 z-50 border-b border-white/10 transition-transform motion-fast ${
         scrolled ? "bg-[#0b0e12]/80 backdrop-blur-md" : "bg-[#0b0e12]/60"
       } ${hidden ? "-translate-y-full" : "translate-y-0"}`}
     >
@@ -68,7 +69,7 @@ export default function Navbar() {
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-8 text-xs uppercase tracking-[0.32em] text-white/70">
           {navLinks.map((l) => (
-            <Link key={l.href} href={l.href} className="hover:text-white">
+            <Link key={l.href} href={l.href} className="nav-link hover:text-white">
               {l.label}
             </Link>
           ))}
@@ -79,7 +80,7 @@ export default function Navbar() {
           aria-label="Open menu"
           aria-expanded={open}
           onClick={() => setOpen(true)}
-          className="md:hidden inline-flex items-center justify-center rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.28em] text-white/80 hover:border-white/40"
+          className="nav-pill md:hidden inline-flex items-center justify-center rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.28em] text-white/80 hover:border-white/40"
         >
           Menu
         </button>
@@ -114,7 +115,7 @@ export default function Navbar() {
               <button
                 aria-label="Close menu"
                 onClick={() => setOpen(false)}
-                className="rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-[0.28em] text-white/70 hover:border-white/60"
+                className="nav-pill rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-[0.28em] text-white/70 hover:border-white/60"
               >
                 Close
               </button>
@@ -127,7 +128,7 @@ export default function Navbar() {
                     <Link
                       href={l.href}
                       onClick={() => setOpen(false)}
-                      className="block rounded-2xl border border-white/10 px-4 py-3 text-sm uppercase tracking-[0.28em] text-white/70 hover:border-white/30 hover:text-white"
+                      className="nav-link block rounded-2xl border border-white/10 px-4 py-3 text-sm uppercase tracking-[0.28em] text-white/70 hover:border-white/30 hover:text-white"
                     >
                       {l.label}
                     </Link>

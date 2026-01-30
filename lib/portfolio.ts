@@ -14,6 +14,7 @@ type PortfolioItem = {
   seoTitle?: string;
   seoDescription?: string;
   ogImageUrl?: string;
+  externalGalleryUrl?: string;
   gallery: string[];
   stats: { label: string; value: string }[];
 };
@@ -32,26 +33,40 @@ export async function getPublishedPortfolio(
     return workItems;
   }
 
-  return projects.map((project) => ({
-    slug: project.slug,
-    title: project.title,
-    category: project.category,
-    categorySlug: project.categorySlug,
-    location: project.location || "",
-    year: project.year || "",
-    description: project.description || "",
-    cover: project.coverUrl || project.images[0]?.url || "",
-    coverAlt: project.coverAlt || undefined,
-    seoTitle: project.seoTitle || undefined,
-    seoDescription: project.seoDescription || undefined,
-    ogImageUrl: project.ogImageUrl || undefined,
-    gallery: project.images.map((img) => img.url),
-    stats: [
-      { label: "Deliverables", value: `${project.images.length} images` },
-      { label: "Category", value: project.category },
-      { label: "Location", value: project.location || "—" },
-    ],
-  }));
+  const normalized = projects.map((project) => {
+    const description =
+      project.description?.trim() ||
+      `${project.title} case study for ${project.category} photography.`;
+    const gallery = project.images.map((img) => img.url);
+    return {
+      slug: project.slug,
+      title: project.title,
+      category: project.category,
+      categorySlug: project.categorySlug,
+      location: project.location || "",
+      year: project.year || "",
+      description,
+      cover: project.coverUrl || project.images[0]?.url || "",
+      coverAlt: project.coverAlt || undefined,
+      seoTitle: project.seoTitle || undefined,
+      seoDescription: project.seoDescription || undefined,
+      ogImageUrl: project.ogImageUrl || undefined,
+      externalGalleryUrl: project.externalGalleryUrl || undefined,
+      gallery,
+      stats: [
+        { label: "Deliverables", value: `${project.images.length} images` },
+        { label: "Category", value: project.category },
+        { label: "Location", value: project.location || "—" },
+      ],
+    };
+  });
+
+  return normalized.filter((item) => {
+    const hasCover = Boolean(item.cover);
+    const hasGallery = item.gallery.length > 0;
+    const hasExternal = Boolean(item.externalGalleryUrl);
+    return hasCover && (hasGallery || hasExternal);
+  });
 }
 
 export async function getPortfolioByCategory(

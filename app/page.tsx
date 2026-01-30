@@ -1,13 +1,65 @@
+import Image from "next/image";
 import Link from "next/link";
 import HomeHero from "@/components/HomeHero";
 import Reveal from "@/components/Reveal";
 import PortfolioCard from "@/components/PortfolioCard";
+import PrimaryCTA from "@/components/PrimaryCTA";
 
 export const metadata = {
   title: "Commercial Photography | Bright Line Photography",
   description:
     "Commercial real estate, hospitality, and fashion photography in NYC and beyond.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Commercial Photography | Bright Line Photography",
+    description:
+      "Commercial real estate, hospitality, and fashion photography in NYC and beyond.",
+    url: "/",
+    images: [
+      {
+        url: "/og-image.svg",
+        width: 1200,
+        height: 630,
+        alt: "Bright Line Photography",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Commercial Photography | Bright Line Photography",
+    description:
+      "Commercial real estate, hospitality, and fashion photography in NYC and beyond.",
+    images: ["/og-image.svg"],
+  },
 };
+
+const localBusinessSchema = {
+  "@context": "https://schema.org",
+  "@type": ["ProfessionalService", "LocalBusiness"],
+  name: "Bright Line Photography",
+  url: "https://brightlinephotography.co",
+  image: "https://brightlinephotography.co/og-image.svg",
+  areaServed: "United States",
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "New York",
+    addressRegion: "NY",
+    addressCountry: "US",
+  },
+  sameAs: [],
+  serviceType: [
+    "Commercial Photography",
+    "Hospitality Photography",
+    "Real Estate Photography",
+    "Fashion Photography",
+  ],
+};
+
+const BLUR_DATA =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
 
 const featured = [
   {
@@ -70,13 +122,53 @@ const testimonials = [
   },
 ];
 
+const whatYouGet = [
+  {
+    title: "Deliverables",
+    items: [
+      "Hero imagery + supporting selects",
+      "Crops for web, social, and print",
+      "Consistent color + tonal grading",
+    ],
+  },
+  {
+    title: "Turnaround",
+    items: [
+      "Proofs in 5–7 days",
+      "Finals in 10–14 days",
+      "Rush options on request",
+    ],
+  },
+  {
+    title: "Usage options",
+    items: [
+      "Web + social usage included",
+      "Paid media extensions available",
+      "Print-ready exports",
+    ],
+  },
+];
+
+const howItWorks = [
+  { step: "Inquiry", detail: "Share your goals, timeline, and locations." },
+  { step: "Shoot", detail: "On-site art direction with a calm, precise crew." },
+  { step: "Selects", detail: "Proof gallery with recommendations and edits." },
+  { step: "Delivery", detail: "Final library optimized for every channel." },
+];
+
 export default function Page() {
   return (
     <div className="page-shell min-h-screen">
       <div className="soft-grid">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(localBusinessSchema),
+          }}
+        />
         <HomeHero />
 
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20 pt-12">
+        <Reveal id="portfolio" className="relative mx-auto max-w-6xl px-4 pb-20 pt-12 scroll-mt-20">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.35em] text-black/50">
@@ -146,11 +238,69 @@ export default function Page() {
                   alt="Studio moodboard"
                   width={560}
                   height={520}
+                  sizes="(min-width: 1024px) 520px, 100vw"
+                  placeholder="blur"
+                  blurDataURL={BLUR_DATA}
                   className="h-full w-full object-cover image-fade"
                 />
               </div>
             </div>
         </Link>
+        </Reveal>
+
+        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
+          <div className="grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-start">
+            <div className="space-y-4">
+              <p className="text-xs uppercase tracking-[0.35em] text-black/50">
+                What you get
+              </p>
+              <h2 className="font-display text-3xl md:text-4xl text-black">
+                A premium image system built for conversion.
+              </h2>
+              <p className="text-base text-black/70">
+                Every engagement delivers a strategic library: hero imagery,
+                supporting sets, and crops designed for web, social, and print.
+              </p>
+            </div>
+            <div className="grid gap-4">
+              {whatYouGet.map((block) => (
+                <div
+                  key={block.title}
+                  className="rounded-2xl border border-black/10 bg-white/70 p-6"
+                >
+                  <p className="text-xs uppercase tracking-[0.3em] text-black/50">
+                    {block.title}
+                  </p>
+                  <ul className="mt-4 space-y-2 text-sm text-black/70">
+                    {block.items.map((item) => (
+                      <li key={item} className="flex items-start gap-2">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/60" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+
+        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
+          <div className="rounded-[28px] border border-black/10 bg-white/70 p-6 md:p-10">
+            <p className="text-xs uppercase tracking-[0.35em] text-black/50">
+              How it works
+            </p>
+            <div className="mt-6 grid gap-4 md:grid-cols-4">
+              {howItWorks.map((item, index) => (
+                <div key={item.step} className="space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-black/50">
+                    {String(index + 1).padStart(2, "0")} · {item.step}
+                  </p>
+                  <p className="text-sm text-black/70">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </Reveal>
 
         <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
@@ -190,36 +340,30 @@ export default function Page() {
         </Reveal>
 
         <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
-          <Link
-            href="/contact"
-            className="group block"
-            aria-label="Read client feedback and start a project"
-          >
-            <div className="grid gap-6 md:grid-cols-2">
-              {testimonials.map((item, index) => (
-                <div
-                  key={item.name}
-                  className="lift-card rounded-[28px] border border-black/10 bg-white/80 p-6"
-                >
-                  <p className="font-display text-2xl text-black">
-                    “{item.quote}”
-                  </p>
-                  <p className="mt-4 text-xs uppercase tracking-[0.3em] text-black/60">
-                    {item.name} · {item.role}
-                  </p>
-                  {index === 0 && (
-                    <div className="mt-6 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-black/50">
-                      <span>5/5 Client Satisfaction</span>
-                      <span>28 Brands Served</span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            <span className="mt-6 inline-flex items-center text-xs uppercase tracking-[0.3em] text-black/60">
-              Discuss your project
-            </span>
-          </Link>
+          <div className="grid gap-6 md:grid-cols-2">
+            {testimonials.map((item, index) => (
+              <div
+                key={item.name}
+                className="lift-card rounded-[28px] border border-black/10 bg-white/80 p-6"
+              >
+                <p className="font-display text-2xl text-black">
+                  “{item.quote}”
+                </p>
+                <p className="mt-4 text-xs uppercase tracking-[0.3em] text-black/60">
+                  {item.name} · {item.role}
+                </p>
+                {index === 0 && (
+                  <div className="mt-6 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-black/50">
+                    <span>5/5 Client Satisfaction</span>
+                    <span>28 Brands Served</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-8">
+            <PrimaryCTA service="general" />
+          </div>
         </Reveal>
 
         <Reveal className="relative mx-auto max-w-6xl px-4 pb-24">
@@ -238,12 +382,7 @@ export default function Page() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-4 md:justify-end">
-                <Link
-                  href="/contact"
-                  className="btn btn-light"
-                >
-                  Start a Project
-                </Link>
+                <PrimaryCTA service="general" className="btn btn-light" />
                 <Link
                   href="/services"
                   className="btn btn-outline-light"
@@ -254,13 +393,6 @@ export default function Page() {
             </div>
           </div>
         </Reveal>
-
-        <footer className="border-t border-black/10">
-          <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 text-xs uppercase tracking-[0.3em] text-black/50 md:flex-row md:items-center md:justify-between">
-            <span>© {new Date().getFullYear()} Bright Line Photography</span>
-            <span>hello@brightlinephotography.co</span>
-          </div>
-        </footer>
       </div>
     </div>
   );

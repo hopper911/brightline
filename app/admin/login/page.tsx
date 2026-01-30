@@ -1,30 +1,41 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function AdminLoginPage() {
-  const [code, setCode] = useState("");
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">(
     "idle"
   );
+  const [message, setMessage] = useState<string>("");
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("loading");
 
-    const res = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+    const nextParam = searchParams.get("next");
+    const redirectTo =
+      nextParam && nextParam.startsWith("/admin")
+        ? nextParam
+        : "/admin/portfolio";
+
+    const res = await signIn("email", {
+      email,
+      callbackUrl: redirectTo,
+      redirect: false,
     });
 
-    if (!res.ok) {
+    if (res?.error) {
       setStatus("error");
+      setMessage("Unable to send sign-in link.");
       return;
     }
 
     setStatus("success");
-    window.location.href = "/admin/portfolio";
+    setMessage("Check your email for the sign-in link.");
   }
 
   return (
@@ -35,10 +46,10 @@ export default function AdminLoginPage() {
       <h1 className="font-display mt-4 text-4xl text-black">Sign in</h1>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <input
-          type="password"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="Access code"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email address"
           className="w-full rounded border border-black/20 bg-white/80 px-4 py-3 text-sm"
           required
         />
@@ -49,11 +60,15 @@ export default function AdminLoginPage() {
         >
           {status === "loading" ? "Checking..." : "Continue"}
         </button>
-        {status === "error" && (
-          <p className="text-xs uppercase tracking-[0.3em] text-red-500">
-            Invalid code
+        {message ? (
+          <p
+            className={`text-xs uppercase tracking-[0.3em] ${
+              status === "error" ? "text-red-500" : "text-black/60"
+            }`}
+          >
+            {message}
           </p>
-        )}
+        ) : null}
       </form>
     </div>
   );

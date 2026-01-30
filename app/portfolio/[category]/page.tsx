@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cookies } from "next/headers";
 import Reveal from "@/components/Reveal";
 import PortfolioCard from "@/components/PortfolioCard";
+import { getAdminSession } from "@/lib/admin-auth";
 import { getPublishedPortfolio } from "@/lib/portfolio";
 
 export async function generateMetadata({
@@ -10,8 +10,8 @@ export async function generateMetadata({
 }: {
   params: { category: string };
 }): Promise<Metadata> {
-  const cookieStore = await cookies();
-  const includeDrafts = cookieStore.get("admin_access")?.value === "true";
+  const session = await getAdminSession();
+  const includeDrafts = Boolean(session);
   const items = await getPublishedPortfolio({ includeDrafts });
   const categories = Array.from(
     new Map(items.map((item) => [item.categorySlug, item.category])).entries()
@@ -30,8 +30,8 @@ export default async function PortfolioCategoryPage({
 }: {
   params: { category: string };
 }) {
-  const cookieStore = await cookies();
-  const includeDrafts = cookieStore.get("admin_access")?.value === "true";
+  const session = await getAdminSession();
+  const includeDrafts = Boolean(session);
   const items = await getPublishedPortfolio({ includeDrafts });
   const categories = Array.from(
     new Map(items.map((item) => [item.categorySlug, item.category])).entries()

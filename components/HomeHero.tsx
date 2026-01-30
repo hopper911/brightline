@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import MagneticButton from "./MagneticButton";
+import PrimaryCTA from "./PrimaryCTA";
+
+const BLUR_DATA =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
 
 export default function HomeHero() {
   return (
@@ -47,9 +50,7 @@ export default function HomeHero() {
             transition={{ duration: 0.6, ease: "easeOut", delay: 0.35 }}
             className="flex flex-wrap gap-4"
           >
-            <MagneticButton href="/contact" className="btn btn-primary">
-              Book a Session
-            </MagneticButton>
+            <PrimaryCTA service="general" />
             <MagneticButton href="/#portfolio" className="btn btn-ghost">
               View Portfolio
             </MagneticButton>
@@ -76,6 +77,9 @@ export default function HomeHero() {
             alt="Bright Line signature imagery"
             fill
             priority
+            sizes="(min-width: 1024px) 520px, 100vw"
+            placeholder="blur"
+            blurDataURL={BLUR_DATA}
             className="object-cover image-fade"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />

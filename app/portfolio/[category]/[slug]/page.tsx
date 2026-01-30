@@ -1,18 +1,23 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import GalleryLightbox from "./GalleryLightbox";
 import Reveal from "@/components/Reveal";
+import PrimaryCTA from "@/components/PrimaryCTA";
+import { getAdminSession } from "@/lib/admin-auth";
 import { getPortfolioByCategoryAndSlug, getPortfolioBySlug } from "@/lib/portfolio";
+
+const BLUR_DATA =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
 
 export async function generateMetadata({
   params,
 }: {
   params: { category: string; slug: string };
 }): Promise<Metadata> {
-  const cookieStore = await cookies();
-  const includeDrafts = cookieStore.get("admin_access")?.value === "true";
+  const session = await getAdminSession();
+  const includeDrafts = Boolean(session);
   const work =
     (await getPortfolioByCategoryAndSlug(params.category, params.slug, { includeDrafts })) ??
     (await getPortfolioBySlug(params.slug, { includeDrafts }));
@@ -39,30 +44,65 @@ export default async function PortfolioProjectPage({
 }: {
   params: { category: string; slug: string };
 }) {
-  const cookieStore = await cookies();
-  const includeDrafts = cookieStore.get("admin_access")?.value === "true";
+  const session = await getAdminSession();
+  const includeDrafts = Boolean(session);
   const work =
     (await getPortfolioByCategoryAndSlug(params.category, params.slug, { includeDrafts })) ??
     (await getPortfolioBySlug(params.slug, { includeDrafts }));
   if (!work) {
-    const slugLabel =
-      typeof params.slug === "string"
-        ? params.slug.replace(/-/g, " ")
-        : "Project";
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-16">
-        <p className="text-xs uppercase tracking-[0.35em] text-black/50">
-          Portfolio Project
-        </p>
-        <h1 className="font-display text-4xl text-black">
-          {slugLabel}
-        </h1>
-        <p className="mt-4 text-sm text-black/60">
-          This project is being updated. Please check back soon.
-        </p>
-      </div>
-    );
+    redirect("/portfolio");
   }
+
+  const goalsByCategory: Record<string, string[]> = {
+    hospitality: [
+      "Elevate booking conversions with immersive room sets.",
+      "Capture guest journey moments for web + social.",
+      "Deliver a hero suite story with consistent light.",
+    ],
+    "commercial-real-estate": [
+      "Showcase scale, light, and leasing potential.",
+      "Provide investor-ready hero imagery.",
+      "Create clean, architectural compositions.",
+    ],
+    fashion: [
+      "Deliver editorial imagery with campaign polish.",
+      "Build a cohesive lookbook narrative.",
+      "Capture movement and texture for social.",
+    ],
+  };
+
+  const deliverablesByCategory: Record<string, string[]> = {
+    hospitality: [
+      "Hero room suites",
+      "Amenities + lifestyle moments",
+      "F&B editorial set",
+      "Social-ready crops",
+    ],
+    "commercial-real-estate": [
+      "Exterior hero frames",
+      "Interiors + amenity sets",
+      "Detail vignettes",
+      "Investor deck selects",
+    ],
+    fashion: [
+      "Lookbook hero sets",
+      "Campaign close-ups",
+      "Studio + location sets",
+      "Ecommerce crops",
+    ],
+  };
+
+  const categoryKey = work.categorySlug;
+  const goals = goalsByCategory[categoryKey] || [
+    "Define a consistent visual system.",
+    "Capture the brand story across key spaces.",
+    "Deliver assets optimized for campaigns.",
+  ];
+  const deliverables = deliverablesByCategory[categoryKey] || [
+    "Hero campaign selects",
+    "Supporting detail frames",
+    "Cutdowns for social + web",
+  ];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-16">
@@ -85,23 +125,81 @@ export default async function PortfolioProjectPage({
       </Reveal>
 
       <div className="mt-10 grid gap-8 md:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-6">
+        <div className="space-y-10">
           <Reveal className="relative h-[420px] w-full overflow-hidden rounded-[28px] border border-black/10 bg-white/80 shadow-[0_24px_60px_rgba(27,26,23,0.12)]">
             <Image
               src={work.cover}
               alt={work.coverAlt || work.title}
               fill
+              sizes="(min-width: 1024px) 640px, 100vw"
+              placeholder="blur"
+              blurDataURL={BLUR_DATA}
               className="object-cover image-fade"
             />
           </Reveal>
           <Reveal>
-            <p className="text-base text-black/70">{work.description}</p>
+            <div className="space-y-3">
+              <p className="section-kicker">Overview</p>
+              <p className="text-base text-black/70">{work.description}</p>
+            </div>
           </Reveal>
           <Reveal>
-            <h2 className="font-display text-2xl text-black">Gallery</h2>
+            <div className="space-y-3">
+              <p className="section-kicker">Goals</p>
+              <ul className="space-y-2 text-sm text-black/70">
+                {goals.map((goal) => (
+                  <li key={goal} className="flex items-start gap-3">
+                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/60" />
+                    <span>{goal}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </Reveal>
           <Reveal>
-            <GalleryLightbox images={work.gallery} title={work.title} />
+            <div className="space-y-3">
+              <p className="section-kicker">Deliverables</p>
+              <ul className="space-y-2 text-sm text-black/70">
+                {deliverables.map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/60" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+          {work.gallery.length > 0 && (
+            <>
+              <Reveal>
+                <h2 className="font-display text-2xl text-black">Gallery</h2>
+              </Reveal>
+              <Reveal>
+                <GalleryLightbox images={work.gallery} title={work.title} />
+              </Reveal>
+            </>
+          )}
+          {work.externalGalleryUrl && (
+            <Reveal>
+              <Link
+                href={work.externalGalleryUrl}
+                className="btn btn-ghost mt-2"
+              >
+                View full gallery
+              </Link>
+            </Reveal>
+          )}
+          <Reveal>
+            <div className="rounded-[24px] border border-white/10 bg-black/60 px-6 py-8">
+              <p className="section-kicker">Next step</p>
+              <h2 className="font-display text-2xl text-white">
+                Ready to build your visual story?
+              </h2>
+              <p className="mt-3 text-sm text-white/70">
+                Share timeline, scope, and usage needs and we’ll craft a tailored proposal.
+              </p>
+              <PrimaryCTA service={work.categorySlug} className="btn btn-solid mt-6" />
+            </div>
           </Reveal>
         </div>
         <Reveal>
@@ -119,6 +217,22 @@ export default async function PortfolioProjectPage({
               </li>
             ))}
           </ul>
+            {work.stats.length > 0 && (
+              <>
+                <div className="divider my-6" />
+                <p className="section-kicker">Results</p>
+                <ul className="mt-4 space-y-4">
+                  {work.stats.map((stat) => (
+                    <li key={stat.label}>
+                      <p className="text-xs uppercase tracking-[0.3em] text-black/50">
+                        {stat.label}
+                      </p>
+                      <p className="text-lg text-black">{stat.value}</p>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </aside>
         </Reveal>
       </div>

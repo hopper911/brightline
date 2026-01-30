@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     seoTitle?: string;
     seoDescription?: string;
     ogImageUrl?: string;
+    externalGalleryUrl?: string;
     published?: boolean;
     images?: { url: string; alt?: string; sortOrder?: number }[];
   };
@@ -63,6 +64,7 @@ export async function POST(req: Request) {
       seoTitle: body.seoTitle || null,
       seoDescription: body.seoDescription || null,
       ogImageUrl: body.ogImageUrl || null,
+      externalGalleryUrl: body.externalGalleryUrl || null,
       published: Boolean(body.published),
       images: body.images?.length
         ? {
@@ -97,6 +99,7 @@ export async function PATCH(req: Request) {
     seoTitle?: string | null;
     seoDescription?: string | null;
     ogImageUrl?: string | null;
+    externalGalleryUrl?: string | null;
     published?: boolean;
     images?: { id: string; alt?: string | null; sortOrder?: number }[];
   };
@@ -132,6 +135,7 @@ export async function PATCH(req: Request) {
       seoTitle: body.seoTitle ?? undefined,
       seoDescription: body.seoDescription ?? undefined,
       ogImageUrl: body.ogImageUrl ?? undefined,
+      externalGalleryUrl: body.externalGalleryUrl ?? undefined,
       published: typeof body.published === "boolean" ? body.published : undefined,
     },
     include: { images: true, categoryRef: true },

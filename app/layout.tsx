@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import Providers from "./providers";
 import PageTransition from "../components/PageTransition";
 import "./globals.css";
@@ -56,6 +57,7 @@ export default function RootLayout({
         <Providers>
           <Navbar />
           <PageTransition>{children}</PageTransition>
+          <Footer />
         </Providers>
       </body>
     </html>

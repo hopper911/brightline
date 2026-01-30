@@ -1,14 +1,63 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
+import { z } from "zod";
 import { assertServerEnv } from "@/lib/env";
 import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
-import {
-  createContactMessage,
-  normalizeContactPayload,
-  notifyContact,
-  validateContactPayload,
-} from "@/lib/services/contact";
+import { createLead, notifyLead } from "@/lib/services/contact";
 
 export const runtime = "nodejs";
+
+const baseSchema = z.object({
+  type: z.enum(["inquiry", "availability"]),
+  name: z.string().min(2, "Please include your name."),
+  email: z.string().email("Please use a valid email."),
+  company: z.string().optional(),
+  service: z.string().optional(),
+  budget: z.string().optional(),
+  turnstileToken: z.string().min(1, "Spam check required."),
+});
+
+const inquirySchema = baseSchema.extend({
+  message: z.string().min(5, "Please include a short message.").max(2000),
+});
+
+const availabilitySchema = baseSchema.extend({
+  availabilityStart: z.string().min(1, "Please include a start date."),
+  availabilityEnd: z.string().min(1, "Please include an end date."),
+  location: z.string().min(2, "Please include a location."),
+  shootType: z.string().min(2, "Please include a shoot type."),
+  message: z.string().max(2000).optional().or(z.literal("")),
+});
+
+const contactSchema = z.discriminatedUnion("type", [
+  inquirySchema,
+  availabilitySchema,
+]);
+
+async function verifyTurnstile(token: string) {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  const bypass = process.env.TURNSTILE_BYPASS === "true";
+
+  if (bypass) return true;
+  if (!secret) {
+    throw new Error("Turnstile secret not configured.");
+  }
+
+  if (secret === "test" || secret === "test-secret") {
+    return token === "test";
+  }
+
+  const body = new URLSearchParams();
+  body.set("secret", secret);
+  body.set("response", token);
+
+  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    body,
+  });
+  const data = (await res.json()) as { success?: boolean };
+  return Boolean(data.success);
+}
 
 export async function POST(req: Request) {
   try {
@@ -21,25 +70,60 @@ export async function POST(req: Request) {
       );
     }
 
-    const payload = normalizeContactPayload(await req.json());
-    const validation = validateContactPayload(payload);
-
-    if (!validation.ok) {
+    const body = await req.json();
+    const parsed = contactSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { ok: false, error: validation.error },
+        { ok: false, error: parsed.error.issues[0]?.message || "Invalid input." },
         { status: 400 }
       );
     }
 
-    if (validation.silent) {
-      return NextResponse.json({ ok: true });
+    const payload = parsed.data;
+    const isValid = await verifyTurnstile(payload.turnstileToken);
+    if (!isValid) {
+      return NextResponse.json(
+        { ok: false, error: "Spam check failed." },
+        { status: 400 }
+      );
     }
 
-    await createContactMessage(payload);
-    await notifyContact(payload);
+    const contactPayload = {
+      type: payload.type,
+      name: payload.name,
+      email: payload.email,
+      message:
+        "message" in payload && payload.message ? payload.message : undefined,
+      company: payload.company,
+      service: payload.service,
+      budget: payload.budget || undefined,
+      availabilityStart:
+        "availabilityStart" in payload && payload.availabilityStart
+          ? new Date(payload.availabilityStart)
+          : undefined,
+      availabilityEnd:
+        "availabilityEnd" in payload && payload.availabilityEnd
+          ? new Date(payload.availabilityEnd)
+          : undefined,
+      location: "location" in payload ? payload.location || undefined : undefined,
+      shootType: "shootType" in payload ? payload.shootType || undefined : undefined,
+    };
+
+    try {
+      await createLead(contactPayload);
+    } catch (dbError) {
+      console.error("TODO: persist contact lead in DB", dbError);
+    }
+
+    try {
+      await notifyLead(contactPayload);
+    } catch (emailError) {
+      console.error("Contact email failed", emailError);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    Sentry.captureException(error);
     return NextResponse.json(
       { ok: false, error: "Something went wrong." },
       { status: 500 }

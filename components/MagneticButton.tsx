@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { m, useMotionValue, useSpring } from "framer-motion";
+import { m, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
 import Link from "next/link";
 
 export default function MagneticButton({
@@ -14,10 +14,19 @@ export default function MagneticButton({
   className?: string;
 }) {
   const ref = useRef<HTMLAnchorElement | null>(null);
+  const reduce = useReducedMotion();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const sx = useSpring(x, { stiffness: 250, damping: 18 });
   const sy = useSpring(y, { stiffness: 250, damping: 18 });
+
+  if (reduce) {
+    return (
+      <Link ref={ref} href={href} className={className}>
+        {children}
+      </Link>
+    );
+  }
 
   return (
     <m.div style={{ x: sx, y: sy }} className="inline-block">

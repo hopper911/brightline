@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
+import { getMarketingPublicUrl, getMarketingUploadUrl } from "@/lib/image-strategy";
 
 export async function POST(req: Request) {
   try {
@@ -16,11 +18,17 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json(
-      { error: "Upload URL not wired yet. Connect S3/R2 signer in this route." },
-      { status: 501 }
-    );
-  } catch {
+    const key = `portfolio/${body.categorySlug}/${body.projectSlug}/${Date.now()}-${body.filename}`;
+    const signed = await getMarketingUploadUrl({
+      key,
+      contentType: body.contentType,
+    });
+
+    const publicUrl = getMarketingPublicUrl(key);
+
+    return NextResponse.json({ url: signed.url, publicUrl, key });
+  } catch (error) {
+    Sentry.captureException(error);
     return NextResponse.json({ error: "Bad request." }, { status: 400 });
   }
 }

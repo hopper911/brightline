@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db
+      DIRECT_URL: postgresql://user:pass@localhost:5432/db
+      NEXTAUTH_SECRET: test-secret
+      NEXTAUTH_URL: http://localhost:3000
+      SENTRY_DSN: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc -p tsconfig.json --noEmit
+      - run: npx prisma generate --schema prisma/schema.prisma
+      - run: npm run build

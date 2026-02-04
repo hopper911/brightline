@@ -1,0 +1,72 @@
+# Bright Line Photography - Cursor Project Rules
+
+## Next.js Conventions
+- Use App Router (Next.js 16)
+- Server components by default; use "use client" only when needed (hooks, events, browser APIs)
+- File conventions: page.tsx, layout.tsx, loading.tsx, error.tsx, not-found.tsx
+- Route handlers in app/api/*/route.ts
+- Metadata exports in every page/layout for SEO
+- Use proxy.ts (not middleware.ts) for request interception
+
+## Styling & Design
+- **Tailwind only** - no inline styles, no CSS modules
+- Dark theme baseline: bg-[#0b0e12], text-white/90
+- Fonts: Inter (body, --font-inter), Montserrat (display, --font-montserrat)
+- Design tokens in globals.css: --color-text, --color-bg, --color-border, etc.
+- Rounded corners: 28px for cards, 32px for large blocks
+- Spacing: space-y-6 for form groups, py-16 for page padding
+- Focus states: focus:ring-2 focus:ring-white/20 focus:outline-none
+- No emoji unless explicitly requested
+
+## Components
+- Framer Motion for animations (Reveal, HomeHero, PageTransition)
+- Reusable components in /components: Footer, Navbar, PortfolioCard, PrimaryCTA
+- Loading skeletons use animate-pulse + white/10 backgrounds
+- All images use Next.js <Image> with placeholder="blur"
+
+## Accessibility
+- Semantic HTML: nav, main, section, article, footer
+- aria-labels on icon buttons and links without visible text
+- aria-live for status messages (form success/error)
+- Keyboard navigation: focus:ring-2 on interactive elements
+- Skip links where appropriate
+- Alt text on all images
+
+## SEO Baseline
+- Every page/layout exports metadata (title, description, canonical, OG, Twitter)
+- Structured data (JSON-LD) for home, services, portfolio
+- Sitemap at /sitemap.ts, robots at /robots.ts
+- OG image at /og-image.svg (1200×630)
+
+## Data & API
+- Prisma for DB (Neon/Postgres): portfolio, leads, galleries, clients
+- Static fallback: app/lib/work.ts for portfolio items
+- Contact API at /api/contact with Turnstile (Cloudflare)
+- NextAuth for admin (/admin/*) via email magic link
+- S3/R2 for image storage
+
+## Code Quality
+- TypeScript strict mode
+- ESLint + Prettier (Next.js config)
+- No hardcoded strings for contact info, brand name, URLs - use constants
+- Server-side validation with Zod
+- Error boundaries and try/catch in API routes
+- Rate limiting on public APIs
+
+## Performance
+- Static pages where possible (/, /about, /services)
+- Dynamic only when needed (/admin, /api, /portfolio with DB)
+- Cache-Control headers for images (31536000s)
+- Image optimization via Next.js (remotePatterns for R2/S3)
+
+## Deployment (Vercel)
+- proxy.ts for admin auth (Next.js 16)
+- Admin login uses dynamic = "force-dynamic" (useSearchParams)
+- Env vars: DATABASE_URL, NEXTAUTH_*, SENTRY_*, TURNSTILE_*, admin emails
+- Build command: prisma generate && next build
+
+## Contact Info (single source of truth)
+- Email: hello@brightlinephotography.co
+- Phone: +1 (212) 555-0139
+- Locations: Miami, New York, Available Worldwide
+- Domain: brightlinephotography.co

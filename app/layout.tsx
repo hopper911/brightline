@@ -1,16 +1,49 @@
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+import { Inter, Montserrat } from "next/font/google";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import Providers from "./providers";
+import PageTransition from "../components/PageTransition";
+import Analytics from "../components/Analytics";
+import { BRAND } from "@/lib/config/brand";
 import "./globals.css";
 
-const sans = Manrope({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-inter",
+  display: "swap",
+});
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  variable: "--font-montserrat",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Bright Line Photography",
-  description: "Photography, design, and branding studio.",
+  metadataBase: new URL(BRAND.url),
+  title: BRAND.name,
+  description: BRAND.metadata.description,
+  openGraph: {
+    title: BRAND.name,
+    description: BRAND.metadata.description,
+    url: "/",
+    siteName: BRAND.name,
+    images: [
+      {
+        url: BRAND.metadata.ogImage,
+        width: 1200,
+        height: 630,
+        alt: BRAND.name,
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: BRAND.metadata.twitterCard,
+    title: BRAND.name,
+    description: BRAND.metadata.description,
+    images: [BRAND.metadata.ogImage],
+  },
 };
 
 export default function RootLayout({
@@ -19,10 +52,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${sans.variable} antialiased`}>
-        <Navbar />
-        {children}
+    <html lang="en" className={`${inter.variable} ${montserrat.variable}`}>
+      <body className="antialiased">
+        <Providers>
+          <Navbar />
+          <PageTransition>{children}</PageTransition>
+          <Footer />
+        </Providers>
+        <Analytics />
       </body>
     </html>
   );

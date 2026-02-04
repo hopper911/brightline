@@ -24,6 +24,7 @@ export default withAuth({
       if (pathname.startsWith("/admin/login")) return true;
       if (pathname.startsWith("/api/admin/login")) return true;
       if (pathname.startsWith("/api/admin/logout")) return true;
+      if (pathname.startsWith("/api/admin/seed")) return true;
       return isAdminEmail(token?.email);
     },
   },

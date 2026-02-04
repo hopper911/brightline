@@ -102,6 +102,7 @@ export async function PATCH(req: Request) {
     externalGalleryUrl?: string | null;
     published?: boolean;
     images?: { id: string; alt?: string | null; sortOrder?: number }[];
+    newImages?: { url: string; alt?: string | null; sortOrder?: number }[];
   };
 
   if (!body.id) {
@@ -154,6 +155,18 @@ export async function PATCH(req: Request) {
         })
       )
     );
+  }
+
+  if (body.newImages?.length) {
+    await prisma.portfolioImage.createMany({
+      data: body.newImages.map((img, index) => ({
+        projectId: project.id,
+        url: img.url,
+        alt: img.alt ?? null,
+        sortOrder:
+          typeof img.sortOrder === "number" ? img.sortOrder : index,
+      })),
+    });
   }
 
   return NextResponse.json({ ok: true, project });

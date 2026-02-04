@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 function AdminLoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">(
     "idle"
   );
@@ -15,6 +16,7 @@ function AdminLoginForm() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("loading");
+    setMessage("");
 
     const nextParam = searchParams.get("next");
     const redirectTo =
@@ -22,20 +24,28 @@ function AdminLoginForm() {
         ? nextParam
         : "/admin/portfolio";
 
-    const res = await signIn("email", {
+    const res = await signIn("credentials", {
       email,
+      password,
       callbackUrl: redirectTo,
       redirect: false,
     });
 
     if (res?.error) {
       setStatus("error");
-      setMessage("Unable to send sign-in link.");
+      setMessage(
+        "Invalid email or password. Ensure ADMIN_EMAIL and ADMIN_PASSWORD are set in Vercel."
+      );
       return;
     }
 
-    setStatus("success");
-    setMessage("Check your email for the sign-in link.");
+    if (res?.url) {
+      window.location.href = res.url;
+      return;
+    }
+
+    setStatus("error");
+    setMessage("Sign-in failed. Ensure NEXTAUTH_URL and NEXTAUTH_SECRET are set.");
   }
 
   return (
@@ -47,13 +57,23 @@ function AdminLoginForm() {
         placeholder="Email address"
         className="w-full rounded border border-black/20 bg-white/80 px-4 py-3 text-sm"
         required
+        autoComplete="email"
+      />
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Password"
+        className="w-full rounded border border-black/20 bg-white/80 px-4 py-3 text-sm"
+        required
+        autoComplete="current-password"
       />
       <button
         type="submit"
         className="w-full rounded-full bg-black px-6 py-3 text-xs uppercase tracking-[0.32em] text-white"
         disabled={status === "loading"}
       >
-        {status === "loading" ? "Checking..." : "Continue"}
+        {status === "loading" ? "Signing in..." : "Sign in"}
       </button>
       {message ? (
         <p

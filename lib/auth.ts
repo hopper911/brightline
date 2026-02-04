@@ -1,41 +1,34 @@
 import type { NextAuthOptions } from "next-auth";
-import EmailProvider from "next-auth/providers/email";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { isAdminEmail } from "@/lib/admin-emails";
-
-function resolveEmailServer() {
-  if (process.env.EMAIL_SERVER) return process.env.EMAIL_SERVER;
-
-  const host = process.env.EMAIL_SERVER_HOST;
-  const port = process.env.EMAIL_SERVER_PORT;
-  const user = process.env.EMAIL_SERVER_USER;
-  const pass = process.env.EMAIL_SERVER_PASSWORD;
-  const secure = process.env.EMAIL_SERVER_SECURE;
-
-  if (!host || !port || !user || !pass) return undefined;
-
-  return {
-    host,
-    port: Number(port),
-    auth: { user, pass },
-    secure: secure === "true",
-  };
-}
-
-const emailServer = resolveEmailServer() ?? "";
-const emailFrom = process.env.EMAIL_FROM ?? "";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   providers: [
-    EmailProvider({
-      server: emailServer,
-      from: emailFrom,
+    CredentialsProvider({
+      id: "credentials",
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email?.trim().toLowerCase();
+        const password = credentials?.password;
+        if (!email || !password) return null;
+        const adminPassword = process.env.ADMIN_PASSWORD;
+        if (!adminPassword) return null;
+        if (!isAdminEmail(email)) return null;
+        if (password !== adminPassword) return null;
+        return { id: "admin", email, name: "Admin" };
+      },
     }),
   ],
   pages: {
@@ -43,7 +36,21 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user }) {
-      return isAdminEmail(user?.email);
+      return !!user?.email && isAdminEmail(user.email);
+    },
+    async jwt({ token, user }) {
+      if (user?.email) {
+        token.email = user.email;
+        token.name = user.name;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.email) {
+        session.user.email = token.email;
+        session.user.name = token.name;
+      }
+      return session;
     },
   },
 };

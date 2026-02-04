@@ -73,14 +73,20 @@ export async function POST(req: Request) {
     let missingPrivate = 0;
     const images = await Promise.all(
       gallery.images.map(async (image) => {
-        try {
-          assertClientImage(image.storageKey);
-        } catch {
+        if (!image.storageKey) {
           missingPrivate += 1;
-          return null;
+          return {
+            id: image.id,
+            url: image.url,
+            alt: image.alt,
+            filename: image.filename,
+            sortOrder: image.sortOrder,
+            storageKey: null,
+            isFavorite: favoriteImageIds.has(image.id),
+          };
         }
 
-        const signed = await getClientDownloadUrl({ key: image.storageKey! });
+        const signed = await getClientDownloadUrl({ key: image.storageKey });
         return {
           id: image.id,
           url: signed.url,
@@ -92,17 +98,6 @@ export async function POST(req: Request) {
         };
       })
     );
-
-    if (missingPrivate > 0) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "Gallery contains images without private storage keys. Please re-upload via the client gallery flow.",
-        },
-        { status: 400 }
-      );
-    }
 
     return NextResponse.json({
       ok: true,
@@ -116,10 +111,14 @@ export async function POST(req: Request) {
         clientName: gallery.client?.name ?? null,
         projectTitle: gallery.project?.title ?? null,
         images: images.filter(Boolean),
-        allowDownload: access.allowDownload,
+        allowDownload: access.allowDownload && missingPrivate === 0,
         expiresAt: access.expiresAt?.toISOString() ?? null,
       },
       tokenId: access.id,
+      warning:
+        missingPrivate > 0
+          ? "Some images use public URLs and are not available for download."
+          : null,
     });
   } catch (error) {
     Sentry.captureException(error);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { SessionProvider } from "next-auth/react";
 import { LazyMotion, domAnimation } from "framer-motion";
 import Lenis from "lenis";
 
@@ -23,5 +24,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  return <LazyMotion features={domAnimation}>{children}</LazyMotion>;
+  return (
+    <SessionProvider>
+      <LazyMotion features={domAnimation}>{children}</LazyMotion>
+    </SessionProvider>
+  );
 }

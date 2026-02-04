@@ -9,6 +9,9 @@ The endpoint is protected by the `SEED_TOKEN` environment variable:
 - If the provided token doesn't match, the endpoint returns 404
 - This ensures the endpoint is invisible in production unless explicitly enabled
 
+The admin middleware bypasses `/api/admin/seed` so the token can be used
+without an admin session.
+
 ## Setup
 
 1. Add to your `.env`:

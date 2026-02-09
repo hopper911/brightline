@@ -6,11 +6,8 @@ import { signIn } from "next-auth/react";
 
 function AdminLoginForm() {
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">(
-    "idle"
-  );
+  const [code, setCode] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string>("");
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -22,20 +19,17 @@ function AdminLoginForm() {
     const redirectTo =
       nextParam && nextParam.startsWith("/admin")
         ? nextParam
-        : "/admin/portfolio";
+        : "/admin";
 
     const res = await signIn("credentials", {
-      email,
-      password,
+      code,
       callbackUrl: redirectTo,
       redirect: false,
     });
 
     if (res?.error) {
       setStatus("error");
-      setMessage(
-        "Invalid email or password. Ensure ADMIN_EMAIL and ADMIN_PASSWORD are set in Vercel."
-      );
+      setMessage("Invalid access code.");
       return;
     }
 
@@ -45,35 +39,25 @@ function AdminLoginForm() {
     }
 
     setStatus("error");
-    setMessage("Sign-in failed. Ensure NEXTAUTH_URL and NEXTAUTH_SECRET are set.");
+    setMessage("Sign-in failed. Check NEXTAUTH_SECRET.");
   }
 
   return (
     <form onSubmit={onSubmit} className="mt-8 space-y-4">
       <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email address"
-        className="w-full rounded border border-black/20 bg-white/80 px-4 py-3 text-sm"
-        required
-        autoComplete="email"
-      />
-      <input
         type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder="Access code"
         className="w-full rounded border border-black/20 bg-white/80 px-4 py-3 text-sm"
         required
-        autoComplete="current-password"
       />
       <button
         type="submit"
         className="w-full rounded-full bg-black px-6 py-3 text-xs uppercase tracking-[0.32em] text-white"
         disabled={status === "loading"}
       >
-        {status === "loading" ? "Signing in..." : "Sign in"}
+        {status === "loading" ? "Checking..." : "Sign in"}
       </button>
       {message ? (
         <p

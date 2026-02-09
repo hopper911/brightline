@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { getClientDownloadUrl } from "@/lib/image-strategy";
@@ -13,18 +14,20 @@ export async function POST(req: Request) {
       type?: "single" | "favorites";
     };
 
-    const { token, imageId, type = "single" } = body;
+    const jar = await cookies();
+    const { imageId, type = "single" } = body;
+    const accessId = jar.get("client_access_id")?.value;
 
-    if (!token) {
+    if (!accessId) {
       return NextResponse.json(
-        { ok: false, error: "Token is required." },
+        { ok: false, error: "Access session required." },
         { status: 400 }
       );
     }
 
     // Validate token
     const access = await prisma.galleryAccessToken.findUnique({
-      where: { token },
+      where: { id: accessId },
       include: {
         gallery: {
           include: {
@@ -49,12 +52,35 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!access.isActive) {
+      return NextResponse.json(
+        { ok: false, error: "Access code is no longer active." },
+        { status: 403 }
+      );
+    }
+
     if (!access.allowDownload) {
       return NextResponse.json(
         { ok: false, error: "Downloads are not enabled for this gallery." },
         { status: 403 }
       );
     }
+
+    jar.set("client_access", "true", {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    jar.set("client_access_id", access.id, {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7,
+    });
 
     // Check download limits
     if (access.maxDownloads !== null) {
@@ -81,7 +107,6 @@ export async function POST(req: Request) {
 
       const signed = await getClientDownloadUrl({
         key: image.storageKey,
-        disposition: `attachment; filename="${image.filename || `image-${image.id}.jpg`}"`,
       });
 
       // Log download
@@ -125,7 +150,6 @@ export async function POST(req: Request) {
         favoriteImages.map(async (image) => {
           const signed = await getClientDownloadUrl({
             key: image.storageKey!,
-            disposition: `attachment; filename="${image.filename || `image-${image.id}.jpg`}"`,
           });
           return {
             id: image.id,

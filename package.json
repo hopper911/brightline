@@ -9,8 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.983.0",
+    "@aws-sdk/s3-request-presigner": "^3.983.0",
     "@prisma/client": "^5.22.0",
     "@sentry/nextjs": "^10.38.0",
+    "framer-motion": "^12.31.0",
+    "gray-matter": "^4.0.3",
+    "lenis": "^1.3.17",
     "next": "16.1.5",
     "next-auth": "^4.24.13",
     "react": "19.2.3",

@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model ContactMessage {
@@ -13,4 +14,210 @@ model ContactMessage {
   email     String
   message   String
   createdAt DateTime @default(now())
+}
+
+// Portfolio (marketing site)
+model PortfolioCategory {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  projects  PortfolioProject[]
+}
+
+model PortfolioProject {
+  id                  String    @id @default(cuid())
+  title               String
+  slug                String
+  category            String
+  categorySlug        String
+  categoryId          String?
+  location            String?
+  year                String?
+  description         String?
+  coverUrl            String?
+  coverStorageKey     String?
+  coverAlt            String?
+  seoTitle            String?
+  seoDescription      String?
+  ogImageUrl          String?
+  externalGalleryUrl  String?
+  published           Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  categoryRef         PortfolioCategory? @relation(fields: [categoryId], references: [id])
+  images              PortfolioImage[]
+}
+
+model PortfolioImage {
+  id        String   @id @default(cuid())
+  projectId String
+  url       String
+  storageKey String?
+  alt       String?
+  sortOrder Int      @default(0)
+  project   PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// Client portal
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  company   String?
+  projects  Project[]
+  galleries Gallery[]
+}
+
+model Project {
+  id           String    @id @default(cuid())
+  slug         String    @unique
+  title        String
+  description  String?
+  category     String?
+  location     String?
+  year         String?
+  coverUrl     String?
+  featured     Boolean   @default(false)
+  clientId     String?
+  published    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  client       Client?   @relation(fields: [clientId], references: [id])
+  galleries    Gallery[]
+  images       ProjectImage[]
+  tags         ProjectTag[]
+  testimonials Testimonial[]
+}
+
+model ProjectImage {
+  id        String  @id @default(cuid())
+  projectId String
+  url       String?
+  sortOrder Int     @default(0)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  projects  ProjectTag[]
+}
+
+model ProjectTag {
+  projectId String
+  tagId     String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([projectId, tagId])
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  role      String?
+  company   String?
+  quote     String
+  projectId String?
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  project   Project? @relation(fields: [projectId], references: [id])
+}
+
+model Lead {
+  id                String    @id @default(cuid())
+  type              String?
+  status            String?
+  score             Int?
+  name              String?
+  email             String?
+  phone             String?
+  company           String?
+  service           String?
+  budget            String?
+  message           String?
+  availabilityStart DateTime?
+  availabilityEnd   DateTime?
+  location          String?
+  shootType         String?
+  source            String?
+  internalNotes     String?
+  contactedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Gallery {
+  id           String    @id @default(cuid())
+  title        String
+  slug         String    @unique
+  description  String?
+  coverUrl     String?
+  clientNotes  String?
+  published    Boolean   @default(false)
+  clientId     String?
+  projectId    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  client       Client?   @relation(fields: [clientId], references: [id])
+  project      Project?  @relation(fields: [projectId], references: [id])
+  images       GalleryImage[]
+  accessTokens GalleryAccessToken[]
+}
+
+model GalleryImage {
+  id         String   @id @default(cuid())
+  galleryId  String
+  url        String
+  alt        String?
+  filename   String?
+  sortOrder  Int      @default(0)
+  storageKey String?
+  gallery    Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+}
+
+model GalleryAccessToken {
+  id            String    @id @default(cuid())
+  codeHash      String
+  codeSalt      String
+  codeHint      String
+  galleryId     String
+  label         String?
+  expiresAt     DateTime?
+  allowDownload Boolean   @default(false)
+  maxDownloads  Int?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+  isActive      Boolean   @default(true)
+  gallery       Gallery   @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  accessLogs    GalleryAccessLog[]
+  favorites     GalleryFavorite[]
+  downloads     GalleryDownload[]
+}
+
+model GalleryAccessLog {
+  id        String   @id @default(cuid())
+  tokenId   String?
+  action    String?
+  imageId   String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  token     GalleryAccessToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+}
+
+model GalleryFavorite {
+  tokenId   String
+  imageId   String
+  note      String?
+  token     GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  @@id([tokenId, imageId])
+}
+
+model GalleryDownload {
+  id       String   @id @default(cuid())
+  tokenId  String
+  imageId  String?
+  type     String?
+  token    GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
 }

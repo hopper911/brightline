@@ -39,11 +39,19 @@ Set these in **Vercel → Project → Settings → Environment Variables**:
 - `NEXT_PUBLIC_GA_ID` — Google Analytics
 
 ### Storage (R2/S3 for client galleries)
-- `R2_ACCOUNT_ID`
+R2 (Cloudflare):
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
-- `R2_BUCKET_NAME`
-- `R2_PUBLIC_URL` — Base URL for bucket (e.g. `https://xxx.r2.cloudflarestorage.com/bucket`)
+- `R2_BUCKET`
+- `R2_ENDPOINT` — Base URL for the account (e.g. `https://<account-id>.r2.cloudflarestorage.com`)
+- `R2_REGION` — Use `auto`
+
+S3 (AWS):
+- `S3_ACCESS_KEY_ID`
+- `S3_SECRET_ACCESS_KEY`
+- `S3_BUCKET`
+- `S3_REGION`
+- `S3_ENDPOINT` — Optional (set only for S3-compatible providers)
 
 ### Sentry (error tracking)
 - `SENTRY_DSN`

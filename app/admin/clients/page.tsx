@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 
 type ClientAccess = {
   id: string;
-  token: string;
+  codeHint?: string | null;
   expiresAt?: string | null;
+  isActive?: boolean;
   gallery?: { id: string; title: string; slug: string } | null;
 };
 
@@ -69,6 +70,14 @@ export default function AdminClientsPage() {
     }
   }
 
+  async function revokeAccess(id: string) {
+    const res = await fetch(`/api/admin/clients/${id}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) return;
+    setItems((prev) => prev.filter((item) => item.id !== id));
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
       <h1 className="section-title">Admin · Client Access</h1>
@@ -122,8 +131,24 @@ export default function AdminClientsPage() {
               {item.gallery?.title || "Gallery access"}
             </p>
             <p className="text-sm text-black/70">
-              Code: {item.token}
+              Code ending: {item.codeHint || "—"}
             </p>
+            {item.expiresAt ? (
+              <p className="text-xs text-black/50">
+                Expires: {new Date(item.expiresAt).toLocaleDateString()}
+              </p>
+            ) : null}
+            {item.isActive === false ? (
+              <p className="mt-2 text-xs uppercase tracking-[0.2em] text-red-500">
+                Disabled
+              </p>
+            ) : null}
+            <button
+              className="mt-2 text-xs uppercase tracking-[0.2em] text-red-500"
+              onClick={() => revokeAccess(item.id)}
+            >
+              Revoke
+            </button>
           </div>
         ))}
       </div>

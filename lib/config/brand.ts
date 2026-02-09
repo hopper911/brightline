@@ -5,7 +5,7 @@ export const BRAND = {
     description:
       "Commercial photography studio specializing in hospitality, real estate, and fashion brands.",
     ogImage: "/og-image.svg",
-    twitterCard: "summary_large_image",
+    twitterCard: "summary_large_image" as const,
   },
   contact: {
     email: "hello@brightlinephotography.co",

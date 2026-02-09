@@ -2,13 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type UploadUrlResponse =
-  | { url: string; publicUrl?: string; key?: string }
-  | { error: string };
+type UploadUrlResponse = { url: string } | { error: string };
 
 type PortfolioImage = {
   id: string;
   url: string;
+  storageKey?: string | null;
   alt: string | null;
   sortOrder: number;
 };
@@ -23,6 +22,7 @@ type PortfolioProject = {
   year?: string | null;
   description?: string | null;
   coverUrl?: string | null;
+  coverStorageKey?: string | null;
   coverAlt?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
@@ -74,6 +74,7 @@ export default function AdminPortfolioPage() {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [coverUrl, setCoverUrl] = useState("");
+  const [coverStorageKey, setCoverStorageKey] = useState<string | null>(null);
   const [existingImages, setExistingImages] = useState<PortfolioImage[]>([]);
 
   const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">(
@@ -134,6 +135,7 @@ export default function AdminPortfolioPage() {
     setCoverFile(null);
     setGalleryFiles([]);
     setCoverUrl("");
+    setCoverStorageKey(null);
     setExistingImages([]);
   }
 
@@ -154,6 +156,7 @@ export default function AdminPortfolioPage() {
     setCoverFile(null);
     setGalleryFiles([]);
     setCoverUrl(project.coverUrl ?? "");
+    setCoverStorageKey(project.coverStorageKey ?? null);
     setExistingImages(sortImages(project.images ?? []));
   }
 
@@ -172,6 +175,34 @@ export default function AdminPortfolioPage() {
     setExistingImages((prev) =>
       prev.map((img, idx) => (idx === index ? { ...img, alt: value } : img))
     );
+  }
+
+  async function resolvePublicUrl(key: string) {
+    const res = await fetch("/api/admin/public-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+    });
+    const data = (await res.json()) as { url?: string; error?: string };
+    if (!res.ok || !data.url) {
+      throw new Error(data.error || "Unable to resolve public URL.");
+    }
+    return data.url;
+  }
+
+  function extractStorageKey(signedUrl: string) {
+    try {
+      const url = new URL(signedUrl);
+      const path = decodeURIComponent(url.pathname);
+      const markers = ["/portfolio/", "/portfolio-public/"];
+      for (const marker of markers) {
+        const idx = path.indexOf(marker);
+        if (idx >= 0) return path.slice(idx + 1);
+      }
+      return path.replace(/^\//, "");
+    } catch {
+      return null;
+    }
   }
 
   async function uploadFile(file: File, projectSlug: string) {
@@ -207,12 +238,14 @@ export default function AdminPortfolioPage() {
       throw new Error(`Upload failed (${put.status}).`);
     }
 
-    const publicUrl = "publicUrl" in data && data.publicUrl ? data.publicUrl : "";
-    if (!publicUrl) {
-      throw new Error("Public URL missing from upload response.");
+    const storageKey = extractStorageKey(data.url);
+    if (!storageKey) {
+      throw new Error("Unable to determine storage key.");
     }
 
-    return publicUrl;
+    const publicUrl = await resolvePublicUrl(storageKey);
+
+    return { publicUrl, storageKey };
   }
 
   async function handleSubmit() {
@@ -225,9 +258,13 @@ export default function AdminPortfolioPage() {
       if (!projectSlug) throw new Error("Enter a project slug.");
 
       let nextCoverUrl = coverUrl;
+      let nextCoverStorageKey = coverStorageKey;
       if (coverFile) {
-        nextCoverUrl = await uploadFile(coverFile, projectSlug);
+        const uploaded = await uploadFile(coverFile, projectSlug);
+        nextCoverUrl = uploaded.publicUrl;
+        nextCoverStorageKey = uploaded.storageKey;
         setCoverUrl(nextCoverUrl);
+        setCoverStorageKey(nextCoverStorageKey);
       }
 
       if (!nextCoverUrl) {
@@ -238,8 +275,9 @@ export default function AdminPortfolioPage() {
         galleryFiles.map((file) => uploadFile(file, projectSlug))
       );
 
-      const newImages = uploadedGallery.map((url, index) => ({
-        url,
+      const newImages = uploadedGallery.map((image, index) => ({
+        url: image.publicUrl,
+        storageKey: image.storageKey,
         sortOrder: existingImages.length + index,
       }));
 
@@ -257,6 +295,7 @@ export default function AdminPortfolioPage() {
             year: year.trim() ? year.trim() : null,
             description: description.trim() ? description.trim() : null,
             coverUrl: nextCoverUrl,
+            coverStorageKey: nextCoverStorageKey,
             coverAlt: coverAlt.trim() ? coverAlt.trim() : null,
             seoTitle: seoTitle.trim() ? seoTitle.trim() : null,
             seoDescription: seoDescription.trim() ? seoDescription.trim() : null,
@@ -269,6 +308,7 @@ export default function AdminPortfolioPage() {
               id: img.id,
               alt: img.alt ?? null,
               sortOrder: typeof img.sortOrder === "number" ? img.sortOrder : index,
+              storageKey: img.storageKey ?? null,
             })),
             newImages,
           }),
@@ -290,6 +330,7 @@ export default function AdminPortfolioPage() {
             year: year.trim() ? year.trim() : null,
             description: description.trim() ? description.trim() : null,
             coverUrl: nextCoverUrl,
+            coverStorageKey: nextCoverStorageKey,
             coverAlt: coverAlt.trim() ? coverAlt.trim() : null,
             seoTitle: seoTitle.trim() ? seoTitle.trim() : null,
             seoDescription: seoDescription.trim() ? seoDescription.trim() : null,

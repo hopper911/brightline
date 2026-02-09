@@ -109,14 +109,17 @@ export default function ContactPage() {
         level: "info",
       });
 
-      if (!turnstileToken) {
+      if (siteKey && !turnstileToken) {
         throw new Error("Please complete the spam check.");
       }
 
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, turnstileToken }),
+        body: JSON.stringify({
+          ...form,
+          turnstileToken: siteKey ? turnstileToken : "",
+        }),
       });
 
       if (!res.ok) {
@@ -364,15 +367,15 @@ export default function ContactPage() {
             <button
               type="submit"
               className="hover-border mt-6 inline-flex items-center justify-center rounded border border-white/25 px-6 py-3 text-xs uppercase tracking-widest hover:border-white/50"
-              disabled={status === "sending" || !turnstileToken}
+              disabled={status === "sending" || (Boolean(siteKey) && !turnstileToken)}
             >
               {status === "sending" ? "Sending..." : "Send inquiry"}
             </button>
 
             <div id="contact-status" aria-live="polite">
               {!siteKey && (
-                <p className="mt-3 text-xs uppercase tracking-widest text-red-300">
-                  Turnstile site key missing.
+                <p className="mt-3 text-xs uppercase tracking-widest text-amber-200">
+                  Spam check is disabled (missing site key).
                 </p>
               )}
 

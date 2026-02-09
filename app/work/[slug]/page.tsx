@@ -63,6 +63,26 @@ export default async function WorkDetailPage({
     notFound();
   }
 
+  const goals = project.goals.length
+    ? project.goals
+    : [
+        "Define a clear visual direction for the campaign.",
+        "Capture hero imagery and detail-driven supporting frames.",
+        "Deliver assets optimized for web, social, and print.",
+      ];
+
+  const deliverables = project.deliverables.length
+    ? project.deliverables
+    : [
+        "Hero campaign selects",
+        "Supporting detail imagery",
+        "Multi-channel crop set",
+      ];
+
+  const results =
+    project.results ||
+    "Delivered a polished image library tailored for launch campaigns, sales materials, and ongoing content marketing.";
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-16">
       <Reveal className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -110,7 +130,7 @@ export default async function WorkDetailPage({
             Goals
           </p>
           <ul className="mt-4 space-y-2 text-sm text-black/70">
-            {project.goals.map((goal) => (
+            {goals.map((goal) => (
               <li key={goal} className="flex items-start gap-2">
                 <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/60" />
                 <span>{goal}</span>
@@ -123,7 +143,7 @@ export default async function WorkDetailPage({
             Deliverables
           </p>
           <ul className="mt-4 space-y-2 text-sm text-black/70">
-            {project.deliverables.map((deliverable) => (
+            {deliverables.map((deliverable) => (
               <li key={deliverable} className="flex items-start gap-2">
                 <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/60" />
                 <span>{deliverable}</span>
@@ -152,7 +172,7 @@ export default async function WorkDetailPage({
           <p className="text-xs uppercase tracking-[0.35em] text-black/50">
             Results
           </p>
-          <p className="mt-4 text-sm text-black/70">{project.results}</p>
+          <p className="mt-4 text-sm text-black/70">{results}</p>
         </Reveal>
         <Reveal className="rounded-[24px] border border-black/10 bg-black/60 p-6">
           <p className="text-xs uppercase tracking-[0.35em] text-white/60">

@@ -1,9 +1,3 @@
-export function getImageModeForUrl(url: string) {
-  if (!url) return "cover";
-  const lowered = url.toLowerCase();
-  if (lowered.endsWith(".svg")) return "contain";
-  return "cover";
-}
 /**
  * Client-safe image utilities.
  * This file contains only functions that can run in the browser.

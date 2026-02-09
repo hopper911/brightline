@@ -12,7 +12,12 @@ type Gallery = {
   published: boolean;
   client?: Client | null;
   project?: Project | null;
-  accessTokens?: { id: string; token: string; expiresAt?: string | null }[];
+  accessTokens?: {
+    id: string;
+    codeHint?: string | null;
+    isActive?: boolean;
+    expiresAt?: string | null;
+  }[];
 };
 
 function slugify(input: string) {
@@ -33,6 +38,7 @@ export default function AdminGalleriesPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [items, setItems] = useState<Gallery[]>([]);
+  const [lastGeneratedToken, setLastGeneratedToken] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
 
   const slug = useMemo(() => slugify(title || "gallery"), [title]);
@@ -57,12 +63,12 @@ export default function AdminGalleriesPage() {
         setProjects(data.projects || []);
       }
 
-      const clientsRes = await fetch("/api/admin/clients");
+      const clientsRes = await fetch("/api/admin/client-list");
       if (clientsRes.ok) {
-        const data = (await clientsRes.json()) as { items: { id: string; clientName: string }[] };
-        setClients(
-          (data.items || []).map((item) => ({ id: item.id, name: item.clientName }))
-        );
+        const data = (await clientsRes.json()) as {
+          clients: { id: string; name: string }[];
+        };
+        setClients(data.clients || []);
       }
     }
 
@@ -129,19 +135,7 @@ export default function AdminGalleriesPage() {
     });
     if (!res.ok) return;
     const data = (await res.json()) as { token: string };
-    setItems((prev) =>
-      prev.map((g) =>
-        g.id === galleryId
-          ? {
-              ...g,
-              accessTokens: [
-                { id: `token-${Date.now()}`, token: data.token },
-                ...(g.accessTokens || []),
-              ],
-            }
-          : g
-      )
-    );
+    setLastGeneratedToken(data.token);
   }
 
   async function revokeToken(galleryId: string, tokenId: string) {
@@ -268,7 +262,13 @@ export default function AdminGalleriesPage() {
               <div className="mt-3 space-y-2 text-xs text-black/50">
                 {item.accessTokens.map((token) => (
                   <div key={token.id} className="flex flex-wrap items-center gap-3">
-                    <span>Token: {token.token}</span>
+                    <span>Code ending: {token.codeHint || "—"}</span>
+                    {token.expiresAt ? (
+                      <span>Expires: {new Date(token.expiresAt).toLocaleDateString()}</span>
+                    ) : null}
+                    {token.isActive === false ? (
+                      <span className="text-red-500">Disabled</span>
+                    ) : null}
                     <button
                       className="btn btn-ghost"
                       onClick={() => revokeToken(item.id, token.id)}
@@ -277,6 +277,11 @@ export default function AdminGalleriesPage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            ) : null}
+            {lastGeneratedToken ? (
+              <div className="mt-3 rounded-xl border border-black/10 bg-white/70 px-3 py-2 text-xs">
+                New access code: <span className="font-semibold">{lastGeneratedToken}</span>
               </div>
             ) : null}
           </div>

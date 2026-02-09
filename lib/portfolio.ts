@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getPublicUrl } from "@/lib/storage";
 import { workItems } from "@/app/lib/work";
 
 type PortfolioItem = {
@@ -37,7 +38,9 @@ export async function getPublishedPortfolio(
     const description =
       project.description?.trim() ||
       `${project.title} case study for ${project.category} photography.`;
-    const gallery = project.images.map((img) => img.url);
+    const gallery = project.images.map((img) =>
+      img.storageKey ? getPublicUrl(img.storageKey) : img.url
+    );
     return {
       slug: project.slug,
       title: project.title,
@@ -46,7 +49,14 @@ export async function getPublishedPortfolio(
       location: project.location || "",
       year: project.year || "",
       description,
-      cover: project.coverUrl || project.images[0]?.url || "",
+      cover:
+        (project.coverStorageKey
+          ? getPublicUrl(project.coverStorageKey)
+          : project.coverUrl) ||
+        (project.images[0]?.storageKey
+          ? getPublicUrl(project.images[0].storageKey)
+          : project.images[0]?.url) ||
+        "",
       coverAlt: project.coverAlt || undefined,
       seoTitle: project.seoTitle || undefined,
       seoDescription: project.seoDescription || undefined,

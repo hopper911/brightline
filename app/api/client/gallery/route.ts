@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
-import { getClientDownloadUrl, assertClientImage } from "@/lib/image-strategy";
+import { getClientDownloadUrl } from "@/lib/image-strategy";
 
 export const runtime = "nodejs";
 
@@ -15,18 +16,19 @@ function getClientIp(req: Request): string | null {
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { token?: string };
-    const token = body.token?.trim();
+    await req.json();
+    const jar = await cookies();
+    const accessId = jar.get("client_access_id")?.value;
 
-    if (!token) {
+    if (!accessId) {
       return NextResponse.json(
-        { ok: false, error: "Access code is required." },
-        { status: 400 }
+        { ok: false, error: "Access session required." },
+        { status: 401 }
       );
     }
 
     const access = await prisma.galleryAccessToken.findUnique({
-      where: { token },
+      where: { id: accessId },
       include: {
         gallery: {
           include: {
@@ -46,12 +48,24 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!access.isActive) {
+      return NextResponse.json(
+        { ok: false, error: "That access code is no longer active." },
+        { status: 403 }
+      );
+    }
+
     if (access.expiresAt && access.expiresAt.getTime() < Date.now()) {
       return NextResponse.json(
         { ok: false, error: "That access code has expired." },
         { status: 410 }
       );
     }
+
+    await prisma.galleryAccessToken.update({
+      where: { id: access.id },
+      data: { lastUsedAt: new Date() },
+    });
 
     // Log gallery view
     try {

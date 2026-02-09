@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { findAccessByCode } from "@/lib/client-access";
 
 export const runtime = "nodejs";
 
@@ -14,24 +15,43 @@ export async function POST(req: Request) {
     );
   }
 
-  const access = await prisma.galleryAccessToken.findUnique({
-    where: { token },
-    include: { gallery: true },
-  });
-
-  if (!access || !access.gallery) {
+  const access = await findAccessByCode(token);
+  if (!access) {
     return NextResponse.json(
       { ok: false, error: "That access code is not valid." },
       { status: 404 }
     );
   }
 
-  if (access.expiresAt && access.expiresAt.getTime() < Date.now()) {
-    return NextResponse.json(
-      { ok: false, error: "That access code has expired." },
-      { status: 410 }
-    );
-  }
+  const jar = await cookies();
+  jar.set("client_access", "true", {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 7,
+  });
 
-  return NextResponse.json({ ok: true, token, galleryId: access.gallery.id });
+  jar.set("client_gallery", access.gallerySlug, {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+
+  jar.set("client_access_id", access.id, {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+
+  return NextResponse.json({
+    ok: true,
+    galleryId: access.galleryId,
+    slug: access.gallerySlug,
+    url: `/client/${access.gallerySlug}`,
+  });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
+import { hashAccessCode } from "@/lib/client-access";
 
 export const runtime = "nodejs";
 
@@ -16,16 +17,20 @@ export async function POST(
   const body = (await req.json()) as { expiresAt?: string };
 
   const token = generateToken();
+  const hashed = hashAccessCode(token);
 
   const accessToken = await prisma.galleryAccessToken.create({
     data: {
       galleryId: id,
-      token,
+      codeHash: hashed.hash,
+      codeSalt: hashed.salt,
+      codeHint: hashed.hint,
       expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+      isActive: true,
     },
   });
 
-  return NextResponse.json({ ok: true, token: accessToken.token });
+  return NextResponse.json({ ok: true, token });
 }
 
 export async function DELETE(
@@ -40,8 +45,9 @@ export async function DELETE(
       { status: 400 }
     );
   }
-  await prisma.galleryAccessToken.deleteMany({
+  await prisma.galleryAccessToken.updateMany({
     where: { id: body.tokenId, galleryId: id },
+    data: { isActive: false },
   });
   return NextResponse.json({ ok: true });
 }

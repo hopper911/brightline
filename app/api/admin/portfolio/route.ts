@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getPublicUrl } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -26,13 +27,19 @@ export async function POST(req: Request) {
     year?: string;
     description?: string;
     coverUrl?: string;
+    coverStorageKey?: string;
     coverAlt?: string;
     seoTitle?: string;
     seoDescription?: string;
     ogImageUrl?: string;
     externalGalleryUrl?: string;
     published?: boolean;
-    images?: { url: string; alt?: string; sortOrder?: number }[];
+    images?: {
+      url?: string;
+      storageKey?: string;
+      alt?: string;
+      sortOrder?: number;
+    }[];
   };
 
   if (!body.title || !body.slug || !body.category || !body.categorySlug) {
@@ -49,6 +56,10 @@ export async function POST(req: Request) {
         })
       : null;
 
+  const coverUrl = body.coverStorageKey
+    ? getPublicUrl(body.coverStorageKey)
+    : body.coverUrl;
+
   const project = await prisma.portfolioProject.create({
     data: {
       title: body.title,
@@ -59,7 +70,8 @@ export async function POST(req: Request) {
       location: body.location || null,
       year: body.year || null,
       description: body.description || null,
-      coverUrl: body.coverUrl || null,
+      coverUrl: coverUrl || null,
+      coverStorageKey: body.coverStorageKey || null,
       coverAlt: body.coverAlt || null,
       seoTitle: body.seoTitle || null,
       seoDescription: body.seoDescription || null,
@@ -68,12 +80,18 @@ export async function POST(req: Request) {
       published: Boolean(body.published),
       images: body.images?.length
         ? {
-            create: body.images.map((img, index) => ({
-              url: img.url,
-              alt: img.alt || null,
-              sortOrder:
-                typeof img.sortOrder === "number" ? img.sortOrder : index,
-            })),
+            create: body.images.map((img, index) => {
+              const imageUrl = img.storageKey
+                ? getPublicUrl(img.storageKey)
+                : img.url || "";
+              return {
+                url: imageUrl,
+                storageKey: img.storageKey || null,
+                alt: img.alt || null,
+                sortOrder:
+                  typeof img.sortOrder === "number" ? img.sortOrder : index,
+              };
+            }),
           }
         : undefined,
     },
@@ -95,14 +113,25 @@ export async function PATCH(req: Request) {
     year?: string | null;
     description?: string | null;
     coverUrl?: string | null;
+    coverStorageKey?: string | null;
     coverAlt?: string | null;
     seoTitle?: string | null;
     seoDescription?: string | null;
     ogImageUrl?: string | null;
     externalGalleryUrl?: string | null;
     published?: boolean;
-    images?: { id: string; alt?: string | null; sortOrder?: number }[];
-    newImages?: { url: string; alt?: string | null; sortOrder?: number }[];
+    images?: {
+      id: string;
+      alt?: string | null;
+      sortOrder?: number;
+      storageKey?: string | null;
+    }[];
+    newImages?: {
+      url?: string;
+      storageKey?: string | null;
+      alt?: string | null;
+      sortOrder?: number;
+    }[];
   };
 
   if (!body.id) {
@@ -119,6 +148,10 @@ export async function PATCH(req: Request) {
         })
       : null;
 
+  const coverUrl = body.coverStorageKey
+    ? getPublicUrl(body.coverStorageKey)
+    : body.coverUrl;
+
   const project = await prisma.portfolioProject.update({
     where: { id: body.id },
     data: {
@@ -131,7 +164,8 @@ export async function PATCH(req: Request) {
       location: body.location ?? undefined,
       year: body.year ?? undefined,
       description: body.description ?? undefined,
-      coverUrl: body.coverUrl ?? undefined,
+      coverUrl: coverUrl ?? undefined,
+      coverStorageKey: body.coverStorageKey ?? undefined,
       coverAlt: body.coverAlt ?? undefined,
       seoTitle: body.seoTitle ?? undefined,
       seoDescription: body.seoDescription ?? undefined,
@@ -151,6 +185,7 @@ export async function PATCH(req: Request) {
             alt: img.alt ?? undefined,
             sortOrder:
               typeof img.sortOrder === "number" ? img.sortOrder : undefined,
+            storageKey: img.storageKey ?? undefined,
           },
         })
       )
@@ -159,13 +194,19 @@ export async function PATCH(req: Request) {
 
   if (body.newImages?.length) {
     await prisma.portfolioImage.createMany({
-      data: body.newImages.map((img, index) => ({
-        projectId: project.id,
-        url: img.url,
-        alt: img.alt ?? null,
-        sortOrder:
-          typeof img.sortOrder === "number" ? img.sortOrder : index,
-      })),
+      data: body.newImages.map((img, index) => {
+        const imageUrl = img.storageKey
+          ? getPublicUrl(img.storageKey)
+          : img.url || "";
+        return {
+          projectId: project.id,
+          url: imageUrl,
+          storageKey: img.storageKey ?? null,
+          alt: img.alt ?? null,
+          sortOrder:
+            typeof img.sortOrder === "number" ? img.sortOrder : index,
+        };
+      }),
     });
   }
 

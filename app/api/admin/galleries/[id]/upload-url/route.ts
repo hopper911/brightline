@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { getClientUploadUrl } from "@/lib/image-strategy";
+import { hasAdminAccess } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,11 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const isAdmin = await hasAdminAccess();
+    if (!isAdmin) {
+      return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+    }
+
     const { id } = await context.params;
     const body = (await req.json()) as {
       filename?: string;

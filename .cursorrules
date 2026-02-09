@@ -70,3 +70,29 @@
 - Phone: +1 (212) 555-0139
 - Locations: Miami, New York, Available Worldwide
 - Domain: brightlinephotography.co
+
+
+- Prefer server actions for login/contact forms.
+- Any protected route must be enforced server-side (not client-only).
+- Every new API route must return typed JSON and handle missing env vars gracefully.
+- Never store secrets in NEXT_PUBLIC_ variables.
+
+
+
+
+#CLIENT PORTAL RULES:
+- Client access codes must be hashed (never stored plaintext).
+- Client gallery pages must enforce access server-side (no client-only guards).
+- cookies() must be awaited everywhere.
+- Redirect unauthorized clients to /client.
+
+
+#Hard rules:
+- Fix Vercel build errors caused by missing packages.
+- If code imports a package, ensure it exists in package.json dependencies OR remove the import if unused.
+- Do not invent env vars; list required env vars explicitly.
+- Use NextAuth v5-style App Router route handler if possible.
+- cookies() from next/headers is async and must be awaited.
+- Provide full file contents for any file changed or created.
+- Keep changes minimal and production-safe.
+

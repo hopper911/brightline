@@ -195,14 +195,14 @@ export default function ServicesPage() {
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {CREDIBILITY.faqs.map((faq) => (
             <details
-              key={faq.q}
+              key={faq.question}
               className="group rounded-[16px] border border-black/10 bg-white p-5 transition-colors hover:border-black/20"
             >
               <summary className="cursor-pointer text-sm font-medium text-black list-none flex items-start justify-between gap-4">
-                <span>{faq.q}</span>
+                <span>{faq.question}</span>
                 <span className="shrink-0 text-black/40 group-open:rotate-45 transition-transform">+</span>
               </summary>
-              <p className="mt-3 text-sm text-black/70 pr-8">{faq.a}</p>
+              <p className="mt-3 text-sm text-black/70 pr-8">{faq.answer}</p>
             </details>
           ))}
         </div>

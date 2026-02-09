@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 
@@ -13,18 +14,20 @@ export async function POST(req: Request) {
       note?: string;
     };
 
-    const { token, imageId, action = "add", note } = body;
+    const jar = await cookies();
+    const { imageId, action = "add", note } = body;
+    const accessId = jar.get("client_access_id")?.value;
 
-    if (!token || !imageId) {
+    if (!accessId || !imageId) {
       return NextResponse.json(
-        { ok: false, error: "Token and imageId are required." },
+        { ok: false, error: "Access session and imageId are required." },
         { status: 400 }
       );
     }
 
     // Validate token
     const access = await prisma.galleryAccessToken.findUnique({
-      where: { token },
+      where: { id: accessId },
     });
 
     if (!access) {
@@ -40,6 +43,29 @@ export async function POST(req: Request) {
         { status: 410 }
       );
     }
+
+    if (!access.isActive) {
+      return NextResponse.json(
+        { ok: false, error: "Access code is no longer active." },
+        { status: 403 }
+      );
+    }
+
+    jar.set("client_access", "true", {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    jar.set("client_access_id", access.id, {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7,
+    });
 
     if (action === "add") {
       // Add favorite

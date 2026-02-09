@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
-import { assertServerEnv } from "@/lib/env";
 import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
 import { createLead, notifyLead } from "@/lib/services/contact";
 
@@ -13,7 +12,7 @@ const baseSchema = z.object({
   company: z.string().optional(),
   service: z.string().optional(),
   budget: z.string().optional(),
-  turnstileToken: z.string().min(1, "Spam check required."),
+  turnstileToken: z.string().optional(),
   website: z.string().optional(), // honeypot field
 });
 
@@ -38,9 +37,6 @@ const contactSchema = z.discriminatedUnion("type", [
 
 async function verifyTurnstile(token: string) {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  const bypass = process.env.TURNSTILE_BYPASS === "true";
-
-  if (bypass) return true;
   if (!secret) {
     throw new Error("Turnstile secret not configured.");
   }
@@ -63,8 +59,6 @@ async function verifyTurnstile(token: string) {
 
 export async function POST(req: Request) {
   try {
-    assertServerEnv();
-
     if (isRateLimited(getClientIp(req))) {
       return NextResponse.json(
         { ok: false, error: "Too many requests." },
@@ -91,12 +85,20 @@ export async function POST(req: Request) {
       );
     }
     
-    const isValid = await verifyTurnstile(payload.turnstileToken);
-    if (!isValid) {
-      return NextResponse.json(
-        { ok: false, error: "Spam check failed." },
-        { status: 400 }
-      );
+    if (process.env.TURNSTILE_SECRET_KEY) {
+      if (!payload.turnstileToken) {
+        return NextResponse.json(
+          { ok: false, error: "Spam check required." },
+          { status: 400 }
+        );
+      }
+      const isValid = await verifyTurnstile(payload.turnstileToken);
+      if (!isValid) {
+        return NextResponse.json(
+          { ok: false, error: "Spam check failed." },
+          { status: 400 }
+        );
+      }
     }
 
     const contactPayload = {

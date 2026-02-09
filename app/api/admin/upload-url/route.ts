@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import { getMarketingPublicUrl, getMarketingUploadUrl } from "@/lib/image-strategy";
+import { getMarketingUploadUrl } from "@/lib/image-strategy";
+import { hasAdminAccess } from "@/lib/admin-auth";
 
 export async function POST(req: Request) {
   try {
+    const isAdmin = await hasAdminAccess();
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
     const body = (await req.json()) as {
       filename?: string;
       contentType?: string;
@@ -24,9 +30,7 @@ export async function POST(req: Request) {
       contentType: body.contentType,
     });
 
-    const publicUrl = getMarketingPublicUrl(key);
-
-    return NextResponse.json({ url: signed.url, publicUrl, key });
+    return NextResponse.json({ url: signed.url });
   } catch (error) {
     Sentry.captureException(error);
     return NextResponse.json({ error: "Bad request." }, { status: 400 });

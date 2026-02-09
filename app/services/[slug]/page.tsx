@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { services } from "../data";
 import PortfolioCard from "@/components/PortfolioCard";
 import PrimaryCTA from "@/components/PrimaryCTA";
+import { workItems } from "@/app/lib/work";
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
@@ -79,6 +80,12 @@ export default async function ServicePage({
       </div>
     );
   }
+
+  const getCaseStudyHref = (projectSlug: string) => {
+    const project = workItems.find((item) => item.slug === projectSlug);
+    if (!project) return "/portfolio";
+    return `/portfolio/${project.categorySlug}/${project.slug}`;
+  };
 
   const faqSchema = {
     "@context": "https://schema.org",
@@ -244,7 +251,7 @@ export default async function ServicePage({
           {service.caseStudies.slice(0, 2).map((item) => (
             <PortfolioCard
               key={item.slug}
-              href={`/work/${item.slug}`}
+              href={getCaseStudyHref(item.slug)}
               cover={item.image}
               alt={item.title}
               tag={item.category}

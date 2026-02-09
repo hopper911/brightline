@@ -1,33 +1,25 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma } from "@/lib/prisma";
-import { isAdminEmail } from "@/lib/admin-emails";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
-  secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
       id: "credentials",
-      name: "credentials",
+      name: "Access Code",
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        code: { label: "Access Code", type: "password" },
       },
       async authorize(credentials) {
-        const email = credentials?.email?.trim().toLowerCase();
-        const password = credentials?.password;
-        if (!email || !password) return null;
-        const adminPassword = process.env.ADMIN_PASSWORD;
-        if (!adminPassword) return null;
-        if (!isAdminEmail(email)) return null;
-        if (password !== adminPassword) return null;
-        return { id: "admin", email, name: "Admin" };
+        const code = credentials?.code;
+        if (!code) return null;
+        const accessCode = process.env.ADMIN_ACCESS_CODE;
+        if (!accessCode) return null;
+        if (code !== accessCode) return null;
+        return { id: "admin", name: "Admin", email: "admin@local" };
       },
     }),
   ],
@@ -35,76 +27,18 @@ export const authOptions: NextAuthOptions = {
     signIn: "/admin/login",
   },
   callbacks: {
-    async signIn({ user }) {
-      return !!user?.email && isAdminEmail(user.email);
-    },
     async jwt({ token, user }) {
-      if (user?.email) {
-        token.email = user.email;
-        token.name = user.name;
+      if (user) {
+        token.isAdmin = true;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.email) {
-        session.user.email = token.email;
-        session.user.name = token.name;
-      }
-      return session;
-    },
-  },
-};
-import type { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma } from "@/lib/prisma";
-import { isAdminEmail } from "@/lib/admin-emails";
-
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
-  secret: process.env.NEXTAUTH_SECRET,
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  providers: [
-    CredentialsProvider({
-      id: "credentials",
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        const email = credentials?.email?.trim().toLowerCase();
-        const password = credentials?.password;
-        if (!email || !password) return null;
-        const adminPassword = process.env.ADMIN_PASSWORD;
-        if (!adminPassword) return null;
-        if (!isAdminEmail(email)) return null;
-        if (password !== adminPassword) return null;
-        return { id: "admin", email, name: "Admin" };
-      },
-    }),
-  ],
-  pages: {
-    signIn: "/admin/login",
-  },
-  callbacks: {
-    async signIn({ user }) {
-      return !!user?.email && isAdminEmail(user.email);
-    },
-    async jwt({ token, user }) {
-      if (user?.email) {
-        token.email = user.email;
-        token.name = user.name;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user && token.email) {
-        session.user.email = token.email;
-        session.user.name = token.name;
+      if (session.user) {
+        session.user.name = session.user.name || "Admin";
+        (session.user as { isAdmin?: boolean }).isAdmin = Boolean(
+          token.isAdmin
+        );
       }
       return session;
     },

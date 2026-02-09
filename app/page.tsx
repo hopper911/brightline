@@ -83,10 +83,10 @@ const featured = [
     image: "/images/fashion.jpg",
   },
   {
-    title: "Culinary Stories",
-    tag: "Food",
-    href: "/portfolio/culinary/food-01",
-    image: "/images/food.jpg",
+    title: "Workplace Campaigns",
+    tag: "Commercial",
+    href: "/portfolio/commercial-real-estate/real-estate-02",
+    image: "/images/design.jpg",
   },
 ];
 

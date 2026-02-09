@@ -15,13 +15,23 @@ type LeadPayload = {
 };
 
 export async function createLead(payload: LeadPayload) {
-  if (!prisma?.contactMessage) return;
   try {
-    await prisma.contactMessage.create({
+    await prisma.lead.create({
       data: {
+        type: payload.type,
+        status: "new",
+        score: 0,
         name: payload.name,
         email: payload.email,
-        message: payload.message || "",
+        message: payload.message || null,
+        company: payload.company || null,
+        service: payload.service || null,
+        budget: payload.budget || null,
+        availabilityStart: payload.availabilityStart || null,
+        availabilityEnd: payload.availabilityEnd || null,
+        location: payload.location || null,
+        shootType: payload.shootType || null,
+        source: "contact",
       },
     });
   } catch {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hashAccessCode } from "@/lib/client-access";
 
 export const runtime = "nodejs";
 
@@ -103,13 +104,17 @@ export async function POST(req: Request) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
+    const hashed = hashAccessCode(accessCode);
     const accessToken = await prisma.galleryAccessToken.create({
       data: {
         galleryId: gallery.id,
-        token: accessCode,
+        codeHash: hashed.hash,
+        codeSalt: hashed.salt,
+        codeHint: hashed.hint,
         label: "Demo Access",
         expiresAt,
         allowDownload: true,
+        isActive: true,
       },
     });
 
@@ -123,8 +128,8 @@ export async function POST(req: Request) {
         projectTitle: project.title,
         galleryId: gallery.id,
         galleryTitle: gallery.title,
-        accessCode: accessToken.token,
-        accessUrl: `/client/${accessToken.token}`,
+        accessCode,
+        accessUrl: `/client/${gallery.slug}`,
         expiresAt: accessToken.expiresAt?.toISOString(),
       },
     });

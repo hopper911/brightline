@@ -83,8 +83,8 @@ export default async function ServicePage({
 
   const getCaseStudyHref = (projectSlug: string) => {
     const project = workItems.find((item) => item.slug === projectSlug);
-    if (!project) return "/portfolio";
-    return `/portfolio/${project.categorySlug}/${project.slug}`;
+    if (!project) return "/work";
+    return `/work/${project.categorySlug}/${project.slug}`;
   };
 
   const faqSchema = {

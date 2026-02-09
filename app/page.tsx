@@ -67,25 +67,25 @@ const featured = [
   {
     title: "Architecture & Interiors",
     tag: "Commercial",
-    href: "/portfolio/commercial-real-estate/real-estate-01",
+    href: "/work/commercial-real-estate/real-estate-01",
     image: "/images/real-estate.jpg",
   },
   {
     title: "Hospitality & Travel",
     tag: "Lifestyle",
-    href: "/portfolio/hospitality/hotel-01",
+    href: "/work/hospitality/hotel-01",
     image: "/images/hospitality.jpg",
   },
   {
     title: "Editorial Fashion",
     tag: "Campaign",
-    href: "/portfolio/fashion/fashion-01",
+    href: "/work/fashion/fashion-01",
     image: "/images/fashion.jpg",
   },
   {
     title: "Workplace Campaigns",
     tag: "Commercial",
-    href: "/portfolio/commercial-real-estate/real-estate-02",
+    href: "/work/commercial-real-estate/real-estate-02",
     image: "/images/design.jpg",
   },
 ];
@@ -170,7 +170,7 @@ export default function Page() {
         />
         <HomeHero />
 
-        <Reveal id="portfolio" className="relative mx-auto max-w-6xl px-4 pb-20 pt-12 scroll-mt-20">
+        <Reveal id="work" className="relative mx-auto max-w-6xl px-4 pb-20 pt-12 scroll-mt-20">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.35em] text-black/50">

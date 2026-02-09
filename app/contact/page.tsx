@@ -410,9 +410,9 @@ export default function ContactPage() {
             <p className="text-sm">+1 (212) 555-0139</p>
             <Link
               className="hover-border mt-6 inline-flex items-center justify-center rounded border border-white/25 px-6 py-3 text-xs uppercase tracking-widest hover:border-white/50"
-              href="/portfolio"
+              href="/work"
             >
-              View portfolio
+              View work
             </Link>
           </div>
         </div>

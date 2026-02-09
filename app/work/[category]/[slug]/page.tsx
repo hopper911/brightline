@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import GalleryLightbox from "./GalleryLightbox";
+import GalleryLightbox from "@/components/GalleryLightbox";
 import Reveal from "@/components/Reveal";
 import PrimaryCTA from "@/components/PrimaryCTA";
 import { getAdminSession } from "@/lib/admin-auth";
 import { getWorkByCategoryAndSlug, workItems } from "@/app/lib/work";
 import { getPortfolioByCategoryAndSlug, getPortfolioBySlug } from "@/lib/portfolio";
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
   return workItems.map((item) => ({
     category: item.categorySlug,
     slug: item.slug,
@@ -62,10 +62,9 @@ export async function generateMetadata({
 
   const title = work.seoTitle || `${work.title} · Bright Line Photography`;
   const description = work.seoDescription || work.description || `${work.category} photography case study.`;
-  const canonicalUrl = `/portfolio/${category}/${slug}`;
-  
-  // Use custom OG image, cover image, or dynamic OG
-  const ogImageUrl = work.ogImageUrl || work.cover || 
+  const canonicalUrl = `/work/${category}/${slug}`;
+
+  const ogImageUrl = work.ogImageUrl || work.cover ||
     `/api/og?title=${encodeURIComponent(work.title)}&subtitle=${encodeURIComponent(`${work.location} · ${work.year}`)}&category=${encodeURIComponent(work.category)}`;
 
   return {
@@ -89,7 +88,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function PortfolioProjectPage({
+export default async function WorkProjectPage({
   params,
 }: {
   params: Promise<{ category: string; slug: string }>;
@@ -124,7 +123,7 @@ export default async function PortfolioProjectPage({
     }
   }
   if (!work) {
-    redirect("/portfolio");
+    redirect("/work");
   }
 
   const goalsByCategory: Record<string, string[]> = {
@@ -202,7 +201,7 @@ export default async function PortfolioProjectPage({
           </p>
         </div>
         <Link
-          href={`/portfolio/${work.categorySlug}`}
+          href={`/work?category=${work.categorySlug}`}
           className="rounded-full border border-black/20 px-5 py-2 text-xs uppercase tracking-[0.32em] text-black/70"
         >
           Back to {work.category}
@@ -281,14 +280,14 @@ export default async function PortfolioProjectPage({
                 Ready to build your visual story?
               </h2>
               <p className="mt-3 text-sm text-white/70">
-                Share timeline, scope, and usage needs and we’ll craft a tailored proposal.
+                Share timeline, scope, and usage needs and we'll craft a tailored proposal.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <PrimaryCTA service={work.categorySlug} className="btn btn-solid" location="case-study" />
                 <Link
                   href={(["hospitality", "commercial-real-estate", "fashion"].includes(work.categorySlug)
-                  ? `/services/${work.categorySlug === "hospitality" ? "hospitality-photography" : work.categorySlug === "commercial-real-estate" ? "commercial-real-estate-photography" : "fashion-campaign-photography"}`
-                  : "/services")}
+                    ? `/services/${work.categorySlug === "hospitality" ? "hospitality-photography" : work.categorySlug === "commercial-real-estate" ? "commercial-real-estate-photography" : "fashion-campaign-photography"}`
+                    : "/services")}
                   className="btn btn-ghost text-white/80 hover:text-white"
                 >
                   View services
@@ -299,19 +298,19 @@ export default async function PortfolioProjectPage({
         </div>
         <Reveal>
           <aside className="rounded-[24px] border border-black/10 bg-white/80 p-6">
-          <p className="text-xs uppercase tracking-[0.35em] text-black/50">
-            Project stats
-          </p>
-          <ul className="mt-4 space-y-4">
-            {work.stats.map((stat) => (
-              <li key={stat.label}>
-                <p className="text-xs uppercase tracking-[0.3em] text-black/50">
-                  {stat.label}
-                </p>
-                <p className="text-lg text-black">{stat.value}</p>
-              </li>
-            ))}
-          </ul>
+            <p className="text-xs uppercase tracking-[0.35em] text-black/50">
+              Project stats
+            </p>
+            <ul className="mt-4 space-y-4">
+              {work.stats.map((stat) => (
+                <li key={stat.label}>
+                  <p className="text-xs uppercase tracking-[0.3em] text-black/50">
+                    {stat.label}
+                  </p>
+                  <p className="text-lg text-black">{stat.value}</p>
+                </li>
+              ))}
+            </ul>
           </aside>
         </Reveal>
       </div>

@@ -13,10 +13,10 @@ export default function NotFound() {
         The page you’re looking for doesn’t exist or has moved.
       </p>
       <Link
-        href="/portfolio"
+        href="/work"
         className="mt-8 rounded-full bg-black px-6 py-3 text-xs uppercase tracking-[0.32em] text-white"
       >
-        Back to Portfolio
+        Back to work
       </Link>
     </div>
   );

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Reveal from "@/components/Reveal";
-import GalleryLightbox from "@/app/portfolio/[category]/[slug]/GalleryLightbox";
+import GalleryLightbox from "@/components/GalleryLightbox";
 import { getProjectBySlug, getProjects } from "@/lib/content";
 import PrimaryCTA from "@/components/PrimaryCTA";
 

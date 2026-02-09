@@ -2,17 +2,16 @@ import type { MetadataRoute } from "next";
 import { services } from "./services/data";
 import { BRAND } from "@/lib/config/brand";
 import { getProjects } from "@/lib/content";
-import { workItems } from "@/app/lib/work";
+import { getPublishedPortfolio } from "@/lib/portfolio";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = BRAND.url;
   const now = new Date();
 
-  // Core pages
+  // Core pages (no /portfolio – everything under /work)
   const coreRoutes = [
     { path: "", priority: 1.0 },
     { path: "/services", priority: 0.9 },
-    { path: "/portfolio", priority: 0.9 },
     { path: "/work", priority: 0.9 },
     { path: "/contact", priority: 0.8 },
     { path: "/about", priority: 0.7 },
@@ -31,7 +30,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
-  // Work/project pages
+  // Work: content-based project pages
   const projects = getProjects();
   const workRoutes = projects.map((project) => ({
     url: `${baseUrl}/work/${project.slug}`,
@@ -39,19 +38,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  // Portfolio category pages
-  const categories = Array.from(
-    new Set(workItems.map((item) => item.categorySlug))
-  );
-  const categoryRoutes = categories.map((category) => ({
-    url: `${baseUrl}/portfolio/${category}`,
-    lastModified: now,
-    priority: 0.8,
-  }));
-
-  // Portfolio case study pages
-  const portfolioRoutes = workItems.map((item) => ({
-    url: `${baseUrl}/portfolio/${item.categorySlug}/${item.slug}`,
+  // Work: portfolio (DB) project pages
+  const portfolioItems = await getPublishedPortfolio({ includeDrafts: false });
+  const portfolioWorkRoutes = portfolioItems.map((item) => ({
+    url: `${baseUrl}/work/${item.categorySlug}/${item.slug}`,
     lastModified: now,
     priority: 0.7,
   }));
@@ -60,7 +50,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...routes,
     ...serviceRoutes,
     ...workRoutes,
-    ...categoryRoutes,
-    ...portfolioRoutes,
+    ...portfolioWorkRoutes,
   ];
 }

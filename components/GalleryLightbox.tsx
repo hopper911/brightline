@@ -45,16 +45,16 @@ export default function GalleryLightbox({
           >
             <Image
               src={image}
-            alt={`${title} image ${i + 1}`}
-            fill
-            sizes="(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw"
-            placeholder="blur"
-            blurDataURL={BLUR_DATA}
-            className="object-cover transition motion-slow motion-ease group-hover:scale-105 motion-reduce:transition-none motion-reduce:transform-none"
-          />
-        </button>
-      ))}
-    </div>
+              alt={`${title} image ${i + 1}`}
+              fill
+              sizes="(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw"
+              placeholder="blur"
+              blurDataURL={BLUR_DATA}
+              className="object-cover transition motion-slow motion-ease group-hover:scale-105 motion-reduce:transition-none motion-reduce:transform-none"
+            />
+          </button>
+        ))}
+      </div>
 
       <Lightbox
         open={index >= 0}

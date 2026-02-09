@@ -297,8 +297,8 @@ export default function AboutPage() {
             <BookingButton className="btn btn-outline-light">
               Book a call
             </BookingButton>
-            <Link href="/portfolio" className="btn btn-ghost text-white/80 hover:text-white">
-              View portfolio
+            <Link href="/work" className="btn btn-ghost text-white/80 hover:text-white">
+              View work
             </Link>
           </div>
         </div>

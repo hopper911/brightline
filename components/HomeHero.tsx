@@ -52,8 +52,8 @@ export default function HomeHero() {
             className="flex flex-wrap gap-4"
           >
             <PrimaryCTA service="general" />
-            <MagneticButton href="/#portfolio" className="btn btn-ghost">
-              View Portfolio
+            <MagneticButton href="/work" className="btn btn-ghost">
+              View work
             </MagneticButton>
           </motion.div>
           <motion.div

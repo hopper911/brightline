@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { getProjects } from "@/lib/content";
+import { getPublishedPortfolio } from "@/lib/portfolio";
+import type { WorkHubItem } from "./work-hub";
 import WorkHub from "./work-hub";
 
 export const metadata: Metadata = {
@@ -26,15 +28,45 @@ export const metadata: Metadata = {
 };
 
 export default async function WorkIndexPage() {
-  const items = getProjects();
+  const contentProjects = getProjects();
+  const portfolioItems = await getPublishedPortfolio({ includeDrafts: false });
+
+  const contentWorkItems: WorkHubItem[] = contentProjects.map((p) => ({
+    href: `/work/${p.slug}`,
+    slug: p.slug,
+    title: p.title,
+    category: p.category,
+    location: p.location,
+    year: p.year,
+    cover: p.cover,
+  }));
+
+  const portfolioWorkItems: WorkHubItem[] = portfolioItems.map((p) => ({
+    href: `/work/${p.categorySlug}/${p.slug}`,
+    slug: p.slug,
+    title: p.title,
+    category: p.category,
+    location: p.location,
+    year: p.year,
+    cover: p.cover,
+    coverAlt: p.coverAlt,
+  }));
+
+  const items: WorkHubItem[] = [
+    ...portfolioWorkItems,
+    ...contentWorkItems.filter(
+      (c) => !portfolioWorkItems.some((p) => p.slug === c.slug)
+    ),
+  ].sort((a, b) => (b.year || "").localeCompare(a.year || ""));
 
   const tags = Array.from(
-    new Set(items.flatMap((item) => item.tags))
+    new Set(contentProjects.flatMap((item) => item.tags))
   ).sort((a, b) => a.localeCompare(b));
 
-  const categories = Array.from(
-    new Map(items.map((item) => [item.categorySlug, item.category])).entries()
-  ).map(([value, label]) => ({ value, label }));
+  const categoryMap = new Map<string, string>();
+  contentProjects.forEach((p) => categoryMap.set(p.categorySlug, p.category));
+  portfolioItems.forEach((p) => categoryMap.set(p.categorySlug, p.category));
+  const categories = Array.from(categoryMap.entries()).map(([value, label]) => ({ value, label }));
 
   return (
     <WorkHub

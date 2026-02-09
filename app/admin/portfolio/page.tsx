@@ -194,7 +194,7 @@ export default function AdminPortfolioPage() {
     try {
       const url = new URL(signedUrl);
       const path = decodeURIComponent(url.pathname);
-      const markers = ["/portfolio/", "/portfolio-public/"];
+      const markers = ["/work/", "/portfolio-public/"];
       for (const marker of markers) {
         const idx = path.indexOf(marker);
         if (idx >= 0) return path.slice(idx + 1);
@@ -687,7 +687,7 @@ export default function AdminPortfolioPage() {
               <div>
                 <div className="text-sm font-semibold">{project.title}</div>
                 <div className="text-xs text-black/50">
-                  /portfolio/{project.categorySlug}/{project.slug}
+                  /work/{project.categorySlug}/{project.slug}
                 </div>
                 <div className="text-xs text-black/50">
                   {project.published ? "Published" : "Draft"} · {project.category}

@@ -1,12 +1,22 @@
 import Link from "next/link";
 import Image from "next/image";
-import type { ProjectContent } from "@/lib/content";
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
 
+export type WorkHubItem = {
+  href: string;
+  slug: string;
+  title: string;
+  category: string;
+  location: string;
+  year: string;
+  cover: string;
+  coverAlt?: string;
+};
+
 type WorkHubProps = {
-  items: ProjectContent[];
+  items: WorkHubItem[];
   tags: string[];
   categories: { value: string; label: string }[];
 };
@@ -32,14 +42,14 @@ export default function WorkHub({ items, tags, categories }: WorkHubProps) {
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         {items.map((item) => (
           <Link
-            key={item.slug}
-            href={`/work/${item.slug}`}
+            key={item.href}
+            href={item.href}
             className="group overflow-hidden rounded-[24px] border border-black/10 bg-white/80 shadow-[0_20px_40px_rgba(27,26,23,0.08)]"
           >
             <div className="relative h-[240px] w-full">
               <Image
                 src={item.cover}
-                alt={item.title}
+                alt={item.coverAlt || item.title}
                 fill
                 sizes="(min-width: 1024px) 50vw, 100vw"
                 placeholder="blur"

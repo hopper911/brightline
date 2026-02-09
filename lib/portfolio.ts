@@ -24,11 +24,16 @@ export async function getPublishedPortfolio(
   options?: { includeDrafts?: boolean }
 ): Promise<PortfolioItem[]> {
   const includeDrafts = options?.includeDrafts ?? false;
-  const projects = await prisma.portfolioProject.findMany({
-    where: includeDrafts ? undefined : { published: true },
-    include: { images: { orderBy: { sortOrder: "asc" } } },
-    orderBy: { updatedAt: "desc" },
-  });
+  let projects;
+  try {
+    projects = await prisma.portfolioProject.findMany({
+      where: includeDrafts ? undefined : { published: true },
+      include: { images: { orderBy: { sortOrder: "asc" } } },
+      orderBy: { updatedAt: "desc" },
+    });
+  } catch {
+    return workItems;
+  }
 
   if (!projects.length) {
     return workItems;

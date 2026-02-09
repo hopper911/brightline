@@ -16,3 +16,4 @@ node_modules
 prisma/migrations_backup_*
 green-cloud-009d
 prisma/prisma
+.env*.local

@@ -280,6 +280,23 @@ export const workItems: WorkItem[] = [
       { label: "Usage", value: "Ecommerce + social" },
     ],
   },
+  {
+    slug: "food-01",
+    title: "Sable & Salt",
+    category: "Culinary",
+    categorySlug: "culinary",
+    location: "San Francisco, CA",
+    year: "2025",
+    description:
+      "Editorial food and beverage storytelling for a coastal restaurant group—hero dishes, bar moments, and atmosphere shots for web and social.",
+    cover: "/images/food.jpg",
+    gallery: ["/images/food.jpg"],
+    stats: [
+      { label: "Deliverables", value: "24 final images" },
+      { label: "Shoot window", value: "1 day" },
+      { label: "Usage", value: "Web + social" },
+    ],
+  },
 ];
 
 export const getWorkBySlug = (slug: string) =>

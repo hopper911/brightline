@@ -6,7 +6,15 @@ import GalleryLightbox from "./GalleryLightbox";
 import Reveal from "@/components/Reveal";
 import PrimaryCTA from "@/components/PrimaryCTA";
 import { getAdminSession } from "@/lib/admin-auth";
+import { getWorkByCategoryAndSlug, workItems } from "@/app/lib/work";
 import { getPortfolioByCategoryAndSlug, getPortfolioBySlug } from "@/lib/portfolio";
+
+export function generateStaticParams() {
+  return workItems.map((item) => ({
+    category: item.categorySlug,
+    slug: item.slug,
+  }));
+}
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
@@ -17,11 +25,34 @@ export async function generateMetadata({
   params: Promise<{ category: string; slug: string }>;
 }): Promise<Metadata> {
   const { category, slug } = await params;
-  const session = await getAdminSession();
-  const includeDrafts = Boolean(session);
-  const work =
-    (await getPortfolioByCategoryAndSlug(category, slug, { includeDrafts })) ??
-    (await getPortfolioBySlug(slug, { includeDrafts }));
+  let work = null;
+  try {
+    const session = await getAdminSession();
+    const includeDrafts = Boolean(session);
+    work =
+      (await getPortfolioByCategoryAndSlug(category, slug, { includeDrafts })) ??
+      (await getPortfolioBySlug(slug, { includeDrafts }));
+  } catch {
+    // DB unavailable; use fallback below
+  }
+  if (!work) {
+    const fallback = getWorkByCategoryAndSlug(category, slug);
+    if (fallback) {
+      work = {
+        slug: fallback.slug,
+        title: fallback.title,
+        category: fallback.category,
+        categorySlug: fallback.categorySlug,
+        location: fallback.location,
+        year: fallback.year,
+        description: fallback.description,
+        cover: fallback.cover,
+        coverAlt: fallback.title,
+        gallery: fallback.gallery,
+        stats: fallback.stats,
+      };
+    }
+  }
   if (!work) {
     return {
       title: "Case Study · Bright Line Photography",
@@ -64,11 +95,34 @@ export default async function PortfolioProjectPage({
   params: Promise<{ category: string; slug: string }>;
 }) {
   const { category, slug } = await params;
-  const session = await getAdminSession();
-  const includeDrafts = Boolean(session);
-  const work =
-    (await getPortfolioByCategoryAndSlug(category, slug, { includeDrafts })) ??
-    (await getPortfolioBySlug(slug, { includeDrafts }));
+  let work = null;
+  try {
+    const session = await getAdminSession();
+    const includeDrafts = Boolean(session);
+    work =
+      (await getPortfolioByCategoryAndSlug(category, slug, { includeDrafts })) ??
+      (await getPortfolioBySlug(slug, { includeDrafts }));
+  } catch {
+    // DB unavailable; use fallback below
+  }
+  if (!work) {
+    const fallback = getWorkByCategoryAndSlug(category, slug);
+    if (fallback) {
+      work = {
+        slug: fallback.slug,
+        title: fallback.title,
+        category: fallback.category,
+        categorySlug: fallback.categorySlug,
+        location: fallback.location,
+        year: fallback.year,
+        description: fallback.description,
+        cover: fallback.cover,
+        coverAlt: fallback.title,
+        gallery: fallback.gallery,
+        stats: fallback.stats,
+      };
+    }
+  }
   if (!work) {
     redirect("/portfolio");
   }
@@ -88,6 +142,11 @@ export default async function PortfolioProjectPage({
       "Deliver editorial imagery with campaign polish.",
       "Build a cohesive lookbook narrative.",
       "Capture movement and texture for social.",
+    ],
+    culinary: [
+      "Showcase dishes and drinks with editorial clarity.",
+      "Build a cohesive visual story for web and social.",
+      "Deliver hero shots and atmosphere for marketing.",
     ],
   };
 
@@ -109,6 +168,12 @@ export default async function PortfolioProjectPage({
       "Campaign close-ups",
       "Studio + location sets",
       "Ecommerce crops",
+    ],
+    culinary: [
+      "Hero dish and drink selects",
+      "Atmosphere and detail shots",
+      "Social and web crops",
+      "Menu and campaign assets",
     ],
   };
 
@@ -221,7 +286,9 @@ export default async function PortfolioProjectPage({
               <div className="mt-6 flex flex-wrap gap-3">
                 <PrimaryCTA service={work.categorySlug} className="btn btn-solid" location="case-study" />
                 <Link
-                  href={`/services/${work.categorySlug === "hospitality" ? "hospitality-photography" : work.categorySlug === "commercial-real-estate" ? "commercial-real-estate-photography" : "fashion-campaign-photography"}`}
+                  href={(["hospitality", "commercial-real-estate", "fashion"].includes(work.categorySlug)
+                  ? `/services/${work.categorySlug === "hospitality" ? "hospitality-photography" : work.categorySlug === "commercial-real-estate" ? "commercial-real-estate-photography" : "fashion-campaign-photography"}`
+                  : "/services")}
                   className="btn btn-ghost text-white/80 hover:text-white"
                 >
                   View services

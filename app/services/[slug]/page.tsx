@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { services } from "../data";
-import PortfolioCard from "@/components/PortfolioCard";
+import WorkCard from "@/components/WorkCard";
 import PrimaryCTA from "@/components/PrimaryCTA";
 import { workItems } from "@/app/lib/work";
 
@@ -249,7 +249,7 @@ export default async function ServicePage({
         </h2>
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           {service.caseStudies.slice(0, 2).map((item) => (
-            <PortfolioCard
+            <WorkCard
               key={item.slug}
               href={getCaseStudyHref(item.slug)}
               cover={item.image}

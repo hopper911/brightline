@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import HomeHero from "@/components/HomeHero";
 import Reveal from "@/components/Reveal";
-import PortfolioCard from "@/components/PortfolioCard";
+import WorkCard from "@/components/WorkCard";
 import PrimaryCTA from "@/components/PrimaryCTA";
 import { BRAND, getUrl } from "@/lib/config/brand";
 import { CREDIBILITY } from "@/lib/config/credibility";
@@ -190,7 +190,7 @@ export default function Page() {
           <div className="mt-10 grid gap-6 md:grid-cols-2">
             {featured.map((item, index) => (
               <Reveal key={item.title} delay={index * 0.08}>
-                <PortfolioCard
+                <WorkCard
                   href={item.href}
                   cover={item.image}
                   alt={item.title}

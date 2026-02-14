@@ -5,6 +5,7 @@ import { services } from "../data";
 import WorkCard from "@/components/WorkCard";
 import PrimaryCTA from "@/components/PrimaryCTA";
 import { workItems } from "@/app/lib/work";
+import { getImageAltFallback } from "@/lib/config/brand";
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
@@ -101,7 +102,7 @@ export default async function ServicePage({
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16">
+    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
@@ -142,7 +143,7 @@ export default async function ServicePage({
               <div className="relative h-[180px] w-full overflow-hidden">
                 <Image
                   src={img}
-                  alt=""
+                  alt={getImageAltFallback(service.title)}
                   fill
                   sizes="(min-width: 1024px) 280px, (min-width: 768px) 45vw, 100vw"
                   placeholder="blur"
@@ -282,8 +283,8 @@ export default async function ServicePage({
         </div>
       </section>
 
-      <section className="mt-16">
-        <div className="rounded-[28px] border border-white/10 bg-black/60 px-8 py-10">
+      <section className="mt-16 border-t border-white/10 pt-16">
+        <div className="rounded-2xl border border-white/10 bg-black/60 px-8 py-10">
           <p className="section-kicker">Next step</p>
           <h2 className="font-display text-2xl text-white">
             Let’s scope your production.

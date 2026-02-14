@@ -23,7 +23,7 @@ type WorkHubProps = {
 
 export default function WorkHub({ items, tags, categories }: WorkHubProps) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16">
+    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
       <p className="section-kicker">Work</p>
       <h1 className="section-title">Case studies</h1>
       <p className="section-subtitle">
@@ -44,7 +44,7 @@ export default function WorkHub({ items, tags, categories }: WorkHubProps) {
           <Link
             key={item.href}
             href={item.href}
-            className="group overflow-hidden rounded-[24px] border border-black/10 bg-white/80 shadow-[0_20px_40px_rgba(27,26,23,0.08)]"
+            className="group overflow-hidden rounded-2xl border border-black/10 bg-white/80 hover:border-black/20 transition-colors"
           >
             <div className="relative h-[240px] w-full">
               <Image

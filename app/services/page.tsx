@@ -37,7 +37,7 @@ export const metadata = {
 
 export default function ServicesPage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16">
+    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
       {/* Hero Section */}
       <section className="space-y-4">
         <p className="text-xs uppercase tracking-[0.35em] text-black/50">

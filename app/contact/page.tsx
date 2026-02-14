@@ -162,22 +162,24 @@ export default function ContactPage() {
         defer
       />
       <section className="border-t border-white/10">
-        <div className="mx-auto max-w-6xl px-4 py-14">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-wide">
+        <div className="mx-auto max-w-6xl px-6 py-14 lg:px-10">
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
             Contact
           </h1>
           <p className="mt-2 text-sm opacity-80">
-            Share your project details and timeline. We reply within 24 hours with
-            availability and a tailored scope.
+            Share your project details and timeline.
+          </p>
+          <p className="mt-1 text-sm font-medium text-white/90">
+            We respond within 24 hours.
           </p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-16">
+      <section className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
         <div className="grid gap-8 md:grid-cols-[1.1fr_0.9fr]">
           <form
             onSubmit={handleSubmit}
-            className="rounded border border-white/10 bg-black/40 p-6"
+            className="space-y-5 rounded-2xl border border-white/10 bg-black/40 p-6 md:p-8"
             aria-describedby="contact-status"
           >
             <div className="flex flex-wrap gap-2">
@@ -207,11 +209,11 @@ export default function ContactPage() {
               </button>
             </div>
 
-            <label className="text-xs uppercase tracking-widest opacity-70" htmlFor="name">
+            <label className="block text-xs uppercase tracking-widest opacity-70" htmlFor="name">
               Name
             </label>
             <input
-              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-lg border border-white/20 bg-black/60 px-4 py-3 text-sm focus:border-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
               id="name"
               name="name"
               aria-invalid={status === "error"}
@@ -225,7 +227,7 @@ export default function ContactPage() {
               Email
             </label>
             <input
-              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-lg border border-white/20 bg-black/60 px-4 py-3 text-sm focus:border-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
               id="email"
               name="email"
               type="email"
@@ -240,7 +242,7 @@ export default function ContactPage() {
               Company (optional)
             </label>
             <input
-              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-lg border border-white/20 bg-black/60 px-4 py-3 text-sm focus:border-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
               id="company"
               name="company"
               aria-invalid={status === "error"}
@@ -253,7 +255,7 @@ export default function ContactPage() {
               Service
             </label>
             <select
-              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-lg border border-white/20 bg-black/60 px-4 py-3 text-sm focus:border-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
               id="service"
               name="service"
               value={form.service}
@@ -301,8 +303,8 @@ export default function ContactPage() {
                 <label className="mt-4 block text-xs uppercase tracking-widest opacity-70" htmlFor="location">
                   Location
                 </label>
-                <input
-                  className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+            <input
+                    className="mt-2 w-full rounded-lg border border-white/20 bg-black/60 px-4 py-3 text-sm focus:border-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
                   id="location"
                   name="location"
                   aria-invalid={status === "error"}
@@ -336,7 +338,7 @@ export default function ContactPage() {
               Budget range
             </label>
             <select
-              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-lg border border-white/20 bg-black/60 px-4 py-3 text-sm focus:border-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
               id="budget"
               name="budget"
               value={form.budget}
@@ -353,7 +355,7 @@ export default function ContactPage() {
               {form.type === "availability" ? "Additional details (optional)" : "Project details"}
             </label>
             <textarea
-              className="mt-2 w-full rounded border border-white/20 bg-black/60 px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-lg border border-white/20 bg-black/60 px-4 py-3 text-sm focus:border-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
               id="message"
               name="message"
               rows={5}

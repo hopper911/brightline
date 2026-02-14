@@ -170,7 +170,7 @@ export default function Page() {
         />
         <HomeHero />
 
-        <Reveal id="work" className="relative mx-auto max-w-6xl px-4 pb-20 pt-12 scroll-mt-20">
+        <Reveal id="work" className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10 scroll-mt-20">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.35em] text-black/50">
@@ -203,13 +203,13 @@ export default function Page() {
           </div>
         </Reveal>
 
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
+        <Reveal className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10">
           <Link
             href="/about"
             className="lift-card group block"
             aria-label="Learn about the Bright Line approach"
           >
-            <div className="grid gap-10 rounded-[32px] border border-black/10 bg-white/70 p-8 shadow-[0_24px_60px_rgba(27,26,23,0.12)] transition group-hover:border-black/20 md:grid-cols-[1.1fr_0.9fr] md:p-12">
+            <div className="grid gap-10 rounded-2xl border border-black/10 bg-white/70 p-8 transition group-hover:border-black/20 md:grid-cols-[1.1fr_0.9fr] md:p-12">
               <div className="space-y-5">
                 <p className="text-xs uppercase tracking-[0.35em] text-black/50">
                   The Approach
@@ -250,7 +250,7 @@ export default function Page() {
         </Link>
         </Reveal>
 
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
+        <Reveal className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10">
           <div className="grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-start">
             <div className="space-y-4">
               <p className="text-xs uppercase tracking-[0.35em] text-black/50">
@@ -287,8 +287,8 @@ export default function Page() {
           </div>
         </Reveal>
 
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
-          <div className="rounded-[28px] border border-black/10 bg-white/70 p-6 md:p-10">
+        <Reveal className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10">
+          <div className="rounded-2xl border border-black/10 bg-white/70 p-6 md:p-10">
             <p className="text-xs uppercase tracking-[0.35em] text-black/50">
               How it works
             </p>
@@ -305,7 +305,7 @@ export default function Page() {
           </div>
         </Reveal>
 
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
+        <Reveal className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10">
           <div className="grid gap-8 md:grid-cols-2">
             <div className="space-y-4">
               <p className="text-xs uppercase tracking-[0.35em] text-black/50">
@@ -326,7 +326,7 @@ export default function Page() {
               <Link
                 key={service.title}
                 href="/services"
-                className="lift-card group rounded-[28px] border border-black/10 bg-white/70 p-6 shadow-[0_20px_50px_rgba(27,26,23,0.1)]"
+                className="lift-card group rounded-2xl border border-black/10 bg-white/70 p-6"
                 aria-label={`View services for ${service.title}`}
               >
                 <h3 className="font-display text-xl text-black">
@@ -341,12 +341,12 @@ export default function Page() {
           </div>
         </Reveal>
 
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
+        <Reveal className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10">
           <div className="grid gap-6 md:grid-cols-2">
             {testimonials.map((item, index) => (
               <div
                 key={item.name}
-                className="lift-card rounded-[28px] border border-black/10 bg-white/80 p-6"
+                className="lift-card rounded-2xl border border-black/10 bg-white/80 p-6"
               >
                 <p className="font-display text-2xl text-black">
                   “{item.quote}”
@@ -368,8 +368,8 @@ export default function Page() {
           </div>
         </Reveal>
 
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-24">
-          <div className="rounded-[36px] border border-black/10 bg-black px-8 py-12 text-white md:px-12">
+        <Reveal className="section-pad relative mx-auto max-w-6xl border-t border-white/10 px-6 pt-16 lg:px-10">
+          <div className="rounded-2xl border border-black/10 bg-black px-8 py-12 text-white md:px-12">
             <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-center">
               <div className="space-y-4">
                 <p className="text-xs uppercase tracking-[0.35em] text-white/60">

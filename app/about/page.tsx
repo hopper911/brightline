@@ -86,7 +86,7 @@ const differentiators = [
 
 export default function AboutPage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16">
+    <div className="mx-auto max-w-6xl px-6 lg:px-10 section-pad py-16">
       {/* Hero Section */}
       <Reveal>
         <p className="text-xs uppercase tracking-[0.35em] text-black/50">

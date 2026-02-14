@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-const navLinks = [
+const navLinks: { href: string; label: string; cta?: boolean }[] = [
   { href: "/work", label: "Work" },
   { href: "/services", label: "Services" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
+  { href: "/contact?service=general", label: "Start a Project", cta: true },
 ];
 
 export default function Navbar() {
@@ -68,7 +69,11 @@ export default function Navbar() {
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-8 text-xs uppercase tracking-[0.32em] text-white/70">
           {navLinks.map((l) => (
-            <Link key={l.href} href={l.href} className="nav-link hover:text-white">
+            <Link
+              key={l.href}
+              href={l.href}
+              className={l.cta ? "nav-link rounded-full border border-white/30 bg-white/10 px-4 py-2 hover:bg-white/20 hover:text-white hover:border-white/40" : "nav-link hover:text-white"}
+            >
               {l.label}
             </Link>
           ))}
@@ -127,7 +132,11 @@ export default function Navbar() {
                     <Link
                       href={l.href}
                       onClick={() => setOpen(false)}
-                      className="nav-link block rounded-2xl border border-white/10 px-4 py-3 text-sm uppercase tracking-[0.28em] text-white/70 hover:border-white/30 hover:text-white"
+                      className={`nav-link block rounded-2xl border px-4 py-3 text-sm uppercase tracking-[0.28em] ${
+                        l.cta
+                          ? "border-white/30 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
+                          : "border-white/10 text-white/70 hover:border-white/30 hover:text-white"
+                      }`}
                     >
                       {l.label}
                     </Link>

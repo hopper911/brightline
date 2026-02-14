@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { getPublicUrl } from "@/lib/storage";
 import { workItems } from "@/app/lib/work";
 
 type PortfolioItem = {
@@ -26,10 +25,37 @@ export async function getPublishedPortfolio(
   const includeDrafts = options?.includeDrafts ?? false;
   let projects;
   try {
+    // Explicit select omits coverStorageKey / storageKey so build works even if those columns don't exist yet.
     projects = await prisma.portfolioProject.findMany({
       where: includeDrafts ? undefined : { published: true },
-      include: { images: { orderBy: { sortOrder: "asc" } } },
       orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        category: true,
+        categorySlug: true,
+        location: true,
+        year: true,
+        description: true,
+        coverUrl: true,
+        coverAlt: true,
+        seoTitle: true,
+        seoDescription: true,
+        ogImageUrl: true,
+        externalGalleryUrl: true,
+        updatedAt: true,
+        images: {
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            projectId: true,
+            url: true,
+            sortOrder: true,
+            alt: true,
+          },
+        },
+      },
     });
   } catch {
     return workItems;
@@ -39,13 +65,22 @@ export async function getPublishedPortfolio(
     return workItems;
   }
 
+  const workBySlug = new Map(workItems.map((w) => [w.slug, w]));
+
   const normalized = projects.map((project) => {
     const description =
       project.description?.trim() ||
       `${project.title} case study for ${project.category} photography.`;
-    const gallery = project.images.map((img) =>
-      img.storageKey ? getPublicUrl(img.storageKey) : img.url
-    );
+    const gallery = project.images.map((img) => img.url);
+    const dbCover =
+      project.coverUrl ||
+      project.images[0]?.url ||
+      "";
+    const workItem = workBySlug.get(project.slug);
+    const cover =
+      workItem?.cover?.startsWith("http")
+        ? workItem.cover
+        : dbCover;
     return {
       slug: project.slug,
       title: project.title,
@@ -54,14 +89,7 @@ export async function getPublishedPortfolio(
       location: project.location || "",
       year: project.year || "",
       description,
-      cover:
-        (project.coverStorageKey
-          ? getPublicUrl(project.coverStorageKey)
-          : project.coverUrl) ||
-        (project.images[0]?.storageKey
-          ? getPublicUrl(project.images[0].storageKey)
-          : project.images[0]?.url) ||
-        "",
+      cover,
       coverAlt: project.coverAlt || undefined,
       seoTitle: project.seoTitle || undefined,
       seoDescription: project.seoDescription || undefined,
@@ -81,6 +109,26 @@ export async function getPublishedPortfolio(
     const hasGallery = item.gallery.length > 0;
     const hasExternal = Boolean(item.externalGalleryUrl);
     return hasCover && (hasGallery || hasExternal);
+  });
+}
+
+/** Commercial-first category order for display */
+const CATEGORY_ORDER = [
+  "commercial-real-estate",
+  "hospitality",
+  "fashion",
+  "culinary",
+];
+
+export function sortByCommercialFirst<T extends { categorySlug: string; year?: string }>(
+  items: T[]
+): T[] {
+  const orderMap = new Map(CATEGORY_ORDER.map((s, i) => [s, i]));
+  return [...items].sort((a, b) => {
+    const ia = orderMap.get(a.categorySlug) ?? 999;
+    const ib = orderMap.get(b.categorySlug) ?? 999;
+    if (ia !== ib) return ia - ib;
+    return (b.year || "").localeCompare(a.year || "");
   });
 }
 

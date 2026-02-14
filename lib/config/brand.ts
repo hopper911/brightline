@@ -31,3 +31,9 @@ export function getUrl(path: string) {
 export function getMailtoLink(email: string = BRAND.contact.email) {
   return `mailto:${email}`;
 }
+
+/** Fallback alt text when image has no explicit alt. */
+export function getImageAltFallback(category?: string): string {
+  if (category) return `${category} photography by ${BRAND.name}`;
+  return `Photography by ${BRAND.name}`;
+}

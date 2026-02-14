@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { getProjects } from "@/lib/content";
-import { getPublishedPortfolio } from "@/lib/portfolio";
+import { getPublishedPortfolio, sortByCommercialFirst } from "@/lib/portfolio";
 import type { WorkHubItem } from "./work-hub";
 import WorkHub from "./work-hub";
+
+const CATEGORY_ORDER = ["commercial-real-estate", "hospitality", "fashion", "culinary"];
 
 export const metadata: Metadata = {
   title: "Work · Bright Line Photography",
@@ -52,12 +54,13 @@ export default async function WorkIndexPage() {
     coverAlt: p.coverAlt,
   }));
 
-  const items: WorkHubItem[] = [
+  const merged = [
     ...portfolioWorkItems,
     ...contentWorkItems.filter(
       (c) => !portfolioWorkItems.some((p) => p.slug === c.slug)
     ),
-  ].sort((a, b) => (b.year || "").localeCompare(a.year || ""));
+  ];
+  const items = sortByCommercialFirst(merged);
 
   const tags = Array.from(
     new Set(contentProjects.flatMap((item) => item.tags))
@@ -66,13 +69,23 @@ export default async function WorkIndexPage() {
   const categoryMap = new Map<string, string>();
   contentProjects.forEach((p) => categoryMap.set(p.categorySlug, p.category));
   portfolioItems.forEach((p) => categoryMap.set(p.categorySlug, p.category));
-  const categories = Array.from(categoryMap.entries()).map(([value, label]) => ({ value, label }));
+  const categoryEntries = Array.from(categoryMap.entries());
+  const categories = CATEGORY_ORDER.filter((v) =>
+    categoryEntries.some(([k]) => k === v)
+  ).map((value) => ({
+    value,
+    label: categoryMap.get(value) || value,
+  }));
+  const rest = categoryEntries
+    .filter(([v]) => !CATEGORY_ORDER.includes(v))
+    .map(([value, label]) => ({ value, label }));
+  const categoriesOrdered = [...categories, ...rest];
 
   return (
     <WorkHub
       items={items}
       tags={tags}
-      categories={categories}
+      categories={categoriesOrdered}
     />
   );
 }

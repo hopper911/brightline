@@ -81,16 +81,17 @@ export default async function ClientGalleryPage({
         {images.map((image) => (
           <div
             key={image.id}
-            className="overflow-hidden rounded-2xl border border-black/10 bg-white/70"
+            className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-black/10 bg-white/70"
           >
             <Image
               src={image.url}
               alt={image.alt}
-              width={1200}
-              height={900}
-              data-image-mode={getImageModeForUrl(image.url)}
+              fill
               sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-              className="h-auto w-full object-cover aspect-[4/3]"
+              placeholder="blur"
+              blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg=="
+              className="object-cover"
+              data-image-mode={getImageModeForUrl(image.url)}
             />
           </div>
         ))}

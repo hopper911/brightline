@@ -40,7 +40,7 @@ export default function GalleryLightbox({
             key={image}
             type="button"
             onClick={() => setIndex(i)}
-            className="group relative h-[200px] overflow-hidden rounded-[22px] border border-black/10 bg-white/80"
+            className="group relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-black/10 bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             aria-label={`Open ${title} image ${i + 1}`}
           >
             <Image
@@ -50,7 +50,7 @@ export default function GalleryLightbox({
               sizes="(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw"
               placeholder="blur"
               blurDataURL={BLUR_DATA}
-              className="object-cover transition motion-slow motion-ease group-hover:scale-105 motion-reduce:transition-none motion-reduce:transform-none"
+              className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
             />
           </button>
         ))}
@@ -68,8 +68,9 @@ export default function GalleryLightbox({
         animation={
           reduce
             ? { fade: 0, swipe: 0 }
-            : { fade: 240, swipe: 240 }
+            : { fade: 200, swipe: 200 }
         }
+        styles={{ container: { backgroundColor: "rgba(0,0,0,0.94)" } }}
       />
     </>
   );

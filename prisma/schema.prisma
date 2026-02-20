@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -49,13 +49,16 @@ model PortfolioProject {
 }
 
 model PortfolioImage {
-  id        String   @id @default(cuid())
-  projectId String
-  url       String
+  id         String   @id @default(cuid())
+  projectId  String
+  url        String
+  thumbUrl   String?
+  fullUrl    String?
   storageKey String?
-  alt       String?
-  sortOrder Int      @default(0)
-  project   PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  alt        String?
+  sortOrder  Int      @default(0)
+  isHero     Boolean  @default(false)
+  project    PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 // Client portal
@@ -98,10 +101,11 @@ model ProjectImage {
 }
 
 model Tag {
-  id        String       @id @default(cuid())
-  name      String
-  slug      String       @unique
-  projects  ProjectTag[]
+  id            String            @id @default(cuid())
+  name          String
+  slug          String            @unique
+  projects      ProjectTag[]
+  galleryImages GalleryImageTag[]
 }
 
 model ProjectTag {
@@ -151,6 +155,7 @@ model Gallery {
   id           String    @id @default(cuid())
   title        String
   slug         String    @unique
+  section      String?   // acd, rea, cul, biz, tri
   description  String?
   coverUrl     String?
   clientNotes  String?
@@ -166,14 +171,27 @@ model Gallery {
 }
 
 model GalleryImage {
-  id         String   @id @default(cuid())
+  id         String            @id @default(cuid())
   galleryId  String
   url        String
+  thumbUrl   String?
+  fullUrl    String?
   alt        String?
   filename   String?
-  sortOrder  Int      @default(0)
+  sortOrder  Int               @default(0)
+  isHero     Boolean           @default(false)
   storageKey String?
-  gallery    Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  meta       Json?             // optional: { title?, caption?, keywords? } from Lightroom/EXIF
+  gallery    Gallery           @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  tags       GalleryImageTag[]
+}
+
+model GalleryImageTag {
+  imageId String
+  tagId   String
+  image   GalleryImage @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  tag     Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([imageId, tagId])
 }
 
 model GalleryAccessToken {

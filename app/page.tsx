@@ -354,10 +354,10 @@ export default function Page() {
                 <p className="mt-4 text-xs uppercase tracking-[0.3em] text-black/60">
                   {item.name} · {item.role}
                 </p>
-                {index === 0 && (
+                {index === 0 && CREDIBILITY?.stats && (
                   <div className="mt-6 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-black/50">
-                    <span>{CREDIBILITY.stats[1].value} {CREDIBILITY.stats[1].label}</span>
-                    <span>{CREDIBILITY.stats[0].value} {CREDIBILITY.stats[0].label}</span>
+                    <span>{CREDIBILITY.stats[1]?.value} {CREDIBILITY.stats[1]?.label}</span>
+                    <span>{CREDIBILITY.stats[0]?.value} {CREDIBILITY.stats[0]?.label}</span>
                   </div>
                 )}
               </div>

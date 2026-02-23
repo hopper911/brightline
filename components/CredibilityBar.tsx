@@ -12,10 +12,11 @@ export default function CredibilityBar({
   showDescription = false,
 }: CredibilityBarProps) {
   const isDark = variant === "dark";
+  const stats = CREDIBILITY?.stats ?? [];
   
   return (
     <div className={`grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6 ${className}`}>
-      {CREDIBILITY.stats.map((stat) => (
+      {stats.map((stat) => (
         <div
           key={stat.label}
           className={`text-center ${isDark ? "text-white" : "text-black"}`}

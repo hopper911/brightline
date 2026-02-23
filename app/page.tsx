@@ -65,27 +65,27 @@ const BLUR_DATA =
 
 const featured = [
   {
-    title: "Architecture & Interiors",
-    tag: "Commercial",
-    href: "/work/commercial-real-estate/real-estate-01",
+    title: "Advertising & Campaign",
+    tag: "ACD",
+    href: "/work/acd",
     image: "/images/real-estate.jpg",
   },
   {
-    title: "Hospitality & Travel",
-    tag: "Lifestyle",
-    href: "/work/hospitality/hotel-01",
+    title: "Real Estate",
+    tag: "REA",
+    href: "/work/rea",
     image: "/images/hospitality.jpg",
   },
   {
-    title: "Editorial Fashion",
-    tag: "Campaign",
-    href: "/work/fashion/fashion-01",
+    title: "Culture",
+    tag: "CUL",
+    href: "/work/cul",
     image: "/images/fashion.jpg",
   },
   {
-    title: "Workplace Campaigns",
-    tag: "Commercial",
-    href: "/work/commercial-real-estate/real-estate-02",
+    title: "Business Professional",
+    tag: "BIZ",
+    href: "/work/biz",
     image: "/images/design.jpg",
   },
 ];

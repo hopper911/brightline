@@ -73,6 +73,8 @@ export default function AdminPortfolioPage() {
 
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [galleryUrlInput, setGalleryUrlInput] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [coverStorageKey, setCoverStorageKey] = useState<string | null>(null);
   const [existingImages, setExistingImages] = useState<PortfolioImage[]>([]);
@@ -105,9 +107,17 @@ export default function AdminPortfolioPage() {
     setLoadingProjects(true);
     try {
       const res = await fetch("/api/admin/portfolio");
-      const data = (await res.json()) as { ok?: boolean; projects?: PortfolioProject[] };
-      if (!res.ok || !data.projects) {
-        throw new Error("Unable to load projects.");
+      const raw = await res.text();
+      let data: { ok?: boolean; projects?: PortfolioProject[]; error?: string } | null = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        // ignore parse error
+      }
+      if (!res.ok || !data?.projects) {
+        throw new Error(
+          data?.error ?? `Unable to load projects (${res.status}): ${raw.slice(0, 200)}`
+        );
       }
       setProjects(data.projects);
     } catch (error) {
@@ -134,9 +144,18 @@ export default function AdminPortfolioPage() {
     setPublished(true);
     setCoverFile(null);
     setGalleryFiles([]);
+    setGalleryUrls([]);
+    setGalleryUrlInput("");
     setCoverUrl("");
     setCoverStorageKey(null);
     setExistingImages([]);
+  }
+
+  function addGalleryUrl() {
+    const trimmed = galleryUrlInput.trim();
+    if (!trimmed) return;
+    setGalleryUrls((prev) => [...prev, trimmed]);
+    setGalleryUrlInput("");
   }
 
   function handleEdit(project: PortfolioProject) {
@@ -183,9 +202,17 @@ export default function AdminPortfolioPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key }),
     });
-    const data = (await res.json()) as { url?: string; error?: string };
-    if (!res.ok || !data.url) {
-      throw new Error(data.error || "Unable to resolve public URL.");
+    const raw = await res.text();
+    let data: { url?: string; error?: string } | null = null;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      // ignore parse error; we'll use raw in the error
+    }
+    if (!res.ok || !data?.url) {
+      throw new Error(
+        data?.error ?? `Unable to resolve public URL (${res.status}): ${raw.slice(0, 200)}`
+      );
     }
     return data.url;
   }
@@ -217,15 +244,23 @@ export default function AdminPortfolioPage() {
       }),
     });
 
-    const data: UploadUrlResponse = await res.json();
+    const raw = await res.text();
+    let data: UploadUrlResponse | null = null;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      // ignore parse error; we'll use raw in the error
+    }
 
     if (!res.ok) {
-      const msg = "error" in data ? data.error : `Upload URL failed (${res.status})`;
+      const msg =
+        (data && "error" in data ? data.error : null) ??
+        `Upload URL failed (${res.status}): ${raw.slice(0, 200)}`;
       throw new Error(msg);
     }
 
-    if (!("url" in data)) {
-      throw new Error("Server did not return an upload URL.");
+    if (!data || !("url" in data) || !data.url) {
+      throw new Error(`Server did not return an upload URL: ${raw.slice(0, 200)}`);
     }
 
     const put = await fetch(data.url, {
@@ -235,7 +270,10 @@ export default function AdminPortfolioPage() {
     });
 
     if (!put.ok) {
-      throw new Error(`Upload failed (${put.status}).`);
+      const putText = await put.text();
+      throw new Error(
+        `Storage upload failed (${put.status}): ${putText.slice(0, 200) || put.statusText}`
+      );
     }
 
     const storageKey = extractStorageKey(data.url);
@@ -275,11 +313,17 @@ export default function AdminPortfolioPage() {
         galleryFiles.map((file) => uploadFile(file, projectSlug))
       );
 
-      const newImages = uploadedGallery.map((image, index) => ({
-        url: image.publicUrl,
-        storageKey: image.storageKey,
-        sortOrder: existingImages.length + index,
-      }));
+      const newImages = [
+        ...uploadedGallery.map((image, index) => ({
+          url: image.publicUrl,
+          storageKey: image.storageKey,
+          sortOrder: existingImages.length + index,
+        })),
+        ...galleryUrls.map((url, index) => ({
+          url: url.trim(),
+          sortOrder: existingImages.length + uploadedGallery.length + index,
+        })),
+      ];
 
       if (isEditing && selectedProjectId) {
         const res = await fetch("/api/admin/portfolio", {
@@ -315,7 +359,16 @@ export default function AdminPortfolioPage() {
         });
 
         if (!res.ok) {
-          throw new Error(`Update failed (${res.status}).`);
+          const raw = await res.text();
+          let errData: { error?: string } | null = null;
+          try {
+            errData = raw ? JSON.parse(raw) : null;
+          } catch {
+            /* ignore */
+          }
+          throw new Error(
+            errData?.error ?? `Update failed (${res.status}): ${raw.slice(0, 200)}`
+          );
         }
       } else {
         const res = await fetch("/api/admin/portfolio", {
@@ -344,13 +397,24 @@ export default function AdminPortfolioPage() {
         });
 
         if (!res.ok) {
-          throw new Error(`Create failed (${res.status}).`);
+          const raw = await res.text();
+          let errData: { error?: string } | null = null;
+          try {
+            errData = raw ? JSON.parse(raw) : null;
+          } catch {
+            /* ignore */
+          }
+          throw new Error(
+            errData?.error ?? `Create failed (${res.status}): ${raw.slice(0, 200)}`
+          );
         }
       }
 
       setStatus("done");
       setMessage(isEditing ? "Project updated." : "Project created.");
       setGalleryFiles([]);
+      setGalleryUrls([]);
+      setGalleryUrlInput("");
       setCoverFile(null);
       await loadProjects();
       if (!isEditing) {
@@ -401,202 +465,267 @@ export default function AdminPortfolioPage() {
           ) : null}
         </div>
 
-        <div className="mt-4 grid gap-4">
-          <label className="grid gap-2">
-            <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-              Project title
-            </span>
-            <input
-              className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Hudson Yards Penthouse"
-            />
-          </label>
-
-          {isEditing ? (
+        <div className="mt-4 grid gap-6">
+          <section className="grid gap-4 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-black/60">
+              Identity
+            </h3>
             <label className="grid gap-2">
               <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-                Project slug
+                Project title
               </span>
               <input
                 className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g., Hudson Yards Penthouse"
               />
             </label>
-          ) : (
-            <div className="grid gap-2">
-              <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-                Project slug (auto)
-              </span>
-              <div className="rounded-xl border border-black/10 bg-black/[0.02] px-4 py-3 text-sm">
-                {safeSlug}
+            {isEditing ? (
+              <label className="grid gap-2">
+                <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                  Project slug
+                </span>
+                <input
+                  className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                />
+              </label>
+            ) : (
+              <div className="grid gap-2">
+                <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                  Project slug (auto)
+                </span>
+                <div className="rounded-xl border border-black/10 bg-white px-4 py-3 text-sm">
+                  {safeSlug}
+                </div>
               </div>
+            )}
+            <label className="grid gap-2">
+              <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                Category
+              </span>
+              <select
+                className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                value={categorySlug}
+                onChange={(e) => setCategorySlug(e.target.value)}
+              >
+                {CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.slug} value={option.slug}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
+
+          <section className="grid gap-4 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-black/60">
+              Place & time
+            </h3>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2">
+                <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                  Location
+                </span>
+                <input
+                  className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g., Miami, FL"
+                />
+              </label>
+              <label className="grid gap-2">
+                <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                  Year
+                </span>
+                <input
+                  className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  placeholder="e.g., 2025"
+                />
+              </label>
             </div>
-          )}
+          </section>
 
-          <label className="grid gap-2">
-            <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-              Category
-            </span>
-            <select
-              className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-              value={categorySlug}
-              onChange={(e) => setCategorySlug(e.target.value)}
-            >
-              {CATEGORY_OPTIONS.map((option) => (
-                <option key={option.slug} value={option.slug}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="grid gap-4 md:grid-cols-2">
+          <section className="grid gap-4 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-black/60">
+              Copy & links
+            </h3>
             <label className="grid gap-2">
               <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-                Location
+                Description
               </span>
-              <input
-                className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g., Miami, FL"
+              <textarea
+                className="min-h-[110px] w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe the project story and deliverables."
               />
             </label>
             <label className="grid gap-2">
               <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-                Year
+                External gallery URL (optional)
               </span>
               <input
                 className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                placeholder="e.g., 2025"
+                value={externalGalleryUrl}
+                onChange={(e) => setExternalGalleryUrl(e.target.value)}
+                placeholder="https://lightroom.adobe.com/..."
               />
             </label>
-          </div>
-
-          <label className="grid gap-2">
-            <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-              Description
-            </span>
-            <textarea
-              className="min-h-[110px] w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the project story and deliverables."
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-              External gallery URL (optional)
-            </span>
-            <input
-              className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-              value={externalGalleryUrl}
-              onChange={(e) => setExternalGalleryUrl(e.target.value)}
-              placeholder="https://lightroom.adobe.com/..."
-            />
-          </label>
-
-          <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2">
+                <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                  SEO title (optional)
+                </span>
+                <input
+                  className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                  value={seoTitle}
+                  onChange={(e) => setSeoTitle(e.target.value)}
+                />
+              </label>
+              <label className="grid gap-2">
+                <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                  OG image URL (optional)
+                </span>
+                <input
+                  className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                  value={ogImageUrl}
+                  onChange={(e) => setOgImageUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </label>
+            </div>
             <label className="grid gap-2">
               <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-                SEO title (optional)
+                SEO description (optional)
               </span>
-              <input
-                className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-                value={seoTitle}
-                onChange={(e) => setSeoTitle(e.target.value)}
+              <textarea
+                className="min-h-[90px] w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                value={seoDescription}
+                onChange={(e) => setSeoDescription(e.target.value)}
               />
             </label>
-            <label className="grid gap-2">
-              <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-                OG image URL (optional)
-              </span>
-              <input
-                className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-                value={ogImageUrl}
-                onChange={(e) => setOgImageUrl(e.target.value)}
-                placeholder="https://..."
-              />
-            </label>
-          </div>
+          </section>
 
-          <label className="grid gap-2">
-            <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-              SEO description (optional)
-            </span>
-            <textarea
-              className="min-h-[90px] w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-              value={seoDescription}
-              onChange={(e) => setSeoDescription(e.target.value)}
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-              Cover image URL
-            </span>
-            <input
-              className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-              value={coverUrl}
-              onChange={(e) => setCoverUrl(e.target.value)}
-              placeholder="https://..."
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-              Cover alt text (optional)
-            </span>
-            <input
-              className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
-              value={coverAlt}
-              onChange={(e) => setCoverAlt(e.target.value)}
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-              Replace cover image
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              className="w-full text-sm"
-              onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-xs uppercase tracking-[0.25em] text-black/60">
-              Gallery images (upload multiple)
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="w-full text-sm"
-              onChange={(e) =>
-                setGalleryFiles(Array.from(e.target.files ?? []))
-              }
-            />
+          <section className="grid gap-4 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-black/60">
+              Cover image
+            </h3>
             <p className="text-xs text-black/50">
-              {galleryFiles.length
-                ? `${galleryFiles.length} image(s) queued`
-                : "Add multiple images to build the gallery."}
+              Paste a URL for zero-cost updates, or upload to replace.
             </p>
-          </label>
+            <label className="grid gap-2">
+              <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                Cover image URL
+              </span>
+              <input
+                className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                value={coverUrl}
+                onChange={(e) => setCoverUrl(e.target.value)}
+                placeholder="https://... or https://yoursite.com/images/..."
+              />
+            </label>
+            <label className="grid gap-2">
+              <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                Cover alt text (optional)
+              </span>
+              <input
+                className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                value={coverAlt}
+                onChange={(e) => setCoverAlt(e.target.value)}
+              />
+            </label>
+            <label className="grid gap-2">
+              <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                Replace cover image (upload)
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                className="w-full text-sm"
+                onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          </section>
 
-          {existingImages.length ? (
-            <div className="grid gap-3 rounded-xl border border-black/10 bg-black/[0.02] p-4">
-              <div className="text-xs uppercase tracking-[0.25em] text-black/60">
-                Existing gallery images
+          <section className="grid gap-4 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.25em] text-black/60">
+              Gallery
+            </h3>
+            <p className="text-xs text-black/50">
+              Add images by URL (zero cost) or upload multiple files.
+            </p>
+            <label className="grid gap-2">
+              <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                Add gallery image by URL
+              </span>
+              <div className="flex gap-2">
+                <input
+                  className="min-w-0 flex-1 rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+                  value={galleryUrlInput}
+                  onChange={(e) => setGalleryUrlInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addGalleryUrl())}
+                  placeholder="https://..."
+                />
+                <button
+                  type="button"
+                  className="btn btn-ghost shrink-0"
+                  onClick={addGalleryUrl}
+                >
+                  Add
+                </button>
               </div>
+            </label>
+            {galleryUrls.length > 0 ? (
+              <ul className="space-y-2">
+                {galleryUrls.map((url, index) => (
+                  <li
+                    key={`${url}-${index}`}
+                    className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm"
+                  >
+                    <span className="min-w-0 truncate text-black/70">{url}</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost shrink-0 text-xs"
+                      onClick={() =>
+                        setGalleryUrls((prev) => prev.filter((_, i) => i !== index))
+                      }
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <label className="grid gap-2">
+              <span className="text-xs uppercase tracking-[0.25em] text-black/60">
+                Gallery images (upload multiple)
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="w-full text-sm"
+                onChange={(e) =>
+                  setGalleryFiles(Array.from(e.target.files ?? []))
+                }
+              />
+              <p className="text-xs text-black/50">
+                {galleryFiles.length
+                  ? `${galleryFiles.length} image(s) queued`
+                  : "Add multiple images to build the gallery."}
+              </p>
+            </label>
+
+            {existingImages.length ? (
+              <div className="grid gap-3 rounded-xl border border-black/10 bg-white p-4">
+                <div className="text-xs uppercase tracking-[0.25em] text-black/60">
+                  Existing gallery images
+                </div>
               {existingImages.map((img, index) => (
                 <div
                   key={img.id}
@@ -633,8 +762,9 @@ export default function AdminPortfolioPage() {
                   </div>
                 </div>
               ))}
-            </div>
-          ) : null}
+              </div>
+            ) : null}
+          </section>
 
           <label className="flex items-center gap-3 text-sm">
             <input

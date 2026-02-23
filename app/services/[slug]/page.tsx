@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { services } from "../data";
 import WorkCard from "@/components/WorkCard";
 import PrimaryCTA from "@/components/PrimaryCTA";
-import { workItems } from "@/app/lib/work";
 import { getImageAltFallback } from "@/lib/config/brand";
 
 const BLUR_DATA =
@@ -82,10 +81,15 @@ export default async function ServicePage({
     );
   }
 
-  const getCaseStudyHref = (projectSlug: string) => {
-    const project = workItems.find((item) => item.slug === projectSlug);
-    if (!project) return "/work";
-    return `/work/${project.categorySlug}/${project.slug}`;
+  const categoryToSection: Record<string, string> = {
+    Hospitality: "tri",
+    "Commercial Real Estate": "rea",
+    Fashion: "acd",
+    Culinary: "cul",
+  };
+  const getCaseStudyHref = (projectSlug: string, category: string) => {
+    const section = categoryToSection[category] ?? "acd";
+    return `/work/${section}`;
   };
 
   const faqSchema = {
@@ -252,7 +256,7 @@ export default async function ServicePage({
           {service.caseStudies.slice(0, 2).map((item) => (
             <WorkCard
               key={item.slug}
-              href={getCaseStudyHref(item.slug)}
+              href={getCaseStudyHref(item.slug, item.category)}
               cover={item.image}
               alt={item.title}
               tag={item.category}

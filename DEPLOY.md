@@ -32,19 +32,23 @@ Set these in **Vercel → Project → Settings → Environment Variables**:
 - `CONTACT_NOTIFY_EMAIL` — Where contact form submissions go
 
 ### Optional
+- `NEXT_PUBLIC_SITE_URL` — Base URL for sitemap (default: https://brightlinephotography.co)
+- `SEED_TOKEN` — For POST /api/admin/seed (dev only; omit in production)
 - `NEXT_PUBLIC_CALENDLY_URL` — For booking modal
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` — Cloudflare Turnstile (contact form spam protection)
 - `TURNSTILE_SECRET_KEY`
 - `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` — Analytics
 - `NEXT_PUBLIC_GA_ID` — Google Analytics
 
-### Storage (R2/S3 for client galleries)
+### Storage (R2/S3 for client galleries and Work images)
 R2 (Cloudflare):
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
-- `R2_BUCKET`
-- `R2_ENDPOINT` — Base URL for the account (e.g. `https://<account-id>.r2.cloudflarestorage.com`)
+- `R2_BUCKET` — e.g. `brightline-main`
+- `R2_ENDPOINT` — e.g. `https://<account-id>.r2.cloudflarestorage.com`
 - `R2_REGION` — Use `auto`
+- `R2_PUBLIC_URL` — Public URL for serving images (e.g. `https://pub-xxx.r2.dev`)
+- `NEXT_PUBLIC_R2_PUBLIC_URL` — Same as R2_PUBLIC_URL (needed for client-side image URLs)
 
 S3 (AWS):
 - `S3_ACCESS_KEY_ID`
@@ -72,9 +76,11 @@ Or use Neon's dashboard to run migrations.
 After deploy:
 
 1. Visit your Vercel URL
-2. Test contact form
-3. Test client portal (`/client`)
-4. Check admin login (`/admin/login`)
+2. Test Work pages: `/work`, `/work/acd`, etc.
+3. Test contact form (saves to Inquiry; optional Resend email)
+4. Test Process page: `/process`
+5. Check admin login (`/admin/login`)
+6. Client portal (`/client`) if enabled
 
 ## Build Configuration
 

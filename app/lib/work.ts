@@ -18,10 +18,16 @@ export const slugifyCategory = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-const makeGallery = (slug: string) => [
-  `/work/${slug}/cover.svg`,
-  `/work/${slug}/detail-01.svg`,
-  `/work/${slug}/detail-02.svg`,
+/** Default extension for work images; use "jpg" when you have .jpg files in public/work/{slug}/ */
+type WorkImageExt = "svg" | "jpg";
+
+export const makeCover = (slug: string, ext: WorkImageExt = "svg") =>
+  `/work/${slug}/cover.${ext}`;
+
+export const makeGallery = (slug: string, ext: WorkImageExt = "svg") => [
+  `/work/${slug}/cover.${ext}`,
+  `/work/${slug}/detail-01.${ext}`,
+  `/work/${slug}/detail-02.${ext}`,
 ];
 
 export const workItems: WorkItem[] = [
@@ -91,6 +97,23 @@ export const workItems: WorkItem[] = [
       { label: "Deliverables", value: "34 final images" },
       { label: "Shoot window", value: "2 days" },
       { label: "Usage", value: "Investor + web" },
+    ],
+  },
+  {
+    slug: "hud",
+    title: "HUD",
+    category: "Commercial Photography",
+    categorySlug: "commercial-real-estate",
+    location: "—",
+    year: "—",
+    description:
+      "Commercial real estate photography case study. Add your project details in Admin → Portfolio.",
+    cover: "/work/real-estate-01/cover.svg",
+    gallery: makeGallery("real-estate-01"),
+    stats: [
+      { label: "Deliverables", value: "—" },
+      { label: "Category", value: "Commercial Photography" },
+      { label: "Location", value: "—" },
     ],
   },
   {
@@ -203,9 +226,13 @@ export const workItems: WorkItem[] = [
     location: "New York, NY",
     year: "2025",
     description:
-      "A moody editorial series pairing runway energy with intimate studio portraits for campaign rollout.",
-    cover: "/work/fashion-01/cover.svg",
-    gallery: makeGallery("fashion-01"),
+      "Aa  moody editorial series pairing runway energy with intimate studio portraits for campaign rollout.",
+    cover: "https://pub-5eb249c648f244ea9ef01fcd8f04b77c.r2.dev/unnamed-2.jpg",
+    gallery: [
+      "https://pub-5eb249c648f244ea9ef01fcd8f04b77c.r2.dev/unnamed.jpg",
+      "https://pub-5eb249c648f244ea9ef01fcd8f04b77c.r2.dev/unnamed-1.jpg",
+      "https://pub-5eb249c648f244ea9ef01fcd8f04b77c.r2.dev/unnamed-2.jpg",
+    ],
     stats: [
       { label: "Deliverables", value: "28 final images" },
       { label: "Shoot window", value: "1 day" },
@@ -289,8 +316,8 @@ export const workItems: WorkItem[] = [
     year: "2025",
     description:
       "Editorial food and beverage storytelling for a coastal restaurant group—hero dishes, bar moments, and atmosphere shots for web and social.",
-    cover: "/images/food.jpg",
-    gallery: ["/images/food.jpg"],
+    cover: makeCover("food-01", "jpg"),
+    gallery: makeGallery("food-01", "jpg"),
     stats: [
       { label: "Deliverables", value: "24 final images" },
       { label: "Shoot window", value: "1 day" },

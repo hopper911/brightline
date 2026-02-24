@@ -11,11 +11,15 @@ const BLUR_DATA =
 type GalleryImage = {
   id: string;
   url: string;
+  thumbUrl?: string;
+  fullUrl?: string;
   alt?: string | null;
   filename?: string | null;
   sortOrder: number;
+  isHero?: boolean;
   storageKey?: string | null;
   isFavorite: boolean;
+  meta?: { caption?: string } | Record<string, unknown> | null;
 };
 
 type GalleryPayload = {
@@ -346,11 +350,11 @@ export default function ClientGalleryView({ token }: { token: string }) {
                 className="block w-full cursor-zoom-in"
               >
                 <Image
-                  src={image.url}
+                  src={image.thumbUrl ?? image.url}
                   alt={image.alt || gallery.title}
                   width={800}
                   height={600}
-                  data-image-mode={getImageModeForUrl(image.url)}
+                  data-image-mode={getImageModeForUrl(image.thumbUrl ?? image.url)}
                   sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
                   placeholder="blur"
                   blurDataURL={BLUR_DATA}
@@ -466,13 +470,20 @@ export default function ClientGalleryView({ token }: { token: string }) {
 
           <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
             <Image
-              src={lightboxImage.url}
+              src={lightboxImage.fullUrl ?? lightboxImage.url}
               alt={lightboxImage.alt || gallery.title}
               width={1920}
               height={1280}
               className="max-h-[90vh] w-auto object-contain"
               priority
             />
+
+            {/* Caption */}
+            {(lightboxImage.meta?.caption ?? lightboxImage.alt) && (
+              <p className="absolute bottom-14 left-1/2 -translate-x-1/2 max-w-2xl px-4 py-2 text-center text-sm text-white/90 bg-black/40 rounded-lg">
+                {lightboxImage.meta?.caption ?? lightboxImage.alt}
+              </p>
+            )}
 
             {/* Lightbox controls */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">

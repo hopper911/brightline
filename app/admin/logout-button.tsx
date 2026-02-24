@@ -6,10 +6,10 @@ export default function AdminLogoutButton() {
   return (
     <button
       type="button"
-      className="btn btn-ghost"
-      onClick={() => signOut({ callbackUrl: "/admin/login" })}
+      onClick={() => signOut({ callbackUrl: "/" })}
+      className="btn btn-ghost text-black/60 hover:text-black"
     >
-      Log out
+      Sign out
     </button>
   );
 }

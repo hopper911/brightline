@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 
 type Client = { id: string; name: string };
 type Project = { id: string; title: string };
+type ImageMeta = {
+  usageType?: string | null;
+  licenseExpiration?: string | null;
+  [k: string]: unknown;
+} | null;
 type Gallery = {
   id: string;
   title: string;
@@ -12,6 +17,7 @@ type Gallery = {
   published: boolean;
   client?: Client | null;
   project?: Project | null;
+  images?: { meta?: ImageMeta }[];
   accessTokens?: {
     id: string;
     codeHint?: string | null;
@@ -258,6 +264,49 @@ export default function AdminGalleriesPage() {
                 </button>
               </div>
             </div>
+            {item.images?.length ? (
+              <div className="mt-2 text-xs text-black/50">
+                {(() => {
+                  const metas = item.images
+                    .map((img) => (img.meta as ImageMeta) ?? null)
+                    .filter(Boolean);
+                  const usageCounts = metas.reduce((acc, m) => {
+                    const u = (m as ImageMeta)?.usageType || "—";
+                    acc[u] = (acc[u] ?? 0) + 1;
+                    return acc;
+                  }, {} as Record<string, number>);
+                  const now = Date.now();
+                  const soon = now + 90 * 24 * 60 * 60 * 1000;
+                  const expiringSoon = metas.filter((m) => {
+                    const exp = (m as ImageMeta)?.licenseExpiration;
+                    if (!exp) return false;
+                    const d = new Date(exp);
+                    return !isNaN(d.getTime()) && d.getTime() >= now && d.getTime() < soon;
+                  });
+                  const expired = metas.filter((m) => {
+                    const exp = (m as ImageMeta)?.licenseExpiration;
+                    if (!exp) return false;
+                    const d = new Date(exp);
+                    return !isNaN(d.getTime()) && d.getTime() < now;
+                  });
+                  const parts: string[] = [];
+                  if (Object.keys(usageCounts).length > 0) {
+                    parts.push(
+                      Object.entries(usageCounts)
+                        .map(([k, v]) => (k === "—" ? `${v} unspecified` : `${v} ${k}`))
+                        .join(", ")
+                    );
+                  }
+                  if (expiringSoon.length > 0) parts.push(`${expiringSoon.length} expiring soon`);
+                  if (expired.length > 0) parts.push(`${expired.length} expired`);
+                  return parts.length > 0 ? (
+                    <span>
+                      Licensing: {parts.join(" · ")}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+            ) : null}
             {item.accessTokens?.length ? (
               <div className="mt-3 space-y-2 text-xs text-black/50">
                 {item.accessTokens.map((token) => (

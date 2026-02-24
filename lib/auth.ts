@@ -1,46 +1,37 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { isAdminEmail } from "@/lib/admin-emails";
 
 export const authOptions: NextAuthOptions = {
-  session: {
-    strategy: "jwt",
-  },
-  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
-      id: "credentials",
-      name: "Access Code",
+      name: "Admin",
       credentials: {
-        code: { label: "Access Code", type: "password" },
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const code = credentials?.code;
-        if (!code) return null;
-        const accessCode = process.env.ADMIN_ACCESS_CODE;
-        if (!accessCode) return null;
-        if (code !== accessCode) return null;
-        return { id: "admin", name: "Admin", email: "admin@local" };
+        if (!credentials?.email) return null;
+        if (!isAdminEmail(credentials.email)) return null;
+        return { id: "admin", email: credentials.email, isAdmin: true };
       },
     }),
   ],
-  pages: {
-    signIn: "/admin/login",
-  },
   callbacks: {
-    async jwt({ token, user }) {
+    jwt({ token, user }) {
       if (user) {
-        token.isAdmin = true;
+        token.isAdmin = (user as { isAdmin?: boolean }).isAdmin;
       }
       return token;
     },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.name = session.user.name || "Admin";
-        (session.user as { isAdmin?: boolean }).isAdmin = Boolean(
-          token.isAdmin
-        );
+    session({ session, token }) {
+      if (session?.user) {
+        (session.user as { isAdmin?: boolean }).isAdmin = token.isAdmin;
       }
       return session;
     },
   },
+  pages: { signIn: "/admin/login" },
+  session: { strategy: "jwt" },
+  secret: process.env.NEXTAUTH_SECRET,
 };

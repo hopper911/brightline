@@ -1,95 +1,40 @@
 export const CREDIBILITY = {
   stats: [
-    {
-      label: "brands served",
-      value: "28",
-      description: "Hospitality, real estate, and lifestyle brands",
-    },
-    {
-      label: "client satisfaction",
-      value: "5/5",
-      description: "Average rating across repeat clients",
-    },
-    {
-      label: "avg. turnaround",
-      value: "10 days",
-      description: "Final images delivery",
-    },
-    {
-      label: "shoot days",
-      value: "120+",
-      description: "On-location production days",
-    },
-  ],
-  process: [
-    {
-      step: "01",
-      title: "Pre-production",
-      description: "Scoping, shot list, styling, and logistics planning.",
-      duration: "1–2 weeks",
-    },
-    {
-      step: "02",
-      title: "Production",
-      description: "On-site capture with a focused crew and clear shot list.",
-      duration: "1–3 days",
-    },
-    {
-      step: "03",
-      title: "Post-production",
-      description: "Color, retouching, and file prep for every channel.",
-      duration: "7–10 days",
-    },
-    {
-      step: "04",
-      title: "Delivery",
-      description: "Final files, usage guidance, and archive management.",
-      duration: "Ongoing",
-    },
+    { value: "500+", label: "Projects", description: "Delivered since 2019" },
+    { value: "48hr", label: "Response time", description: "Initial inquiry" },
+    { value: "5-7", label: "Proof days", description: "Standard turnaround" },
+    { value: "10-14", label: "Final days", description: "Full delivery" },
   ],
   turnaround: {
-    proofs: "48–72 hours",
-    finals: "7–10 business days",
-    rush: "3–5 business days",
+    proofs: "5-7 days",
+    finals: "10-14 days",
+    rush: "On request",
   },
   licensing: {
-    included: [
-      "Web + social usage",
-      "Marketing collateral",
-      "Press-ready selects",
-    ],
-    additional: [
-      "OOH + paid media",
-      "Global campaign usage",
-      "Extended term licensing",
-    ],
-    note: "Custom licensing available for enterprise and multi-location rollouts.",
+    included: ["Web + social usage", "Brand guidelines", "Standard crops"],
+    additional: ["Paid media", "Print", "OOH"],
+    note: "Extended licensing quoted per project.",
   },
   faqs: [
     {
-      question: "What is included in a standard day rate?",
+      question: "What's included in a typical shoot?",
       answer:
-        "Pre-production planning, on-site capture, and a standard post-production package are included. Styling, talent, and travel are scoped separately.",
+        "Pre-production, on-site capture, and post-production. Deliverables vary by package.",
     },
     {
-      question: "How quickly can you deliver finals?",
+      question: "How far in advance should I book?",
       answer:
-        "Standard turnaround is 7–10 business days. Rush delivery is available for priority launches.",
+        "2-3 weeks for most East Coast projects. Rush availability on request.",
     },
     {
       question: "Do you travel?",
       answer:
-        "Yes — on-site coverage for hospitality, real estate, and retail teams globally.",
+        "Yes. Travel is quoted separately based on location and scope.",
     },
     {
-      question: "How does licensing work?",
+      question: "What formats do you deliver?",
       answer:
-        "Every project includes a clear usage scope and term. We can extend usage as campaigns evolve.",
-    },
-    {
-      question: "Can you handle reshoots or add-ons?",
-      answer:
-        "Yes. Additional coverage can be scheduled quickly if your project evolves.",
+        "High-res JPEGs and TIFFs, with crops for web, social, and print.",
     },
   ],
 };

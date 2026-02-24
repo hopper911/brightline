@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { SECTIONS } from "@/lib/config/sections";
 
 const navLinks: { href: string; label: string; cta?: boolean }[] = [
-  { href: "/work", label: "Work" },
+  ...SECTIONS.map((s) => ({ href: `/work/${s.slug}`, label: s.title })),
   { href: "/services", label: "Services" },
-  { href: "/process", label: "Process" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
-  { href: "/contact", label: "Start a Project", cta: true },
 ];
 
 export default function Navbar() {

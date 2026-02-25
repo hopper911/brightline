@@ -1,20 +1,26 @@
 import type { MetadataRoute } from "next";
 import { services } from "./services/data";
 import { BRAND } from "@/lib/config/brand";
-import { getProjects } from "@/lib/content";
-import { getPublishedPortfolio } from "@/lib/portfolio";
+import { SECTION_SLUGS } from "@/lib/config/sections";
+import { PILLAR_SLUGS } from "@/lib/portfolioPillars";
+import { CASE_STUDIES } from "@/lib/caseStudies";
+import { getPublishedProjectsBySection } from "@/lib/queries/work";
+import { slugToSection } from "@/lib/config/sections";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = BRAND.url;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || BRAND.url;
   const now = new Date();
 
-  // Core pages (no /portfolio – everything under /work)
   const coreRoutes = [
     { path: "", priority: 1.0 },
-    { path: "/services", priority: 0.9 },
     { path: "/work", priority: 0.9 },
+    { path: "/case-studies", priority: 0.85 },
+    { path: "/services", priority: 0.9 },
+    { path: "/process", priority: 0.8 },
     { path: "/contact", priority: 0.8 },
     { path: "/about", priority: 0.7 },
+    { path: "/privacy", priority: 0.5 },
+    { path: "/terms", priority: 0.5 },
   ];
 
   const routes = coreRoutes.map(({ path, priority }) => ({
@@ -23,33 +29,52 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority,
   }));
 
-  // Service pages
   const serviceRoutes = services.map((service) => ({
     url: `${baseUrl}/services/${service.slug}`,
     lastModified: now,
     priority: 0.8,
   }));
 
-  // Work: content-based project pages
-  const projects = getProjects();
-  const workRoutes = projects.map((project) => ({
-    url: `${baseUrl}/work/${project.slug}`,
+  const workSectionRoutes = SECTION_SLUGS.map((slug) => ({
+    url: `${baseUrl}/work/${slug}`,
     lastModified: now,
-    priority: 0.7,
+    priority: 0.8,
   }));
 
-  // Work: portfolio (DB) project pages
-  const portfolioItems = await getPublishedPortfolio({ includeDrafts: false });
-  const portfolioWorkRoutes = portfolioItems.map((item) => ({
-    url: `${baseUrl}/work/${item.categorySlug}/${item.slug}`,
+  const workPillarRoutes = PILLAR_SLUGS.map((slug) => ({
+    url: `${baseUrl}/work/${slug}`,
     lastModified: now,
-    priority: 0.7,
+    priority: 0.8,
+  }));
+
+  const workProjectRoutes: MetadataRoute.Sitemap = [];
+  for (const slug of SECTION_SLUGS) {
+    try {
+      const projects = await getPublishedProjectsBySection(slugToSection(slug));
+      for (const p of projects) {
+        workProjectRoutes.push({
+          url: `${baseUrl}/work/${slug}/${p.slug}`,
+          lastModified: now,
+          priority: 0.7,
+        });
+      }
+    } catch {
+      // DB may not be available
+    }
+  }
+
+  const caseStudyRoutes = CASE_STUDIES.map((c) => ({
+    url: `${baseUrl}/case-studies/${c.slug}`,
+    lastModified: now,
+    priority: 0.75,
   }));
 
   return [
     ...routes,
     ...serviceRoutes,
-    ...workRoutes,
-    ...portfolioWorkRoutes,
+    ...workSectionRoutes,
+    ...workPillarRoutes,
+    ...workProjectRoutes,
+    ...caseStudyRoutes,
   ];
 }

@@ -30,7 +30,7 @@ export default function HomeHero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.85, ease: "easeOut", delay: 0.1 }}
-            className="font-display text-4xl md:text-6xl leading-[1.05] text-black heading-hover"
+            className="font-display text-3xl md:text-5xl leading-[1.05] text-black heading-hover"
           >
             Editorial photography for brands that want quiet luxury and
             commercial clarity.
@@ -39,11 +39,10 @@ export default function HomeHero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.75, ease: "easeOut", delay: 0.2 }}
-            className="text-base md:text-lg text-black/70"
+            className="text-sm md:text-base text-black/70"
           >
-            Bright Line partners with hospitality, real estate, and lifestyle
-            teams to deliver cinematic imagery, art direction, and visual
-            systems that elevate every channel.
+            Cinematic imagery and art direction for hospitality, real estate,
+            and brand campaigns.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 18 }}
@@ -51,10 +50,10 @@ export default function HomeHero() {
             transition={{ duration: 0.6, ease: "easeOut", delay: 0.35 }}
             className="flex flex-wrap gap-4"
           >
-            <PrimaryCTA service="general" />
-            <MagneticButton href="/work" className="btn btn-ghost">
+            <MagneticButton href="/work" className="btn btn-primary">
               View work
             </MagneticButton>
+            <PrimaryCTA service="general" className="btn btn-ghost" />
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 12 }}

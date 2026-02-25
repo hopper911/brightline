@@ -87,28 +87,38 @@ export async function POST(req: Request) {
     let missingPrivate = 0;
     const images = await Promise.all(
       gallery.images.map(async (image) => {
-        if (!image.storageKey) {
-          missingPrivate += 1;
-          return {
-            id: image.id,
-            url: image.url,
-            alt: image.alt,
-            filename: image.filename,
-            sortOrder: image.sortOrder,
-            storageKey: null,
-            isFavorite: favoriteImageIds.has(image.id),
-          };
-        }
-
-        const signed = await getClientDownloadUrl({ key: image.storageKey });
-        return {
+        const base = {
           id: image.id,
-          url: signed.url,
           alt: image.alt,
           filename: image.filename,
           sortOrder: image.sortOrder,
-          storageKey: image.storageKey,
+          isHero: image.isHero ?? false,
           isFavorite: favoriteImageIds.has(image.id),
+          meta: image.meta ?? null,
+        };
+
+        if (!image.storageKey && !image.thumbUrl && !image.fullUrl) {
+          missingPrivate += 1;
+          return {
+            ...base,
+            url: image.url,
+            thumbUrl: image.thumbUrl ?? image.url,
+            fullUrl: image.fullUrl ?? image.url,
+            storageKey: null,
+          };
+        }
+
+        const signed = image.storageKey
+          ? await getClientDownloadUrl({ key: image.storageKey })
+          : null;
+        const resolvedUrl = signed?.url ?? image.url;
+
+        return {
+          ...base,
+          url: resolvedUrl,
+          thumbUrl: image.thumbUrl ?? resolvedUrl,
+          fullUrl: image.fullUrl ?? resolvedUrl,
+          storageKey: image.storageKey,
         };
       })
     );

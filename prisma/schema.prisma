@@ -160,6 +160,8 @@ model Gallery {
   coverUrl     String?
   clientNotes  String?
   published    Boolean   @default(false)
+  isFeatured   Boolean   @default(false)
+  sortOrder    Int       @default(0)
   clientId     String?
   projectId    String?
   createdAt    DateTime  @default(now())
@@ -238,4 +240,82 @@ model GalleryDownload {
   imageId  String?
   type     String?
   token    GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+}
+
+// Work system (5-section taxonomy)
+enum WorkSection {
+  ACD
+  REA
+  CUL
+  BIZ
+  TRI
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+enum VideoProvider {
+  YOUTUBE
+}
+
+model WorkProject {
+  id           String    @id @default(cuid())
+  section      WorkSection
+  title        String
+  slug         String
+  summary      String?
+  description  String?
+  location     String?
+  year         Int?
+  published    Boolean   @default(false)
+  isFeatured   Boolean   @default(false)
+  sortOrder    Int       @default(0)
+  heroMediaId  String?
+  heroMedia    MediaAsset?  @relation("HeroMedia", fields: [heroMediaId], references: [id])
+  media        ProjectMedia[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([section, slug])
+  @@index([section])
+  @@index([published])
+}
+
+model MediaAsset {
+  id            String    @id @default(cuid())
+  kind          MediaKind
+  alt           String?
+  width         Int?
+  height        Int?
+  keyFull       String?
+  keyThumb      String?
+  provider      VideoProvider?
+  providerId    String?
+  posterKey     String?
+  createdAt     DateTime  @default(now())
+  heroFor       WorkProject[]   @relation("HeroMedia")
+  projectMedia  ProjectMedia[]
+
+  @@index([kind])
+}
+
+model ProjectMedia {
+  projectId  String
+  mediaId    String
+  sortOrder  Int       @default(0)
+  project    WorkProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  media      MediaAsset  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, mediaId])
+  @@index([projectId, sortOrder])
+}
+
+model Inquiry {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  createdAt DateTime @default(now())
 }

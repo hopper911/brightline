@@ -1,5 +1,7 @@
 import ClientAccessForm from "@/components/ClientAccessForm";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Client Access · Bright Line Photography",
   robots: {

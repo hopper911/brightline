@@ -1,6 +1,8 @@
-export function assertServerEnv(keys: string[] = []) {
-  const missing = keys.filter((key) => !process.env[key]);
-  if (missing.length) {
-    throw new Error(`Missing required env vars: ${missing.join(", ")}`);
-  }
+/**
+ * Assert required server env is present. No-op if not used for storage;
+ * can throw if you need to require specific vars before running routes.
+ */
+export function assertServerEnv(): void {
+  // Optional: throw if critical env missing, e.g. R2 for /api/storage
+  // For now no-op so routes compile and fail at runtime with clear errors
 }

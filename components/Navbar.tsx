@@ -2,13 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-
 const navLinks: { href: string; label: string; cta?: boolean }[] = [
   { href: "/work", label: "Work" },
-  { href: "/services", label: "Services" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
-  { href: "/contact?service=general", label: "Start a Project", cta: true },
 ];
 
 export default function Navbar() {
@@ -67,7 +64,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-8 text-xs uppercase tracking-[0.32em] text-white/70">
+        <nav className="hidden md:flex items-center gap-8 text-[0.7rem] uppercase tracking-[0.32em] text-white/70">
           {navLinks.map((l) => (
             <Link
               key={l.href}
@@ -84,7 +81,7 @@ export default function Navbar() {
           aria-label="Open menu"
           aria-expanded={open}
           onClick={() => setOpen(true)}
-          className="nav-pill md:hidden inline-flex items-center justify-center rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.28em] text-white/80 hover:border-white/40"
+          className="nav-pill md:hidden inline-flex items-center justify-center rounded-full border border-white/20 px-4 py-2 text-[0.7rem] uppercase tracking-[0.28em] text-white/80 hover:border-white/40"
         >
           Menu
         </button>
@@ -132,7 +129,7 @@ export default function Navbar() {
                     <Link
                       href={l.href}
                       onClick={() => setOpen(false)}
-                      className={`nav-link block rounded-2xl border px-4 py-3 text-sm uppercase tracking-[0.28em] ${
+                      className={`nav-link block rounded-2xl border px-4 py-3 text-[0.7rem] uppercase tracking-[0.28em] ${
                         l.cta
                           ? "border-white/30 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
                           : "border-white/10 text-white/70 hover:border-white/30 hover:text-white"

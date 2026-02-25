@@ -1,91 +1,103 @@
 import type { Metadata } from "next";
-import { getProjects } from "@/lib/content";
-import { getPublishedPortfolio, sortByCommercialFirst } from "@/lib/portfolio";
-import type { WorkHubItem } from "./work-hub";
-import WorkHub from "./work-hub";
+import Link from "next/link";
+import Image from "next/image";
+import Reveal from "@/components/Reveal";
+import { PILLARS } from "@/lib/portfolioPillars";
+import { getFeaturedHeroForSection } from "@/lib/queries/work";
+import { getPublicR2Url } from "@/lib/r2";
 
-const CATEGORY_ORDER = ["commercial-real-estate", "hospitality", "fashion", "culinary"];
+export const revalidate = 300;
+
+async function fetchPillarData() {
+  return Promise.all(
+    PILLARS.map(async (pillar) => {
+      const firstSection = pillar.sections[0];
+      const hero = firstSection
+        ? await getFeaturedHeroForSection(firstSection)
+        : null;
+      let coverUrl: string | null = null;
+      let coverAlt: string | null = null;
+      if (hero?.kind === "IMAGE" && hero.keyFull) {
+        coverUrl = getPublicR2Url(hero.keyFull ?? "");
+        coverAlt = hero.alt ?? pillar.label;
+      }
+      return { ...pillar, coverUrl, coverAlt };
+    })
+  );
+}
 
 export const metadata: Metadata = {
   title: "Work · Bright Line Photography",
   description:
-    "Case studies and projects from Bright Line Photography. Commercial photography for hospitality, real estate, and fashion brands.",
-  alternates: {
-    canonical: "/work",
-  },
+    "Campaign & advertising, hospitality & spaces, and corporate photography. Case studies and project showcases.",
+  alternates: { canonical: "/work" },
   openGraph: {
     title: "Work · Bright Line Photography",
     description:
-      "Case studies and projects from Bright Line Photography. Commercial photography for hospitality, real estate, and fashion brands.",
+      "Campaign & advertising, hospitality & spaces, and corporate photography.",
     url: "/work",
     images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Bright Line Photography" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Work · Bright Line Photography",
-    description:
-      "Case studies and projects from Bright Line Photography. Commercial photography for hospitality, real estate, and fashion brands.",
-    images: ["/og-image.svg"],
   },
 };
 
 export default async function WorkIndexPage() {
-  const contentProjects = getProjects();
-  const portfolioItems = await getPublishedPortfolio({ includeDrafts: false });
-
-  const contentWorkItems: WorkHubItem[] = contentProjects.map((p) => ({
-    href: `/work/${p.slug}`,
-    slug: p.slug,
-    title: p.title,
-    category: p.category,
-    location: p.location,
-    year: p.year,
-    cover: p.cover,
-  }));
-
-  const portfolioWorkItems: WorkHubItem[] = portfolioItems.map((p) => ({
-    href: `/work/${p.categorySlug}/${p.slug}`,
-    slug: p.slug,
-    title: p.title,
-    category: p.category,
-    location: p.location,
-    year: p.year,
-    cover: p.cover,
-    coverAlt: p.coverAlt,
-  }));
-
-  const merged = [
-    ...portfolioWorkItems,
-    ...contentWorkItems.filter(
-      (c) => !portfolioWorkItems.some((p) => p.slug === c.slug)
-    ),
-  ];
-  const items = sortByCommercialFirst(merged);
-
-  const tags = Array.from(
-    new Set(contentProjects.flatMap((item) => item.tags))
-  ).sort((a, b) => a.localeCompare(b));
-
-  const categoryMap = new Map<string, string>();
-  contentProjects.forEach((p) => categoryMap.set(p.categorySlug, p.category));
-  portfolioItems.forEach((p) => categoryMap.set(p.categorySlug, p.category));
-  const categoryEntries = Array.from(categoryMap.entries());
-  const categories = CATEGORY_ORDER.filter((v) =>
-    categoryEntries.some(([k]) => k === v)
-  ).map((value) => ({
-    value,
-    label: categoryMap.get(value) || value,
-  }));
-  const rest = categoryEntries
-    .filter(([v]) => !CATEGORY_ORDER.includes(v))
-    .map(([value, label]) => ({ value, label }));
-  const categoriesOrdered = [...categories, ...rest];
+  let pillarData: Awaited<ReturnType<typeof fetchPillarData>>;
+  try {
+    pillarData = await fetchPillarData();
+  } catch {
+    pillarData = PILLARS.map((p) => ({
+      ...p,
+      coverUrl: null as string | null,
+      coverAlt: null as string | null,
+    }));
+  }
 
   return (
-    <WorkHub
-      items={items}
-      tags={tags}
-      categories={categoriesOrdered}
-    />
+    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+      <Reveal>
+        <p className="section-kicker">Work</p>
+        <h1 className="section-title">Case studies</h1>
+        <p className="section-subtitle">
+          Campaign, hospitality, and corporate photography.
+        </p>
+      </Reveal>
+
+      <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {pillarData.map((pillar) => (
+          <Reveal key={pillar.slug}>
+            <Link
+              href={`/work/${pillar.slug}`}
+              className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
+            >
+              <div className="relative h-[200px] w-full">
+                {pillar.coverUrl ? (
+                  <Image
+                    src={pillar.coverUrl}
+                    alt={pillar.coverAlt ?? pillar.label}
+                    fill
+                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                    className="object-cover image-zoom"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">
+                    <span className="text-xs uppercase tracking-[0.2em]">
+                      {pillar.label}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="p-5">
+                <p className="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">
+                  {pillar.label}
+                </p>
+                <p className="mt-2 text-xs text-white/80 group-hover:text-white">
+                  View projects →
+                </p>
+              </div>
+            </Link>
+          </Reveal>
+        ))}
+      </div>
+    </div>
   );
 }

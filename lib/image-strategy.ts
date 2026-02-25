@@ -1,39 +1,31 @@
-import { getPublicUrl, signDownloadUrl, signUploadUrl } from "@/lib/storage";
+import { signPut } from "@/lib/storage-r2";
+import { signDownloadUrl } from "@/lib/storage";
 
-export { type ImageMode, getImageModeForUrl } from "@/lib/image-utils";
-
-type UploadParams = {
+export type GetClientUploadUrlOptions = {
   key: string;
   contentType?: string;
 };
 
-type DownloadParams = {
+export async function getClientUploadUrl(options: GetClientUploadUrlOptions) {
+  return signPut({
+    key: options.key,
+    contentType: options.contentType ?? "image/jpeg",
+  });
+}
+
+export type GetClientDownloadUrlOptions = {
   key: string;
   expiresIn?: number;
 };
 
-export async function getMarketingUploadUrl({ key, contentType }: UploadParams) {
-  return signUploadUrl({ key, contentType, expiresIn: 60 * 10 });
+export async function getClientDownloadUrl(options: GetClientDownloadUrlOptions) {
+  return signDownloadUrl({
+    key: options.key,
+    expiresIn: options.expiresIn,
+  });
 }
 
-export async function getClientUploadUrl({ key, contentType }: UploadParams) {
-  return signUploadUrl({ key, contentType, expiresIn: 60 * 10 });
-}
-
-export async function getClientDownloadUrl({ key, expiresIn }: DownloadParams) {
-  return signDownloadUrl({ key, expiresIn });
-}
-
-export function getMarketingPublicUrl(key: string) {
-  return getPublicUrl(key);
-}
-
-export function isClientImage(storageKey?: string | null) {
-  return Boolean(storageKey);
-}
-
-export function assertClientImage(storageKey?: string | null) {
-  if (!storageKey) {
-    throw new Error("Private image is missing a storageKey.");
-  }
+/** Alias for marketing asset uploads (same as getClientUploadUrl). */
+export async function getMarketingUploadUrl(options: GetClientUploadUrlOptions) {
+  return getClientUploadUrl(options);
 }

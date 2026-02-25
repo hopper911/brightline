@@ -99,9 +99,18 @@ export default function AdminProjectsPage() {
           }),
       });
 
-      if (!res.ok) throw new Error("Save failed");
-      const data = (await res.json()) as { project: Project };
-      setProjects((prev) => [data.project, ...prev]);
+      const raw = await res.text();
+      let data: { project?: Project; error?: string } | null = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        /* ignore */
+      }
+      if (!res.ok) {
+        throw new Error(data?.error ?? `Save failed (${res.status}): ${raw.slice(0, 200)}`);
+      }
+      if (!data?.project) throw new Error("No project returned.");
+      setProjects((prev) => [data.project!, ...prev]);
       setTitle("");
       setCategory("");
       setLocation("");

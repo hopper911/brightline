@@ -40,10 +40,10 @@ export default function ServicesPage() {
     <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
       {/* Hero Section */}
       <section className="space-y-4">
-        <p className="text-xs uppercase tracking-[0.35em] text-black/50">
+        <p className="text-[0.65rem] uppercase tracking-[0.35em] text-black/50">
           Services
         </p>
-        <h1 className="font-display text-4xl md:text-5xl text-black max-w-3xl">
+        <h1 className="font-display text-3xl md:text-4xl text-black max-w-3xl text-balance">
           High-touch production designed for modern brands.
         </h1>
         <p className="text-base md:text-lg text-black/70 max-w-2xl">
@@ -153,7 +153,7 @@ export default function ServicesPage() {
             Usage & licensing
           </p>
           <h3 className="font-display text-xl text-black mt-3">
-            What's included
+            What&apos;s included
           </h3>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <div>
@@ -219,7 +219,7 @@ export default function ServicesPage() {
               Ready to start your project?
             </h2>
             <p className="mt-3 text-sm text-white/70">
-              Share your project scope, timeline, and goals. We'll respond within 48 hours with a tailored proposal and availability.
+              Share your project scope, timeline, and goals. We&apos;ll respond within 48 hours with a tailored proposal and availability.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">

@@ -1,5 +1,7 @@
 # Bright Line Photography - Cursor Project Rules
 
+**Mega Prompt (V2):** See `.cursor/rules/mega-prompt.mdc` for the canonical "Small Business Pro" spec: Work system (5 sections), R2 images, YouTube embeds, contact flow, SEO. Non-negotiables, routes, and quality bar are defined there.
+
 ## Next.js Conventions
 - Use App Router (Next.js 16)
 - Server components by default; use "use client" only when needed (hooks, events, browser APIs)
@@ -40,7 +42,7 @@
 
 ## Data & API
 - Prisma for DB (Neon/Postgres): portfolio, leads, galleries, clients
-- Static fallback: app/lib/work.ts for portfolio items
+- Portfolio data from Prisma (lib/queries/work.ts)
 - Contact API at /api/contact with Turnstile (Cloudflare)
 - NextAuth for admin (/admin/*) via email magic link
 - S3/R2 for image storage

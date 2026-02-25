@@ -1,28 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { trackCTAClick } from "@/lib/analytics";
 
-export default function PrimaryCTA({
-  service = "general",
-  className = "btn btn-primary",
-  label = "Request a quote",
-  location = "unknown",
-}: {
-  service?: string;
+type PrimaryCTAProps = {
+  service: string;
   className?: string;
-  label?: string;
   location?: string;
-}) {
-  const href = `/contact?service=${encodeURIComponent(service)}`;
-  
-  const handleClick = () => {
-    trackCTAClick({ label, location, service });
-  };
-  
+  children?: React.ReactNode;
+};
+
+export default function PrimaryCTA({ service, className, location, children }: PrimaryCTAProps) {
+  const href = location ? `/contact?service=${service}&location=${location}` : `/contact?service=${service}`;
   return (
-    <Link href={href} className={className} onClick={handleClick}>
-      {label}
+    <Link href={href} className={className || "btn btn-primary"}>
+      {children ?? "Start a Project"}
     </Link>
   );
 }

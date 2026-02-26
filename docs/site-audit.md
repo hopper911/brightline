@@ -7,7 +7,7 @@ Audit for luxury commercial photography site upgrade. Matches actual codebase st
 ### Marketing
 - `app/page.tsx` — Home
 - `app/work/page.tsx` — Work index
-- `app/work/[section]/page.tsx` — Section listing (acd, rea, cul, biz, tri)
+- `app/work/[section]/page.tsx` — Pillar listing (architecture, campaign, corporate)
 - `app/work/[section]/[projectSlug]/page.tsx` — Project detail
 - `app/about/page.tsx` — About
 - `app/contact/page.tsx` — Contact
@@ -45,14 +45,14 @@ Audit for luxury commercial photography site upgrade. Matches actual codebase st
 
 ## Where categories/sections are defined
 
-- **Public work:** `lib/config/sections.ts` — 5 sections: `acd`, `rea`, `cul`, `biz`, `tri` (maps to Prisma `WorkSection` enum: ACD, REA, CUL, BIZ, TRI). Nav is built from `SECTIONS` (all 5 as top-level links).
-- **Admin portfolio (legacy):** `app/admin/portfolio/page.tsx` — `CATEGORY_OPTIONS`: commercial-real-estate, hospitality, fashion, culinary, graphic-design (different from work sections).
+- **Public work:** `lib/portfolioPillars.ts` — 3 pillars: `architecture`, `campaign`, `corporate` (maps to Prisma `WorkSection`: REA/TRI→architecture, ACD/CUL→campaign, BIZ→corporate). Nav is built from `PILLARS`.
+- **Admin portfolio (legacy):** `app/admin/portfolio/page.tsx` — `CATEGORY_OPTIONS`: commercial-real-estate, architecture, fashion, culinary, graphic-design (different from work sections).
 
 ## Homepage sections (source)
 
 All defined in code in `app/page.tsx`:
 
-- Hardcoded `featured` — 5 work cards linking to `/work/{acd|rea|cul|biz|tri}` with local image paths
+- Hardcoded `featured` — Work cards linking to `/work/{architecture|campaign|corporate}` with local image paths
 - `services` — 4 service cards
 - `testimonials` — 2 quotes
 - `whatYouGet`, `howItWorks` — copy blocks

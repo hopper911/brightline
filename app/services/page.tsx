@@ -8,14 +8,14 @@ import { CREDIBILITY } from "@/lib/config/credibility";
 export const metadata = {
   title: "Services · Bright Line Photography",
   description:
-    "Commercial photography services for hospitality, real estate, and fashion brands. View packages, process, pricing, and FAQs.",
+    "Commercial photography services for architecture, real estate, and fashion brands. View packages, process, pricing, and FAQs.",
   alternates: {
     canonical: "/services",
   },
   openGraph: {
     title: "Services · Bright Line Photography",
     description:
-      "Commercial photography services for hospitality, real estate, and fashion brands. View packages, process, pricing, and FAQs.",
+      "Commercial photography services for architecture, real estate, and fashion brands. View packages, process, pricing, and FAQs.",
     url: "/services",
     images: [
       {
@@ -30,7 +30,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Services · Bright Line Photography",
     description:
-      "Commercial photography services for hospitality, real estate, and fashion brands. View packages, process, pricing, and FAQs.",
+      "Commercial photography services for architecture, real estate, and fashion brands. View packages, process, pricing, and FAQs.",
     images: ["/og-image.svg"],
   },
 };

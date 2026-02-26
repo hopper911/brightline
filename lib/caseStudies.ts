@@ -17,7 +17,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     slug: "maison-delmar-suite-launch",
     title: "Maison Delmar Suite Launch",
     client: "Maison Delmar",
-    industry: "Hospitality",
+    industry: "Architecture",
     challenge: [
       "Needed hero imagery for new suite category within 3 weeks of opening.",
       "Space had mixed natural light and required consistent tonal grading.",

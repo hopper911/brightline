@@ -41,7 +41,7 @@ export default function HomeHero() {
             transition={{ duration: 0.75, ease: "easeOut", delay: 0.2 }}
             className="text-sm md:text-base text-black/70"
           >
-            Cinematic imagery and art direction for hospitality, real estate,
+            Cinematic imagery and art direction for architecture, real estate,
             and brand campaigns.
           </motion.p>
           <motion.div

@@ -35,7 +35,7 @@ type PortfolioProject = {
 
 const CATEGORY_OPTIONS = [
   { slug: "commercial-real-estate", label: "Commercial Real Estate" },
-  { slug: "hospitality", label: "Hospitality" },
+  { slug: "architecture", label: "Architecture" },
   { slug: "fashion", label: "Fashion" },
   { slug: "culinary", label: "Culinary" },
   { slug: "graphic-design", label: "Graphic Design" },

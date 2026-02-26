@@ -10,10 +10,12 @@ import { PILLARS } from "@/lib/portfolioPillars";
 import { getFeaturedHeroForSection } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Commercial Photography | Bright Line Photography",
   description:
-    "Editorial photography for brands that want quiet luxury and commercial clarity. Campaign, hospitality, and corporate imagery.",
+    "Editorial photography for brands that want quiet luxury and commercial clarity. Campaign, architecture, and corporate imagery.",
   alternates: {
     canonical: "/",
   },
@@ -114,7 +116,7 @@ export default async function Page() {
                 Work
               </p>
               <h2 className="font-display text-2xl md:text-3xl text-black text-balance">
-                Campaign, hospitality, and corporate.
+                Campaign, architecture, and corporate.
               </h2>
             </div>
             <Link href="/work" className="btn btn-ghost">

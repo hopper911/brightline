@@ -14,7 +14,7 @@ async function main() {
       {
         name: "Jordan Lee",
         email: "jordan@example.com",
-        message: "We need hospitality imagery for a boutique hotel opening in May.",
+        message: "We need architecture imagery for a boutique hotel opening in May.",
       },
     ],
   });

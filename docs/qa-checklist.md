@@ -6,15 +6,13 @@ Lightweight visual regression and smoke checklist. Use before release.
 
 - [ ] **Homepage** (/)
   - Hero loads; primary CTA "View work" and secondary Contact visible above fold
-  - 3 pillar cards link to /work/campaign, /work/spaces, /work/corporate
+  - 3 pillar cards link to /work/architecture, /work/campaign, /work/corporate
   - Client logos strip and testimonials render
 - [ ] **Work index** (/work)
   - 3 pillar cards with correct labels and links
-- [ ] **Pillar pages** (/work/campaign, /work/spaces, /work/corporate)
-  - Projects list; project links go to correct /work/{section}/{slug}
-- [ ] **Section pages** (/work/acd, /work/rea, /work/cul, /work/biz, /work/tri)
-  - Still work; project grid and links correct
-- [ ] **Project detail** (/work/{section}/{projectSlug})
+- [ ] **Pillar pages** (/work/architecture, /work/campaign, /work/corporate)
+  - Projects list; project links go to /work/{pillar}/{slug}
+- [ ] **Project detail** (/work/{pillar}/{projectSlug})
   - Hero, media, and copy render
 - [ ] **Case studies** (/case-studies)
   - 2–3 cards; links to detail pages

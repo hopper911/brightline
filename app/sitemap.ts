@@ -1,11 +1,9 @@
 import type { MetadataRoute } from "next";
 import { services } from "./services/data";
 import { BRAND } from "@/lib/config/brand";
-import { SECTION_SLUGS } from "@/lib/config/sections";
-import { PILLAR_SLUGS } from "@/lib/portfolioPillars";
+import { PILLAR_SLUGS, getPillarBySlug } from "@/lib/portfolioPillars";
 import { CASE_STUDIES } from "@/lib/caseStudies";
-import { getPublishedProjectsBySection } from "@/lib/queries/work";
-import { slugToSection } from "@/lib/config/sections";
+import { getPublishedProjectsBySections } from "@/lib/queries/work";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || BRAND.url;
@@ -35,12 +33,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  const workSectionRoutes = SECTION_SLUGS.map((slug) => ({
-    url: `${baseUrl}/work/${slug}`,
-    lastModified: now,
-    priority: 0.8,
-  }));
-
   const workPillarRoutes = PILLAR_SLUGS.map((slug) => ({
     url: `${baseUrl}/work/${slug}`,
     lastModified: now,
@@ -48,12 +40,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const workProjectRoutes: MetadataRoute.Sitemap = [];
-  for (const slug of SECTION_SLUGS) {
+  for (const pillarSlug of PILLAR_SLUGS) {
+    const pillar = getPillarBySlug(pillarSlug);
+    if (!pillar || pillar.sections.length === 0) continue;
     try {
-      const projects = await getPublishedProjectsBySection(slugToSection(slug));
+      const projects = await getPublishedProjectsBySections(pillar.sections);
       for (const p of projects) {
         workProjectRoutes.push({
-          url: `${baseUrl}/work/${slug}/${p.slug}`,
+          url: `${baseUrl}/work/${pillarSlug}/${p.slug}`,
           lastModified: now,
           priority: 0.7,
         });
@@ -72,7 +66,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...routes,
     ...serviceRoutes,
-    ...workSectionRoutes,
     ...workPillarRoutes,
     ...workProjectRoutes,
     ...caseStudyRoutes,

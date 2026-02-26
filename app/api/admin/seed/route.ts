@@ -1,18 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashAccessCode } from "@/lib/client-access";
+import { getPillarBySlug, PILLAR_SLUGS, PILLAR_TO_SECTION } from "@/lib/portfolioPillars";
 
 export const runtime = "nodejs";
-
-const WORK_SECTIONS = ["ACD", "REA", "CUL", "BIZ", "TRI"] as const;
-
-const SECTION_TITLES: Record<(typeof WORK_SECTIONS)[number], string> = {
-  ACD: "Advertising & Campaign Development",
-  REA: "Real Estate",
-  CUL: "Culture",
-  BIZ: "Business Professional",
-  TRI: "Travel & Leisure",
-};
 
 /**
  * Dev-only seed endpoint for creating demo data.
@@ -57,10 +48,10 @@ export async function POST(req: Request) {
         where: { slug: "demo-project" },
         update: {},
         create: {
-          title: "Demo Hospitality Project",
+          title: "Demo Architecture Project",
           slug: "demo-project",
-          description: "A sample hospitality photography project for testing the client portal.",
-          category: "Hospitality",
+          description: "A sample architecture photography project for testing the client portal.",
+          category: "Architecture",
           location: "Miami, FL",
           year: "2025",
           clientId: client.id,
@@ -119,18 +110,20 @@ export async function POST(req: Request) {
       });
     }
 
-    for (const section of WORK_SECTIONS) {
-      const slug = `demo-${section.toLowerCase()}`;
+    for (const pillarSlug of PILLAR_SLUGS) {
+      const pillar = getPillarBySlug(pillarSlug);
+      const section = PILLAR_TO_SECTION[pillarSlug];
+      const slug = `demo-${pillarSlug}`;
       const existing = await prisma.workProject.findFirst({
         where: { section, slug },
       });
       if (existing) continue;
 
-      const sectionTitle = SECTION_TITLES[section];
+      const label = pillar?.label ?? pillarSlug;
       const media = await prisma.mediaAsset.create({
         data: {
           kind: "IMAGE",
-          alt: `${sectionTitle} hero`,
+          alt: `${label} hero`,
           keyFull: "work/demo/placeholder.jpg",
         },
       });
@@ -138,9 +131,9 @@ export async function POST(req: Request) {
       const wp = await prisma.workProject.create({
         data: {
           section,
-          title: `${sectionTitle} - Sample`,
+          title: `${label} - Sample`,
           slug,
-          summary: `A sample project for ${sectionTitle}. Add real projects via Admin.`,
+          summary: `A sample project for ${label}. Add real projects via Admin.`,
           location: "New York, NY",
           year: new Date().getFullYear(),
           published: true,

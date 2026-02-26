@@ -1,14 +1,14 @@
 export const metadata = {
   title: "About | Bright Line Photography",
   description:
-    "A commercial photography studio specializing in hospitality, real estate, and editorial work. Based in New York and Miami.",
+    "A commercial photography studio specializing in architecture, real estate, and editorial work. Based in New York and Miami.",
   alternates: {
     canonical: "/about",
   },
   openGraph: {
     title: "About | Bright Line Photography",
     description:
-      "A commercial photography studio specializing in hospitality, real estate, and editorial work. Based in New York and Miami.",
+      "A commercial photography studio specializing in architecture, real estate, and editorial work. Based in New York and Miami.",
     url: "/about",
     images: [
       {
@@ -23,7 +23,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "About | Bright Line Photography",
     description:
-      "A commercial photography studio specializing in hospitality, real estate, and editorial work. Based in New York and Miami.",
+      "A commercial photography studio specializing in architecture, real estate, and editorial work. Based in New York and Miami.",
     images: ["/og-image.svg"],
   },
 };
@@ -97,7 +97,7 @@ export default function AboutPage() {
         </h1>
         <p className="mt-6 text-base md:text-lg text-black/70 max-w-2xl">
           Bright Line is a commercial photography studio delivering imagery for
-          hospitality, real estate, and fashion teams that demand clarity,
+          architecture, real estate, and fashion teams that demand clarity,
           consistency, and quiet luxury. We collaborate on creative direction,
           shot lists, and post-production to keep every channel cohesive.
         </p>

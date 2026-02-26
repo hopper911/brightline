@@ -3,7 +3,7 @@ export const BRAND = {
   url: "https://brightlinephotography.co",
   metadata: {
     description:
-      "Commercial real estate, hospitality, and fashion photography. Editorial imagery for brands that want quiet luxury and commercial clarity.",
+      "Commercial real estate, architecture, and fashion photography. Editorial imagery for brands that want quiet luxury and commercial clarity.",
     ogImage: "/og-image.svg",
     twitterCard: "summary_large_image",
   },

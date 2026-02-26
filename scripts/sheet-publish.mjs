@@ -17,19 +17,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
 // ——— Sheet column map (0-based indices) ———
-const COL_READY = 12;
-const COL_R2_JPG = 18;
-const COL_R2_WEBP = 19;
-const COL_STATUS = 20;
-const COL_UPLOADED = 21;
-const COL_WIDTH = 22;
-const COL_HEIGHT = 23;
-const COL_ORIENTATION = 24;
-const COL_ALT_TEXT = 25;
-const COL_HERO_IMAGE = 26;
+// Headers: Thumb_Preview, Uploaded file, Filename_Base, Pillar_Slug, Section_Slug, Client_Slug,
+// Location, Year, Project_N, Sequence, Filename_Final, R2_Key, R2_Key_Full, R2_Key_Thumb, R2_WEBP,
+// Ready, Alt_Text, Caption, Description, Hero_Image, Orientation, Usage_Type, Year_N, Seq_N, Status, Upload, Error
+const COL_PILLAR = 3;
+const COL_SECTION = 4;
+const COL_READY = 15;
+const COL_R2_JPG = 12; // R2_Key_Full
+const COL_R2_WEBP = 14;
+const COL_STATUS = 24;
+const COL_UPLOADED = 25;
+const COL_WIDTH = 22;  // Year_N or computed
+const COL_HEIGHT = 23; // Seq_N or computed
+const COL_ORIENTATION = 20;
+const COL_ALT_TEXT = 16;
+const COL_CAPTION = 17;
+const COL_HERO_IMAGE = 19;
+const COL_ORIENTATION = 20;
+const COL_USAGE_TYPE = 21;
 const COL_TAGS = 27;
-const COL_CAPTION = 28;
-const COL_USAGE_TYPE = 29;
+
+const PILLAR_TO_SECTION = { architecture: "rea", campaign: "acd", corporate: "biz" };
 
 const SHEET_ID = "1i1Dv4Mg_T5XB_Ee5MMOfYHm7EsJ8mIZRFcWS2rN7Z5E";
 const RANGE = "Sheet1!A2:AE500";
@@ -202,11 +210,17 @@ async function main() {
     const r2jpg = (row[COL_R2_JPG] || "").trim();
     const r2webp = (row[COL_R2_WEBP] || "").trim();
     if (!r2jpg) continue;
+    const pillar = String(row[COL_PILLAR] ?? "").trim().toLowerCase();
+    const parsed = parseR2Key(r2jpg);
+    const section = pillar && PILLAR_TO_SECTION[pillar]
+      ? PILLAR_TO_SECTION[pillar]
+      : parsed.section || "biz";
     readyRows.push({
       sheetRowIndex: i + 2,
+      row,
       r2jpg,
       r2webp: r2webp || r2jpg.replace(/\.(jpe?g|png)$/i, ".webp"),
-      parsed: parseR2Key(r2jpg),
+      parsed: { ...parsed, section },
     });
   }
 
@@ -229,8 +243,8 @@ async function main() {
   const galleriesBySlug = new Map();
 
   for (let idx = 0; idx < readyRows.length; idx++) {
-    const { sheetRowIndex, r2jpg, r2webp, parsed } = readyRows[idx];
-    const { section, client, seq } = parsed;
+    const { sheetRowIndex, row, r2jpg, r2webp, parsed } = readyRows[idx];
+    const { section, client, seq } = parsed; // section may be derived from pillar
     const localFile = localFiles[idx];
     const localPath = localFile.path;
 

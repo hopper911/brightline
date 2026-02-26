@@ -23,14 +23,14 @@ export type Service = {
 
 export const services: Service[] = [
   {
-    slug: "hospitality-photography",
-    title: "Hospitality Photography",
+    slug: "architecture-photography",
+    title: "Architecture & Spaces Photography",
     summary:
       "Guest-first imagery for hotels, resorts, and wellness brands that need bookings to convert.",
     description:
       "We capture the full guest journey—rooms, amenities, dining, and atmosphere—designed for booking engines, campaigns, and social.",
     heroTagline: "Rooms, amenities, and atmosphere designed to convert.",
-    portfolioLabel: "Hospitality Portfolio",
+    portfolioLabel: "Architecture Portfolio",
     portfolioHref: "/work/tri",
     heroImage: "/images/hospitality.jpg",
     proofImages: ["/images/hospitality.jpg", "/images/food.jpg", "/images/hero.jpg"],
@@ -51,13 +51,13 @@ export const services: Service[] = [
       label: "Typical investment",
       range: "$4.5k–$12k",
       disclaimer:
-        "Pricing reflects half-day to multi-day hospitality coverage and scales with room count, styling, and usage.",
+        "Pricing reflects half-day to multi-day architecture coverage and scales with room count, styling, and usage.",
       licensing:
         "Usage includes web, listings, and editorial. Paid media, OOH, and global campaigns are quoted separately.",
     },
     faqs: [
       {
-        q: "How long does a hospitality shoot take?",
+        q: "How long does an architecture shoot take?",
         a: "Most properties book 1–3 production days depending on room count and amenities.",
       },
       {
@@ -73,14 +73,14 @@ export const services: Service[] = [
       {
         slug: "hotel-01",
         title: "Harborline Hotel",
-        category: "Hospitality",
+        category: "Architecture",
         image: "/work/hotel-01/cover.svg",
         meta: "Miami, FL · 2025",
       },
       {
         slug: "hotel-02",
         title: "Cedar House Resort",
-        category: "Hospitality",
+        category: "Architecture",
         image: "/work/hotel-02/cover.svg",
         meta: "Nashville, TN · 2025",
       },

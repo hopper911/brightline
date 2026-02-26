@@ -1,40 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import VideoEmbed from "@/components/VideoEmbed";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import Reveal from "@/components/Reveal";
 import {
-  isValidSectionSlug,
-  SECTION_TITLES,
-  SECTION_TO_SLUG,
-  SECTIONS,
-  slugToSection,
-  type SectionSlug,
-} from "@/lib/config/sections";
-import { getPillarBySlug, isPillarSlug, PILLAR_SLUGS } from "@/lib/portfolioPillars";
-import {
-  getPublishedProjectsBySection,
-  getPublishedProjectsBySections,
-} from "@/lib/queries/work";
+  getPillarBySlug,
+  isPillarSlug,
+  SECTION_TO_PILLAR,
+} from "@/lib/portfolioPillars";
+import { getPublishedProjectsBySections } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
+import type { WorkSection } from "@prisma/client";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
-
-export async function generateStaticParams() {
-  const sectionParams = [
-    { section: "acd" },
-    { section: "rea" },
-    { section: "cul" },
-    { section: "biz" },
-    { section: "tri" },
-  ];
-  const pillarParams = PILLAR_SLUGS.map((slug) => ({ section: slug }));
-  return [...sectionParams, ...pillarParams];
-}
 
 export async function generateMetadata({
   params,
@@ -42,24 +23,15 @@ export async function generateMetadata({
   params: Promise<{ section: string }>;
 }): Promise<Metadata> {
   const { section } = await params;
-  if (isPillarSlug(section)) {
-    const pillar = getPillarBySlug(section);
-    if (!pillar) return { title: "Work · Bright Line Photography" };
-    const title = `${pillar.label} · Bright Line Photography`;
-    return {
-      title,
-      description: pillar.description,
-      alternates: { canonical: `/work/${section}` },
-      openGraph: { title, url: `/work/${section}` },
-    };
+  if (!isPillarSlug(section)) {
+    return { title: "Work · Bright Line Photography" };
   }
-  if (!isValidSectionSlug(section)) {
-    return { title: "Section · Bright Line Photography" };
-  }
-  const title = `${SECTION_TITLES[section as SectionSlug]} · Bright Line Photography`;
+  const pillar = getPillarBySlug(section);
+  if (!pillar) return { title: "Work · Bright Line Photography" };
+  const title = `${pillar.label} · Bright Line Photography`;
   return {
     title,
-    description: `Commercial photography projects in ${SECTION_TITLES[section as SectionSlug]}.`,
+    description: pillar.description,
     alternates: { canonical: `/work/${section}` },
     openGraph: { title, url: `/work/${section}` },
   };
@@ -69,7 +41,7 @@ function ProjectGrid({
   projects,
   getProjectHref,
 }: {
-  projects: Awaited<ReturnType<typeof getPublishedProjectsBySection>>;
+  projects: Awaited<ReturnType<typeof getPublishedProjectsBySections>>;
   getProjectHref: (project: (typeof projects)[0]) => string;
 }) {
   return (
@@ -167,97 +139,65 @@ function ProjectGrid({
   );
 }
 
-export default async function WorkSectionOrPillarPage({
+function WorkUpdatingFallback() {
+  return (
+    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+      <Reveal className="rounded-2xl border border-white/10 bg-black/40 p-12 text-center">
+        <h1 className="section-title">Work is updating</h1>
+        <p className="mt-4 text-white/70">Please check back shortly.</p>
+        <Link href="/work" className="btn btn-ghost mt-6">
+          Back to work
+        </Link>
+      </Reveal>
+    </div>
+  );
+}
+
+export default async function WorkPillarPage({
   params,
 }: {
   params: Promise<{ section: string }>;
 }) {
-  const { section: sectionParam } = await params;
+  const { section: pillarParam } = await params;
 
-  if (isPillarSlug(sectionParam)) {
-    const pillar = getPillarBySlug(sectionParam);
-    if (!pillar) notFound();
-    const projects = await getPublishedProjectsBySections(pillar.sections);
-
-    return (
-      <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
-        <Reveal className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="section-kicker">Work</p>
-            <h1 className="section-title">{pillar.label}</h1>
-            <p className="section-subtitle">{pillar.description}</p>
-          </div>
-          <Link href="/work" className="btn btn-ghost">
-            Back to work
-          </Link>
-        </Reveal>
-
-        <ProjectGrid
-          projects={projects}
-          getProjectHref={(project) => {
-            const sectionSlug = SECTION_TO_SLUG[project.section];
-            return `/work/${sectionSlug}/${project.slug}`;
-          }}
-        />
-
-        {projects.length === 0 && (
-          <Reveal className="mt-12 rounded-2xl border border-white/10 bg-black/40 p-12 text-center">
-            <p className="text-white/70">No published projects in this pillar yet.</p>
-            <Link href="/work" className="btn btn-ghost mt-4">
-              Back to work
-            </Link>
-          </Reveal>
-        )}
-      </div>
-    );
-  }
-
-  if (!isValidSectionSlug(sectionParam)) {
+  if (!isPillarSlug(pillarParam)) {
     notFound();
   }
-  const section = sectionParam as SectionSlug;
-  const sectionTitle = SECTION_TITLES[section];
-  const config = SECTIONS.find((s) => s.slug === section);
-  const workSection = slugToSection(section);
-  const projects = await getPublishedProjectsBySection(workSection);
+
+  const pillar = getPillarBySlug(pillarParam);
+  if (!pillar) notFound();
+
+  let projects: Awaited<ReturnType<typeof getPublishedProjectsBySections>>;
+  try {
+    projects = await getPublishedProjectsBySections(pillar.sections);
+  } catch {
+    return <WorkUpdatingFallback />;
+  }
 
   return (
     <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
       <Reveal className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="section-kicker">Work</p>
-          <h1 className="section-title">{sectionTitle}</h1>
-          <p className="section-subtitle">
-            {config?.description ?? `Commercial photography projects.`}
-          </p>
+          <h1 className="section-title">{pillar.label}</h1>
+          <p className="section-subtitle">{pillar.description}</p>
         </div>
         <Link href="/work" className="btn btn-ghost">
           Back to work
         </Link>
       </Reveal>
 
-      {config?.featuredReelId && (
-        <Reveal className="mt-10">
-          <p className="mb-4 text-xs uppercase tracking-[0.3em] text-white/50">
-            Featured reel
-          </p>
-          <div className="max-w-3xl">
-            <VideoEmbed
-              providerId={config.featuredReelId}
-              title={`${sectionTitle} featured video`}
-            />
-          </div>
-        </Reveal>
-      )}
-
       <ProjectGrid
         projects={projects}
-        getProjectHref={(project) => `/work/${section}/${project.slug}`}
+        getProjectHref={(project) => {
+          const pillarSlug = SECTION_TO_PILLAR[project.section as WorkSection];
+          return `/work/${pillarSlug}/${project.slug}`;
+        }}
       />
 
       {projects.length === 0 && (
         <Reveal className="mt-12 rounded-2xl border border-white/10 bg-black/40 p-12 text-center">
-          <p className="text-white/70">No published projects in this section yet.</p>
+          <p className="text-white/70">No published projects in this pillar yet.</p>
           <Link href="/work" className="btn btn-ghost mt-4">
             Back to work
           </Link>

@@ -4,39 +4,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Reveal from "@/components/Reveal";
 import VideoEmbed from "@/components/VideoEmbed";
-import {
-  isValidSectionSlug,
-  SECTION_TITLES,
-  slugToSection,
-  type SectionSlug,
-} from "@/lib/config/sections";
-import { getProjectBySectionAndSlug } from "@/lib/queries/work";
-import { getPublishedProjectsBySection } from "@/lib/queries/work";
+import { getPillarBySlug, isPillarSlug } from "@/lib/portfolioPillars";
+import { getProjectByPillarAndSlug } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
 import { BRAND } from "@/lib/config/brand";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
-
-export async function generateStaticParams() {
-  const sections = ["acd", "rea", "cul", "biz", "tri"] as const;
-  const params: { section: string; projectSlug: string }[] = [];
-  for (const slug of sections) {
-    try {
-      const projects = await getPublishedProjectsBySection(
-        slugToSection(slug as SectionSlug)
-      );
-      for (const p of projects) {
-        params.push({ section: slug, projectSlug: p.slug });
-      }
-    } catch {
-      // DB may not be available at build time
-    }
-  }
-  return params;
-}
 
 export async function generateMetadata({
   params,
@@ -44,24 +20,26 @@ export async function generateMetadata({
   params: Promise<{ section: string; projectSlug: string }>;
 }): Promise<Metadata> {
   const { section, projectSlug } = await params;
-  if (!isValidSectionSlug(section)) {
+  if (!isPillarSlug(section)) {
     return { title: "Project · Bright Line Photography" };
   }
-  const project = await getProjectBySectionAndSlug(
-    slugToSection(section as SectionSlug),
-    projectSlug
-  );
-  if (!project) {
+  let proj;
+  try {
+    proj = await getProjectByPillarAndSlug(section, projectSlug);
+  } catch {
+    return { title: "Work · Bright Line Photography" };
+  }
+  if (!proj) {
     return { title: "Project · Bright Line Photography" };
   }
 
-  const title = `${project.title} · Bright Line Photography`;
+  const title = `${proj.title} · Bright Line Photography`;
   const description =
-    project.summary ?? project.description ?? `${project.title} photography project.`;
+    proj.summary ?? proj.description ?? `${proj.title} photography project.`;
   const canonicalUrl = `/work/${section}/${projectSlug}`;
 
   let ogImageUrl = `${BRAND.url}/og-image.svg`;
-  const hero = project.heroMedia;
+  const hero = proj.heroMedia;
   if (hero?.kind === "IMAGE" && hero.keyFull) {
     ogImageUrl = getPublicR2Url(hero.keyFull ?? "");
   } else if (hero?.kind === "VIDEO" && hero.posterKey) {
@@ -76,7 +54,7 @@ export async function generateMetadata({
       title,
       description,
       url: `${BRAND.url}${canonicalUrl}`,
-      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: project.title }],
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: proj.title }],
     },
     twitter: {
       card: "summary_large_image",
@@ -87,22 +65,40 @@ export async function generateMetadata({
   };
 }
 
+function WorkUpdatingFallback() {
+  return (
+    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+      <div className="rounded-2xl border border-white/10 bg-black/40 p-12 text-center">
+        <h1 className="section-title">Work is updating</h1>
+        <p className="mt-4 text-white/70">Please check back shortly.</p>
+        <Link href="/work" className="btn btn-ghost mt-6">
+          Back to work
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default async function WorkProjectPage({
   params,
 }: {
   params: Promise<{ section: string; projectSlug: string }>;
 }) {
-  const { section: sectionParam, projectSlug } = await params;
-  if (!isValidSectionSlug(sectionParam)) {
+  const { section: pillarParam, projectSlug } = await params;
+
+  if (!isPillarSlug(pillarParam)) {
     notFound();
   }
-  const section = sectionParam as SectionSlug;
-  const sectionTitle = SECTION_TITLES[section];
 
-  const project = await getProjectBySectionAndSlug(
-    slugToSection(section),
-    projectSlug
-  );
+  const pillar = getPillarBySlug(pillarParam);
+  if (!pillar) notFound();
+
+  let project;
+  try {
+    project = await getProjectByPillarAndSlug(pillarParam, projectSlug);
+  } catch {
+    return <WorkUpdatingFallback />;
+  }
   if (!project) {
     notFound();
   }
@@ -119,7 +115,7 @@ export default async function WorkProjectPage({
     <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
       <Reveal className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="section-kicker">{sectionTitle}</p>
+          <p className="section-kicker">{pillar.label}</p>
           <h1 className="section-title">{project.title}</h1>
           {(project.location || project.year) && (
             <p className="mt-2 text-sm uppercase tracking-[0.3em] text-white/50">
@@ -128,10 +124,10 @@ export default async function WorkProjectPage({
           )}
         </div>
         <Link
-          href={`/work/${section}`}
+          href={`/work/${pillarParam}`}
           className="btn btn-ghost"
         >
-          Back to {sectionTitle}
+          Back to {pillar.label}
         </Link>
       </Reveal>
 
@@ -148,7 +144,7 @@ export default async function WorkProjectPage({
               src={heroImageUrl}
               alt={hero?.alt ?? project.title}
               fill
-              sizes="(min-width: 1024px) 960px, 100vw"
+              sizes="(min-width: 640px) 960px, 100vw"
               placeholder="blur"
               blurDataURL={BLUR_DATA}
               className="object-cover image-fade"

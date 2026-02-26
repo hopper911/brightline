@@ -5,14 +5,14 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Contact | Bright Line Photography",
   description:
-    "Request availability for commercial photography in hospitality, real estate, and fashion.",
+    "Request availability for commercial photography in architecture, real estate, and fashion.",
   alternates: {
     canonical: "/contact",
   },
   openGraph: {
     title: "Contact | Bright Line Photography",
     description:
-      "Request availability for commercial photography in hospitality, real estate, and fashion.",
+      "Request availability for commercial photography in architecture, real estate, and fashion.",
     url: "/contact",
     images: [
       {
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Contact | Bright Line Photography",
     description:
-      "Request availability for commercial photography in hospitality, real estate, and fashion.",
+      "Request availability for commercial photography in architecture, real estate, and fashion.",
     images: ["/og-image.svg"],
   },
 };

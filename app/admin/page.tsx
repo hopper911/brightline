@@ -20,6 +20,7 @@ export default async function AdminPage() {
 
   let stats: {
     portfolioProjects: number;
+    workProjects: number;
     clientGalleries: number;
     clientAccessCodes: number;
     leads: number;
@@ -28,16 +29,18 @@ export default async function AdminPage() {
   try {
     const [
       portfolioProjects,
+      workProjects,
       clientGalleries,
       clientAccessCodes,
       leads,
     ] = await Promise.all([
       prisma.portfolioProject.count(),
+      prisma.workProject.count(),
       prisma.gallery.count(),
       prisma.galleryAccessToken.count(),
       prisma.lead.count(),
     ]);
-    stats = { portfolioProjects, clientGalleries, clientAccessCodes, leads };
+    stats = { portfolioProjects, workProjects, clientGalleries, clientAccessCodes, leads };
   } catch {
     stats = null;
   }
@@ -61,6 +64,14 @@ export default async function AdminPage() {
           </p>
           <p className="mt-2 text-3xl text-black">
             {stats ? stats.portfolioProjects : "—"}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-black/10 bg-white/70 p-6">
+          <p className="text-xs uppercase tracking-[0.3em] text-black/50">
+            Work projects
+          </p>
+          <p className="mt-2 text-3xl text-black">
+            {stats ? stats.workProjects : "—"}
           </p>
         </div>
         <div className="rounded-2xl border border-black/10 bg-white/70 p-6">
@@ -92,6 +103,9 @@ export default async function AdminPage() {
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         <Link href="/admin/portfolio" className="btn btn-primary">
           Portfolio
+        </Link>
+        <Link href="/admin/work" className="btn btn-primary">
+          Work
         </Link>
         <Link href="/admin/clients" className="btn btn-ghost">
           Clients

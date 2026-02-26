@@ -8,7 +8,7 @@ import { getPublicR2Url } from "@/lib/r2";
 export const metadata: Metadata = {
   title: "Case Studies · Bright Line Photography",
   description:
-    "Selected case studies: campaign, hospitality, and corporate photography projects.",
+    "Selected case studies: campaign, architecture, and corporate photography projects.",
   alternates: { canonical: "/case-studies" },
   openGraph: {
     title: "Case Studies · Bright Line Photography",

@@ -6,7 +6,7 @@ import { PILLARS } from "@/lib/portfolioPillars";
 import { getFeaturedHeroForSection } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 async function fetchPillarData() {
   return Promise.all(
@@ -29,12 +29,12 @@ async function fetchPillarData() {
 export const metadata: Metadata = {
   title: "Work · Bright Line Photography",
   description:
-    "Campaign & advertising, hospitality & spaces, and corporate photography. Case studies and project showcases.",
+    "Campaign & advertising, architecture & spaces, and corporate photography. Case studies and project showcases.",
   alternates: { canonical: "/work" },
   openGraph: {
     title: "Work · Bright Line Photography",
     description:
-      "Campaign & advertising, hospitality & spaces, and corporate photography.",
+      "Campaign & advertising, architecture & spaces, and corporate photography.",
     url: "/work",
     images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Bright Line Photography" }],
   },
@@ -58,7 +58,7 @@ export default async function WorkIndexPage() {
         <p className="section-kicker">Work</p>
         <h1 className="section-title">Case studies</h1>
         <p className="section-subtitle">
-          Campaign, hospitality, and corporate photography.
+          Campaign, architecture, and corporate photography.
         </p>
       </Reveal>
 

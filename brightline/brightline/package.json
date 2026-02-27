@@ -8,17 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "prep": "node scripts/prep-images.mjs",
-    "prep:once": "node scripts/prep-images.mjs --root \"${EXPORTS_ROOT:-/Users/kiril/Desktop/brightline/BrightLine_images/Exports}\" --section ${SECTION:-acd}",
-    "blupload": "node scripts/blupload.mjs",
-    "blupload:once": "node scripts/blupload.mjs --root \"${EXPORTS_ROOT:-/Users/kiril/Desktop/brightline/BrightLine_images/Exports}\" --section ${SECTION:-acd} --project ${PROJECT:-ci-siamo} --location ${LOCATION:-nyc} --year ${YEAR:-2026}",
-    "pipeline:once": "npm run prep:once && npm run blupload:once",
-    "pipeline:clean": "npm run prep:once && npm run blupload:once -- --clean",
-    "blpublish": "node scripts/blpublish.mjs",
-    "publish:db": "node ../tools/publish.mjs",
-    "sheet-publish": "node scripts/sheet-publish.mjs",
-    "upload-published": "node scripts/upload-published.mjs"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@aws-crypto/crc32c": "^5.2.0",

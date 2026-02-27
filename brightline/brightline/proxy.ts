@@ -7,7 +7,7 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/admin/login")) {
+  if (pathname.startsWith("/admin/login") || pathname === "/api/admin/login") {
     return NextResponse.next();
   }
 

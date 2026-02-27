@@ -7,22 +7,21 @@ import PrimaryCTA from "./PrimaryCTA";
 import { BRAND } from "@/lib/config/brand";
 
 export default function HomeHero() {
-  const mediaBase =
+  const MEDIA =
     process.env.NEXT_PUBLIC_MEDIA_URL ||
     process.env.NEXT_PUBLIC_R2_PUBLIC_URL?.replace(/\/+$/, "") ||
     "";
-  const heroKey =
-    process.env.NEXT_PUBLIC_HERO_VIDEO_KEY || "videos/hero/intro-v1";
+  const HERO_KEY = process.env.NEXT_PUBLIC_HERO_VIDEO_KEY || "videos/hero/intro-v1";
 
   const hero = useMemo(() => {
-    const base = mediaBase.replace(/\/+$/, "");
-    const key = heroKey.replace(/\/+$/, "");
+    const base = MEDIA.replace(/\/+$/, "");
+    const key = HERO_KEY.replace(/\/+$/, "");
     return {
       mp4: base ? `${base}/${key}.mp4` : "",
       webm: base ? `${base}/${key}.webm` : "",
       poster: base ? `${base}/${key}.poster.jpg` : "",
     };
-  }, [mediaBase, heroKey]);
+  }, [MEDIA, HERO_KEY]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaLayerRef = useRef<HTMLDivElement | null>(null);
@@ -94,7 +93,7 @@ export default function HomeHero() {
     show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" } },
   };
 
-  const hasVideo = Boolean(mediaBase && hero.mp4 && hero.poster);
+  const hasVideo = Boolean(MEDIA && hero.mp4 && hero.poster);
 
   return (
     <section className="relative overflow-hidden">

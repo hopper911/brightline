@@ -1,0 +1,9 @@
+.vercel
+.env
+.env*.local
+tools/.env
+tools/.seq-*.json
+node_modules
+.next
+brightline-backup-*
+**/credentials.json

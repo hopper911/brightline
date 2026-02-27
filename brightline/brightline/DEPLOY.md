@@ -103,6 +103,18 @@ In Vercel Project Settings → General:
 - **Output Directory**: `.next` (default)
 - **Install Command**: `npm install` (default)
 
+## Hero Video (R2)
+
+For full-bleed hero video, upload to R2:
+
+- `videos/hero/intro-v1.mp4` (required)
+- `videos/hero/intro-v1.webm` (optional)
+- `videos/hero/intro-v1.poster.jpg` (for instant paint)
+
+**Content-Type:** R2 usually auto-detects; ensure `.mp4` → `video/mp4`, `.jpg` → `image/jpeg`.
+
+**CORS:** If video fails to load, allow `GET`/`HEAD` from your domain in the R2 bucket CORS config.
+
 ## Troubleshooting
 
 - **Build fails**: Ensure `outputFileTracingRoot` or project root is correct if using monorepo

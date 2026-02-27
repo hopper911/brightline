@@ -1,0 +1,321 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+// Portfolio (marketing site)
+model PortfolioCategory {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  projects  PortfolioProject[]
+}
+
+model PortfolioProject {
+  id                  String    @id @default(cuid())
+  title               String
+  slug                String
+  category            String
+  categorySlug        String
+  categoryId          String?
+  location            String?
+  year                String?
+  description         String?
+  coverUrl            String?
+  coverStorageKey     String?
+  coverAlt            String?
+  seoTitle            String?
+  seoDescription      String?
+  ogImageUrl          String?
+  externalGalleryUrl  String?
+  published           Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  categoryRef         PortfolioCategory? @relation(fields: [categoryId], references: [id])
+  images              PortfolioImage[]
+}
+
+model PortfolioImage {
+  id         String   @id @default(cuid())
+  projectId  String
+  url        String
+  thumbUrl   String?
+  fullUrl    String?
+  storageKey String?
+  alt        String?
+  sortOrder  Int      @default(0)
+  isHero     Boolean  @default(false)
+  project    PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// Client portal
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  company   String?
+  projects  Project[]
+  galleries Gallery[]
+}
+
+model Project {
+  id           String    @id @default(cuid())
+  slug         String    @unique
+  title        String
+  description  String?
+  category     String?
+  location     String?
+  year         String?
+  coverUrl     String?
+  featured     Boolean   @default(false)
+  clientId     String?
+  published    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  client       Client?   @relation(fields: [clientId], references: [id])
+  galleries    Gallery[]
+  images       ProjectImage[]
+  tags         ProjectTag[]
+  testimonials Testimonial[]
+}
+
+model ProjectImage {
+  id        String  @id @default(cuid())
+  projectId String
+  url       String?
+  sortOrder Int     @default(0)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id            String            @id @default(cuid())
+  name          String
+  slug          String            @unique
+  projects      ProjectTag[]
+  galleryImages GalleryImageTag[]
+}
+
+model ProjectTag {
+  projectId String
+  tagId     String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([projectId, tagId])
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  role      String?
+  company   String?
+  quote     String
+  projectId String?
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  project   Project? @relation(fields: [projectId], references: [id])
+}
+
+model Lead {
+  id                String    @id @default(cuid())
+  type              String?
+  status            String?
+  score             Int?
+  name              String?
+  email             String?
+  phone             String?
+  company           String?
+  service           String?
+  budget            String?
+  message           String?
+  availabilityStart DateTime?
+  availabilityEnd   DateTime?
+  location          String?
+  shootType         String?
+  source            String?
+  internalNotes     String?
+  contactedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Gallery {
+  id           String    @id @default(cuid())
+  title        String
+  slug         String    @unique
+  section      String?   // acd, rea, cul, biz, tri
+  description  String?
+  coverUrl     String?
+  clientNotes  String?
+  published    Boolean   @default(false)
+  isFeatured   Boolean   @default(false)
+  sortOrder    Int       @default(0)
+  clientId     String?
+  projectId    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  client       Client?   @relation(fields: [clientId], references: [id])
+  project      Project?  @relation(fields: [projectId], references: [id])
+  images       GalleryImage[]
+  accessTokens GalleryAccessToken[]
+}
+
+model GalleryImage {
+  id         String            @id @default(cuid())
+  galleryId  String
+  url        String
+  thumbUrl   String?
+  fullUrl    String?
+  alt        String?
+  filename   String?
+  sortOrder  Int               @default(0)
+  isHero     Boolean           @default(false)
+  storageKey String?
+  meta       Json?             // optional: { title?, caption?, keywords? } from Lightroom/EXIF
+  gallery    Gallery           @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  tags       GalleryImageTag[]
+}
+
+model GalleryImageTag {
+  imageId String
+  tagId   String
+  image   GalleryImage @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  tag     Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([imageId, tagId])
+}
+
+model GalleryAccessToken {
+  id            String    @id @default(cuid())
+  codeHash      String
+  codeSalt      String
+  codeHint      String
+  galleryId     String
+  label         String?
+  expiresAt     DateTime?
+  allowDownload Boolean   @default(false)
+  maxDownloads  Int?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+  isActive      Boolean   @default(true)
+  gallery       Gallery   @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  accessLogs    GalleryAccessLog[]
+  favorites     GalleryFavorite[]
+  downloads     GalleryDownload[]
+}
+
+model GalleryAccessLog {
+  id        String   @id @default(cuid())
+  tokenId   String?
+  action    String?
+  imageId   String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  token     GalleryAccessToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+}
+
+model GalleryFavorite {
+  tokenId   String
+  imageId   String
+  note      String?
+  token     GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  @@id([tokenId, imageId])
+}
+
+model GalleryDownload {
+  id       String   @id @default(cuid())
+  tokenId  String
+  imageId  String?
+  type     String?
+  token    GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+}
+
+// Work system (5-section taxonomy)
+enum WorkSection {
+  ACD
+  REA
+  CUL
+  BIZ
+  TRI
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+enum VideoProvider {
+  YOUTUBE
+}
+
+model WorkProject {
+  id           String    @id @default(cuid())
+  section      WorkSection
+  title        String
+  slug         String
+  summary      String?
+  description  String?
+  location     String?
+  year         Int?
+  published    Boolean   @default(false)
+  isFeatured   Boolean   @default(false)
+  sortOrder    Int       @default(0)
+  heroMediaId  String?
+  heroMedia    MediaAsset?  @relation("HeroMedia", fields: [heroMediaId], references: [id])
+  media        ProjectMedia[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([section, slug])
+  @@index([section])
+  @@index([published])
+}
+
+model MediaAsset {
+  id            String    @id @default(cuid())
+  kind          MediaKind
+  alt           String?
+  width         Int?
+  height        Int?
+  keyFull       String?
+  keyThumb      String?
+  provider      VideoProvider?
+  providerId    String?
+  posterKey     String?
+  createdAt     DateTime  @default(now())
+  heroFor       WorkProject[]   @relation("HeroMedia")
+  projectMedia  ProjectMedia[]
+
+  @@index([kind])
+}
+
+model ProjectMedia {
+  projectId  String
+  mediaId    String
+  sortOrder  Int       @default(0)
+  project    WorkProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  media      MediaAsset  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, mediaId])
+  @@index([projectId, sortOrder])
+}
+
+model Inquiry {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  createdAt DateTime @default(now())
+}

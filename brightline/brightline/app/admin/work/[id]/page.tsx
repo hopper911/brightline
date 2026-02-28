@@ -74,6 +74,8 @@ export default function AdminWorkEditPage() {
   const [showR2Browser, setShowR2Browser] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [videoPosterKey, setVideoPosterKey] = useState("");
+  const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
+  const [bulkRemoving, setBulkRemoving] = useState(false);
 
   const loadProject = useCallback(async () => {
     if (id === "new") return;
@@ -107,6 +109,10 @@ export default function AdminWorkEditPage() {
     void loadProject();
   }, [loadProject]);
 
+  useEffect(() => {
+    setSelectedMediaIds(new Set());
+  }, [id]);
+
   async function handleSaveProject(e: React.FormEvent) {
     e.preventDefault();
     setSaveStatus("saving");
@@ -138,12 +144,24 @@ export default function AdminWorkEditPage() {
     }
   }
 
+  const R2_KEY_EXT = /\.(jpg|jpeg|png|webp|gif)$/i;
+  function validateR2KeyClient(key: string): boolean {
+    return R2_KEY_EXT.test(key.trim());
+  }
+
   async function handleAddByKey() {
     const lines = newKeyFull
       .split("\n")
       .map((s) => s.trim())
       .filter(Boolean);
     if (lines.length === 0) return;
+    const invalid = lines.filter((k) => !validateR2KeyClient(k));
+    if (invalid.length > 0) {
+      setSaveError(
+        "Each key must include a file extension (e.g. .jpg, .webp). Example: portfolio/arc/web_full/bl-arc-20250227-001.webp"
+      );
+      return;
+    }
     setAddMediaStatus("adding");
     setSaveError("");
     try {
@@ -289,6 +307,47 @@ export default function AdminWorkEditPage() {
     }
   }
 
+  async function removeSelectedMedia() {
+    const ids = Array.from(selectedMediaIds);
+    if (ids.length === 0) return;
+    setBulkRemoving(true);
+    setSaveError("");
+    try {
+      const res = await fetch(
+        `/api/admin/work-projects/${id}/media?mediaIds=${ids.map((m) => encodeURIComponent(m)).join(",")}`,
+        { method: "DELETE" }
+      );
+      const data = (await res.json()) as { ok: boolean; project?: WorkProject; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to remove");
+      if (data.project) {
+        setProject(data.project);
+        setSelectedMediaIds(new Set());
+        if (ids.includes(heroMediaId ?? "")) setHeroMediaId(null);
+      }
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to remove selected");
+    } finally {
+      setBulkRemoving(false);
+    }
+  }
+
+  function toggleMediaSelection(mediaId: string) {
+    setSelectedMediaIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(mediaId)) next.delete(mediaId);
+      else next.add(mediaId);
+      return next;
+    });
+  }
+
+  function toggleAllMediaSelection(ordered: ProjectMedia[]) {
+    if (selectedMediaIds.size === ordered.length) {
+      setSelectedMediaIds(new Set());
+    } else {
+      setSelectedMediaIds(new Set(ordered.map((pm) => pm.media.id)));
+    }
+  }
+
   async function reorderMedia(mediaIds: string[]) {
     try {
       const res = await fetch(`/api/admin/work-projects/${id}/media`, {
@@ -410,14 +469,17 @@ export default function AdminWorkEditPage() {
           <textarea
             value={newKeyFull}
             onChange={(e) => setNewKeyFull(e.target.value)}
-            placeholder="R2 keys, one per line (e.g. portfolio/arc/web_full/xxx.webp)"
-            className="min-h-[60px] min-w-[200px] flex-1 rounded border border-black/20 px-3 py-2 text-sm font-mono"
+            placeholder="portfolio/arc/web_full/bl-arc-20250227-001.webp (include full filename + extension)"
+            className="min-h-[60px] min-w-0 flex-1 rounded border border-black/20 px-3 py-2 text-sm font-mono"
             rows={2}
           />
           <button type="button" onClick={handleAddByKey} className="btn btn-ghost text-sm self-end" disabled={addMediaStatus === "adding" || !newKeyFull.trim()}>
             Add
           </button>
         </div>
+        <p className="mt-1 text-xs text-black/50">
+          Use Browse R2 to pick from existing files, or paste full keys including extension.
+        </p>
         {addSuccessCount != null && (
           <p className="mt-2 text-sm text-green-600">Added {addSuccessCount} item{addSuccessCount !== 1 ? "s" : ""}.</p>
         )}
@@ -467,6 +529,28 @@ export default function AdminWorkEditPage() {
           </div>
         </div>
 
+        {orderedMedia.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => toggleAllMediaSelection(orderedMedia)}
+              className="text-sm text-black/70 hover:text-black"
+            >
+              {selectedMediaIds.size === orderedMedia.length ? "Deselect all" : "Select all"}
+            </button>
+            {selectedMediaIds.size > 0 && (
+              <button
+                type="button"
+                onClick={removeSelectedMedia}
+                disabled={bulkRemoving}
+                className="text-sm text-red-600 hover:text-red-500 disabled:opacity-50"
+              >
+                {bulkRemoving ? "Removing…" : `Remove ${selectedMediaIds.size} selected`}
+              </button>
+            )}
+          </div>
+        )}
+
         <ul className="mt-6 space-y-3">
           {orderedMedia.map((pm, index) => {
             const isVideo = pm.media.kind === "VIDEO";
@@ -476,11 +560,19 @@ export default function AdminWorkEditPage() {
               ? `Video: ${pm.media.providerId ?? "—"}`
               : pm.media.keyFull || "—";
             return (
-              <li key={pm.media.id} className="flex items-center gap-4 rounded-lg border border-black/10 p-3">
+              <li key={pm.media.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-black/10 p-3">
+                <label className="flex shrink-0 cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedMediaIds.has(pm.media.id)}
+                    onChange={() => toggleMediaSelection(pm.media.id)}
+                    className="h-4 w-4 rounded border-black/20"
+                  />
+                </label>
                 {src ? (
-                  <img src={src} alt={pm.media.alt ?? ""} className="h-16 w-24 object-cover rounded" />
+                  <img src={src} alt={pm.media.alt ?? ""} className="h-16 w-24 shrink-0 object-cover rounded" />
                 ) : (
-                  <div className="flex h-16 w-24 items-center justify-center rounded bg-black/10 text-xs text-black/50">
+                  <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded bg-black/10 text-xs text-black/50">
                     {isVideo ? "Video" : "No preview"}
                   </div>
                 )}
@@ -488,14 +580,28 @@ export default function AdminWorkEditPage() {
                   <p className="truncate text-sm font-mono text-black/70">{label}</p>
                   {isHero && <span className="text-xs text-black/50">Hero</span>}
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 gap-1">
                   {!isHero && (
-                    <button type="button" onClick={() => setAsHero(pm.media.id)} className="btn btn-ghost text-xs">
-                      Set as hero
+                    <button
+                      type="button"
+                      onClick={() => setAsHero(pm.media.id)}
+                      className="rounded p-2 text-black/60 hover:bg-black/10 hover:text-black"
+                      aria-label="Set as hero"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
                     </button>
                   )}
-                  <button type="button" onClick={() => removeMedia(pm.media.id)} className="btn btn-ghost text-xs text-red-600">
-                    Remove
+                  <button
+                    type="button"
+                    onClick={() => removeMedia(pm.media.id)}
+                    className="rounded p-2 text-red-600 hover:bg-red-500/10"
+                    aria-label="Remove"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                   {index > 0 && (
                     <button
@@ -506,9 +612,12 @@ export default function AdminWorkEditPage() {
                         [ids[i - 1], ids[i]] = [ids[i], ids[i - 1]];
                         reorderMedia(ids);
                       }}
-                      className="btn btn-ghost text-xs"
+                      className="rounded p-2 text-black/60 hover:bg-black/10 hover:text-black"
+                      aria-label="Move up"
                     >
-                      ↑
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
                     </button>
                   )}
                   {index < orderedMedia.length - 1 && (
@@ -520,9 +629,12 @@ export default function AdminWorkEditPage() {
                         [ids[i], ids[i + 1]] = [ids[i + 1], ids[i]];
                         reorderMedia(ids);
                       }}
-                      className="btn btn-ghost text-xs"
+                      className="rounded p-2 text-black/60 hover:bg-black/10 hover:text-black"
+                      aria-label="Move down"
                     >
-                      ↓
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </button>
                   )}
                 </div>

@@ -84,6 +84,8 @@ export default function AdminPortfolioPage() {
     "idle"
   );
   const [message, setMessage] = useState<string>("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const safeSlug = useMemo(() => slugify(title || "untitled"), [title]);
   const isEditing = Boolean(selectedProjectId);
@@ -126,6 +128,31 @@ export default function AdminPortfolioPage() {
       setStatus("error");
     } finally {
       setLoadingProjects(false);
+    }
+  }
+
+  async function handleDelete(project: PortfolioProject) {
+    if (!confirm("Delete this project? This cannot be undone.")) return;
+    setDeletingId(project.id);
+    try {
+      const res = await fetch(`/api/admin/portfolio/${project.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setProjects((prev) => prev.filter((p) => p.id !== project.id));
+        if (selectedProjectId === project.id) {
+          resetForm();
+        }
+      } else {
+        const data = (await res.json()) as { error?: string };
+        setMessage(data.error ?? "Failed to delete");
+        setStatus("error");
+      }
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Failed to delete");
+      setStatus("error");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -664,7 +691,7 @@ export default function AdminPortfolioPage() {
               <span className="text-xs uppercase tracking-[0.25em] text-black/60">
                 Add gallery image by URL
               </span>
-              <div className="flex gap-2">
+              <div className="flex min-w-0 gap-2">
                 <input
                   className="min-w-0 flex-1 rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
                   value={galleryUrlInput}
@@ -824,9 +851,32 @@ export default function AdminPortfolioPage() {
                   {project.published ? "Published" : "Draft"} · {project.category}
                 </div>
               </div>
-              <button className="btn btn-ghost" onClick={() => handleEdit(project)}>
-                Edit
-              </button>
+              <div className="flex flex-col items-end gap-1 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => handleTogglePublish(project)}
+                  disabled={togglingId === project.id}
+                  className="btn btn-ghost text-xs disabled:opacity-50"
+                >
+                  {togglingId === project.id ? "…" : project.published ? "Unpublish" : "Publish"}
+                </button>
+                <div className="flex gap-1">
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => handleEdit(project)}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(project)}
+                  disabled={deletingId === project.id}
+                  className="btn btn-ghost text-red-600 hover:text-red-500 disabled:opacity-50"
+                >
+                  {deletingId === project.id ? "…" : "Delete"}
+                </button>
+                </div>
+              </div>
             </div>
           ))}
           {!projects.length && !loadingProjects ? (

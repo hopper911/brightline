@@ -4,6 +4,24 @@ import { hasAdminAccess } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
+const IMAGE_EXT = /\.(jpg|jpeg|png|webp|gif)$/i;
+const PORTFOLIO_PATTERN = /^portfolio\/(arc|cam|cor)\/web_full\/[^/]+$/;
+const WORK_PATTERN = /^work\/(arc|cam|cor)\/[^/]+\/[^/]+$/;
+
+function validateR2Key(key: string): string | null {
+  const k = key.replace(/^\/+/, "").trim();
+  if (!k) return "R2 key cannot be empty.";
+  if (!IMAGE_EXT.test(k)) {
+    return "R2 key must include a file extension (e.g. .jpg, .webp) and match portfolio/arc|cam|cor/web_full/ or work/...";
+  }
+  const portfolioMatch = k.match(PORTFOLIO_PATTERN);
+  const workMatch = k.match(WORK_PATTERN);
+  if (!portfolioMatch && !workMatch) {
+    return "R2 key must match portfolio/arc|cam|cor/web_full/{filename}.{ext} or work/arc|cam|cor/{projectId}/{filename}.{ext}";
+  }
+  return null;
+}
+
 function extractYouTubeId(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
@@ -80,6 +98,13 @@ export async function POST(
       );
     } else if (body.keyFull?.trim()) {
       keysToAdd.push(body.keyFull.trim());
+    }
+
+    for (const key of keysToAdd) {
+      const err = validateR2Key(key);
+      if (err) {
+        return NextResponse.json({ ok: false, error: err }, { status: 400 });
+      }
     }
 
     const isBulk = keysToAdd.length > 1;
@@ -189,9 +214,18 @@ export async function DELETE(
     const { id: projectId } = await context.params;
     const url = new URL(req.url);
     const mediaId = url.searchParams.get("mediaId");
+    const mediaIdsParam = url.searchParams.get("mediaIds");
+    const idsToDelete: string[] = mediaIdsParam
+      ? mediaIdsParam.split(",").map((s) => s.trim()).filter(Boolean)
+      : mediaId
+        ? [mediaId]
+        : [];
 
-    if (!mediaId) {
-      return NextResponse.json({ ok: false, error: "mediaId query param required." }, { status: 400 });
+    if (idsToDelete.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: "mediaId or mediaIds query param required." },
+        { status: 400 }
+      );
     }
 
     const project = await prisma.workProject.findUnique({
@@ -203,10 +237,10 @@ export async function DELETE(
     }
 
     await prisma.projectMedia.deleteMany({
-      where: { projectId, mediaId },
+      where: { projectId, mediaId: { in: idsToDelete } },
     });
 
-    if (project.heroMediaId === mediaId) {
+    if (project.heroMediaId && idsToDelete.includes(project.heroMediaId)) {
       await prisma.workProject.update({
         where: { id: projectId },
         data: { heroMediaId: null },

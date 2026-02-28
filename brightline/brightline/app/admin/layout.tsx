@@ -14,7 +14,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-[#0f1319]">
       <AdminNav />
-      <main className="lg:pl-64">{children}</main>
+      <main className="pt-14 lg:pt-0 lg:pl-64">{children}</main>
     </div>
   );
 }

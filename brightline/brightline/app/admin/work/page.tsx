@@ -42,6 +42,53 @@ export default function AdminWorkPage() {
   const [projects, setProjects] = useState<WorkProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [pillarFilter, setPillarFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  async function handleTogglePublish(project: WorkProject) {
+    setTogglingId(project.id);
+    try {
+      const res = await fetch(`/api/admin/work-projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published: !project.published }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { project?: WorkProject };
+        if (data.project) {
+          setProjects((prev) =>
+            prev.map((p) => (p.id === project.id ? data.project! : p))
+          );
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  async function handleDelete(project: WorkProject) {
+    if (!confirm("Delete this project? This cannot be undone.")) return;
+    setDeletingId(project.id);
+    try {
+      const res = await fetch(`/api/admin/work-projects/${project.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setProjects((prev) => prev.filter((p) => p.id !== project.id));
+      } else {
+        const data = (await res.json()) as { error?: string };
+        alert(data.error ?? "Failed to delete");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to delete");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -77,6 +124,14 @@ export default function AdminWorkPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-4">
+        <input
+          type="search"
+          placeholder="Search by title…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="min-w-[180px] rounded border border-black/20 bg-white px-3 py-1.5 text-sm"
+          aria-label="Search projects by title"
+        />
         <label className="flex items-center gap-2 text-sm text-black/70">
           Pillar:
           <select
@@ -104,9 +159,11 @@ export default function AdminWorkPage() {
         <p className="mt-8 text-sm text-black/50">Loading…</p>
       ) : projects.length === 0 ? (
         <p className="mt-8 text-sm text-black/50">No work projects. Create one or run the seed endpoint to add demos.</p>
+      ) : filteredProjects.length === 0 ? (
+        <p className="mt-8 text-sm text-black/50">No projects match &quot;{searchQuery}&quot;.</p>
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
+          {filteredProjects.map((project) => (
             <div
               key={project.id}
               className="rounded-xl border border-black/10 bg-white p-4 shadow-sm"
@@ -122,12 +179,32 @@ export default function AdminWorkPage() {
                     {project.published ? "Published" : "Draft"} · {project.media?.length ?? 0} media
                   </p>
                 </div>
-                <Link
-                  href={`/admin/work/${project.id}`}
-                  className="btn btn-ghost text-xs shrink-0"
-                >
-                  Edit
-                </Link>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePublish(project)}
+                    disabled={togglingId === project.id}
+                    className="btn btn-ghost text-xs disabled:opacity-50"
+                  >
+                    {togglingId === project.id ? "…" : project.published ? "Unpublish" : "Publish"}
+                  </button>
+                  <div className="flex gap-1">
+                  <Link
+                    href={`/admin/work/${project.id}`}
+                    className="btn btn-ghost text-xs"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(project)}
+                    disabled={deletingId === project.id}
+                    className="btn btn-ghost text-xs text-red-600 hover:text-red-500 disabled:opacity-50"
+                  >
+                    {deletingId === project.id ? "…" : "Delete"}
+                  </button>
+                  </div>
+                </div>
               </div>
             </div>
           ))}

@@ -29,6 +29,7 @@
     "react-dom": "19.2.3",
     "resend": "^6.9.2",
     "sharp": "^0.33.5",
+    "vercel": "^50.25.3",
     "yet-another-react-lightbox": "^3.28.0"
   },
   "devDependencies": {

@@ -49,7 +49,7 @@ export default function ProcessPage() {
       </Reveal>
 
       <div className="mt-12 space-y-10">
-        {STEPS.map((step, i) => (
+        {STEPS.map((step) => (
           <Reveal key={step.number}>
             <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/40 p-6 md:flex-row md:items-start md:gap-8">
               <span className="text-xs font-mono uppercase tracking-[0.2em] text-white/50">

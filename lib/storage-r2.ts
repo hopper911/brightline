@@ -4,11 +4,16 @@ import { S3Client } from "@aws-sdk/client-s3";
 
 const DEFAULT_EXPIRES_IN = 3600;
 
+function normalizeCredential(value: string | undefined): string {
+  if (value == null || typeof value !== "string") return "";
+  return value.replace(/\r\n|\r|\n/g, "").replace(/^["']|["']$/g, "").trim();
+}
+
 function getR2Client(): S3Client {
-  const endpoint = process.env.R2_ENDPOINT;
+  const endpoint = normalizeCredential(process.env.R2_ENDPOINT);
   const region = process.env.R2_REGION || "auto";
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const accessKeyId = normalizeCredential(process.env.R2_ACCESS_KEY_ID);
+  const secretAccessKey = normalizeCredential(process.env.R2_SECRET_ACCESS_KEY);
   if (!endpoint || !accessKeyId || !secretAccessKey) {
     throw new Error("R2 credentials not configured (R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).");
   }
@@ -20,7 +25,7 @@ function getR2Client(): S3Client {
 }
 
 function getBucket(): string {
-  const bucket = process.env.R2_BUCKET;
+  const bucket = normalizeCredential(process.env.R2_BUCKET);
   if (!bucket) throw new Error("R2_BUCKET not set.");
   return bucket.replace(/\/$/, "");
 }

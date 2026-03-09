@@ -3,6 +3,7 @@
  * Runs Prisma migrations in production. Exits with code 1 if DATABASE_URL
  * is missing or if migrations fail. Use before deployment builds.
  */
+/* eslint-disable @typescript-eslint/no-require-imports -- Node script, require needed */
 const { execSync } = require("child_process");
 
 if (!process.env.DATABASE_URL) {
@@ -18,7 +19,7 @@ try {
     env: process.env,
   });
   console.log("Migration applied successfully.");
-} catch (err) {
+} catch {
   console.error("Migration failed. Deployment halted.");
   process.exit(1);
 }

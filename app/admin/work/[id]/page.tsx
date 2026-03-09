@@ -222,7 +222,7 @@ export default function AdminWorkEditPage() {
         throw new Error(`Upload to storage failed${hint}`);
       }
 
-      let keyFull = uploadData.key;
+      const keyFull = uploadData.key;
       let keyThumb: string | undefined;
       let width: number | undefined;
       let height: number | undefined;
@@ -231,7 +231,6 @@ export default function AdminWorkEditPage() {
         await addMedia({ keyFull, kind: "VIDEO" });
       } else {
         const thumbBlob = await resizeToThumb(file);
-        const thumbExt = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
         const thumbFilename = file.name.replace(/\.[^.]+$/, "-thumb.jpg");
 
         const thumbUploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {

@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, ...result.data });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Failed to create signed URL." },
       { status: 500 }

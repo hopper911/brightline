@@ -1,4 +1,3 @@
-import Link from "next/link";
 import AdminNav from "./AdminNav";
 
 export const metadata = {

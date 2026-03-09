@@ -19,7 +19,7 @@ export async function POST(
   const token = generateToken();
   const hashed = hashAccessCode(token);
 
-  const accessToken = await prisma.galleryAccessToken.create({
+  await prisma.galleryAccessToken.create({
     data: {
       galleryId: id,
       codeHash: hashed.hash,

@@ -50,7 +50,7 @@ export default function R2BrowserModal({
   const [keys, setKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [errorDetails, setErrorDetails] = useState<{
+  const [, setErrorDetails] = useState<{
     timestamp: string;
     status: number;
     error: string;

@@ -70,21 +70,6 @@ export async function POST(req: Request) {
       payload.details = { errorName };
     }
     console.error("R2_LIST_ERROR", err);
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/87b19e1b-4972-445b-9274-7007d1226ee3", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "50da27" },
-      body: JSON.stringify({
-        sessionId: "50da27",
-        runId: "r2-list-debug-2",
-        hypothesisId: "H21",
-        location: "app/api/admin/r2-list/route.ts:50",
-        message: "R2 list route error",
-        data: { errorMessage: message, errorName, ...payload.details },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     return NextResponse.json(payload, { status: 500 });
   }
 }

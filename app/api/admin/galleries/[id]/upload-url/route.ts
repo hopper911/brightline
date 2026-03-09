@@ -31,7 +31,6 @@ export async function POST(
       );
     }
 
-    const ext = body.filename.split(".").pop() || "jpg";
     const safeName = body.filename.replace(/[^\w.-]/g, "-");
     const key = `client-galleries/${id}/${Date.now()}-${safeName}`;
 

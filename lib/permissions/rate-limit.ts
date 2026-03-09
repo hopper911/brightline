@@ -6,6 +6,7 @@ export function getClientIp(req: Request): string {
   return "127.0.0.1";
 }
 
-export function isRateLimited(_ip: string): boolean {
+export function isRateLimited(ip: string): boolean {
+  void ip;
   return false;
 }

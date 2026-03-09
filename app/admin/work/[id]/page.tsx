@@ -2,17 +2,15 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getPillarBySlug, SECTION_TO_PILLAR } from "@/lib/portfolioPillars";
 import type { WorkSection } from "@prisma/client";
-
-const R2_BASE = typeof process.env.NEXT_PUBLIC_R2_PUBLIC_URL === "string"
-  ? process.env.NEXT_PUBLIC_R2_PUBLIC_URL.replace(/\/+$/, "")
-  : "";
+import { getPublicR2Url } from "@/lib/r2";
+import R2BrowserModal from "../R2BrowserModal";
 
 function mediaUrl(key: string | null): string {
-  if (!key || !R2_BASE) return "";
-  return `${R2_BASE}/${key.replace(/^\//, "")}`;
+  if (!key) return "";
+  return getPublicR2Url(key);
 }
 
 type MediaAsset = {
@@ -46,10 +44,67 @@ type WorkProject = {
   media: ProjectMedia[];
 };
 
+const VIDEO_EXT = new Set(["mp4", "webm", "mov"]);
+
+function isVideoFile(file: File): boolean {
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  return !!ext && VIDEO_EXT.has(ext);
+}
+
+async function resizeToThumb(file: File, maxWidth = 800): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = document.createElement("img");
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width <= maxWidth) {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas 2d unavailable"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
+          "image/jpeg",
+          0.85
+        );
+        return;
+      }
+      height = Math.round((height * maxWidth) / width);
+      width = maxWidth;
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas 2d unavailable"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
+        "image/jpeg",
+        0.85
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load image"));
+    };
+    img.src = url;
+  });
+}
+
 export default function AdminWorkEditPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [project, setProject] = useState<WorkProject | null>(null);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
@@ -64,9 +119,12 @@ export default function AdminWorkEditPage() {
   const [heroMediaId, setHeroMediaId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "error">("idle");
   const [saveError, setSaveError] = useState("");
-  const [newKeyFull, setNewKeyFull] = useState("");
-  const [addMediaStatus, setAddMediaStatus] = useState<"idle" | "adding" | "error">("idle");
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "error">("idle");
+  const [uploadProgress, setUploadProgress] = useState<Record<string, string>>({});
+  const [dragOver, setDragOver] = useState(false);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [r2BrowserOpen, setR2BrowserOpen] = useState(false);
 
   const loadProject = useCallback(async () => {
     if (id === "new") return;
@@ -122,7 +180,7 @@ export default function AdminWorkEditPage() {
         }),
       });
       const data = (await res.json()) as { ok: boolean; project?: WorkProject; error?: string };
-      if (!res.ok) throw new Error(data.error ?? `Save failed (${res.status})`);
+      if (!res.ok) throw new Error(data.error ?? "Save failed");
       if (data.project) setProject(data.project);
       setSaveStatus("idle");
     } catch (err) {
@@ -131,68 +189,154 @@ export default function AdminWorkEditPage() {
     }
   }
 
-  async function handleAddByKey() {
-    if (!newKeyFull.trim()) return;
-    setAddMediaStatus("adding");
-    setSaveError("");
+  async function uploadFile(file: File): Promise<void> {
+    const label = file.name;
+    setUploadProgress((p) => ({ ...p, [label]: "uploading" }));
     try {
-      const res = await fetch(`/api/admin/work-projects/${id}/media`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyFull: newKeyFull.trim() }),
-      });
-      const data = (await res.json()) as { ok: boolean; project?: WorkProject; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Add failed");
-      if (data.project) {
-        setProject(data.project);
-        setNewKeyFull("");
-      }
-      setAddMediaStatus("idle");
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Add failed");
-      setAddMediaStatus("error");
-    }
-  }
+      const isVideo = isVideoFile(file);
+      const subfolder = isVideo ? "video" : "full";
+      const contentType = file.type || (isVideo ? "video/mp4" : "image/jpeg");
 
-  async function handleUploadAndAdd() {
-    if (!uploadFile) return;
-    setAddMediaStatus("adding");
-    setSaveError("");
-    try {
       const uploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          filename: uploadFile.name,
-          contentType: uploadFile.type || "image/jpeg",
+          filename: file.name,
+          contentType,
+          subfolder,
         }),
       });
       const uploadData = (await uploadRes.json()) as { ok: boolean; url?: string; key?: string; error?: string };
       if (!uploadRes.ok || !uploadData.url || !uploadData.key) {
-        throw new Error(uploadData.error ?? "Failed to get upload URL");
+        const msg = uploadData.error ?? (uploadRes.status === 401 ? "Please log in again" : "Failed to get upload URL");
+        throw new Error(msg);
       }
+
       const putRes = await fetch(uploadData.url, {
         method: "PUT",
-        body: uploadFile,
-        headers: { "Content-Type": uploadFile.type || "image/jpeg" },
+        body: file,
+        headers: { "Content-Type": contentType },
       });
-      if (!putRes.ok) throw new Error("Upload to storage failed");
-      const mediaRes = await fetch(`/api/admin/work-projects/${id}/media`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyFull: uploadData.key }),
-      });
-      const mediaData = (await mediaRes.json()) as { ok: boolean; project?: WorkProject; error?: string };
-      if (!mediaRes.ok) throw new Error(mediaData.error ?? "Failed to add media");
-      if (mediaData.project) {
-        setProject(mediaData.project);
-        setUploadFile(null);
+      if (!putRes.ok) {
+        const hint = putRes.status === 403 ? " (R2 CORS or bucket config)" : "";
+        throw new Error(`Upload to storage failed${hint}`);
       }
-      setAddMediaStatus("idle");
+
+      let keyFull = uploadData.key;
+      let keyThumb: string | undefined;
+      let width: number | undefined;
+      let height: number | undefined;
+
+      if (isVideo) {
+        await addMedia({ keyFull, kind: "VIDEO" });
+      } else {
+        const thumbBlob = await resizeToThumb(file);
+        const thumbExt = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+        const thumbFilename = file.name.replace(/\.[^.]+$/, "-thumb.jpg");
+
+        const thumbUploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: thumbFilename,
+            contentType: "image/jpeg",
+            subfolder: "thumb",
+          }),
+        });
+        const thumbUploadData = (await thumbUploadRes.json()) as { ok: boolean; url?: string; key?: string; error?: string };
+        if (!thumbUploadRes.ok || !thumbUploadData.url || !thumbUploadData.key) {
+          throw new Error(thumbUploadData.error ?? "Failed to get thumb upload URL");
+        }
+        const thumbPutRes = await fetch(thumbUploadData.url, {
+          method: "PUT",
+          body: thumbBlob,
+          headers: { "Content-Type": "image/jpeg" },
+        });
+        if (!thumbPutRes.ok) throw new Error("Thumb upload failed");
+        keyThumb = thumbUploadData.key;
+
+        const img = await createImageBitmap(file);
+        width = img.width;
+        height = img.height;
+        img.close();
+
+        await addMedia({ keyFull, keyThumb, kind: "IMAGE", width, height });
+      }
+
+      setUploadProgress((p) => {
+        const next = { ...p };
+        delete next[label];
+        return next;
+      });
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Upload failed");
-      setAddMediaStatus("error");
+      const msg = err instanceof Error ? err.message : "Failed";
+      setUploadProgress((p) => ({ ...p, [label]: msg }));
+      setSaveError(msg);
+      setUploadStatus("error");
     }
+  }
+
+  async function handleAddKeysFromR2(keys: string[]) {
+    setSaveError("");
+    try {
+      for (const key of keys) {
+        const ext = key.split(".").pop()?.toLowerCase();
+        const kind = ext === "mp4" || ext === "webm" || ext === "mov" ? ("VIDEO" as const) : ("IMAGE" as const);
+        await addMedia({ keyFull: key, kind });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to add media";
+      setSaveError(msg);
+      throw err;
+    }
+  }
+
+  async function addMedia(payload: {
+    keyFull: string;
+    keyThumb?: string;
+    kind: "IMAGE" | "VIDEO";
+    width?: number;
+    height?: number;
+  }) {
+    const mediaRes = await fetch(`/api/admin/work-projects/${id}/media`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const mediaData = (await mediaRes.json()) as { ok: boolean; project?: WorkProject; error?: string };
+    if (!mediaRes.ok) throw new Error(mediaData.error ?? "Failed to add media");
+    if (mediaData.project) setProject(mediaData.project);
+  }
+
+  async function handleFiles(files: FileList | File[]) {
+    const arr = Array.from(files);
+    if (arr.length === 0) return;
+    setUploadStatus("uploading");
+    setSaveError("");
+    setUploadProgress({});
+    for (const file of arr) {
+      await uploadFile(file);
+    }
+    setUploadStatus("idle");
+    fileInputRef.current?.form?.reset();
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files.length) void handleFiles(files);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false);
   }
 
   async function setAsHero(mediaId: string) {
@@ -211,9 +355,10 @@ export default function AdminWorkEditPage() {
 
   async function removeMedia(mediaId: string) {
     try {
-      const res = await fetch(`/api/admin/work-projects/${id}/media?mediaId=${encodeURIComponent(mediaId)}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/admin/work-projects/${id}/media?mediaId=${encodeURIComponent(mediaId)}`,
+        { method: "DELETE" }
+      );
       const data = (await res.json()) as { ok: boolean; project?: WorkProject; error?: string };
       if (!res.ok) throw new Error(data.error);
       if (data.project) {
@@ -239,6 +384,41 @@ export default function AdminWorkEditPage() {
     }
   }
 
+  function handleMediaDragStart(e: React.DragEvent, mediaId: string) {
+    setDraggedId(mediaId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", mediaId);
+  }
+
+  function handleMediaDragOver(e: React.DragEvent, mediaId: string) {
+    e.preventDefault();
+    if (draggedId && draggedId !== mediaId) setDragOverId(mediaId);
+  }
+
+  function handleMediaDragLeave() {
+    setDragOverId(null);
+  }
+
+  function handleMediaDrop(e: React.DragEvent, targetId: string) {
+    e.preventDefault();
+    setDraggedId(null);
+    setDragOverId(null);
+    if (!orderedMedia.length || !draggedId || draggedId === targetId) return;
+    const ids = orderedMedia.map((m) => m.media.id);
+    const fromIdx = ids.indexOf(draggedId);
+    const toIdx = ids.indexOf(targetId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const reordered = [...ids];
+    reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, draggedId);
+    reorderMedia(reordered);
+  }
+
+  function handleDragEnd() {
+    setDraggedId(null);
+    setDragOverId(null);
+  }
+
   if (loading || !project) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10">
@@ -250,24 +430,30 @@ export default function AdminWorkEditPage() {
   const pillarSlug = SECTION_TO_PILLAR[project.section];
   const pillarLabel = getPillarBySlug(pillarSlug)?.label ?? project.section;
   const orderedMedia = [...(project.media ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+  const uploadProgressEntries = Object.entries(uploadProgress);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="mb-8 flex items-center justify-between gap-4">
         <div>
-          <Link href="/admin/work" className="text-sm text-black/60 hover:underline">← Work projects</Link>
+          <Link href="/admin/work" className="text-sm text-black/60 hover:underline">
+            ← Work projects
+          </Link>
           <h1 className="mt-2 font-display text-2xl text-black">Edit: {project.title}</h1>
-          <p className="text-xs text-black/50">/{pillarSlug}/{project.slug}</p>
+          <p className="text-xs text-black/50">
+            /{pillarSlug}/{project.slug}
+          </p>
         </div>
         <button
           type="button"
           onClick={() => {
             if (confirm("Delete this project? This cannot be undone.")) {
-              fetch(`/api/admin/work-projects/${id}`, { method: "DELETE" })
-                .then((r) => r.ok && router.push("/admin/work"));
+              fetch(`/api/admin/work-projects/${id}`, { method: "DELETE" }).then(
+                (r) => r.ok && router.push("/admin/work")
+              );
             }
           }}
-          className="btn btn-ghost text-red-600 text-sm"
+          className="btn btn-ghost text-sm text-red-600"
         >
           Delete project
         </button>
@@ -279,11 +465,20 @@ export default function AdminWorkEditPage() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className="block text-xs uppercase tracking-wide text-black/60">Title</label>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm" required />
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                required
+              />
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wide text-black/60">Slug</label>
-              <input value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm" />
+              <input
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+              />
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wide text-black/60">Pillar</label>
@@ -291,32 +486,70 @@ export default function AdminWorkEditPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs uppercase tracking-wide text-black/60">Summary</label>
-              <textarea value={summary} onChange={(e) => setSummary(e.target.value)} className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm" rows={2} />
+              <textarea
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                rows={2}
+              />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs uppercase tracking-wide text-black/60">Description (optional)</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm" rows={3} />
+              <label className="block text-xs uppercase tracking-wide text-black/60">
+                Description (optional)
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                rows={3}
+              />
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wide text-black/60">Location</label>
-              <input value={location} onChange={(e) => setLocation(e.target.value)} className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm" />
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+              />
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wide text-black/60">Year</label>
-              <input type="number" value={year} onChange={(e) => setYear(e.target.value === "" ? "" : parseInt(e.target.value, 10))} className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm" min={1900} max={2100} />
+              <input
+                type="number"
+                value={year}
+                onChange={(e) =>
+                  setYear(e.target.value === "" ? "" : parseInt(e.target.value, 10))
+                }
+                className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                min={1900}
+                max={2100}
+              />
             </div>
             <div className="flex gap-4 sm:col-span-2">
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={published}
+                  onChange={(e) => setPublished(e.target.checked)}
+                />
                 Published
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={isFeatured}
+                  onChange={(e) => setIsFeatured(e.target.checked)}
+                />
                 Featured
               </label>
               <label className="flex items-center gap-2 text-sm">
                 Sort order:
-                <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value, 10) || 0)} className="w-16 rounded border border-black/20 px-2 py-1 text-sm" />
+                <input
+                  type="number"
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(parseInt(e.target.value, 10) || 0)}
+                  className="w-16 rounded border border-black/20 px-2 py-1 text-sm"
+                />
               </label>
             </div>
           </div>
@@ -330,90 +563,171 @@ export default function AdminWorkEditPage() {
 
       <div className="mt-10 rounded-xl border border-black/10 bg-white p-6">
         <h2 className="text-sm font-semibold text-black/80">Media</h2>
-        <p className="mt-1 text-xs text-black/50">Hero: choose one below or leave none. Reorder by moving items.</p>
+        <p className="mt-1 text-xs text-black/50">
+          Hero: choose one below or leave none. Drag to reorder.
+        </p>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          className={`mt-4 flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 transition-colors ${
+            dragOver ? "border-black/40 bg-black/5" : "border-black/20 bg-black/[0.02]"
+          }`}
+        >
           <input
-            type="text"
-            value={newKeyFull}
-            onChange={(e) => setNewKeyFull(e.target.value)}
-            placeholder="R2 key (e.g. work/acd/2026-02-23/full/xxx.webp)"
-            className="min-w-[200px] flex-1 rounded border border-black/20 px-3 py-2 text-sm font-mono"
-          />
-          <button type="button" onClick={handleAddByKey} className="btn btn-ghost text-sm" disabled={addMediaStatus === "adding" || !newKeyFull.trim()}>
-            Add by key
-          </button>
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <input
+            ref={fileInputRef}
             type="file"
-            accept="image/*"
-            onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-            className="text-sm"
+            accept="image/*,video/mp4,video/webm,video/quicktime"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = e.target.files;
+              if (files?.length) void handleFiles(files);
+            }}
           />
-          <button type="button" onClick={handleUploadAndAdd} className="btn btn-ghost text-sm" disabled={addMediaStatus === "adding" || !uploadFile}>
-            Upload and add
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="btn btn-primary"
+              disabled={uploadStatus === "uploading"}
+            >
+              Upload Media
+            </button>
+            <button
+              type="button"
+              onClick={() => setR2BrowserOpen(true)}
+              className="btn btn-ghost"
+            >
+              Browse R2
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-black/50">
+            Drag and drop images or videos here, or browse existing R2 files
+          </p>
         </div>
 
-        <ul className="mt-6 space-y-3">
-          {orderedMedia.map((pm, index) => {
-            const src = mediaUrl(pm.media.keyFull);
+        <R2BrowserModal
+          isOpen={r2BrowserOpen}
+          onClose={() => setR2BrowserOpen(false)}
+          onAddKeys={handleAddKeysFromR2}
+          projectId={id}
+          pillarSlug={pillarSlug}
+          projectSlug={project?.slug}
+        />
+
+        {saveError && (
+          <p className="mt-3 text-sm text-red-600" role="alert">
+            {saveError}
+          </p>
+        )}
+        {uploadProgressEntries.length > 0 && (
+          <ul className="mt-3 space-y-1 text-sm text-black/70">
+            {uploadProgressEntries.map(([name, status]) => (
+              <li key={name} className="truncate">
+                {name}: {status}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <ul
+          className="mt-6 space-y-3"
+          onDragEnd={handleDragEnd}
+        >
+          {orderedMedia.map((pm) => {
+            const src = mediaUrl(pm.media.keyThumb ?? pm.media.keyFull);
             const isHero = heroMediaId === pm.media.id;
+            const isVideo = pm.media.kind === "VIDEO";
+            const isDropTarget = dragOverId === pm.media.id;
             return (
-              <li key={pm.media.id} className="flex items-center gap-4 rounded-lg border border-black/10 p-3">
-                {src ? (
-                  <img src={src} alt={pm.media.alt ?? ""} className="h-16 w-24 object-cover rounded" />
-                ) : (
-                  <div className="h-16 w-24 rounded bg-black/10 flex items-center justify-center text-xs text-black/50">No preview</div>
-                )}
+              <li
+                key={pm.media.id}
+                draggable
+                onDragStart={(e) => handleMediaDragStart(e, pm.media.id)}
+                onDragOver={(e) => handleMediaDragOver(e, pm.media.id)}
+                onDragLeave={handleMediaDragLeave}
+                onDrop={(e) => handleMediaDrop(e, pm.media.id)}
+                className={`flex cursor-grab items-center gap-4 rounded-lg border border-black/10 p-3 transition-all active:cursor-grabbing ${
+                  isDropTarget ? "border-black/30 bg-black/5 ring-1 ring-black/10" : ""
+                }`}
+              >
+                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded bg-black/10">
+                  {src ? (
+                    isVideo ? (
+                      <>
+                        <video
+                          src={mediaUrl(pm.media.keyFull)}
+                          className="h-full w-full object-cover"
+                          muted
+                          playsInline
+                          preload="metadata"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <svg
+                            className="h-6 w-6 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden
+                          >
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </>
+                    ) : (
+                      <img
+                        src={src}
+                        alt={pm.media.alt ?? ""}
+                        className="h-full w-full object-cover"
+                      />
+                    )
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-black/50">
+                      No preview
+                    </div>
+                  )}
+                </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-mono text-black/70">{pm.media.keyFull || "—"}</p>
-                  {isHero && <span className="text-xs text-black/50">Hero</span>}
+                  <p className="truncate text-sm font-mono text-black/70">
+                    {pm.media.keyFull || "—"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {isHero && (
+                      <span className="text-xs text-black/50">Hero</span>
+                    )}
+                    {isVideo && (
+                      <span className="rounded bg-black/10 px-1.5 py-0.5 text-xs text-black/60">
+                        Video
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   {!isHero && (
-                    <button type="button" onClick={() => setAsHero(pm.media.id)} className="btn btn-ghost text-xs">
-                      Set as hero
+                    <button
+                      type="button"
+                      onClick={() => setAsHero(pm.media.id)}
+                      className="btn btn-ghost text-xs"
+                    >
+                      Set hero
                     </button>
                   )}
-                  <button type="button" onClick={() => removeMedia(pm.media.id)} className="btn btn-ghost text-xs text-red-600">
+                  <button
+                    type="button"
+                    onClick={() => removeMedia(pm.media.id)}
+                    className="btn btn-ghost text-xs text-red-600"
+                  >
                     Remove
                   </button>
-                  {index > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const ids = orderedMedia.map((m) => m.media.id);
-                        const i = ids.indexOf(pm.media.id);
-                        [ids[i - 1], ids[i]] = [ids[i], ids[i - 1]];
-                        reorderMedia(ids);
-                      }}
-                      className="btn btn-ghost text-xs"
-                    >
-                      ↑
-                    </button>
-                  )}
-                  {index < orderedMedia.length - 1 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const ids = orderedMedia.map((m) => m.media.id);
-                        const i = ids.indexOf(pm.media.id);
-                        [ids[i], ids[i + 1]] = [ids[i + 1], ids[i]];
-                        reorderMedia(ids);
-                      }}
-                      className="btn btn-ghost text-xs"
-                    >
-                      ↓
-                    </button>
-                  )}
                 </div>
               </li>
             );
           })}
         </ul>
-        {orderedMedia.length === 0 && <p className="mt-4 text-sm text-black/50">No media. Add by R2 key or upload.</p>}
+        {orderedMedia.length === 0 && (
+          <p className="mt-4 text-sm text-black/50">No media. Upload images or videos above.</p>
+        )}
       </div>
     </div>
   );

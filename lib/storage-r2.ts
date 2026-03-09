@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3Client } from "@aws-sdk/client-s3";
 
@@ -60,4 +60,31 @@ export async function signGet(options: SignGetOptions): Promise<SignGetResult> {
   const command = new GetObjectCommand({ Bucket: bucket, Key: key });
   const url = await getSignedUrl(client, command, { expiresIn });
   return { url, expiresIn };
+}
+
+export type ListObjectsOptions = {
+  prefix: string;
+  maxKeys?: number;
+  continuationToken?: string;
+};
+
+export type ListObjectsResult = {
+  keys: string[];
+  nextContinuationToken?: string;
+  isTruncated: boolean;
+};
+
+export async function listObjects(options: ListObjectsOptions): Promise<string[]> {
+  const { prefix, maxKeys = 500 } = options;
+  const client = getR2Client();
+  const bucket = getBucket();
+  const command = new ListObjectsV2Command({
+    Bucket: bucket,
+    Prefix: prefix.replace(/^\//, ""),
+    MaxKeys: Math.min(maxKeys, 1000),
+  });
+  const response = await client.send(command);
+  const keys =
+    response.Contents?.map((obj) => obj.Key).filter((k): k is string => typeof k === "string") ?? [];
+  return keys;
 }

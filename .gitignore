@@ -1,0 +1,23 @@
+node_modules
+.next
+.DS_Store
+.vercel
+
+# Local env
+.env
+.env.local
+.env.*.local
+
+# Test uploads (sample images + prep output)
+test-exports
+
+# Backup/duplicate artifacts
+brightline-backup-*
+* 2.*
+* 2.json
+* 2.mjs
+* 2.prisma
+prisma/migrations_backup_*
+green-cloud-009d
+prisma/prisma
+.env*.local

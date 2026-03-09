@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -12,9 +11,8 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({ req: request });
-  const isAdmin = Boolean(token?.isAdmin);
-  if (isAdmin) {
+  const adminAccess = request.cookies.get("admin_access")?.value === "true";
+  if (adminAccess) {
     return NextResponse.next();
   }
 

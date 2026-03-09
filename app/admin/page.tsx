@@ -4,6 +4,8 @@ import { hasAdminAccess } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import AdminLogoutButton from "./logout-button";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Admin · Bright Line Photography",
   robots: {
@@ -48,53 +50,53 @@ export default async function AdminPage() {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-6xl flex-col px-4 py-16">
       <div className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.35em] text-black/50">
+        <p className="text-xs uppercase tracking-[0.35em] text-white/50">
           Admin Dashboard
         </p>
-        <h1 className="font-display text-4xl text-black">Admin</h1>
-        <p className="text-base text-black/70">
+        <h1 className="font-display text-4xl text-white">Admin</h1>
+        <p className="text-base text-white/70">
           Manage portfolio uploads and settings.
         </p>
       </div>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-black/10 bg-white/70 p-6">
-          <p className="text-xs uppercase tracking-[0.3em] text-black/50">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          <p className="text-xs uppercase tracking-[0.3em] text-white/50">
             Portfolio projects
           </p>
-          <p className="mt-2 text-3xl text-black">
+          <p className="mt-2 text-3xl text-white">
             {stats ? stats.portfolioProjects : "—"}
           </p>
         </div>
-        <div className="rounded-2xl border border-black/10 bg-white/70 p-6">
-          <p className="text-xs uppercase tracking-[0.3em] text-black/50">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          <p className="text-xs uppercase tracking-[0.3em] text-white/50">
             Work projects
           </p>
-          <p className="mt-2 text-3xl text-black">
+          <p className="mt-2 text-3xl text-white">
             {stats ? stats.workProjects : "—"}
           </p>
         </div>
-        <div className="rounded-2xl border border-black/10 bg-white/70 p-6">
-          <p className="text-xs uppercase tracking-[0.3em] text-black/50">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          <p className="text-xs uppercase tracking-[0.3em] text-white/50">
             Client galleries
           </p>
-          <p className="mt-2 text-3xl text-black">
+          <p className="mt-2 text-3xl text-white">
             {stats ? stats.clientGalleries : "—"}
           </p>
         </div>
-        <div className="rounded-2xl border border-black/10 bg-white/70 p-6">
-          <p className="text-xs uppercase tracking-[0.3em] text-black/50">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          <p className="text-xs uppercase tracking-[0.3em] text-white/50">
             Access codes
           </p>
-          <p className="mt-2 text-3xl text-black">
+          <p className="mt-2 text-3xl text-white">
             {stats ? stats.clientAccessCodes : "—"}
           </p>
         </div>
-        <div className="rounded-2xl border border-black/10 bg-white/70 p-6">
-          <p className="text-xs uppercase tracking-[0.3em] text-black/50">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          <p className="text-xs uppercase tracking-[0.3em] text-white/50">
             Leads
           </p>
-          <p className="mt-2 text-3xl text-black">
+          <p className="mt-2 text-3xl text-white">
             {stats ? stats.leads : "—"}
           </p>
         </div>

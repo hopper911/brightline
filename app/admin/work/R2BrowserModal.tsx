@@ -71,7 +71,9 @@ export default function R2BrowserModal({
 
   const effectivePrefix =
     source === "portfolio"
-      ? `portfolio/${pillar}`
+      ? pillar === "all"
+        ? "portfolio"
+        : `portfolio/${pillar}`
       : source === "project" && projectId
         ? projectSlug
           ? `portfolio/${pillarSlug}/${projectSlug}`
@@ -95,6 +97,20 @@ export default function R2BrowserModal({
           : "deployed";
       const timestamp = new Date().toISOString();
       try {
+        const verifyRes = await fetch("/api/admin/r2-verify");
+        const verifyData = (await verifyRes.json().catch(() => ({}))) as {
+          ok?: boolean;
+          connected?: boolean;
+          error?: string;
+          hint?: string;
+        };
+        if (!verifyRes.ok) {
+          const msg = [verifyData.error, verifyData.hint].filter(Boolean).join(" ");
+          setError(msg || "R2 storage not configured.");
+          setKeys([]);
+          setLoading(false);
+          return;
+        }
         const res = await fetch("/api/admin/r2-list", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -133,42 +149,11 @@ export default function R2BrowserModal({
           });
           setError(errorMessage);
           setKeys([]);
-          console.error("[R2_LIST_DEBUG] /api/admin/r2-list failure", {
-            timestamp,
-            environment: env,
-            path: "/api/admin/r2-list",
-            status: res.status,
-            error: errorMessage,
-            code: data.code,
-            details: data.details,
-          });
-          const verification = {
-            result: "fail" as const,
-            environment: env,
-            timestamp,
-            source,
-            pillar: source === "portfolio" ? pillar : undefined,
-            prefix,
-            errorMessage,
-            status: res.status,
-            code: data.code,
-          };
-          console.error("R2_BROWSER_VERIFICATION", verification);
           return;
         }
         const raw = data.keys ?? [];
         const mediaKeys = raw.filter((k) => MEDIA_EXT.test(k));
         setKeys(mediaKeys);
-        const verification = {
-          result: "pass" as const,
-          environment: env,
-          timestamp,
-          source,
-          pillar: source === "portfolio" ? pillar : undefined,
-          prefix,
-          keyCount: mediaKeys.length,
-        };
-        console.info("R2_BROWSER_VERIFICATION", verification);
       } catch (e) {
         const message = e instanceof Error ? e.message : "Failed to load";
         setErrorDetails({
@@ -187,24 +172,6 @@ export default function R2BrowserModal({
         });
         setError(message);
         setKeys([]);
-        console.error("[R2_LIST_DEBUG] /api/admin/r2-list exception", {
-          timestamp,
-          environment: env,
-          path: "/api/admin/r2-list",
-          status: 0,
-          error: message,
-          exception: e instanceof Error ? e.name : String(e),
-        });
-        const verification = {
-          result: "fail" as const,
-          environment: env,
-          timestamp,
-          source,
-          pillar: source === "portfolio" ? pillar : undefined,
-          prefix,
-          errorMessage: message,
-        };
-        console.error("R2_BROWSER_VERIFICATION", verification);
       } finally {
         setLoading(false);
       }
@@ -298,6 +265,7 @@ export default function R2BrowserModal({
                 onChange={(e) => setPillar(e.target.value)}
                 className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
               >
+                <option value="all">All portfolio</option>
                 {PILLAR_SLUGS.map((slug) => (
                   <option key={slug} value={slug}>
                     {PILLARS.find((p) => p.slug === slug)?.label ?? slug}
@@ -359,9 +327,14 @@ export default function R2BrowserModal({
           )}
           {loading ? (
             <p className="text-sm text-white/50">Loading…</p>
-          ) : keys.length === 0 ? (
-            <p className="text-sm text-white/50">No images found in this folder.</p>
-          ) : (
+          ) : keys.length === 0 && !error ? (
+            <p className="text-sm text-white/50">
+              No images found in this folder.
+              {source === "portfolio" && pillar !== "all" && (
+                <> Try &quot;All portfolio&quot; to browse all images.</>
+              )}
+            </p>
+          ) : keys.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-5">
               {keys.map((key) => {
                 const isSelected = selected.has(key);
@@ -399,7 +372,7 @@ export default function R2BrowserModal({
                 );
               })}
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-white/10 px-4 py-3">

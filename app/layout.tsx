@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Inter, Montserrat } from "next/font/google";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Providers from "./providers";
@@ -8,46 +8,16 @@ import Analytics from "../components/Analytics";
 import { BRAND } from "@/lib/config/brand";
 import "./globals.css";
 
-const inter = localFont({
-  src: [
-    {
-      path: "../node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "../node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2",
-      weight: "500",
-      style: "normal",
-    },
-    {
-      path: "../node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2",
-      weight: "600",
-      style: "normal",
-    },
-  ],
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
   variable: "--font-inter",
   display: "swap",
 });
 
-const montserrat = localFont({
-  src: [
-    {
-      path: "../node_modules/@fontsource/montserrat/files/montserrat-latin-400-normal.woff2",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "../node_modules/@fontsource/montserrat/files/montserrat-latin-500-normal.woff2",
-      weight: "500",
-      style: "normal",
-    },
-    {
-      path: "../node_modules/@fontsource/montserrat/files/montserrat-latin-600-normal.woff2",
-      weight: "600",
-      style: "normal",
-    },
-  ],
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
   variable: "--font-montserrat",
   display: "swap",
 });

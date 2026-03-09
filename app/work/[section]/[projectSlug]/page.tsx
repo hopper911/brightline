@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Reveal from "@/components/Reveal";
 import VideoEmbed from "@/components/VideoEmbed";
+import WorkProjectGallery from "@/components/WorkProjectGallery";
 import { getPillarBySlug, isPillarSlug } from "@/lib/portfolioPillars";
 import { getProjectByPillarAndSlug } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
@@ -176,36 +177,13 @@ export default async function WorkProjectPage({
           <Reveal>
             <h2 className="font-display text-2xl text-white">Gallery</h2>
             <p className="mt-2 text-sm text-white/70">
-              Selected imagery from the project.
+              Selected imagery from the project. Click any image to view full size.
             </p>
           </Reveal>
-          <div className="mt-6 grid gap-6 sm:grid-cols-2">
-            {project.media.map(({ media, sortOrder }) =>
-              media.kind === "VIDEO" && media.providerId ? (
-                <Reveal key={`${media.id}-${sortOrder}`}>
-                  <VideoEmbed
-                    providerId={media.providerId}
-                    posterKey={media.posterKey ?? undefined}
-                    title={media.alt ?? project.title}
-                  />
-                </Reveal>
-              ) : media.kind === "IMAGE" && media.keyFull ? (
-                <Reveal key={`${media.id}-${sortOrder}`}>
-                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-white/10 bg-black">
-                    <Image
-                      src={getPublicR2Url(media.keyFull ?? "")}
-                      alt={media.alt ?? project.title}
-                      fill
-                      sizes="(min-width: 640px) 50vw, 100vw"
-                      placeholder="blur"
-                      blurDataURL={BLUR_DATA}
-                      className="object-cover image-fade"
-                    />
-                  </div>
-                </Reveal>
-              ) : null
-            )}
-          </div>
+          <WorkProjectGallery
+            projectTitle={project.title}
+            media={project.media}
+          />
         </div>
       )}
 

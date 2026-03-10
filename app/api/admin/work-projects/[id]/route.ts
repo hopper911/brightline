@@ -53,11 +53,11 @@ export async function PATCH(
     const { id } = await context.params;
     const body = (await req.json()) as {
       title?: string;
-      slug?: string;
-      summary?: string;
-      description?: string;
-      location?: string;
-      year?: number;
+      slug?: string | null;
+      summary?: string | null;
+      description?: string | null;
+      location?: string | null;
+      year?: number | null;
       published?: boolean;
       isFeatured?: boolean;
       sortOrder?: number;
@@ -91,12 +91,34 @@ export async function PATCH(
         title: body.title !== undefined ? body.title.trim() : undefined,
         slug:
           body.slug !== undefined
-            ? (body.slug.trim() || slugify(existing.title)).replace(/^-+|-+$/g, "") || "project"
+            ? ((body.slug == null ? "" : String(body.slug).trim()) || slugify(existing.title))
+                .replace(/^-+|-+$/g, "")
+                || "project"
             : undefined,
-        summary: body.summary !== undefined ? (body.summary.trim() || null) : undefined,
-        description: body.description !== undefined ? (body.description.trim() || null) : undefined,
-        location: body.location !== undefined ? (body.location.trim() || null) : undefined,
-        year: body.year !== undefined ? (typeof body.year === "number" ? body.year : null) : undefined,
+        summary:
+          body.summary !== undefined
+            ? body.summary == null
+              ? null
+              : String(body.summary).trim() || null
+            : undefined,
+        description:
+          body.description !== undefined
+            ? body.description == null
+              ? null
+              : String(body.description).trim() || null
+            : undefined,
+        location:
+          body.location !== undefined
+            ? body.location == null
+              ? null
+              : String(body.location).trim() || null
+            : undefined,
+        year:
+          body.year !== undefined
+            ? typeof body.year === "number" && Number.isFinite(body.year)
+              ? body.year
+              : null
+            : undefined,
         published: typeof body.published === "boolean" ? body.published : undefined,
         isFeatured: typeof body.isFeatured === "boolean" ? body.isFeatured : undefined,
         sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : undefined,

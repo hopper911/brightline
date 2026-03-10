@@ -168,11 +168,11 @@ export default function AdminWorkEditPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
-          slug: slug.trim() || undefined,
-          summary: summary.trim() || undefined,
-          description: description.trim() || undefined,
-          location: location.trim() || undefined,
-          year: year === "" ? undefined : Number(year),
+          slug: slug.trim() || null,
+          summary: summary.trim() ? summary.trim() : null,
+          description: description.trim() ? description.trim() : null,
+          location: location.trim() ? location.trim() : null,
+          year: year === "" ? null : (Number.isFinite(Number(year)) ? Number(year) : null),
           published,
           isFeatured,
           sortOrder,
@@ -516,9 +516,14 @@ export default function AdminWorkEditPage() {
               <input
                 type="number"
                 value={year}
-                onChange={(e) =>
-                  setYear(e.target.value === "" ? "" : parseInt(e.target.value, 10))
-                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") setYear("");
+                  else {
+                    const n = parseInt(v, 10);
+                    setYear(Number.isFinite(n) ? n : year);
+                  }
+                }}
                 className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
                 min={1900}
                 max={2100}

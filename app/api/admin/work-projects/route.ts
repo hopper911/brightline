@@ -29,6 +29,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const pillarParam = url.searchParams.get("pillar");
     const sectionParam = url.searchParams.get("section");
+    const searchParam = url.searchParams.get("search")?.trim() ?? "";
 
     let whereSection: { section: WorkSection } | { section: { in: WorkSection[] } } | undefined;
     if (pillarParam && isPillarSlug(pillarParam)) {
@@ -40,8 +41,15 @@ export async function GET(req: Request) {
       whereSection = { section: sectionParam as WorkSection };
     }
 
+    const where = {
+      ...(whereSection ?? {}),
+      ...(searchParam
+        ? { title: { contains: searchParam, mode: "insensitive" as const } }
+        : {}),
+    };
+
     const projects = await prisma.workProject.findMany({
-      where: whereSection,
+      where,
       include: {
         heroMedia: true,
         media: { include: { media: true }, orderBy: { sortOrder: "asc" } },

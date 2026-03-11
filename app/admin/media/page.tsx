@@ -31,6 +31,7 @@ export default function AdminMediaPage() {
   const [sectionFilter, setSectionFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [projectFilter, setProjectFilter] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
 
   useEffect(() => {
     async function load() {
@@ -40,6 +41,7 @@ export default function AdminMediaPage() {
         if (sectionFilter) params.set("section", sectionFilter);
         if (typeFilter) params.set("type", typeFilter);
         if (projectFilter) params.set("projectId", projectFilter);
+        if (search) params.set("search", search);
         const res = await fetch(`/api/admin/media?${params}`);
         const data = (await res.json()) as {
           ok: boolean;
@@ -58,7 +60,7 @@ export default function AdminMediaPage() {
       }
     }
     void load();
-  }, [sectionFilter, typeFilter, projectFilter]);
+  }, [sectionFilter, typeFilter, projectFilter, search]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -71,6 +73,13 @@ export default function AdminMediaPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-4">
+        <input
+          type="search"
+          placeholder="Search by filename…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="min-w-[180px] rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
+        />
         <div className="flex gap-1 rounded-lg bg-white/5 p-1">
           {PILLAR_SLUGS.map((slug) => (
             <button

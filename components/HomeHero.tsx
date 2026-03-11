@@ -1,15 +1,38 @@
 "use client";
 
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import MagneticButton from "./MagneticButton";
 import PrimaryCTA from "./PrimaryCTA";
 import { BRAND } from "@/lib/config/brand";
+import { getPublicR2Url } from "@/lib/r2";
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
 
+function getHeroVideoUrl(): string | null {
+  const key =
+    typeof process.env.NEXT_PUBLIC_HERO_VIDEO_KEY === "string"
+      ? process.env.NEXT_PUBLIC_HERO_VIDEO_KEY.trim()
+      : "";
+  return key ? getPublicR2Url(key) : null;
+}
+
+function getHeroPosterUrl(): string | null {
+  const key =
+    typeof process.env.NEXT_PUBLIC_HERO_POSTER_KEY === "string"
+      ? process.env.NEXT_PUBLIC_HERO_POSTER_KEY.trim()
+      : "";
+  return key ? getPublicR2Url(key) : null;
+}
+
 export default function HomeHero() {
+  const videoUrl = getHeroVideoUrl();
+  const posterUrl = getHeroPosterUrl();
+
+  const { scrollY } = useScroll();
+  const scale = useTransform(scrollY, [0, 200], [1, 1.03]);
+
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0">
@@ -67,22 +90,41 @@ export default function HomeHero() {
           </motion.div>
         </div>
         <motion.div
+          style={{ scale }}
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: "easeOut", delay: 0.2 }}
           className="relative h-[420px] w-full max-w-xl overflow-hidden rounded-[32px] border border-black/10 shadow-[0_30px_80px_rgba(27,26,23,0.18)]"
         >
-          <Image
-            src="/images/hero.jpg"
-            alt="Bright Line signature imagery"
-            fill
-            priority
-            sizes="(min-width: 1024px) 520px, 100vw"
-            placeholder="blur"
-            blurDataURL={BLUR_DATA}
-            className="object-cover image-fade"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+          {videoUrl ? (
+            <>
+              <video
+                src={videoUrl}
+                poster={posterUrl ?? undefined}
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="absolute inset-0 h-full w-full object-cover"
+                aria-hidden
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+            </>
+          ) : (
+            <>
+              <Image
+                src="/images/hero.jpg"
+                alt="Bright Line signature imagery"
+                fill
+                priority
+                sizes="(min-width: 1024px) 520px, 100vw"
+                placeholder="blur"
+                blurDataURL={BLUR_DATA}
+                className="object-cover image-fade"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+            </>
+          )}
           <div className="absolute bottom-6 left-6 rounded-full border border-white/40 bg-white/80 px-5 py-3 text-xs uppercase tracking-[0.32em] text-black">
             2026 Portfolio
           </div>

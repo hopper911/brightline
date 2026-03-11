@@ -313,9 +313,14 @@ model ProjectMedia {
 }
 
 model Inquiry {
-  id        String   @id @default(cuid())
-  name      String
-  email     String
-  message   String
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  message     String
+  company     String?
+  projectType String?
+  budget      String?
+  location    String?
+  timeline    String?
+  createdAt   DateTime @default(now())
 }

@@ -17,6 +17,7 @@ export async function GET(req: Request) {
     const sectionParam = url.searchParams.get("section");
     const typeParam = url.searchParams.get("type");
     const projectIdParam = url.searchParams.get("projectId");
+    const searchParam = url.searchParams.get("search")?.trim().toLowerCase() ?? "";
 
     const whereSection: { section?: WorkSection | { in: WorkSection[] } } = {};
     if (sectionParam && isPillarSlug(sectionParam)) {
@@ -52,7 +53,7 @@ export async function GET(req: Request) {
       orderBy: [{ project: { sortOrder: "asc" } }, { sortOrder: "asc" }],
     });
 
-    const items = projectMedia.map((pm) => ({
+    let items = projectMedia.map((pm) => ({
       id: pm.media.id,
       kind: pm.media.kind,
       keyFull: pm.media.keyFull,
@@ -63,6 +64,16 @@ export async function GET(req: Request) {
       projectSlug: pm.project.slug,
       pillarSlug: SECTION_TO_PILLAR[pm.project.section],
     }));
+
+    if (searchParam) {
+      items = items.filter((item) => {
+        const key = item.keyFull ?? item.keyThumb ?? "";
+        const filename = key.split("/").pop() ?? "";
+        return (
+          key.toLowerCase().includes(searchParam) || filename.toLowerCase().includes(searchParam)
+        );
+      });
+    }
 
     const projects = await prisma.workProject.findMany({
       where: Object.keys(whereSection).length > 0 ? whereSection : undefined,

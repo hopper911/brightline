@@ -4,6 +4,11 @@ export type InquiryInput = {
   name: string;
   email: string;
   message: string;
+  company?: string;
+  projectType?: string;
+  budget?: string;
+  location?: string;
+  timeline?: string;
 };
 
 export async function createInquiry(data: InquiryInput) {
@@ -19,6 +24,19 @@ export async function notifyInquiry(data: InquiryInput): Promise<void> {
     return;
   }
 
+  const lines = [
+    `Name: ${data.name}`,
+    `Email: ${data.email}`,
+    ...(data.company ? [`Company: ${data.company}`] : []),
+    ...(data.projectType ? [`Project type: ${data.projectType}`] : []),
+    ...(data.budget ? [`Budget: ${data.budget}`] : []),
+    ...(data.location ? [`Location: ${data.location}`] : []),
+    ...(data.timeline ? [`Timeline: ${data.timeline}`] : []),
+    ``,
+    `Message:`,
+    data.message,
+  ];
+
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -30,13 +48,7 @@ export async function notifyInquiry(data: InquiryInput): Promise<void> {
         from,
         to: [to],
         subject: `[Bright Line] New inquiry from ${data.name}`,
-        text: [
-          `Name: ${data.name}`,
-          `Email: ${data.email}`,
-          ``,
-          `Message:`,
-          data.message,
-        ].join("\n"),
+        text: lines.join("\n"),
       }),
     });
 

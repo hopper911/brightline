@@ -10,6 +10,9 @@ export default function Footer() {
           <Link href="/contact?service=general" className="btn btn-primary">
             Start a Project
           </Link>
+          <Link href="/contact?intent=portfolio-pdf" className="btn btn-ghost">
+            Request Portfolio PDF
+          </Link>
           <a href={getMailtoLink()} className="nav-link hover:text-white">
             {BRAND.contact.email}
           </a>

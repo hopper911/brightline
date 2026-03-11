@@ -42,14 +42,16 @@ export default function AdminWorkPage() {
   const [projects, setProjects] = useState<WorkProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [pillarFilter, setPillarFilter] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const url = pillarFilter
-          ? `/api/admin/work-projects?pillar=${encodeURIComponent(pillarFilter)}`
-          : "/api/admin/work-projects";
+        const params = new URLSearchParams();
+        if (pillarFilter) params.set("pillar", pillarFilter);
+        if (search) params.set("search", search);
+        const url = `/api/admin/work-projects${params.toString() ? `?${params}` : ""}`;
         const res = await fetch(url);
         const data = (await res.json()) as { ok: boolean; projects?: WorkProject[]; error?: string };
         if (!res.ok) throw new Error(data.error ?? "Failed to load");
@@ -62,7 +64,7 @@ export default function AdminWorkPage() {
       }
     }
     void load();
-  }, [pillarFilter]);
+  }, [pillarFilter, search]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -77,6 +79,13 @@ export default function AdminWorkPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-4">
+        <input
+          type="search"
+          placeholder="Search by title…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="min-w-[180px] rounded border border-black/20 bg-white px-3 py-1.5 text-sm"
+        />
         <label className="flex items-center gap-2 text-sm text-black/70">
           Pillar:
           <select

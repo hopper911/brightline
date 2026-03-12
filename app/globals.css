@@ -156,6 +156,27 @@ img {
   opacity: 1;
 }
 
+/* Always-visible scrollbar for modals (e.g. Browse R2) */
+.r2-modal-scroll {
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.1);
+}
+.r2-modal-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.r2-modal-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+}
+.r2-modal-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 5px;
+}
+.r2-modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
 .heading-hover {
   letter-spacing: 0.02em;
   transition: letter-spacing var(--motion-med) ease;

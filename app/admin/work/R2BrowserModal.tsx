@@ -301,7 +301,7 @@ export default function R2BrowserModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-scroll p-4">
+        <div className="r2-modal-scroll min-h-0 max-h-[calc(90vh-140px)] flex-1 overflow-y-scroll p-4">
           {error && (
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <p className="text-sm text-red-400" role="alert">

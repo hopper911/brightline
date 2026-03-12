@@ -34,7 +34,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
-              "font-src 'self'",
+              "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
               "connect-src 'self' https://*.sentry.io https://*.ingest.sentry.io https://plausible.io wss://*.ingest.sentry.io https://api.resend.com",
               "frame-src 'self' https://www.youtube-nocookie.com",

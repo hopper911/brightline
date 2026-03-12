@@ -19,7 +19,8 @@
     "blpublish": "node scripts/blpublish.mjs",
     "publish:db": "node ../tools/publish.mjs",
     "sheet-publish": "node scripts/sheet-publish.mjs",
-    "upload-published": "node scripts/upload-published.mjs"
+    "upload-published": "node scripts/upload-published.mjs",
+    "watch:deploy": "node scripts/watch-deploy.mjs"
   },
   "dependencies": {
     "@aws-crypto/crc32c": "^5.2.0",

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hasAdminAccess } from "@/lib/admin-auth";
 import { randomBytes } from "crypto";
 import { hashAccessCode } from "@/lib/client-access";
 
@@ -13,8 +14,17 @@ export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const isAdmin = await hasAdminAccess();
+  if (!isAdmin) {
+    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+  }
   const { id } = await context.params;
-  const body = (await req.json()) as { expiresAt?: string };
+  let body: { expiresAt?: string } = {};
+  try {
+    body = (await req.json()) as { expiresAt?: string };
+  } catch {
+    // Empty or invalid body - use defaults
+  }
 
   const token = generateToken();
   const hashed = hashAccessCode(token);

@@ -45,6 +45,7 @@ export default function AdminGalleriesPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [items, setItems] = useState<Gallery[]>([]);
   const [lastGeneratedToken, setLastGeneratedToken] = useState<string | null>(null);
+  const [lastGeneratedTokenGalleryId, setLastGeneratedTokenGalleryId] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
 
   const slug = useMemo(() => slugify(title || "gallery"), [title]);
@@ -138,10 +139,20 @@ export default function AdminGalleriesPage() {
   async function generateToken(galleryId: string) {
     const res = await fetch(`/api/admin/galleries/${galleryId}/token`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
     });
     if (!res.ok) return;
-    const data = (await res.json()) as { token: string };
+    const data = (await res.json()) as { token?: string; error?: string };
+    if (!data.token) return;
     setLastGeneratedToken(data.token);
+    setLastGeneratedTokenGalleryId(galleryId);
+    // Refetch galleries so the new token appears in the list
+    const galleriesRes = await fetch("/api/admin/galleries");
+    if (galleriesRes.ok) {
+      const json = (await galleriesRes.json()) as { galleries: Gallery[] };
+      setItems(json.galleries || []);
+    }
   }
 
   async function revokeToken(galleryId: string, tokenId: string) {
@@ -328,7 +339,7 @@ export default function AdminGalleriesPage() {
                 ))}
               </div>
             ) : null}
-            {lastGeneratedToken ? (
+            {lastGeneratedToken && lastGeneratedTokenGalleryId === item.id ? (
               <div className="mt-3 rounded-xl border border-black/10 bg-white/70 px-3 py-2 text-xs">
                 New access code: <span className="font-semibold">{lastGeneratedToken}</span>
               </div>

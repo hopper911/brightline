@@ -145,7 +145,7 @@ export default async function WorkProjectPage({
               src={heroImageUrl}
               alt={hero?.alt ?? project.title}
               fill
-              sizes="(min-width: 640px) 960px, 100vw"
+              sizes="(min-width: 1280px) 1152px, (min-width: 1024px) calc(100vw - 80px), 100vw"
               placeholder="blur"
               blurDataURL={BLUR_DATA}
               className="object-cover image-fade"

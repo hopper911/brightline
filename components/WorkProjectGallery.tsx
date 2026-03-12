@@ -160,7 +160,7 @@ export default function WorkProjectGallery({
                         src={imgSrc}
                         alt={m.alt ?? projectTitle}
                         fill
-                        sizes="(min-width: 640px) 50vw, 100vw"
+                        sizes="(min-width: 1280px) 576px, (min-width: 640px) calc(50vw - 40px), 100vw"
                         placeholder="blur"
                         blurDataURL={BLUR_DATA}
                         className="object-cover image-fade"

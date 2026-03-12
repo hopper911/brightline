@@ -125,6 +125,22 @@ export default function AdminWorkEditPage() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [r2BrowserOpen, setR2BrowserOpen] = useState(false);
+  const [homepageFeaturedMediaId, setHomepageFeaturedMediaId] = useState<string | null>(null);
+
+  const loadHomepageFeatured = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/site/homepage-featured");
+      const data = (await res.json()) as { ok: boolean; mediaId?: string | null };
+      if (data.ok && data.mediaId) setHomepageFeaturedMediaId(data.mediaId);
+      else setHomepageFeaturedMediaId(null);
+    } catch {
+      setHomepageFeaturedMediaId(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHomepageFeatured();
+  }, [loadHomepageFeatured]);
 
   const loadProject = useCallback(async () => {
     if (id === "new") return;
@@ -347,6 +363,21 @@ export default function AdminWorkEditPage() {
         body: JSON.stringify({ heroMediaId: mediaId }),
       });
       await loadProject();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function setAsHomepageFeatured(mediaId: string) {
+    try {
+      const res = await fetch("/api/admin/site/homepage-featured", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaId }),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to set");
+      setHomepageFeaturedMediaId(mediaId);
     } catch (e) {
       console.error(e);
     }
@@ -700,6 +731,11 @@ export default function AdminWorkEditPage() {
                     {isHero && (
                       <span className="text-xs text-black/50">Hero</span>
                     )}
+                    {homepageFeaturedMediaId === pm.media.id && (
+                      <span className="rounded bg-black/10 px-1.5 py-0.5 text-xs text-black/60">
+                        Featured
+                      </span>
+                    )}
                     {isVideo && (
                       <span className="rounded bg-black/10 px-1.5 py-0.5 text-xs text-black/60">
                         Video
@@ -715,6 +751,15 @@ export default function AdminWorkEditPage() {
                       className="btn btn-ghost text-xs"
                     >
                       Set hero
+                    </button>
+                  )}
+                  {!isVideo && (
+                    <button
+                      type="button"
+                      onClick={() => setAsHomepageFeatured(pm.media.id)}
+                      className="btn btn-ghost text-xs"
+                    >
+                      {homepageFeaturedMediaId === pm.media.id ? "Featured" : "Set as homepage featured"}
                     </button>
                   )}
                   <button

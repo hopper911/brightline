@@ -8,6 +8,7 @@ import Testimonials from "@/components/testimonials/Testimonials";
 import { BRAND, getUrl } from "@/lib/config/brand";
 import { PILLARS } from "@/lib/portfolioPillars";
 import { getFeaturedHeroForSection } from "@/lib/queries/work";
+import { getHomepageFeaturedMedia } from "@/lib/queries/site";
 import { getPublicR2Url } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
@@ -95,6 +96,19 @@ export default async function Page() {
     }));
   }
 
+  let featuredImage: { url: string; alt: string } | null = null;
+  try {
+    const media = await getHomepageFeaturedMedia();
+    if (media) {
+      featuredImage = {
+        url: getPublicR2Url(media.keyFull),
+        alt: media.alt ?? "Featured work",
+      };
+    }
+  } catch {
+    featuredImage = null;
+  }
+
   return (
     <div className="page-shell min-h-screen">
       <div className="soft-grid">
@@ -104,7 +118,7 @@ export default async function Page() {
             __html: JSON.stringify(localBusinessSchema),
           }}
         />
-        <HomeHero />
+        <HomeHero featuredImage={featuredImage} />
 
         <Reveal
           id="work"

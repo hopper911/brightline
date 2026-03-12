@@ -1,11 +1,16 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import MagneticButton from "./MagneticButton";
 import PrimaryCTA from "./PrimaryCTA";
 import { BRAND } from "@/lib/config/brand";
 import { getPublicR2Url } from "@/lib/r2";
+
+type HomeHeroProps = {
+  featuredImage?: { url: string; alt: string } | null;
+};
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
@@ -26,7 +31,7 @@ function getHeroPosterUrl(): string | null {
   return key ? getPublicR2Url(key) : null;
 }
 
-export default function HomeHero() {
+export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
   const videoUrl = getHeroVideoUrl();
   const posterUrl = getHeroPosterUrl();
 
@@ -125,9 +130,20 @@ export default function HomeHero() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             </>
           )}
-          <div className="absolute bottom-6 left-6 rounded-full border border-white/40 bg-white/80 px-5 py-3 text-xs uppercase tracking-[0.32em] text-black">
-            2026 Portfolio
-          </div>
+          {featuredImage ? (
+            <Link
+              href="/work"
+              className="absolute bottom-6 left-6 block h-20 w-20 overflow-hidden rounded-xl border border-white/40 shadow-lg ring-1 ring-black/5 transition-transform hover:scale-[1.02]"
+            >
+              <Image
+                src={featuredImage.url}
+                alt={featuredImage.alt}
+                fill
+                sizes="80px"
+                className="object-cover"
+              />
+            </Link>
+          ) : null}
         </motion.div>
       </div>
     </section>

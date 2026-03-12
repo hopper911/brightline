@@ -9,7 +9,7 @@ export const BRAND = {
   },
   contact: {
     email: "hello@brightlinephotography.co",
-    locations: ["New York", "Los Angeles"],
+    locations: ["New York City", "New Jersey", "Tri-State Area"],
   },
   social: {
     instagram: "",

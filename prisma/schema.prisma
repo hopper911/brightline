@@ -312,6 +312,12 @@ model ProjectMedia {
   @@index([projectId, sortOrder])
 }
 
+model SiteSetting {
+  key       String   @id
+  value     String?
+  updatedAt DateTime @updatedAt
+}
+
 model Inquiry {
   id          String   @id @default(cuid())
   name        String

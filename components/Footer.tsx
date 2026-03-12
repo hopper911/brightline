@@ -10,9 +10,6 @@ export default function Footer() {
           <Link href="/contact?service=general" className="btn btn-primary">
             Contact
           </Link>
-          <Link href="/contact?intent=portfolio-pdf" className="btn btn-ghost">
-            Request Portfolio PDF
-          </Link>
           <Link href="/client" className="btn btn-ghost">
             Client Access
           </Link>

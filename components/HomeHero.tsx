@@ -105,7 +105,7 @@ export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
             <>
               <video
                 src={videoUrl}
-                poster={posterUrl ?? undefined}
+                poster={posterUrl ?? featuredImage?.url ?? undefined}
                 autoPlay
                 muted
                 loop
@@ -114,7 +114,38 @@ export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
                 aria-hidden
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              {featuredImage ? (
+                <Link
+                  href="/work"
+                  className="absolute bottom-6 left-6 block h-20 w-20 overflow-hidden rounded-xl border border-white/40 shadow-lg ring-1 ring-black/5 transition-transform hover:scale-[1.02]"
+                  aria-label="Featured work"
+                >
+                  <Image
+                    src={featuredImage.url}
+                    alt={featuredImage.alt}
+                    fill
+                    sizes="80px"
+                    className="object-cover"
+                  />
+                </Link>
+              ) : null}
             </>
+          ) : featuredImage ? (
+            <Link
+              href="/work"
+              className="absolute inset-0 block"
+              aria-label="Featured work"
+            >
+              <Image
+                src={featuredImage.url}
+                alt={featuredImage.alt}
+                fill
+                priority
+                sizes="(min-width: 1024px) 520px, 100vw"
+                className="object-cover image-fade"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+            </Link>
           ) : (
             <>
               <Image
@@ -130,20 +161,6 @@ export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             </>
           )}
-          {featuredImage ? (
-            <Link
-              href="/work"
-              className="absolute bottom-6 left-6 block h-20 w-20 overflow-hidden rounded-xl border border-white/40 shadow-lg ring-1 ring-black/5 transition-transform hover:scale-[1.02]"
-            >
-              <Image
-                src={featuredImage.url}
-                alt={featuredImage.alt}
-                fill
-                sizes="80px"
-                className="object-cover"
-              />
-            </Link>
-          ) : null}
         </motion.div>
       </div>
     </section>

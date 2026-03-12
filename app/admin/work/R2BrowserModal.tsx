@@ -16,6 +16,13 @@ function getImageUrl(key: string): string {
 const MEDIA_EXT = /\.(jpg|jpeg|png|webp|gif|mp4|webm)$/i;
 const VIDEO_EXT = /\.(mp4|webm)$/i;
 
+/** Maps portfolio pillar slugs to the 3-letter R2 folder names */
+const PILLAR_TO_R2_FOLDER: Record<string, string> = {
+  architecture: "arc",
+  campaign: "cam",
+  corporate: "cor",
+};
+
 function isVideoKey(key: string): boolean {
   return VIDEO_EXT.test(key);
 }
@@ -69,11 +76,13 @@ export default function R2BrowserModal({
     details?: Record<string, unknown>;
   } | null>(null);
 
+  const r2Folder = PILLAR_TO_R2_FOLDER[pillar] ?? pillar;
+
   const effectivePrefix =
     source === "portfolio"
       ? pillar === "all"
         ? "portfolio"
-        : `portfolio/${pillar}`
+        : `portfolio/${r2Folder}`
       : source === "project" && projectId
         ? projectSlug
           ? `portfolio/${pillarSlug}/${projectSlug}`
@@ -292,7 +301,7 @@ export default function R2BrowserModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {error && (
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <p className="text-sm text-red-400" role="alert">

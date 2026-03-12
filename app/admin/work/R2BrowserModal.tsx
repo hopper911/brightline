@@ -235,7 +235,7 @@ export default function R2BrowserModal({
       aria-modal="true"
       aria-labelledby="r2-browser-title"
     >
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-white/10 bg-[#0b0e12] shadow-xl">
+      <div className="flex h-[90vh] max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0b0e12] shadow-xl">
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
           <h2 id="r2-browser-title" className="font-display text-lg text-white">
             Browse R2

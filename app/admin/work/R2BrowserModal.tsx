@@ -77,31 +77,58 @@ export default function R2BrowserModal({
   } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollState, setScrollState] = useState({ top: 0, height: 0, scrollHeight: 0, clientHeight: 0 });
 
-  // #region agent log
   useEffect(() => {
-    if (!isOpen || loading || keys.length === 0) return;
+    const el = scrollRef.current;
+    if (!el || !isOpen) return;
+    const update = () => {
+      setScrollState({
+        top: el.scrollTop,
+        height: el.clientHeight,
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight,
+      });
+    };
+    update();
+    el.addEventListener("scroll", update);
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [isOpen, loading, keys]);
+
+  const handleScrollbarTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el || scrollState.scrollHeight <= scrollState.clientHeight) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientY - rect.top) / rect.height;
+    el.scrollTop = ratio * (scrollState.scrollHeight - scrollState.clientHeight);
+  };
+
+  const handleScrollbarThumbMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
     const el = scrollRef.current;
     if (!el) return;
-    const measure = () => {
-      const cs = typeof getComputedStyle !== "undefined" ? getComputedStyle(el) : null;
-      const data = {
-        clientHeight: el.clientHeight,
-        scrollHeight: el.scrollHeight,
-        offsetHeight: el.offsetHeight,
-        hasOverflow: el.scrollHeight > el.clientHeight,
-        overflowY: cs?.overflowY ?? "N/A",
-        overflowX: cs?.overflowX ?? "N/A",
-        overflow: cs?.overflow ?? "N/A",
-        className: el.className,
-        keysCount: keys.length,
-      };
-      console.log("[DEBUG r2-scroll]", JSON.stringify(data));
+    const startY = e.clientY;
+    const startTop = el.scrollTop;
+    const move = (ev: MouseEvent) => {
+      const trackH = scrollState.height;
+      const thumbH = Math.max(20, (trackH * scrollState.clientHeight) / scrollState.scrollHeight);
+      const maxScroll = scrollState.scrollHeight - scrollState.clientHeight;
+      const delta = ev.clientY - startY;
+      const scrollDelta = (delta / (trackH - thumbH)) * maxScroll;
+      el.scrollTop = Math.max(0, Math.min(maxScroll, startTop + scrollDelta));
     };
-    const id = requestAnimationFrame(() => requestAnimationFrame(measure));
-    return () => cancelAnimationFrame(id);
-  }, [isOpen, loading, keys.length]);
-  // #endregion
+    const up = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  };
 
   const r2Folder = PILLAR_TO_R2_FOLDER[pillar] ?? pillar;
 
@@ -328,8 +355,11 @@ export default function R2BrowserModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <div ref={scrollRef} className="r2-modal-scroll h-[50vh] overflow-x-hidden overflow-y-scroll p-4">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <div
+            ref={scrollRef}
+            className="r2-modal-scroll h-[50vh] min-h-0 flex-1 overflow-x-hidden overflow-y-scroll p-4"
+          >
             {error && (
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <p className="text-sm text-red-400" role="alert">
@@ -411,6 +441,43 @@ export default function R2BrowserModal({
             </div>
           ) : null}
           </div>
+          {scrollState.scrollHeight > scrollState.clientHeight ? (
+            <div
+              className="relative flex h-[50vh] w-3 shrink-0 flex-col py-2 pr-2"
+              role="scrollbar"
+              aria-valuenow={
+                scrollState.clientHeight > 0 && scrollState.scrollHeight > scrollState.clientHeight
+                  ? Math.round(
+                      (scrollState.top / (scrollState.scrollHeight - scrollState.clientHeight)) * 100
+                    )
+                  : 0
+              }
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className="absolute inset-x-0 top-2 bottom-2 cursor-pointer rounded-full bg-white/10 transition-colors hover:bg-white/20"
+                onClick={handleScrollbarTrackClick}
+              />
+              <div
+                className="absolute left-0.5 right-0.5 rounded-full bg-white/45 transition-colors hover:bg-white/65"
+                style={{
+                  height: `${Math.max(
+                    24,
+                    (scrollState.height * scrollState.clientHeight) / scrollState.scrollHeight
+                  )}px`,
+                  top: `${
+                    scrollState.scrollHeight > scrollState.clientHeight
+                      ? 8 +
+                        (scrollState.top / (scrollState.scrollHeight - scrollState.clientHeight)) *
+                          (scrollState.height - 16 - Math.max(24, (scrollState.height * scrollState.clientHeight) / scrollState.scrollHeight))
+                      : 8
+                  }px`,
+                }}
+                onMouseDown={handleScrollbarThumbMouseDown}
+              />
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-white/10 px-4 py-3">

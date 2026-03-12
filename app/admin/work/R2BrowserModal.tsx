@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PILLAR_SLUGS, PILLARS } from "@/lib/portfolioPillars";
 
 const R2_BASE =
@@ -75,6 +75,43 @@ export default function R2BrowserModal({
     code?: string;
     details?: Record<string, unknown>;
   } | null>(null);
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // #region agent log
+  useEffect(() => {
+    if (!isOpen || loading || keys.length === 0) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => {
+      const cs = typeof getComputedStyle !== "undefined" ? getComputedStyle(el) : null;
+      const data = {
+        clientHeight: el.clientHeight,
+        scrollHeight: el.scrollHeight,
+        offsetHeight: el.offsetHeight,
+        hasOverflow: el.scrollHeight > el.clientHeight,
+        overflowY: cs?.overflowY ?? "N/A",
+        overflowX: cs?.overflowX ?? "N/A",
+        overflow: cs?.overflow ?? "N/A",
+        className: el.className,
+        keysCount: keys.length,
+      };
+      fetch("http://127.0.0.1:7242/ingest/87b19e1b-4972-445b-9274-7007d1226ee3", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e614df" },
+        body: JSON.stringify({
+          sessionId: "e614df",
+          location: "R2BrowserModal.tsx:scroll-measure",
+          message: "Browse R2 scroll container",
+          data,
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+    };
+    const id = requestAnimationFrame(() => requestAnimationFrame(measure));
+    return () => cancelAnimationFrame(id);
+  }, [isOpen, loading, keys.length]);
+  // #endregion
 
   const r2Folder = PILLAR_TO_R2_FOLDER[pillar] ?? pillar;
 
@@ -302,7 +339,7 @@ export default function R2BrowserModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden">
-          <div className="r2-modal-scroll h-[50vh] overflow-x-hidden overflow-y-scroll p-4">
+          <div ref={scrollRef} className="r2-modal-scroll h-[50vh] overflow-x-hidden overflow-y-scroll p-4">
             {error && (
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <p className="text-sm text-red-400" role="alert">

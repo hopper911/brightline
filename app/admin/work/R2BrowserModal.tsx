@@ -96,18 +96,7 @@ export default function R2BrowserModal({
         className: el.className,
         keysCount: keys.length,
       };
-      console.log("[DEBUG r2-scroll]", data);
-      fetch("http://127.0.0.1:7242/ingest/87b19e1b-4972-445b-9274-7007d1226ee3", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "e614df" },
-        body: JSON.stringify({
-          sessionId: "e614df",
-          location: "R2BrowserModal.tsx:scroll-measure",
-          message: "Browse R2 scroll container",
-          data,
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+      console.log("[DEBUG r2-scroll]", JSON.stringify(data));
     };
     const id = requestAnimationFrame(() => requestAnimationFrame(measure));
     return () => cancelAnimationFrame(id);

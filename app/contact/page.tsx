@@ -144,7 +144,7 @@ export default function ContactPage() {
             >
               <option value="">Select...</option>
               <option value="architecture">Architecture & Real Estate</option>
-              <option value="campaign">Campaign & Advertising</option>
+              <option value="campaign">Advertising & Campaign</option>
               <option value="corporate">Corporate & Executive</option>
               <option value="portfolio-pdf">Portfolio PDF request</option>
               <option value="other">Other</option>

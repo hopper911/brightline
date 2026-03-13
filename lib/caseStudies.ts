@@ -36,7 +36,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     slug: "meridian-campaign",
     title: "Meridian Studio Campaign",
     client: "Meridian Studio",
-    industry: "Campaign & Advertising",
+    industry: "Advertising & Campaign",
     challenge: [
       "Campaign needed to feel elevated and travel across digital and print.",
       "Tight timeline with multiple looks in one location.",

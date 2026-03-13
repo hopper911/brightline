@@ -74,7 +74,7 @@ export default function AdminWorkPage() {
         </p>
         <h1 className="font-display text-3xl text-black">Work projects</h1>
         <p className="text-sm text-black/70">
-          Manage projects on /work (Architecture & Real Estate, Campaign & Advertising, Corporate & Executive).
+          Manage projects on /work (Architecture & Real Estate, Advertising & Campaign, Corporate & Executive).
         </p>
       </div>
 

@@ -24,7 +24,7 @@ export const PILLARS: PillarConfig[] = [
   },
   {
     slug: "campaign",
-    label: "Campaign & Advertising",
+    label: "Advertising & Campaign",
     description:
       "Editorial campaigns, brand storytelling, and cultural projects for agencies and brands.",
     sections: ["ACD", "CUL"],

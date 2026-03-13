@@ -24,6 +24,9 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   metadataBase: new URL(BRAND.url),
+  verification: {
+    google: "Z7v0cfsgPY26PiHlwc4YeKDnA_rD7psqd-QxXMo6WIo",
+  },
   alternates: {
     canonical: "/",
   },

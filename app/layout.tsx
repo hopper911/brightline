@@ -24,6 +24,9 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   metadataBase: new URL(BRAND.url),
+  alternates: {
+    canonical: "/",
+  },
   title: BRAND.name,
   description: BRAND.metadata.description,
   openGraph: {

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import Reveal from "@/components/Reveal";
 import VideoEmbed from "@/components/VideoEmbed";
 import WorkProjectGallery from "@/components/WorkProjectGallery";
+import { normalizeProjectSlug } from "@/lib/slugify";
 import { getPillarBySlug, isPillarSlug } from "@/lib/portfolioPillars";
 import { getProjectByPillarAndSlug } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
@@ -24,9 +25,10 @@ export async function generateMetadata({
   if (!isPillarSlug(section)) {
     return { title: "Project · Bright Line Photography" };
   }
+  const slug = normalizeProjectSlug(projectSlug);
   let proj;
   try {
-    proj = await getProjectByPillarAndSlug(section, projectSlug);
+    proj = await getProjectByPillarAndSlug(section, slug);
   } catch {
     return { title: "Work · Bright Line Photography" };
   }
@@ -37,7 +39,7 @@ export async function generateMetadata({
   const title = `${proj.title} · Bright Line Photography`;
   const description =
     proj.summary ?? proj.description ?? `${proj.title} photography project.`;
-  const canonicalUrl = `/work/${section}/${projectSlug}`;
+  const canonicalUrl = `/work/${section}/${proj.slug}`;
 
   let ogImageUrl = `${BRAND.url}/og-image.svg`;
   const hero = proj.heroMedia;
@@ -94,9 +96,10 @@ export default async function WorkProjectPage({
   const pillar = getPillarBySlug(pillarParam);
   if (!pillar) notFound();
 
+  const slug = normalizeProjectSlug(projectSlug);
   let project;
   try {
-    project = await getProjectByPillarAndSlug(pillarParam, projectSlug);
+    project = await getProjectByPillarAndSlug(pillarParam, slug);
   } catch {
     return <WorkUpdatingFallback />;
   }

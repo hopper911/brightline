@@ -19,8 +19,8 @@ export default function Error({
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-6">
       <div className="max-w-md text-center">
-        <h1 className="font-display text-2xl text-black">Something went wrong</h1>
-        <p className="mt-4 text-sm text-black/70">
+        <h1 className="font-display text-2xl text-white">Something went wrong</h1>
+        <p className="mt-4 text-sm text-white/70">
           We encountered an error loading this page. Please try again.
         </p>
         {process.env.NODE_ENV === "development" && error?.message ? (

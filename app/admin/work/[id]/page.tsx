@@ -354,7 +354,7 @@ export default function AdminWorkEditPage() {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false);
   }
 
-  async function setAsHero(mediaId: string) {
+  async function setAsHero(mediaId: string | null) {
     setHeroMediaId(mediaId);
     try {
       await fetch(`/api/admin/work-projects/${id}`, {
@@ -599,8 +599,55 @@ export default function AdminWorkEditPage() {
       <div className="mt-10 rounded-xl border border-black/10 bg-white p-6">
         <h2 className="text-sm font-semibold text-black/80">Media</h2>
         <p className="mt-1 text-xs text-black/50">
-          Hero: choose one below or leave none. Drag to reorder.
+          Hero: choose one below or leave none. Drag to reorder. Hero is hidden from the gallery.
         </p>
+
+        {heroMediaId && (() => {
+          const heroPm = orderedMedia.find((pm) => pm.media.id === heroMediaId);
+          if (!heroPm) return null;
+          const heroSrc = mediaUrl(heroPm.media.keyThumb ?? heroPm.media.keyFull);
+          const isVideo = heroPm.media.kind === "VIDEO";
+          return (
+            <div className="mt-4 flex items-center gap-4 rounded-lg border border-black/10 bg-black/[0.02] p-3">
+              <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded bg-black/10">
+                {heroSrc ? (
+                  isVideo ? (
+                    <video
+                      src={mediaUrl(heroPm.media.keyFull)}
+                      className="h-full w-full object-cover"
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  ) : (
+                    <img
+                      src={heroSrc}
+                      alt={heroPm.media.alt ?? ""}
+                      className="h-full w-full object-cover"
+                    />
+                  )
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-xs text-black/50">
+                    No preview
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-black/60">Hero image</p>
+                <p className="truncate text-sm font-mono text-black/70">
+                  {heroPm.media.keyFull || "—"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAsHero(null)}
+                className="btn btn-ghost text-xs"
+              >
+                Clear hero
+              </button>
+            </div>
+          );
+        })()}
 
         <div
           onDrop={handleDrop}
@@ -671,7 +718,9 @@ export default function AdminWorkEditPage() {
           className="mt-6 space-y-3"
           onDragEnd={handleDragEnd}
         >
-          {orderedMedia.map((pm) => {
+          {orderedMedia
+            .filter((pm) => pm.media.id !== heroMediaId)
+            .map((pm) => {
             const src = mediaUrl(pm.media.keyThumb ?? pm.media.keyFull);
             const isHero = heroMediaId === pm.media.id;
             const isVideo = pm.media.kind === "VIDEO";

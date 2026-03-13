@@ -43,6 +43,7 @@ function getAspectRatioStyle(
 type WorkProjectGalleryProps = {
   projectTitle: string;
   media: ProjectMediaItem[];
+  heroMediaId?: string | null;
 };
 
 const BLUR_DATA =
@@ -87,11 +88,16 @@ function R2VideoBlock({
 export default function WorkProjectGallery({
   projectTitle,
   media,
+  heroMediaId,
 }: WorkProjectGalleryProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  const imageItems = media.filter((item) => {
+  const galleryMedia = heroMediaId
+    ? media.filter((item) => item.media.id !== heroMediaId)
+    : media;
+
+  const imageItems = galleryMedia.filter((item) => {
     if (item.media.kind !== "IMAGE" || (!item.media.keyFull && !item.media.keyThumb)) {
       return false;
     }
@@ -111,7 +117,7 @@ export default function WorkProjectGallery({
   return (
     <>
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
-        {media.map(({ media: m, sortOrder }) =>
+        {galleryMedia.map(({ media: m, sortOrder }) =>
           m.kind === "VIDEO" && m.providerId ? (
             <Reveal key={`${m.id}-${sortOrder}`}>
               <VideoEmbed

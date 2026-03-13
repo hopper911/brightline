@@ -187,6 +187,7 @@ export default async function WorkProjectPage({
           <WorkProjectGallery
             projectTitle={project.title}
             media={project.media}
+            heroMediaId={project.heroMedia?.id ?? undefined}
           />
         </div>
       )}

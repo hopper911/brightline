@@ -1,6 +1,6 @@
 export const BRAND = {
   name: "Bright Line Photography",
-  url: "https://brightlinephotography.co",
+  url: "https://brightlinephotography.com",
   metadata: {
     description:
       "Commercial real estate, architecture, and fashion photography. Editorial imagery for brands that want quiet luxury and commercial clarity.",
@@ -8,7 +8,7 @@ export const BRAND = {
     twitterCard: "summary_large_image",
   },
   contact: {
-    email: "hello@brightlinephotography.co",
+    email: "hello@brightlinephotography.com",
     locations: ["New York City", "New Jersey", "Tri-State Area"],
   },
   social: {

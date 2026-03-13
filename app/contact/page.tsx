@@ -245,7 +245,7 @@ export default function ContactPage() {
             <p className="mt-2 text-sm opacity-80">
               Email to discuss timelines, scope, and usage needs.
             </p>
-            <p className="mt-4 text-sm">hello@brightlinephotography.co</p>
+            <p className="mt-4 text-sm">hello@brightlinephotography.com</p>
             <Link
               className="hover-border mt-6 inline-flex items-center justify-center rounded border border-white/25 px-6 py-3 text-xs uppercase tracking-widest hover:border-white/50"
               href="/work"

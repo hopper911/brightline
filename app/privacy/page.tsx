@@ -37,8 +37,8 @@ export default function PrivacyPage() {
           <h2 className="text-base font-semibold text-white">Contact</h2>
           <p>
             For questions about this policy, contact us at{" "}
-            <a href="mailto:hello@brightlinephotography.co" className="text-white underline hover:no-underline">
-              hello@brightlinephotography.co
+            <a href="mailto:hello@brightlinephotography.com" className="text-white underline hover:no-underline">
+              hello@brightlinephotography.com
             </a>.
           </p>
         </section>

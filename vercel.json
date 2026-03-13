@@ -3,14 +3,20 @@
   "redirects": [
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": "brightlinephotography.com" }],
-      "destination": "https://brightlinephotography.co/:path*",
+      "has": [{ "type": "host", "value": "www.brightlinephotography.com" }],
+      "destination": "https://brightlinephotography.com/:path*",
       "permanent": true
     },
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": "www.brightlinephotography.com" }],
-      "destination": "https://brightlinephotography.co/:path*",
+      "has": [{ "type": "host", "value": "brightlinephotography.co" }],
+      "destination": "https://brightlinephotography.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.brightlinephotography.co" }],
+      "destination": "https://brightlinephotography.com/:path*",
       "permanent": true
     }
   ]

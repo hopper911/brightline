@@ -11,6 +11,10 @@ import { getProjectByPillarAndSlug } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
 import { BRAND } from "@/lib/config/brand";
 import { PILLAR_CASE_STUDY_DEFAULTS } from "@/lib/pillarCaseStudyDefaults";
+import {
+  PILLAR_TO_SEO_LINK_PHRASE,
+  PILLAR_TO_SEO_SERVICE_URL,
+} from "@/lib/pillarToSeoServiceUrl";
 import { PILLAR_TO_SERVICE_SLUGS } from "@/lib/pillarToServices";
 import { services } from "@/app/services/data";
 
@@ -324,36 +328,45 @@ export default async function WorkProjectPage({
           </Reveal>
           <WorkProjectGallery
             projectTitle={project.title}
+            projectLocation={project.location}
             media={project.media}
             heroMediaId={project.heroMedia?.id ?? undefined}
           />
         </div>
       )}
 
-      {relatedServices.length > 0 && (
-        <Reveal className="mt-12">
-          <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
-            <p className="section-kicker">Related services</p>
-            <p className="mt-2 text-sm text-white/70">
-              Looking for similar photography in your area?
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {relatedServices.map((svc) => (
-                <Link
-                  key={svc.slug}
-                  href={`/services/${svc.slug}`}
-                  className="btn btn-ghost text-white/80 hover:text-white"
-                >
-                  {svc.title}
-                </Link>
-              ))}
-              <Link href="/contact" className="btn btn-ghost text-white/80 hover:text-white">
-                Contact
+      <Reveal className="mt-12">
+        <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
+          <p className="section-kicker">Related services</p>
+          <p className="mt-2 text-sm text-white/70">
+            This project is part of our{" "}
+            <Link
+              href={PILLAR_TO_SEO_SERVICE_URL[pillar.slug]}
+              className="text-white underline hover:no-underline"
+            >
+              {PILLAR_TO_SEO_LINK_PHRASE[pillar.slug]}
+            </Link>
+            .{" "}
+            {relatedServices.length > 0
+              ? "Looking for similar photography in your area?"
+              : null}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {relatedServices.map((svc) => (
+              <Link
+                key={svc.slug}
+                href={`/services/${svc.slug}`}
+                className="btn btn-ghost text-white/80 hover:text-white"
+              >
+                {svc.title}
               </Link>
-            </div>
+            ))}
+            <Link href="/contact" className="btn btn-ghost text-white/80 hover:text-white">
+              Contact
+            </Link>
           </div>
-        </Reveal>
-      )}
+        </div>
+      </Reveal>
 
       <Reveal className="mt-12">
         <div className="rounded-2xl border border-white/10 bg-black/60 p-6">

@@ -42,6 +42,7 @@ function getAspectRatioStyle(
 
 type WorkProjectGalleryProps = {
   projectTitle: string;
+  projectLocation?: string | null;
   media: ProjectMediaItem[];
   heroMediaId?: string | null;
 };
@@ -85,8 +86,20 @@ function R2VideoBlock({
   );
 }
 
+function getFallbackAlt(
+  projectTitle: string,
+  projectLocation: string | null | undefined,
+  imageIndex: number
+): string {
+  const base = projectLocation
+    ? `${projectTitle} in ${projectLocation}`
+    : projectTitle;
+  return `${base} — image ${imageIndex}`;
+}
+
 export default function WorkProjectGallery({
   projectTitle,
+  projectLocation,
   media,
   heroMediaId,
 }: WorkProjectGalleryProps) {
@@ -110,7 +123,7 @@ export default function WorkProjectGallery({
       const key = item.media.keyFull ?? item.media.keyThumb ?? "";
       const src = getPublicR2Url(key);
       if (!src || (!src.startsWith("http") && !src.startsWith("/"))) return null;
-      const fallbackAlt = `${projectTitle} — image ${idx + 1}`;
+      const fallbackAlt = getFallbackAlt(projectTitle, projectLocation, idx + 1);
       return { src, alt: item.media.alt ?? fallbackAlt };
     })
     .filter((s): s is { src: string; alt: string } => s !== null);
@@ -124,7 +137,11 @@ export default function WorkProjectGallery({
             .filter((x) => x.media.kind === "IMAGE").length - 1;
           const fallbackAlt =
             m.kind === "IMAGE"
-              ? `${projectTitle} — image ${imageIdx >= 0 ? imageIdx + 1 : 1}`
+              ? getFallbackAlt(
+                  projectTitle,
+                  projectLocation,
+                  imageIdx >= 0 ? imageIdx + 1 : 1
+                )
               : projectTitle;
           const altText = m.alt ?? fallbackAlt;
           return m.kind === "VIDEO" && m.providerId ? (

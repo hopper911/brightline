@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { services } from "./services/data";
 import { BRAND } from "@/lib/config/brand";
+import { SEO_SERVICE_SLUGS } from "@/lib/seoServicePages";
 import { PILLAR_SLUGS, getPillarBySlug } from "@/lib/portfolioPillars";
 import { CASE_STUDIES } from "@/lib/caseStudies";
 import { getPublishedProjectsBySections } from "@/lib/queries/work";
@@ -63,8 +64,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.75,
   }));
 
+  const seoServiceRoutes = SEO_SERVICE_SLUGS.map((slug) => ({
+    url: `${baseUrl}/${slug}`,
+    lastModified: now,
+    priority: 0.85,
+  }));
+
   return [
     ...routes,
+    ...seoServiceRoutes,
     ...serviceRoutes,
     ...workPillarRoutes,
     ...workProjectRoutes,

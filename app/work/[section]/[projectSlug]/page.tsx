@@ -10,6 +10,9 @@ import { getPillarBySlug, isPillarSlug } from "@/lib/portfolioPillars";
 import { getProjectByPillarAndSlug } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
 import { BRAND } from "@/lib/config/brand";
+import { PILLAR_CASE_STUDY_DEFAULTS } from "@/lib/pillarCaseStudyDefaults";
+import { PILLAR_TO_SERVICE_SLUGS } from "@/lib/pillarToServices";
+import { services } from "@/app/services/data";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +39,20 @@ export async function generateMetadata({
     return { title: "Project · Bright Line Photography" };
   }
 
-  const title = `${proj.title} · Bright Line Photography`;
+  const pillar = getPillarBySlug(section);
+  const defaults = pillar ? PILLAR_CASE_STUDY_DEFAULTS[pillar.slug] : null;
+  const servicePhrase = defaults?.serviceTypePhrase ?? "Photographer";
+  const locationPart = proj.location ? ` in ${proj.location}` : "";
+
+  const title = proj.seoTitle
+    ? `${proj.seoTitle} | ${BRAND.name}`
+    : `${proj.title} | ${servicePhrase}${locationPart} | ${BRAND.name}`;
   const description =
-    proj.summary ?? proj.description ?? `${proj.title} photography project.`;
-  const canonicalUrl = `/work/${section}/${proj.slug}`;
+    proj.metaDescription ??
+    proj.summary ??
+    proj.description ??
+    `${proj.title} photography project.`;
+  const canonicalUrl = `${BRAND.url}/work/${section}/${proj.slug}`;
 
   let ogImageUrl = `${BRAND.url}/og-image.svg`;
   const hero = proj.heroMedia;
@@ -56,7 +69,7 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      url: `${BRAND.url}${canonicalUrl}`,
+      url: canonicalUrl,
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: proj.title }],
     },
     twitter: {
@@ -115,8 +128,50 @@ export default async function WorkProjectPage({
   const heroVideoId =
     hero?.kind === "VIDEO" && hero.providerId ? hero.providerId : null;
 
+  const defaults = PILLAR_CASE_STUDY_DEFAULTS[pillar.slug];
+  const ctaCopy = project.ctaCopy ?? defaults.ctaCopy;
+  const whoIsThisFor = project.whoIsThisFor ?? defaults.whoIsThisFor;
+
+  const serviceSlugs = PILLAR_TO_SERVICE_SLUGS[pillar.slug] ?? [];
+  const relatedServices = serviceSlugs
+    .map((s) => services.find((svc) => svc.slug === s))
+    .filter(Boolean) as typeof services;
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Work",
+        item: `${BRAND.url}/work`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: pillar.label,
+        item: `${BRAND.url}/work/${pillarParam}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: project.title,
+        item: `${BRAND.url}/work/${pillarParam}/${project.slug}`,
+      },
+    ],
+  };
+
+  const hasProjectFacts =
+    project.client || project.projectType || project.scope;
+
   return (
     <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+
       <Reveal className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="section-kicker">{pillar.label}</p>
@@ -165,13 +220,96 @@ export default async function WorkProjectPage({
         </div>
       </Reveal>
 
-      {(project.summary || project.description) && (
+      {hasProjectFacts && (
+        <Reveal className="mt-10">
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
+            <p className="section-kicker">Project facts</p>
+            <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+              {project.client && (
+                <>
+                  <dt className="text-white/50">Client</dt>
+                  <dd className="text-white/80">{project.client}</dd>
+                </>
+              )}
+              {project.projectType && (
+                <>
+                  <dt className="text-white/50">Project type</dt>
+                  <dd className="text-white/80">{project.projectType}</dd>
+                </>
+              )}
+              {project.scope && (
+                <>
+                  <dt className="text-white/50">Scope</dt>
+                  <dd className="text-white/80">{project.scope}</dd>
+                </>
+              )}
+              {project.location && (
+                <>
+                  <dt className="text-white/50">Location</dt>
+                  <dd className="text-white/80">{project.location}</dd>
+                </>
+              )}
+              {project.year != null && (
+                <>
+                  <dt className="text-white/50">Year</dt>
+                  <dd className="text-white/80">{project.year}</dd>
+                </>
+              )}
+            </dl>
+          </div>
+        </Reveal>
+      )}
+
+      {(project.summary || project.description || project.overviewExtended) && (
         <Reveal className="mt-10">
           <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
             <p className="section-kicker">Overview</p>
+            <div className="mt-4 space-y-4 text-base text-white/80">
+              <p>{project.summary ?? project.description}</p>
+              {project.overviewExtended && <p>{project.overviewExtended}</p>}
+            </div>
+          </div>
+        </Reveal>
+      )}
+
+      {project.whatWasPhotographed && (
+        <Reveal className="mt-10">
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
+            <p className="section-kicker">What was photographed</p>
             <p className="mt-4 text-base text-white/80">
-              {project.summary ?? project.description}
+              {project.whatWasPhotographed}
             </p>
+          </div>
+        </Reveal>
+      )}
+
+      {project.visualApproach && (
+        <Reveal className="mt-10">
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
+            <p className="section-kicker">Visual approach</p>
+            <p className="mt-4 text-base text-white/80">
+              {project.visualApproach}
+            </p>
+          </div>
+        </Reveal>
+      )}
+
+      {project.locationContext && (
+        <Reveal className="mt-10">
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
+            <p className="section-kicker">Location &amp; context</p>
+            <p className="mt-4 text-base text-white/80">
+              {project.locationContext}
+            </p>
+          </div>
+        </Reveal>
+      )}
+
+      {whoIsThisFor && (
+        <Reveal className="mt-10">
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
+            <p className="section-kicker">Who this photography serves</p>
+            <p className="mt-4 text-base text-white/80">{whoIsThisFor}</p>
           </div>
         </Reveal>
       )}
@@ -192,16 +330,38 @@ export default async function WorkProjectPage({
         </div>
       )}
 
+      {relatedServices.length > 0 && (
+        <Reveal className="mt-12">
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
+            <p className="section-kicker">Related services</p>
+            <p className="mt-2 text-sm text-white/70">
+              Looking for similar photography in your area?
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {relatedServices.map((svc) => (
+                <Link
+                  key={svc.slug}
+                  href={`/services/${svc.slug}`}
+                  className="btn btn-ghost text-white/80 hover:text-white"
+                >
+                  {svc.title}
+                </Link>
+              ))}
+              <Link href="/contact" className="btn btn-ghost text-white/80 hover:text-white">
+                Contact
+              </Link>
+            </div>
+          </div>
+        </Reveal>
+      )}
+
       <Reveal className="mt-12">
         <div className="rounded-2xl border border-white/10 bg-black/60 p-6">
           <p className="section-kicker">Next step</p>
           <h2 className="font-display text-2xl text-white">
             Ready to collaborate?
           </h2>
-          <p className="mt-3 text-sm text-white/70">
-            Share your timeline and vision and we&apos;ll craft a tailored
-            proposal.
-          </p>
+          <p className="mt-3 text-sm text-white/70">{ctaCopy}</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/contact" className="btn btn-solid">
               Request availability

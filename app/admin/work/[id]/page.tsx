@@ -449,6 +449,21 @@ export default function AdminWorkEditPage() {
     }
   }
 
+  async function updateMediaAlt(mediaId: string, alt: string) {
+    try {
+      const res = await fetch(`/api/admin/media/${mediaId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alt: alt.trim() || null }),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to update alt");
+      await loadProject();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   async function reorderMedia(mediaIds: string[]) {
     try {
       const res = await fetch(`/api/admin/work-projects/${id}/media`, {
@@ -941,7 +956,24 @@ export default function AdminWorkEditPage() {
                   <p className="truncate text-sm font-mono text-black/70">
                     {pm.media.keyFull || "—"}
                   </p>
-                  <div className="flex items-center gap-2">
+                  {pm.media.kind === "IMAGE" && (
+                    <div className="mt-1">
+                      <label className="text-xs text-black/50">Alt text</label>
+                      <input
+                        type="text"
+                        defaultValue={pm.media.alt ?? ""}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim();
+                          if (v !== (pm.media.alt ?? "")) {
+                            updateMediaAlt(pm.media.id, v);
+                          }
+                        }}
+                        className="mt-0.5 w-full rounded border border-black/20 px-2 py-1 text-xs"
+                        placeholder="Describe image for SEO and accessibility"
+                      />
+                    </div>
+                  )}
+                  <div className="mt-1 flex items-center gap-2">
                     {isHero && (
                       <span className="text-xs text-black/50">Hero</span>
                     )}

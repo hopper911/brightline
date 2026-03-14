@@ -106,24 +106,33 @@ export default function WorkProjectGallery({
   });
 
   const slides = imageItems
-    .map((item) => {
+    .map((item, idx) => {
       const key = item.media.keyFull ?? item.media.keyThumb ?? "";
       const src = getPublicR2Url(key);
       if (!src || (!src.startsWith("http") && !src.startsWith("/"))) return null;
-      return { src, alt: item.media.alt ?? projectTitle };
+      const fallbackAlt = `${projectTitle} — image ${idx + 1}`;
+      return { src, alt: item.media.alt ?? fallbackAlt };
     })
     .filter((s): s is { src: string; alt: string } => s !== null);
 
   return (
     <>
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
-        {galleryMedia.map(({ media: m, sortOrder }) =>
-          m.kind === "VIDEO" && m.providerId ? (
+        {galleryMedia.map(({ media: m, sortOrder }, galleryIdx) => {
+          const imageIdx = galleryMedia
+            .slice(0, galleryIdx + 1)
+            .filter((x) => x.media.kind === "IMAGE").length - 1;
+          const fallbackAlt =
+            m.kind === "IMAGE"
+              ? `${projectTitle} — image ${imageIdx >= 0 ? imageIdx + 1 : 1}`
+              : projectTitle;
+          const altText = m.alt ?? fallbackAlt;
+          return m.kind === "VIDEO" && m.providerId ? (
             <Reveal key={`${m.id}-${sortOrder}`}>
               <VideoEmbed
                 providerId={m.providerId}
                 posterKey={m.posterKey ?? undefined}
-                title={m.alt ?? projectTitle}
+                title={altText}
               />
             </Reveal>
           ) : m.kind === "VIDEO" && m.keyFull ? (
@@ -131,7 +140,7 @@ export default function WorkProjectGallery({
               <R2VideoBlock
                 keyFull={m.keyFull}
                 posterKey={m.keyThumb ?? m.posterKey ?? undefined}
-                alt={m.alt ?? projectTitle}
+                alt={altText}
                 width={m.width}
                 height={m.height}
               />
@@ -156,7 +165,7 @@ export default function WorkProjectGallery({
                       }
                     }}
                     className="block w-full cursor-zoom-in text-left"
-                    aria-label={`View ${m.alt ?? projectTitle} in lightbox`}
+                    aria-label={`View ${altText} in lightbox`}
                   >
                     <div
                       className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black"
@@ -164,7 +173,7 @@ export default function WorkProjectGallery({
                     >
                       <Image
                         src={imgSrc}
-                        alt={m.alt ?? projectTitle}
+                        alt={altText}
                         fill
                         sizes="(min-width: 1280px) 576px, (min-width: 640px) calc(50vw - 40px), 100vw"
                         placeholder="blur"
@@ -176,8 +185,8 @@ export default function WorkProjectGallery({
                 </Reveal>
               );
             })()
-          ) : null
-        )}
+          ) : null;
+        })}
       </div>
 
       {slides.length > 0 && (

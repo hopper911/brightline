@@ -15,10 +15,13 @@ export async function getHomepageFeaturedMedia(): Promise<{
   const media = await prisma.mediaAsset.findUnique({
     where: { id: mediaId, kind: "IMAGE" },
   });
-  if (!media?.keyFull) return null;
+  const displayKey = media.keyThumb ?? media.keyFull;
+  if (!displayKey) return null;
 
   return {
     keyFull: media.keyFull,
+    keyThumb: media.keyThumb,
+    displayKey,
     alt: media.alt,
   };
 }

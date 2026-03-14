@@ -8,6 +8,9 @@ import { getPublicR2Url } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
 
+const BLUR_DATA =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
+
 async function fetchPillarData() {
   return Promise.all(
     PILLARS.map(async (pillar) => {
@@ -17,8 +20,8 @@ async function fetchPillarData() {
         : null;
       let coverUrl: string | null = null;
       let coverAlt: string | null = null;
-      if (hero?.kind === "IMAGE" && hero.keyFull) {
-        coverUrl = getPublicR2Url(hero.keyFull ?? "");
+      if (hero?.kind === "IMAGE" && (hero.keyThumb ?? hero.keyFull)) {
+        coverUrl = getPublicR2Url(hero.keyThumb ?? hero.keyFull ?? "");
         coverAlt = hero.alt ?? pillar.label;
       }
       return { ...pillar, coverUrl, coverAlt };
@@ -76,6 +79,8 @@ export default async function WorkIndexPage() {
                     alt={pillar.coverAlt ?? pillar.label}
                     fill
                     sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                    placeholder="blur"
+                    blurDataURL={BLUR_DATA}
                     className="object-cover image-zoom"
                   />
                 ) : (

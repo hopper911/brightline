@@ -76,8 +76,8 @@ export default async function Page() {
           ? await getFeaturedHeroForSection(firstSection)
           : null;
         let coverUrl = "";
-        if (hero?.kind === "IMAGE" && hero.keyFull) {
-          coverUrl = getPublicR2Url(hero.keyFull);
+        if (hero?.kind === "IMAGE" && (hero.keyThumb ?? hero.keyFull)) {
+          coverUrl = getPublicR2Url(hero.keyThumb ?? hero.keyFull);
         } else {
           coverUrl = "/images/hero.jpg";
         }
@@ -101,7 +101,7 @@ export default async function Page() {
     const media = await getHomepageFeaturedMedia();
     if (media) {
       featuredImage = {
-        url: getPublicR2Url(media.keyFull),
+        url: getPublicR2Url(media.displayKey),
         alt: media.alt ?? "Featured work",
       };
     }

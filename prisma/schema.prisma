@@ -261,22 +261,34 @@ enum VideoProvider {
 }
 
 model WorkProject {
-  id           String    @id @default(cuid())
-  section      WorkSection
-  title        String
-  slug         String
-  summary      String?
-  description  String?
-  location     String?
-  year         Int?
-  published    Boolean   @default(false)
-  isFeatured   Boolean   @default(false)
-  sortOrder    Int       @default(0)
-  heroMediaId  String?
-  heroMedia    MediaAsset?  @relation("HeroMedia", fields: [heroMediaId], references: [id])
-  media        ProjectMedia[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  section           WorkSection
+  title             String
+  slug              String
+  summary           String?
+  description       String?
+  location          String?
+  year              Int?
+  published         Boolean   @default(false)
+  isFeatured        Boolean   @default(false)
+  sortOrder         Int       @default(0)
+  heroMediaId       String?
+  heroMedia         MediaAsset?  @relation("HeroMedia", fields: [heroMediaId], references: [id])
+  media             ProjectMedia[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  // Case study / SEO fields
+  client            String?
+  projectType       String?
+  scope             String?
+  overviewExtended  String?
+  whatWasPhotographed String?
+  visualApproach    String?
+  locationContext   String?
+  whoIsThisFor      String?
+  seoTitle          String?
+  metaDescription   String?
+  ctaCopy           String?
 
   @@unique([section, slug])
   @@index([section])

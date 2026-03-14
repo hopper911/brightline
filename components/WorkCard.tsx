@@ -1,6 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 
+const BLUR_DATA =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
+
 type WorkCardProps = {
   href: string;
   cover: string;
@@ -29,6 +32,8 @@ export default function WorkCard({
           alt={alt}
           fill
           sizes="(min-width: 1024px) 50vw, 100vw"
+          placeholder="blur"
+          blurDataURL={BLUR_DATA}
           className="object-cover image-zoom"
         />
       </div>

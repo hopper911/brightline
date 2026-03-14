@@ -42,6 +42,17 @@ type WorkProject = {
   heroMediaId: string | null;
   heroMedia: MediaAsset | null;
   media: ProjectMedia[];
+  client?: string | null;
+  projectType?: string | null;
+  scope?: string | null;
+  overviewExtended?: string | null;
+  whatWasPhotographed?: string | null;
+  visualApproach?: string | null;
+  locationContext?: string | null;
+  whoIsThisFor?: string | null;
+  seoTitle?: string | null;
+  metaDescription?: string | null;
+  ctaCopy?: string | null;
 };
 
 const VIDEO_EXT = new Set(["mp4", "webm", "mov"]);
@@ -126,6 +137,18 @@ export default function AdminWorkEditPage() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [r2BrowserOpen, setR2BrowserOpen] = useState(false);
   const [homepageFeaturedMediaId, setHomepageFeaturedMediaId] = useState<string | null>(null);
+  const [caseStudyExpanded, setCaseStudyExpanded] = useState(false);
+  const [client, setClient] = useState("");
+  const [projectType, setProjectType] = useState("");
+  const [scope, setScope] = useState("");
+  const [overviewExtended, setOverviewExtended] = useState("");
+  const [whatWasPhotographed, setWhatWasPhotographed] = useState("");
+  const [visualApproach, setVisualApproach] = useState("");
+  const [locationContext, setLocationContext] = useState("");
+  const [whoIsThisFor, setWhoIsThisFor] = useState("");
+  const [seoTitle, setSeoTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
+  const [ctaCopy, setCtaCopy] = useState("");
 
   const loadHomepageFeatured = useCallback(async () => {
     try {
@@ -162,6 +185,21 @@ export default function AdminWorkEditPage() {
         setIsFeatured(p.isFeatured);
         setSortOrder(p.sortOrder);
         setHeroMediaId(p.heroMediaId);
+        setClient(p.client ?? "");
+        setProjectType(p.projectType ?? "");
+        setScope(p.scope ?? "");
+        setOverviewExtended(p.overviewExtended ?? "");
+        setWhatWasPhotographed(p.whatWasPhotographed ?? "");
+        setVisualApproach(p.visualApproach ?? "");
+        setLocationContext(p.locationContext ?? "");
+        setWhoIsThisFor(p.whoIsThisFor ?? "");
+        setSeoTitle(p.seoTitle ?? "");
+        setMetaDescription(p.metaDescription ?? "");
+        setCtaCopy(p.ctaCopy ?? "");
+        const hasCaseStudy =
+          (p.client || p.projectType || p.scope || p.overviewExtended || p.whatWasPhotographed ||
+            p.visualApproach || p.locationContext || p.whoIsThisFor || p.seoTitle || p.metaDescription || p.ctaCopy);
+        if (hasCaseStudy) setCaseStudyExpanded(true);
       }
     } catch (e) {
       console.error(e);
@@ -193,6 +231,17 @@ export default function AdminWorkEditPage() {
           isFeatured,
           sortOrder,
           heroMediaId,
+          client: client.trim() || null,
+          projectType: projectType.trim() || null,
+          scope: scope.trim() || null,
+          overviewExtended: overviewExtended.trim() || null,
+          whatWasPhotographed: whatWasPhotographed.trim() || null,
+          visualApproach: visualApproach.trim() || null,
+          locationContext: locationContext.trim() || null,
+          whoIsThisFor: whoIsThisFor.trim() || null,
+          seoTitle: seoTitle.trim() || null,
+          metaDescription: metaDescription.trim() || null,
+          ctaCopy: ctaCopy.trim() || null,
         }),
       });
       const data = (await res.json()) as { ok: boolean; project?: WorkProject; error?: string };
@@ -588,6 +637,122 @@ export default function AdminWorkEditPage() {
               </label>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-xl border border-black/10 bg-white p-6">
+          <button
+            type="button"
+            onClick={() => setCaseStudyExpanded(!caseStudyExpanded)}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <h2 className="text-sm font-semibold text-black/80">Case study / SEO</h2>
+            <span className="text-black/50">{caseStudyExpanded ? "−" : "+"}</span>
+          </button>
+          {caseStudyExpanded && (
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs uppercase tracking-wide text-black/60">Client</label>
+                  <input
+                    value={client}
+                    onChange={(e) => setClient(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                    placeholder="e.g. JA Jennings Inc."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-wide text-black/60">Project type</label>
+                  <input
+                    value={projectType}
+                    onChange={(e) => setProjectType(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                    placeholder="e.g. Office Renovation"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs uppercase tracking-wide text-black/60">Scope</label>
+                  <input
+                    value={scope}
+                    onChange={(e) => setScope(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                    placeholder="e.g. Commercial interior and workplace photography"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs uppercase tracking-wide text-black/60">Overview extended (2nd paragraph)</label>
+                  <textarea
+                    value={overviewExtended}
+                    onChange={(e) => setOverviewExtended(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                    rows={2}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs uppercase tracking-wide text-black/60">What was photographed</label>
+                  <textarea
+                    value={whatWasPhotographed}
+                    onChange={(e) => setWhatWasPhotographed(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                    rows={2}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs uppercase tracking-wide text-black/60">Visual approach</label>
+                  <textarea
+                    value={visualApproach}
+                    onChange={(e) => setVisualApproach(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                    rows={2}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs uppercase tracking-wide text-black/60">Location context</label>
+                  <textarea
+                    value={locationContext}
+                    onChange={(e) => setLocationContext(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                    rows={2}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs uppercase tracking-wide text-black/60">Who this photography serves</label>
+                  <textarea
+                    value={whoIsThisFor}
+                    onChange={(e) => setWhoIsThisFor(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                    rows={2}
+                    placeholder="general contractors, developers, architects..."
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs uppercase tracking-wide text-black/60">SEO title (optional override)</label>
+                  <input
+                    value={seoTitle}
+                    onChange={(e) => setSeoTitle(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs uppercase tracking-wide text-black/60">Meta description (optional override)</label>
+                  <textarea
+                    value={metaDescription}
+                    onChange={(e) => setMetaDescription(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                    rows={2}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs uppercase tracking-wide text-black/60">CTA copy (optional override)</label>
+                  <textarea
+                    value={ctaCopy}
+                    onChange={(e) => setCtaCopy(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {saveError && <p className="text-sm text-red-600">{saveError}</p>}

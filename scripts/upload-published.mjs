@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Upload already-prepared files from _published/jpg and _published/webp to R2, then update DB.
- * Run this after tools/upload-from-sheet.mjs has filled _published.
+ * Upload already-prepared files from _published/webp (and optionally _published/thumb) to R2, then update DB.
+ * WebP only; no JPEG. Run after sheet-publish.mjs or tools that fill _published.
  * Usage: node scripts/upload-published.mjs --root /path/to/Exports
  */
 import fs from "fs";
@@ -92,13 +92,12 @@ async function main() {
     process.exit(1);
   }
   const root = path.resolve(rootRaw);
-  const publishedJpgDir = path.join(root, "_published", "jpg");
   const publishedWebpDir = path.join(root, "_published", "webp");
   const publishedThumbDir = path.join(root, "_published", "thumb");
 
   const dbOnly = hasFlag("db-only");
-  if (!fs.existsSync(publishedJpgDir) && !fs.existsSync(publishedWebpDir)) {
-    console.error("❌ No _published/jpg or _published/webp found. Run the prepare step first (tools/upload-from-sheet.mjs).");
+  if (!fs.existsSync(publishedWebpDir)) {
+    console.error("❌ No _published/webp found. Run sheet-publish.mjs or the prepare step first.");
     process.exit(1);
   }
 
@@ -121,11 +120,10 @@ async function main() {
     }), PutObjectCommand };
   }
 
-  const jpgFiles = listFilesRecursive(publishedJpgDir);
   const webpFiles = listFilesRecursive(publishedWebpDir);
   const thumbFiles = listFilesRecursive(publishedThumbDir);
   const thumbRels = new Set(thumbFiles.map((f) => f.rel));
-  const total = jpgFiles.length + webpFiles.length + thumbFiles.length;
+  const total = webpFiles.length + thumbFiles.length;
 
   let manifestByKey = new Map();
   const manifestPath = path.join(root, "_published", "manifest.json");
@@ -142,7 +140,7 @@ async function main() {
   }
 
   if (total === 0) {
-    console.log("No files in _published/jpg or _published/webp. Nothing to do.");
+    console.log("No files in _published/webp. Nothing to do.");
     await prisma.$disconnect();
     return;
   }
@@ -163,11 +161,6 @@ async function main() {
         })
       );
       return `${PUBLIC_URL}/${key}`;
-    }
-    for (const { full, rel } of jpgFiles) {
-      process.stdout.write(`  ${rel} ... `);
-      await uploadOne(full, rel, "image/jpeg");
-      console.log("OK");
     }
     for (const { full, rel } of webpFiles) {
       process.stdout.write(`  ${rel} ... `);
@@ -260,26 +253,9 @@ async function main() {
   // Move uploaded files to _archive so they are not re-uploaded and _published stays clean
   const archiveDir = path.join(root, "_archive");
   ensureDir(archiveDir);
-  const archiveJpgDir = path.join(archiveDir, "jpg");
   const archiveWebpDir = path.join(archiveDir, "webp");
   const archiveThumbDir = path.join(archiveDir, "thumb");
   let archived = 0;
-  for (const { full, rel } of jpgFiles) {
-    const dest = path.join(archiveJpgDir, rel);
-    ensureDir(path.dirname(dest));
-    try {
-      fs.renameSync(full, dest);
-      archived++;
-    } catch (e) {
-      try {
-        fs.copyFileSync(full, dest);
-        fs.unlinkSync(full);
-        archived++;
-      } catch (e2) {
-        console.warn(`  Could not archive ${rel}: ${e2.message}`);
-      }
-    }
-  }
   for (const { full, rel } of webpFiles) {
     const dest = path.join(archiveWebpDir, rel);
     ensureDir(path.dirname(dest));
@@ -313,7 +289,7 @@ async function main() {
     }
   }
   if (archived > 0) {
-    console.log(`  Archived ${archived} file(s) to _archive/jpg, _archive/webp, and _archive/thumb.`);
+    console.log(`  Archived ${archived} file(s) to _archive/webp and _archive/thumb.`);
   }
 
   console.log("\n✅ Done. Files are on R2 and DB is updated. Create an access code for the gallery to view on the site.\n");

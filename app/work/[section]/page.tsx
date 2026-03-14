@@ -49,8 +49,8 @@ function ProjectGrid({
       {projects.map((project) => {
         const hero = project.heroMedia;
         const heroImageUrl =
-          hero?.kind === "IMAGE" && hero.keyFull
-            ? getPublicR2Url(hero.keyFull ?? "")
+          hero?.kind === "IMAGE" && (hero.keyThumb ?? hero.keyFull)
+            ? getPublicR2Url(hero.keyThumb ?? hero.keyFull ?? "")
             : null;
         const heroVideoId =
           hero?.kind === "VIDEO" && hero.providerId ? hero.providerId : null;

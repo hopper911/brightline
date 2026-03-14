@@ -13,7 +13,7 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       media: {
-        url: getPublicR2Url(media.keyFull),
+        url: getPublicR2Url(media.displayKey),
         alt: media.alt ?? "Featured work",
       },
     });

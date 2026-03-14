@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Sheet-driven publish: read READY rows from Google Sheet, prep from _incoming/full,
- * write to _published/jpg and _published/webp, upload to R2, write back to sheet, upsert DB.
+ * write to _published/webp (WebP only), upload to R2, write back to sheet, upsert DB.
  * Usage: node scripts/sheet-publish.mjs --root /path/to/Exports [--credentials /path/to/credentials.json]
  */
 import fs from "fs";
@@ -155,9 +155,7 @@ async function main() {
   }
   const root = path.resolve(rootRaw);
   const incomingFullDir = path.join(root, "_incoming", "full");
-  const publishedJpgDir = path.join(root, "_published", "jpg");
   const publishedWebpDir = path.join(root, "_published", "webp");
-  ensureDir(publishedJpgDir);
   ensureDir(publishedWebpDir);
 
   const credentialsPath =
@@ -256,25 +254,16 @@ async function main() {
     const h = meta.height || 0;
     const orientation = getOrientation(w, h);
 
-    const jpgKey = `${section}/${client}/${seq}.jpg`;
     const webpKey = `${section}/${client}/${seq}.webp`;
-    const jpgOutPath = path.join(publishedJpgDir, section, client, `${seq}.jpg`);
     const webpOutPath = path.join(publishedWebpDir, section, client, `${seq}.webp`);
-    ensureDir(path.dirname(jpgOutPath));
     ensureDir(path.dirname(webpOutPath));
 
-    await img
-      .clone()
-      .resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: 88 })
-      .toFile(jpgOutPath);
     await img
       .clone()
       .resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 82 })
       .toFile(webpOutPath);
 
-    await uploadToR2(jpgOutPath, jpgKey, "image/jpeg");
     const webpUrl = await uploadToR2(webpOutPath, webpKey, "image/webp");
 
     await updateSheetRow(auth, sheetRowIndex, [

@@ -62,6 +62,17 @@ export async function PATCH(
       isFeatured?: boolean;
       sortOrder?: number;
       heroMediaId?: string | null;
+      client?: string | null;
+      projectType?: string | null;
+      scope?: string | null;
+      overviewExtended?: string | null;
+      whatWasPhotographed?: string | null;
+      visualApproach?: string | null;
+      locationContext?: string | null;
+      whoIsThisFor?: string | null;
+      seoTitle?: string | null;
+      metaDescription?: string | null;
+      ctaCopy?: string | null;
     };
 
     const existing = await prisma.workProject.findUnique({
@@ -123,6 +134,17 @@ export async function PATCH(
         isFeatured: typeof body.isFeatured === "boolean" ? body.isFeatured : undefined,
         sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : undefined,
         heroMediaId: body.heroMediaId !== undefined ? body.heroMediaId : undefined,
+        client: body.client !== undefined ? (body.client == null ? null : String(body.client).trim() || null) : undefined,
+        projectType: body.projectType !== undefined ? (body.projectType == null ? null : String(body.projectType).trim() || null) : undefined,
+        scope: body.scope !== undefined ? (body.scope == null ? null : String(body.scope).trim() || null) : undefined,
+        overviewExtended: body.overviewExtended !== undefined ? (body.overviewExtended == null ? null : String(body.overviewExtended).trim() || null) : undefined,
+        whatWasPhotographed: body.whatWasPhotographed !== undefined ? (body.whatWasPhotographed == null ? null : String(body.whatWasPhotographed).trim() || null) : undefined,
+        visualApproach: body.visualApproach !== undefined ? (body.visualApproach == null ? null : String(body.visualApproach).trim() || null) : undefined,
+        locationContext: body.locationContext !== undefined ? (body.locationContext == null ? null : String(body.locationContext).trim() || null) : undefined,
+        whoIsThisFor: body.whoIsThisFor !== undefined ? (body.whoIsThisFor == null ? null : String(body.whoIsThisFor).trim() || null) : undefined,
+        seoTitle: body.seoTitle !== undefined ? (body.seoTitle == null ? null : String(body.seoTitle).trim() || null) : undefined,
+        metaDescription: body.metaDescription !== undefined ? (body.metaDescription == null ? null : String(body.metaDescription).trim() || null) : undefined,
+        ctaCopy: body.ctaCopy !== undefined ? (body.ctaCopy == null ? null : String(body.ctaCopy).trim() || null) : undefined,
       },
       include: {
         heroMedia: true,

@@ -53,6 +53,11 @@ export const metadata: Metadata = {
     description: BRAND.metadata.description,
     images: [BRAND.metadata.ogImage],
   },
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

@@ -29,6 +29,8 @@ const JOB_TYPES: JobType[] = [
   "remind_pending_delivery_drafts",
   "refresh_content_queue_summary",
   "refresh_archive_summary",
+  "daily_strategy_summary",
+  "weekly_strategy_summary",
 ];
 
 export async function scheduleDefaultJobs() {

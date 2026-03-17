@@ -64,6 +64,42 @@ function applySchema(database: Database.Database): void {
   } catch {
     /* column may already exist */
   }
+  // Finance tables
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS invoices (
+        id TEXT PRIMARY KEY, project_id TEXT, amount REAL NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'draft', created_at TEXT DEFAULT CURRENT_TIMESTAMP, due_date TEXT
+      )
+    `);
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS expenses (
+        id TEXT PRIMARY KEY, project_id TEXT, category TEXT, amount REAL NOT NULL DEFAULT 0,
+        note TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY, project_id TEXT, amount REAL NOT NULL DEFAULT 0,
+        date TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  } catch {
+    /* tables may already exist */
+  }
+  // Summaries table (stored daily/weekly strategy summaries)
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS summaries (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  } catch {
+    /* table may already exist */
+  }
   // Jobs table (safe background summaries/reminders)
   try {
     database.exec(`

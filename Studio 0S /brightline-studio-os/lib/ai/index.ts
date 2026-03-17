@@ -350,3 +350,80 @@ export async function generateFollowupText(projectName: string): Promise<AIGener
   const text = result.text.trim().slice(0, 200) || fallback.text;
   return { text, source: "ollama" };
 }
+
+import type { HistoricalContext } from "@/lib/analytics";
+export type { HistoricalContext };
+
+function fallbackStrategyInsights(ctx: HistoricalContext): string[] {
+  const insights: string[] = [];
+  if (ctx.revenueByType.length > 0) {
+    const top = ctx.revenueByType[0];
+    if (top) {
+      insights.push(
+        `${top.type.replace(/_/g, " ")} is your highest-revenue category with $${top.revenue.toLocaleString()} across ${top.count} projects`
+      );
+    }
+  }
+  const bestConversion = ctx.conversionByType
+    .filter((c) => c.total >= 3)
+    .sort((a, b) => b.ratePct - a.ratePct)[0];
+  if (bestConversion && bestConversion.ratePct > 0) {
+    insights.push(
+      `${bestConversion.type.replace(/_/g, " ")} projects have the highest conversion rate (${bestConversion.ratePct}% delivered)`
+    );
+  }
+  const headshot = ctx.highValuePatterns.find((p) => p.pattern === "headshot");
+  if (headshot && headshot.avgRevenue > 0) {
+    insights.push(
+      `Projects with executive headshots have higher average value ($${headshot.avgRevenue.toLocaleString()} per project)`
+    );
+  }
+  if (ctx.marketingUtilization.deliveredTotal > 0 && ctx.marketingUtilization.pct < 50) {
+    insights.push(
+      `Marketing content is underutilized: only ${ctx.marketingUtilization.pct}% of delivered projects have marketing drafts`
+    );
+  }
+  if (ctx.repeatClients.length > 0) {
+    insights.push(
+      `${ctx.repeatClients.length} repeat client(s) — strong opportunity for retention and referrals`
+    );
+  }
+  if (insights.length === 0) {
+    insights.push("Add more projects and payments to unlock data-driven insights.");
+  }
+  return insights;
+}
+
+export async function generateStrategyInsights(
+  ctx: HistoricalContext
+): Promise<AIGenerationResult<{ insights: string[] }>> {
+  const available = await isOllamaAvailable();
+  if (!available) {
+    return { insights: fallbackStrategyInsights(ctx), source: "fallback" };
+  }
+  const data = JSON.stringify(
+    {
+      revenueByType: ctx.revenueByType.slice(0, 5),
+      conversionByType: ctx.conversionByType.filter((c) => c.total >= 2),
+      repeatClients: ctx.repeatClients.slice(0, 5),
+      highValuePatterns: ctx.highValuePatterns,
+      marketingUtilization: ctx.marketingUtilization,
+      newLeads: { last7d: ctx.newLeadsLast7d, last14d: ctx.newLeadsLast14d },
+      backlog: { editing: ctx.backlogEditing, delivery: ctx.backlogDelivery },
+    },
+    null,
+    0
+  );
+  const prompt = `You are a business advisor for a photography studio. Based on this data, generate 3–5 short, actionable insights (one sentence each). Sound like a strategic advisor. Examples: "Office photography is your highest converting niche", "Projects with executive headshots have higher total value", "Marketing content is underutilized for completed projects". Be specific with numbers when available. Output one insight per line, no numbering.\n\nData:\n${data}`;
+  const result = await generateStructuredText(prompt);
+  if ("error" in result) {
+    return { insights: fallbackStrategyInsights(ctx), source: "fallback" };
+  }
+  const lines = result.text
+    .split(/\n/)
+    .map((s) => s.replace(/^\d+[\.\)]\s*/, "").trim())
+    .filter((s) => s.length > 20 && s.length < 200)
+    .slice(0, 5);
+  const insights = lines.length > 0 ? lines : fallbackStrategyInsights(ctx);
+  return { insights, source: "ollama" };
+}

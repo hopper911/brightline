@@ -8,7 +8,7 @@ import { getDueJobs, markJobRunning, markJobComplete, markJobFailed } from "./st
 import { executeJob } from "./executors";
 import { logEvent } from "@/lib/events/logger";
 
-export function runDueJobs(): { run: number; completed: number; failed: number } {
+export async function runDueJobs(): Promise<{ run: number; completed: number; failed: number }> {
   const now = new Date().toISOString();
   const due = getDueJobs(now);
   let completed = 0;
@@ -19,7 +19,7 @@ export function runDueJobs(): { run: number; completed: number; failed: number }
     if (!started) continue;
 
     try {
-      const result = executeJob(job);
+      const result = await executeJob(job);
       if (result.success) {
         markJobComplete(job.id, result.summary);
         completed++;

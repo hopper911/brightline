@@ -72,6 +72,41 @@ CREATE TABLE IF NOT EXISTS handoffs (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Finance (read/track only; no bank connection, no auto-send)
+CREATE TABLE IF NOT EXISTS invoices (
+  id TEXT PRIMARY KEY,
+  project_id TEXT,
+  amount REAL NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  due_date TEXT
+);
+
+CREATE TABLE IF NOT EXISTS expenses (
+  id TEXT PRIMARY KEY,
+  project_id TEXT,
+  category TEXT,
+  amount REAL NOT NULL DEFAULT 0,
+  note TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+  id TEXT PRIMARY KEY,
+  project_id TEXT,
+  amount REAL NOT NULL DEFAULT 0,
+  date TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Stored strategy summaries (daily/weekly; read-only output)
+CREATE TABLE IF NOT EXISTS summaries (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Safe background jobs (no automation; summaries and reminders only)
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,

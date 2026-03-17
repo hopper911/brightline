@@ -1,0 +1,82 @@
+/**
+ * Bright Line Studio OS – Operations Agent
+ *
+ * Overdue tasks, pipeline status, bottlenecks, priorities.
+ * Read-only. Uses projects, approvals, events.
+ */
+
+import { logEvent } from "@/lib/events/logger";
+import { getPipelineStats } from "@/lib/analytics";
+import { getPendingApprovals } from "@/lib/approvals/store";
+
+export function runGetOverdueTasks() {
+  const pipeline = getPipelineStats();
+  const approvals = getPendingApprovals();
+  const tasks: string[] = [];
+  if (pipeline.stuckInEditing > 0) {
+    tasks.push(`${pipeline.stuckInEditing} project(s) stuck in editing (>7 days)`);
+  }
+  if (pipeline.stuckInProduction > 0) {
+    tasks.push(`${pipeline.stuckInProduction} project(s) stuck in production (>14 days)`);
+  }
+  if (approvals.length > 0) {
+    tasks.push(`${approvals.length} pending approval(s)`);
+  }
+  logEvent({
+    room: "strategy",
+    agent: "Operations Agent",
+    type: "ops_overdue_check",
+    status: "success",
+    summary: `Found ${tasks.length} overdue/blocked item(s)`,
+  });
+  return tasks;
+}
+
+export function runGetPipelineStatus() {
+  const pipeline = getPipelineStats();
+  const bottlenecks: string[] = [];
+  if (pipeline.stuckInEditing > 0) {
+    bottlenecks.push(`${pipeline.stuckInEditing} project(s) stuck in editing`);
+  }
+  if (pipeline.stuckInProduction > 0) {
+    bottlenecks.push(`${pipeline.stuckInProduction} project(s) stuck in production`);
+  }
+  logEvent({
+    room: "strategy",
+    agent: "Operations Agent",
+    type: "ops_pipeline_check",
+    status: "success",
+    summary: `Pipeline: ${pipeline.readyForDelivery} ready for delivery. ${bottlenecks.length > 0 ? bottlenecks.join("; ") : "No bottlenecks"}`,
+  });
+  return {
+    byStatus: pipeline.byStatus,
+    readyForDelivery: pipeline.readyForDelivery,
+    bottlenecks,
+  };
+}
+
+export function runSuggestPriorities() {
+  const approvals = getPendingApprovals();
+  const pipeline = getPipelineStats();
+  const priorities: string[] = [];
+  if (approvals.length > 0) {
+    priorities.push(`Review ${approvals.length} pending approval(s)`);
+  }
+  if (pipeline.readyForDelivery > 0) {
+    priorities.push(`${pipeline.readyForDelivery} project(s) ready for delivery`);
+  }
+  if (pipeline.stuckInEditing > 0) {
+    priorities.push(`Clear editing backlog (${pipeline.stuckInEditing} stuck)`);
+  }
+  if (priorities.length === 0) {
+    priorities.push("No urgent items");
+  }
+  logEvent({
+    room: "strategy",
+    agent: "Operations Agent",
+    type: "ops_priorities_generated",
+    status: "success",
+    summary: `Generated ${priorities.length} priority item(s)`,
+  });
+  return priorities;
+}

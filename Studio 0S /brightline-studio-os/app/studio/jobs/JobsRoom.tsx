@@ -12,6 +12,8 @@ const JOB_LABELS: Record<string, string> = {
   remind_pending_delivery_drafts: "Remind pending delivery drafts",
   refresh_content_queue_summary: "Refresh content queue summary",
   refresh_archive_summary: "Refresh archive summary",
+  daily_strategy_summary: "Daily strategy summary",
+  weekly_strategy_summary: "Weekly strategy summary",
 };
 
 function formatDate(s: string | null): string {

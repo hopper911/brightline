@@ -24,6 +24,7 @@ export const studioRooms = [
   { id: "delivery", name: "Delivery Suite", status: "green" as RoomStatus, description: "Client handoff and delivery", agent: "Delivery Agent" },
   { id: "marketing", name: "Marketing Office", status: "blue" as RoomStatus, description: "Content and SEO generation", agent: "Marketing Agent" },
   { id: "archive", name: "Archive Vault", status: "green" as RoomStatus, description: "Project storage and search", agent: "Archivist Agent" },
+  { id: "strategy", name: "Strategy Room", status: "blue" as RoomStatus, description: "CEO dashboard and executive intelligence", agent: "Founder Strategy Agent" },
 ];
 
 export interface SummaryMetric {
@@ -43,6 +44,7 @@ export const STUDIO_MAP_ORDER = [
   "marketing",
   "delivery",
   "archive",
+  "strategy",
 ] as const;
 
 export const MOCK_ROOMS: StudioRoom[] = [
@@ -54,6 +56,7 @@ export const MOCK_ROOMS: StudioRoom[] = [
   { id: "delivery", name: "Delivery Suite", subtitle: "Galleries and handoff", status: "green", description: "Client delivery and approvals. Prepare galleries, send delivery emails, and track sign-off.", keyTasks: ["Prepare galleries", "Send delivery", "Review approvals"], agent: "Delivery Agent" },
   { id: "marketing", name: "Marketing Office", subtitle: "Content and campaigns", status: "blue", description: "Content and campaigns. Social, portfolio updates, and outbound storytelling.", keyTasks: ["Content calendar", "Portfolio updates", "Draft campaign"], agent: "Marketing Agent" },
   { id: "archive", name: "Archive Vault", subtitle: "Storage and retrieval", status: "green", description: "Long-term storage and retrieval. Search past shoots and manage retention.", keyTasks: ["Search archive", "Review expiring assets", "Restore collection"], agent: "Archivist Agent" },
+  { id: "strategy", name: "Strategy Room", subtitle: "CEO dashboard", status: "blue", description: "Executive intelligence. Revenue snapshot, pipeline status, priorities, risks, and opportunities.", keyTasks: ["View daily summary", "Revenue overview", "Pipeline status", "Priorities & risks"], agent: "Founder Strategy Agent" },
 ];
 
 export const MOCK_SUMMARY: SummaryMetric[] = [

@@ -22,6 +22,7 @@ const ROOM_TO_AGENT: Record<string, string> = {
   delivery: "Delivery Agent",
   marketing: "Marketing Agent",
   archive: "Archivist Agent",
+  strategy: "Founder Strategy Agent",
   jobs: "Jobs",
 };
 

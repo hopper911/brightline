@@ -14,7 +14,9 @@ export type JobType =
   | "remind_pending_approvals"
   | "remind_pending_delivery_drafts"
   | "refresh_content_queue_summary"
-  | "refresh_archive_summary";
+  | "refresh_archive_summary"
+  | "daily_strategy_summary"
+  | "weekly_strategy_summary";
 
 export type Job = {
   id: string;

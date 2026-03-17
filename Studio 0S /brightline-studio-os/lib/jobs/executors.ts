@@ -9,6 +9,10 @@ import { getPendingApprovals } from "@/lib/approvals/store";
 import { getDrafts } from "@/lib/drafts/store";
 import { listProjects } from "@/lib/projects/store";
 import { searchArchive } from "@/lib/archive/store";
+import { runGetDailySummary } from "@/lib/agents/founderAgent";
+import { createSummary } from "@/lib/summaries/store";
+import { generateWeeklySummaryContent } from "@/lib/summaries/weeklyGenerator";
+import { logEvent } from "@/lib/events/logger";
 import type { Job } from "./store";
 
 export type JobResult = { summary: string; success: boolean };
@@ -92,18 +96,68 @@ export function executeRefreshArchiveSummary(job: Job): JobResult {
   };
 }
 
-const EXECUTORS: Record<string, (j: Job) => JobResult> = {
+/** Daily strategy summary: runs founder agent, stores result, logs event. */
+export async function executeDailyStrategySummary(job: Job): Promise<JobResult> {
+  try {
+    const data = await runGetDailySummary();
+    const content = JSON.stringify(data);
+    createSummary("daily", content);
+    logEvent({
+      room: "strategy",
+      agent: "Founder Strategy Agent",
+      type: "daily_strategy_summary_generated",
+      status: "success",
+      summary: "Daily strategy summary generated",
+    });
+    return {
+      summary: `Daily summary stored: ${data.priorities.length} priorities, ${data.risks.length} risks, ${data.opportunities.length} opportunities`,
+      success: true,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { summary: `Daily summary failed: ${msg}`, success: false };
+  }
+}
+
+/** Weekly strategy summary: revenue, performance, wins, missed opportunities. */
+export function executeWeeklyStrategySummary(job: Job): JobResult {
+  try {
+    const content = generateWeeklySummaryContent();
+    createSummary("weekly", content);
+    logEvent({
+      room: "strategy",
+      agent: "Founder Strategy Agent",
+      type: "weekly_strategy_summary_generated",
+      status: "success",
+      summary: "Weekly strategy summary generated",
+    });
+    return {
+      summary: "Weekly summary stored: revenue, performance, top wins, missed opportunities",
+      success: true,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { summary: `Weekly summary failed: ${msg}`, success: false };
+  }
+}
+
+const SYNC_EXECUTORS: Record<string, (j: Job) => JobResult> = {
   summarize_recent_activity: executeSummarizeRecentActivity,
   remind_pending_approvals: executeRemindPendingApprovals,
   remind_pending_delivery_drafts: executeRemindPendingDeliveryDrafts,
   refresh_content_queue_summary: executeRefreshContentQueueSummary,
   refresh_archive_summary: executeRefreshArchiveSummary,
+  weekly_strategy_summary: executeWeeklyStrategySummary,
 };
 
-export function executeJob(job: Job): JobResult {
-  const fn = EXECUTORS[job.jobType];
-  if (!fn) {
-    return { summary: `Unknown job type: ${job.jobType}`, success: false };
-  }
-  return fn(job);
+const ASYNC_EXECUTORS: Record<string, (j: Job) => Promise<JobResult>> = {
+  daily_strategy_summary: executeDailyStrategySummary,
+};
+
+export async function executeJob(job: Job): Promise<JobResult> {
+  const asyncFn = ASYNC_EXECUTORS[job.jobType];
+  if (asyncFn) return asyncFn(job);
+  const syncFn = SYNC_EXECUTORS[job.jobType];
+  if (syncFn) return syncFn(job);
+  return { summary: `Unknown job type: ${job.jobType}`, success: false };
 }

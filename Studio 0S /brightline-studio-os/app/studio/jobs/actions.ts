@@ -7,8 +7,10 @@ import {
   type Job,
   type JobType,
 } from "@/lib/jobs";
+import { isVercelVisualOnly } from "@/lib/runtime/vercel";
 
 export async function fetchJobs(filters?: { status?: string; limit?: number }): Promise<Job[]> {
+  if (isVercelVisualOnly()) return [];
   return getJobs({
     status: filters?.status as "scheduled" | "running" | "completed" | "failed" | undefined,
     limit: filters?.limit,
@@ -16,10 +18,12 @@ export async function fetchJobs(filters?: { status?: string; limit?: number }): 
 }
 
 export async function scheduleJob(jobType: JobType, scheduledFor: string, projectId?: string | null) {
+  if (isVercelVisualOnly()) return null;
   return createJob({ jobType, scheduledFor, projectId });
 }
 
 export async function runJobsNow() {
+  if (isVercelVisualOnly()) return { run: 0, completed: 0, failed: 0 };
   return runDueJobs();
 }
 
@@ -34,6 +38,7 @@ const JOB_TYPES: JobType[] = [
 ];
 
 export async function scheduleDefaultJobs() {
+  if (isVercelVisualOnly()) return [];
   const now = new Date().toISOString();
   const jobs = [];
   for (const jobType of JOB_TYPES) {

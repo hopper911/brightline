@@ -12,6 +12,7 @@ import { getJobs, getRecentJobIndicators } from "@/lib/jobs";
 import { getAllSessions } from "@/lib/sessions/store";
 import { getRecentHandoffs } from "@/lib/handoffs/store";
 import { MOCK_ROOMS, type SummaryMetric } from "./mockData";
+import { isVercelVisualOnly } from "@/lib/runtime/vercel";
 
 const ROOM_TO_AGENT: Record<string, string> = {
   reception: "Concierge Agent",
@@ -41,6 +42,27 @@ export type MissionControlData = {
 };
 
 export function getMissionControlData(): MissionControlData {
+  if (isVercelVisualOnly()) {
+    return {
+      summaryMetrics: [
+        { id: "activeProjects", label: "Active Projects", value: "—", hint: "Vercel visual-only" },
+        { id: "awaitingApproval", label: "Pending Approvals", value: "—", hint: "Vercel visual-only" },
+        { id: "deliveryDrafts", label: "Delivery Drafts", value: "—", hint: "Vercel visual-only" },
+        { id: "contentQueue", label: "Content Queue", value: "—", hint: "Vercel visual-only" },
+      ],
+      rooms: MOCK_ROOMS,
+      sessions: [],
+      recentEvents: [],
+      pendingApprovals: [],
+      recentDrafts: [],
+      jobIndicators: [],
+      jobsSummary: { scheduled: 0, completed: 0 },
+      recentHandoffs: [],
+      activeProjectsCount: 0,
+      projectsByStatus: {},
+    };
+  }
+
   const projects = listProjects();
   const approvals = getPendingApprovals();
   const drafts = getDrafts();

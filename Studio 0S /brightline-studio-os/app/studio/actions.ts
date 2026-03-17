@@ -5,6 +5,7 @@ import { listProjects } from "@/lib/projects/store";
 import { getDrafts } from "@/lib/drafts/store";
 import { getEvents } from "@/lib/events/logger";
 import { searchArchive } from "@/lib/archive/store";
+import { isVercelVisualOnly } from "@/lib/runtime/vercel";
 
 export async function getMissionControl() {
   return getMissionControlData();
@@ -20,6 +21,7 @@ export type GlobalSearchResult = {
 };
 
 export async function globalSearch(q: string): Promise<GlobalSearchResult[]> {
+  if (isVercelVisualOnly()) return [];
   const query = q.trim().toLowerCase();
   if (query.length < 2) return [];
 

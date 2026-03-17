@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #05060a;
+  --color-text: rgba(255, 255, 255, 0.9);
+  --color-border: rgba(255, 255, 255, 0.06);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}

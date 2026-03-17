@@ -246,3 +246,60 @@ export function getHistoricalContext(): HistoricalContext {
     totalRevenue: revenue.totalRevenue,
   };
 }
+
+export type FinanceAiContext = {
+  totalRevenue: number;
+  revenueByType: HistoricalContext["revenueByType"];
+  outstandingInvoicesCount: number;
+  expensesByCategory: { category: string; total: number }[];
+};
+
+export type OpsAiContext = {
+  pendingApprovals: number;
+  stuckInEditing: number;
+  stuckInProduction: number;
+  readyForDelivery: number;
+  newLeadsLast14d: number;
+};
+
+export type BiAiContext = {
+  conversionByType: HistoricalContext["conversionByType"];
+  repeatClients: HistoricalContext["repeatClients"];
+  topLocations: HistoricalContext["topLocations"];
+  marketingUtilization: HistoricalContext["marketingUtilization"];
+};
+
+export function getFinanceAiContext(params: {
+  outstandingInvoicesCount: number;
+  expensesByCategory: { category: string; total: number }[];
+}): FinanceAiContext {
+  const ctx = getHistoricalContext();
+  return {
+    totalRevenue: ctx.totalRevenue,
+    revenueByType: ctx.revenueByType,
+    outstandingInvoicesCount: params.outstandingInvoicesCount,
+    expensesByCategory: params.expensesByCategory,
+  };
+}
+
+export function getOpsAiContext(params: { pendingApprovals: number }): OpsAiContext {
+  const ctx = getHistoricalContext();
+  const pipeline = getPipelineStats();
+  return {
+    pendingApprovals: params.pendingApprovals,
+    stuckInEditing: pipeline.stuckInEditing,
+    stuckInProduction: pipeline.stuckInProduction,
+    readyForDelivery: pipeline.readyForDelivery,
+    newLeadsLast14d: ctx.newLeadsLast14d,
+  };
+}
+
+export function getBiAiContext(): BiAiContext {
+  const ctx = getHistoricalContext();
+  return {
+    conversionByType: ctx.conversionByType,
+    repeatClients: ctx.repeatClients,
+    topLocations: ctx.topLocations,
+    marketingUtilization: ctx.marketingUtilization,
+  };
+}

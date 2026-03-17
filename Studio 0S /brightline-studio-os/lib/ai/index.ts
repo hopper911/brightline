@@ -34,7 +34,7 @@ export async function generateInquirySummary(
   if (!available) {
     return { ...fallbackSummary(trimmed), source: "fallback" };
   }
-  const prompt = `Summarize this photography inquiry in 1-2 sentences. Then state: tone (brief/detailed) and intent (question/request). Format: Summary: ... Tone: ... Intent: ...\n\nInquiry: ${trimmed}`;
+  const prompt = `You are the studio intake assistant. Summarize this photography inquiry in 1–2 sentences (plain, factual). Then state: tone (brief/detailed) and intent (question/request). Format exactly:\nSummary: ...\nTone: ...\nIntent: ...\n\nInquiry: ${trimmed}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return { ...fallbackSummary(trimmed), source: "fallback" };
@@ -82,7 +82,7 @@ export async function generateReplyDraft(text: string): Promise<AIGenerationResu
       source: "fallback",
     };
   }
-  const prompt = `Write a brief, professional reply (2-3 sentences) to this photography inquiry. Sign off as "Bright Line Studio". Keep it warm but concise.\n\nInquiry: ${snippet}`;
+  const prompt = `Write a brief, professional reply (2–3 sentences) to this photography inquiry. Keep it warm, calm, and concrete. Do not overpromise. Do not use emojis. Sign off as \"Bright Line Studio\".\n\nInquiry: ${snippet}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return {
@@ -102,7 +102,7 @@ export async function generateInstagramCaption(projectName: string): Promise<AIG
       source: "fallback",
     };
   }
-  const prompt = `Write a short Instagram caption (1-2 sentences) for a photography project named "${projectName}". End with "— Bright Line Studio". No hashtags.`;
+  const prompt = `Write a short Instagram caption (1–2 sentences) for a photography project named \"${projectName}\". Calm, tasteful, minimal. No hashtags. End with \"— Bright Line Studio\".`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return {
@@ -129,7 +129,7 @@ export async function generateCaseStudy(projectName: string): Promise<
       source: "fallback",
     };
   }
-  const prompt = `Create a case study outline for photography project "${projectName}". Give a title and 3 short section headings (Challenge, Approach, Result). Format: Title: ... Sections: 1. ... 2. ... 3. ...`;
+  const prompt = `Create a case study outline for photography project \"${projectName}\". Keep it specific and businesslike. Give a title and 3 short section headings (Challenge, Approach, Result). Format: Title: ... Sections: 1. ... 2. ... 3. ...`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return {
@@ -162,7 +162,7 @@ export async function generateProjectBrief(projectName: string, notes: string): 
     source: "fallback" as const,
   };
   if (!available) return fallback;
-  const prompt = `From these notes, extract: project name, client (or "Unknown"), type (brand/portrait/editorial/events/general), and summary notes. Format: project_name: ... client: ... type: ... notes: ...\n\nProject: ${projectName}\nNotes: ${notes.slice(0, 300)}`;
+  const prompt = `From these notes, extract: project name, client (or \"Unknown\"), type (brand/portrait/editorial/events/general), and concise summary notes. Do not invent details. Format exactly:\nproject_name: ...\nclient: ...\ntype: ...\nnotes: ...\n\nProject: ${projectName}\nNotes: ${notes.slice(0, 300)}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return fallback;
   const t = result.text;
@@ -190,7 +190,7 @@ export async function generateShotList(projectName: string, count?: number): Pro
   if (!available) {
     return { shots: fallbackShots, source: "fallback" };
   }
-  const prompt = `List ${n} suggested shot types for photography project "${projectName}". One per line, brief. No numbering.`;
+  const prompt = `List ${n} suggested shot types for photography project \"${projectName}\". Practical, specific, and brief. One per line. No numbering.`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return { shots: fallbackShots, source: "fallback" };
@@ -230,8 +230,8 @@ export async function generateChecklist(
   }
   const prompt =
     kind === "shoot"
-      ? `Create a shoot day checklist for photography project "${projectName}". List 6–8 items, one per line. Brief. No numbering.`
-      : `Create a gear checklist for photography project "${projectName}". List 6–8 items, one per line. Brief. No numbering.`;
+      ? `Create a shoot day checklist for photography project \"${projectName}\". List 6–8 items. Practical. One per line. No numbering.`
+      : `Create a gear checklist for photography project \"${projectName}\". List 6–8 items. Practical. One per line. No numbering.`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return { items: fallback, source: "fallback" };
@@ -256,7 +256,7 @@ export async function summarizeProject(projectName: string, notes: string): Prom
   if (!available || !notes.trim()) {
     return fallback;
   }
-  const prompt = `Summarize this photography project in 1–2 sentences. Then list 3 priorities. Format: Summary: ... Priorities: 1. ... 2. ... 3. ...\n\nProject: ${projectName}\nNotes: ${notes.slice(0, 400)}`;
+  const prompt = `Summarize this photography project in 1–2 sentences (plain, factual). Then list 3 concrete priorities. Format exactly:\nSummary: ...\nPriorities: 1. ... 2. ... 3. ...\n\nProject: ${projectName}\nNotes: ${notes.slice(0, 400)}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return fallback;
@@ -287,7 +287,7 @@ export async function generateDeliveryChecklist(projectName: string): Promise<
     "Follow-up reminder scheduled",
   ];
   if (!available) return { items: fallback, source: "fallback" };
-  const prompt = `Create a delivery prep checklist for photography project "${projectName}". List 6–8 items for client handoff. One per line. Brief. No numbering.`;
+  const prompt = `Create a delivery prep checklist for photography project \"${projectName}\". List 6–8 client handoff items. Practical and brief. One per line. No numbering.`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return { items: fallback, source: "fallback" };
   const items = result.text
@@ -309,7 +309,7 @@ export async function generateDeliveryEmailDraft(projectName: string, clientName
     source: "fallback" as const,
   };
   if (!available) return fallback;
-  const prompt = `Write a short client handoff email for photography project "${projectName}"${clientName ? `, client: ${clientName}` : ""}. Format: Subject: ... Body: ... Keep it warm and professional. Sign off as Bright Line Studio. No placeholders like [link]—use "your gallery link" in prose.`;
+  const prompt = `Write a short client handoff email for photography project \"${projectName}\"${clientName ? `, client: ${clientName}` : ""}. Keep it warm, calm, and professional. Do not use placeholders like [link]; say \"your gallery link\" in prose. Format: Subject: ... Body: ... Sign off as Bright Line Studio.`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return fallback;
   const t = result.text;
@@ -328,7 +328,7 @@ export async function summarizeFinalAssets(projectName: string, notes?: string):
     source: "fallback" as const,
   };
   if (!available) return fallback;
-  const prompt = `Summarize final photo deliverables for project "${projectName}"${notes ? `. Context: ${notes.slice(0, 200)}` : ""}. One sentence summary. State approximate asset count if inferrable. Format: Summary: ... Asset count: ...`;
+  const prompt = `Summarize final photo deliverables for project \"${projectName}\"${notes ? `. Context: ${notes.slice(0, 200)}` : ""}. One sentence. If you can infer an approximate asset count, include it. Format: Summary: ... Asset count: ...`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return fallback;
   const t = result.text;
@@ -344,7 +344,7 @@ export async function generateFollowupText(projectName: string): Promise<AIGener
     source: "fallback" as const,
   };
   if (!available) return fallback;
-  const prompt = `Write a brief follow-up reminder (1–2 sentences) for a client who hasn't viewed their gallery for project "${projectName}". Friendly, not pushy.`;
+  const prompt = `Write a brief follow-up reminder (1–2 sentences) for a client who hasn't viewed their gallery for project \"${projectName}\". Friendly, calm, not pushy. No emojis.`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return fallback;
   const text = result.text.trim().slice(0, 200) || fallback.text;
@@ -426,4 +426,144 @@ export async function generateStrategyInsights(
     .slice(0, 5);
   const insights = lines.length > 0 ? lines : fallbackStrategyInsights(ctx);
   return { insights, source: "ollama" };
+}
+
+export type FinanceNarrativeContext = {
+  totalRevenue: number;
+  revenueByType: { type: string; revenue: number; count: number; avgPerProject: number }[];
+  outstandingInvoicesCount: number;
+  expensesByCategory?: { category: string; total: number }[];
+};
+
+export type OpsNarrativeContext = {
+  pendingApprovals: number;
+  stuckInEditing: number;
+  stuckInProduction: number;
+  readyForDelivery: number;
+  newLeadsLast14d: number;
+};
+
+export type BiNarrativeContext = {
+  conversionByType: { type: string; total: number; delivered: number; ratePct: number }[];
+  repeatClients: { client: string; count: number }[];
+  topLocations: { location: string; count: number }[];
+  marketingUtilization: { deliveredWithMarketing: number; deliveredTotal: number; pct: number };
+};
+
+function parseBulletLines(text: string, max = 6): string[] {
+  const lines = text
+    .split(/\n/)
+    .map((s) => s.replace(/^[\s>*-]*\d*[\).\s-]*/g, "").trim())
+    .filter((s) => s.length > 10 && s.length < 220);
+  return lines.slice(0, max);
+}
+
+function fallbackFinanceNarrative(ctx: FinanceNarrativeContext): string[] {
+  const lines: string[] = [];
+  const top = ctx.revenueByType[0];
+  if (top) {
+    lines.push(
+      `Top revenue category: ${top.type.replace(/_/g, " ")} ($${top.revenue.toLocaleString()} across ${top.count} projects)`
+    );
+  }
+  if (ctx.outstandingInvoicesCount > 0) {
+    lines.push(`${ctx.outstandingInvoicesCount} outstanding invoice(s) — follow up and confirm payment dates`);
+  }
+  if ((ctx.expensesByCategory?.length ?? 0) > 0) {
+    const eTop = ctx.expensesByCategory![0];
+    if (eTop) {
+      lines.push(`Largest expense category: ${eTop.category} ($${eTop.total.toLocaleString()}) — review recurring costs`);
+    }
+  }
+  if (lines.length === 0) {
+    lines.push("Add invoices, payments, and expenses to unlock finance insights.");
+  }
+  return lines;
+}
+
+export async function generateFinanceNarrative(
+  ctx: FinanceNarrativeContext
+): Promise<AIGenerationResult<{ bullets: string[] }>> {
+  const available = await isOllamaAvailable();
+  if (!available) return { bullets: fallbackFinanceNarrative(ctx), source: "fallback" };
+
+  const data = JSON.stringify(
+    {
+      totalRevenue: ctx.totalRevenue,
+      revenueByType: ctx.revenueByType.slice(0, 5),
+      outstandingInvoicesCount: ctx.outstandingInvoicesCount,
+      expensesByCategory: (ctx.expensesByCategory ?? []).slice(0, 5),
+    },
+    null,
+    0
+  );
+
+  const prompt = `You are the Finance Agent for a photography studio. Based on the data, write 3–5 concise bullets with actionable recommendations. Be calm, specific, and practical. Use numbers when available. No hype. Output one bullet per line, no numbering.\n\nData:\n${data}`;
+  const result = await generateStructuredText(prompt);
+  if ("error" in result) return { bullets: fallbackFinanceNarrative(ctx), source: "fallback" };
+  const bullets = parseBulletLines(result.text, 5);
+  return { bullets: bullets.length > 0 ? bullets : fallbackFinanceNarrative(ctx), source: "ollama" };
+}
+
+function fallbackOpsNarrative(ctx: OpsNarrativeContext): string[] {
+  const lines: string[] = [];
+  if (ctx.pendingApprovals > 0) lines.push(`Clear approvals first: ${ctx.pendingApprovals} pending`);
+  if (ctx.readyForDelivery > 0) lines.push(`${ctx.readyForDelivery} project(s) ready for delivery — ship and close loops`);
+  if (ctx.stuckInEditing > 0) lines.push(`${ctx.stuckInEditing} project(s) stuck in editing — unblock or re-scope`);
+  if (ctx.newLeadsLast14d === 0) lines.push("No new leads in 14 days — schedule outreach or content this week");
+  if (lines.length === 0) lines.push("Ops looks stable — focus on throughput and client response time.");
+  return lines;
+}
+
+export async function generateOpsNarrative(
+  ctx: OpsNarrativeContext
+): Promise<AIGenerationResult<{ bullets: string[] }>> {
+  const available = await isOllamaAvailable();
+  if (!available) return { bullets: fallbackOpsNarrative(ctx), source: "fallback" };
+
+  const data = JSON.stringify(ctx, null, 0);
+  const prompt = `You are the Operations Agent for a photography studio. Produce 3–5 short bullets prioritizing today's actions (what to do first, next, and why). Be calm and direct. No fluff. Output one bullet per line, no numbering.\n\nData:\n${data}`;
+  const result = await generateStructuredText(prompt);
+  if ("error" in result) return { bullets: fallbackOpsNarrative(ctx), source: "fallback" };
+  const bullets = parseBulletLines(result.text, 5);
+  return { bullets: bullets.length > 0 ? bullets : fallbackOpsNarrative(ctx), source: "ollama" };
+}
+
+function fallbackBiNarrative(ctx: BiNarrativeContext): string[] {
+  const lines: string[] = [];
+  const best = ctx.conversionByType
+    .filter((c) => c.total >= 3)
+    .sort((a, b) => b.ratePct - a.ratePct)[0];
+  if (best) lines.push(`Highest converting niche: ${best.type.replace(/_/g, " ")} (${best.ratePct}% delivered)`);
+  const repeat = ctx.repeatClients[0];
+  if (repeat) lines.push(`Repeat client momentum: ${repeat.client} (${repeat.count} projects) — ask for referrals`);
+  if (ctx.marketingUtilization.deliveredTotal > 0 && ctx.marketingUtilization.pct < 50) {
+    lines.push(`Marketing underused: only ${ctx.marketingUtilization.pct}% of delivered projects have marketing drafts`);
+  }
+  if (lines.length === 0) lines.push("Add more tagged projects and payments to unlock BI insights.");
+  return lines;
+}
+
+export async function generateBiNarrative(
+  ctx: BiNarrativeContext
+): Promise<AIGenerationResult<{ bullets: string[] }>> {
+  const available = await isOllamaAvailable();
+  if (!available) return { bullets: fallbackBiNarrative(ctx), source: "fallback" };
+
+  const data = JSON.stringify(
+    {
+      conversionByType: ctx.conversionByType.filter((c) => c.total >= 2).slice(0, 8),
+      repeatClients: ctx.repeatClients.slice(0, 5),
+      topLocations: ctx.topLocations.slice(0, 5),
+      marketingUtilization: ctx.marketingUtilization,
+    },
+    null,
+    0
+  );
+
+  const prompt = `You are the BI Agent for a photography studio. Produce 3–5 concise insights that connect performance to strategy (what to double down on, what to stop, what to test). Use numbers when possible. No hype. Output one insight per line, no numbering.\n\nData:\n${data}`;
+  const result = await generateStructuredText(prompt);
+  if ("error" in result) return { bullets: fallbackBiNarrative(ctx), source: "fallback" };
+  const bullets = parseBulletLines(result.text, 5);
+  return { bullets: bullets.length > 0 ? bullets : fallbackBiNarrative(ctx), source: "ollama" };
 }

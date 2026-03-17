@@ -38,10 +38,18 @@ type RecentEvent = { room: string; summary: string; createdAt: string };
 
 type StoredSummary = { id: string; type: string; content: string; createdAt: string } | null;
 
+type StoredDailyData = {
+  todaySummary?: string;
+  priorities?: string[];
+  risks?: string[];
+  opportunities?: string[];
+  insights?: string[];
+};
+
 function StoredDailyContent({ content }: { content: string }) {
-  let data: { todaySummary?: string; priorities?: string[]; risks?: string[]; opportunities?: string[]; insights?: string[] } | null = null;
+  let data: StoredDailyData | null = null;
   try {
-    data = JSON.parse(content) as typeof data;
+    data = JSON.parse(content) as StoredDailyData;
   } catch {
     return <p className="text-sm text-white/60">Invalid stored data</p>;
   }

@@ -6,7 +6,8 @@
  */
 
 import { logEvent } from "@/lib/events/logger";
-import { getRevenueSummary } from "@/lib/analytics";
+import { getRevenueSummary, getFinanceAiContext } from "@/lib/analytics";
+import { generateFinanceNarrative } from "@/lib/ai";
 import {
   getOutstandingInvoices,
   getExpensesByProject,
@@ -57,4 +58,33 @@ export function runSummarizeExpenses(category?: string) {
     byCategory[c] = (byCategory[c] ?? 0) + e.amount;
   }
   return { total, count: expenses.length, byCategory };
+}
+
+export async function runGenerateFinanceNarrative() {
+  const invoices = getOutstandingInvoices();
+  const expenses = listExpenses(500);
+  const byCategory: Record<string, number> = {};
+  for (const e of expenses) {
+    const c = e.category ?? "uncategorized";
+    byCategory[c] = (byCategory[c] ?? 0) + e.amount;
+  }
+  const expensesByCategory = Object.entries(byCategory)
+    .map(([category, total]) => ({ category, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
+
+  const ctx = getFinanceAiContext({
+    outstandingInvoicesCount: invoices.length,
+    expensesByCategory,
+  });
+
+  const result = await generateFinanceNarrative(ctx);
+  logEvent({
+    room: "strategy",
+    agent: "Finance Agent",
+    type: "finance_narrative_generated",
+    status: "success",
+    summary: `Finance narrative generated using ${result.source === "ollama" ? "Ollama" : "fallback"}`,
+  });
+  return result;
 }

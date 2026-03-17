@@ -21,6 +21,25 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Build for production: `npm run build` then `npm run start`.
 
+## Optional: Local AI (Ollama)
+
+Studio OS uses **Ollama** for local-first AI. If Ollama is not installed or not running, Studio OS will **fallback** to deterministic templates.
+
+- Install Ollama (macOS): `https://ollama.com/download`
+- Start the server:
+
+```bash
+ollama serve
+```
+
+- In a second terminal, pull a model:
+
+```bash
+ollama pull llama3
+```
+
+If you see `command not found: ollama`, Ollama is not installed (or not on your PATH yet). Reopen Terminal after installation.
+
 ## Tech
 
 - Next.js (App Router), TypeScript, Tailwind

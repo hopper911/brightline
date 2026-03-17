@@ -6,8 +6,9 @@
  */
 
 import { logEvent } from "@/lib/events/logger";
-import { getPipelineStats } from "@/lib/analytics";
+import { getPipelineStats, getOpsAiContext } from "@/lib/analytics";
 import { getPendingApprovals } from "@/lib/approvals/store";
+import { generateOpsNarrative } from "@/lib/ai";
 
 export function runGetOverdueTasks() {
   const pipeline = getPipelineStats();
@@ -79,4 +80,18 @@ export function runSuggestPriorities() {
     summary: `Generated ${priorities.length} priority item(s)`,
   });
   return priorities;
+}
+
+export async function runGenerateOpsNarrative() {
+  const approvals = getPendingApprovals();
+  const ctx = getOpsAiContext({ pendingApprovals: approvals.length });
+  const result = await generateOpsNarrative(ctx);
+  logEvent({
+    room: "strategy",
+    agent: "Operations Agent",
+    type: "ops_narrative_generated",
+    status: "success",
+    summary: `Operations narrative generated using ${result.source === "ollama" ? "Ollama" : "fallback"}`,
+  });
+  return result;
 }

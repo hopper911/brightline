@@ -6,8 +6,9 @@
  */
 
 import { logEvent } from "@/lib/events/logger";
-import { getRevenueSummary, getProjectStats } from "@/lib/analytics";
+import { getRevenueSummary, getProjectStats, getBiAiContext } from "@/lib/analytics";
 import { listProjects } from "@/lib/projects/store";
+import { generateBiNarrative } from "@/lib/ai";
 
 export function runAnalyzeProjectTypes() {
   const stats = getProjectStats();
@@ -83,4 +84,17 @@ export function runCompareLocations() {
   }
   rows.sort((a, b) => b.count - a.count);
   return rows.slice(0, 10);
+}
+
+export async function runGenerateBiNarrative() {
+  const ctx = getBiAiContext();
+  const result = await generateBiNarrative(ctx);
+  logEvent({
+    room: "strategy",
+    agent: "BI Agent",
+    type: "bi_narrative_generated",
+    status: "success",
+    summary: `BI narrative generated using ${result.source === "ollama" ? "Ollama" : "fallback"}`,
+  });
+  return result;
 }

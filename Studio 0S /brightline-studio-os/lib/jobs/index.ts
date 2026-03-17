@@ -11,9 +11,18 @@ export {
   getJobById,
   getDueJobs,
   getRecentJobIndicators,
+  getJobsForWorkspace,
+  getJobByIdForWorkspace,
+  getDueJobsForWorkspace,
+  getRecentJobIndicatorsForWorkspace,
+  markJobRunning,
+  markJobRunningForWorkspace,
   markJobComplete,
   markJobFailed,
+  markJobCompleteForWorkspace,
+  markJobFailedForWorkspace,
   rescheduleJob,
+  rescheduleJobForWorkspace,
 } from "./store";
 
 export { runDueJobs } from "./run";

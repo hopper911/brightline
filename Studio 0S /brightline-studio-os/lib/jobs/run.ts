@@ -4,9 +4,10 @@
  * Runs due jobs, logs to events, marks complete/failed.
  */
 
-import { getDueJobs, markJobRunning, markJobComplete, markJobFailed } from "./store";
+import { getDueJobs, markJobRunningForWorkspace, markJobCompleteForWorkspace, markJobFailedForWorkspace } from "./store";
 import { executeJob } from "./executors";
 import { logEvent } from "@/lib/events/logger";
+import { trackUsage } from "@/lib/usage/track";
 
 export async function runDueJobs(): Promise<{ run: number; completed: number; failed: number }> {
   const now = new Date().toISOString();
@@ -15,13 +16,19 @@ export async function runDueJobs(): Promise<{ run: number; completed: number; fa
   let failed = 0;
 
   for (const job of due) {
-    const started = markJobRunning(job.id);
+    const started = markJobRunningForWorkspace(job.workspaceId, job.id);
     if (!started) continue;
 
     try {
+      trackUsage({
+        workspaceId: job.workspaceId,
+        eventType: "workflows_triggered",
+        quantity: 1,
+        meta: { jobType: job.jobType, projectId: job.projectId ?? null },
+      });
       const result = await executeJob(job);
       if (result.success) {
-        markJobComplete(job.id, result.summary);
+        markJobCompleteForWorkspace(job.workspaceId, job.id, result.summary);
         completed++;
         logEvent({
           room: "jobs",
@@ -30,9 +37,10 @@ export async function runDueJobs(): Promise<{ run: number; completed: number; fa
           status: "success",
           summary: `${job.jobType}: ${result.summary.slice(0, 120)}${result.summary.length > 120 ? "…" : ""}`,
           projectId: job.projectId,
+          workspaceId: job.workspaceId,
         });
       } else {
-        markJobFailed(job.id, result.summary);
+        markJobFailedForWorkspace(job.workspaceId, job.id, result.summary);
         failed++;
         logEvent({
           room: "jobs",
@@ -41,11 +49,12 @@ export async function runDueJobs(): Promise<{ run: number; completed: number; fa
           status: "failed",
           summary: `${job.jobType}: ${result.summary}`,
           projectId: job.projectId,
+          workspaceId: job.workspaceId,
         });
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      markJobFailed(job.id, msg);
+      markJobFailedForWorkspace(job.workspaceId, job.id, msg);
       failed++;
       logEvent({
         room: "jobs",
@@ -54,6 +63,7 @@ export async function runDueJobs(): Promise<{ run: number; completed: number; fa
         status: "failed",
         summary: `${job.jobType}: ${msg}`,
         projectId: job.projectId,
+        workspaceId: job.workspaceId,
       });
     }
   }

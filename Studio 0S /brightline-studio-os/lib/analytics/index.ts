@@ -5,9 +5,11 @@
  */
 
 import { getDb } from "@/lib/db";
-import { listProjects } from "@/lib/projects/store";
+import { resolveWorkspaceId } from "@/lib/db/workspace";
+import { listProjectsForWorkspace } from "@/lib/projects/store";
 import { getEvents } from "@/lib/events/logger";
-import { getDrafts } from "@/lib/drafts/store";
+import { getDraftsForWorkspace } from "@/lib/drafts/store";
+import { getEventsForWorkspace } from "@/lib/events/store";
 
 export type RevenueSummary = {
   totalRevenue: number;
@@ -15,15 +17,20 @@ export type RevenueSummary = {
   byProject: { projectId: string | null; total: number }[];
 };
 
-export function getRevenueSummary(): RevenueSummary {
+export function getRevenueSummary(workspaceId?: string): RevenueSummary {
   const db = getDb();
-  const totalRow = db.prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM payments").get() as { total: number };
+  const wsId = resolveWorkspaceId(workspaceId);
+  const totalRow = db
+    .prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE workspace_id = ?")
+    .get(wsId) as { total: number };
   const projectRows = db
     .prepare(
-      "SELECT project_id AS projectId, SUM(amount) AS total FROM payments GROUP BY project_id ORDER BY total DESC"
+      "SELECT project_id AS projectId, SUM(amount) AS total FROM payments WHERE workspace_id = ? GROUP BY project_id ORDER BY total DESC"
     )
-    .all() as { projectId: string | null; total: number }[];
-  const countRow = db.prepare("SELECT COUNT(DISTINCT project_id) AS cnt FROM payments WHERE project_id IS NOT NULL").get() as { cnt: number };
+    .all(wsId) as { projectId: string | null; total: number }[];
+  const countRow = db
+    .prepare("SELECT COUNT(DISTINCT project_id) AS cnt FROM payments WHERE workspace_id = ? AND project_id IS NOT NULL")
+    .get(wsId) as { cnt: number };
   return {
     totalRevenue: totalRow.total,
     projectCount: countRow.cnt,
@@ -38,8 +45,8 @@ export type ProjectStats = {
   total: number;
 };
 
-export function getProjectStats(): ProjectStats {
-  const projects = listProjects();
+export function getProjectStats(workspaceId?: string): ProjectStats {
+  const projects = listProjectsForWorkspace(workspaceId);
   const byStatus: Record<string, number> = {};
   const byType: Record<string, number> = {};
   const byLocation: Record<string, number> = {};
@@ -61,8 +68,8 @@ export type PipelineStats = {
   readyForDelivery: number;
 };
 
-export function getPipelineStats(): PipelineStats {
-  const projects = listProjects();
+export function getPipelineStats(workspaceId?: string): PipelineStats {
+  const projects = listProjectsForWorkspace(workspaceId);
   const byStatus: Record<string, number> = {};
   let stuckInEditing = 0;
   let stuckInProduction = 0;
@@ -89,8 +96,8 @@ export type RecentEventsSummary = {
   recent: { room: string; summary: string; createdAt: string }[];
 };
 
-export function getRecentEventsSummary(limit = 20): RecentEventsSummary {
-  const events = getEvents();
+export function getRecentEventsSummary(workspaceId?: string, limit = 20): RecentEventsSummary {
+  const events = workspaceId ? getEventsForWorkspace(workspaceId) : getEvents();
   const recent = events.slice(0, limit);
   const byRoom: Record<string, number> = {};
   for (const e of events) {
@@ -119,10 +126,10 @@ export type HistoricalContext = {
   totalRevenue: number;
 };
 
-export function getHistoricalContext(): HistoricalContext {
-  const projects = listProjects();
-  const revenue = getRevenueSummary();
-  const pipeline = getPipelineStats();
+export function getHistoricalContext(workspaceId?: string): HistoricalContext {
+  const projects = listProjectsForWorkspace(workspaceId);
+  const revenue = getRevenueSummary(workspaceId);
+  const pipeline = getPipelineStats(workspaceId);
   const projectIdToProject = new Map(projects.map((p) => [p.id, p]));
 
   const revenueByType: Record<string, { revenue: number; count: number }> = {};
@@ -220,7 +227,7 @@ export function getHistoricalContext(): HistoricalContext {
   }));
 
   const deliveredTotal = deliveredIds.size;
-  const marketingDrafts = getDrafts("marketing");
+  const marketingDrafts = getDraftsForWorkspace(workspaceId, "marketing");
   const marketingProjectIds = new Set(
     marketingDrafts.map((d) => d.projectId).filter((id): id is string => !!id)
   );

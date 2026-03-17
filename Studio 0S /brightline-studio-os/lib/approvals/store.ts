@@ -5,9 +5,12 @@
  */
 
 import { getDb } from "@/lib/db";
+import { resolveWorkspaceId } from "@/lib/db/workspace";
+import { assertNotDemoMode } from "@/lib/runtime/demoGuard";
 
 export type Approval = {
   id: string;
+  workspaceId: string;
   actionType: string;
   room: string;
   status: "pending" | "approved" | "rejected";
@@ -23,19 +26,24 @@ export type CreateApprovalInput = {
   actionType: string;
   room: string;
   payload: unknown;
+  workspaceId?: string;
+  projectId?: string | null;
 };
 
 export function createApproval(input: CreateApprovalInput): Approval {
+  assertNotDemoMode("Creating approvals");
   const id = nextId();
   const createdAt = new Date().toISOString();
   const payloadJson = JSON.stringify(input.payload ?? null);
   const db = getDb();
+  const wsId = resolveWorkspaceId(input.workspaceId);
   const stmt = db.prepare(
-    "INSERT INTO approvals (id, action_type, room, status, payload_json) VALUES (?, ?, ?, ?, ?)"
+    "INSERT INTO approvals (id, workspace_id, action_type, room, project_id, status, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
   );
-  stmt.run(id, input.actionType, input.room, "pending", payloadJson);
+  stmt.run(id, wsId, input.actionType, input.room, input.projectId ?? null, "pending", payloadJson);
   return {
     id,
+    workspaceId: wsId,
     actionType: input.actionType,
     room: input.room,
     status: "pending",
@@ -45,13 +53,18 @@ export function createApproval(input: CreateApprovalInput): Approval {
 }
 
 export function getApprovalsByProject(projectId: string): Approval[] {
+  return getApprovalsByProjectForWorkspace(undefined, projectId);
+}
+
+export function getApprovalsByProjectForWorkspace(workspaceId: string | undefined, projectId: string): Approval[] {
   const db = getDb();
+  const wsId = resolveWorkspaceId(workspaceId);
   try {
     const rows = db
       .prepare(
-        "SELECT id, action_type AS actionType, room, status, payload_json AS payloadJson, created_at AS createdAt FROM approvals WHERE project_id = ? ORDER BY created_at DESC"
+        "SELECT id, workspace_id AS workspaceId, action_type AS actionType, room, status, payload_json AS payloadJson, created_at AS createdAt FROM approvals WHERE workspace_id = ? AND project_id = ? ORDER BY created_at DESC"
       )
-      .all(projectId) as Approval[];
+      .all(wsId, projectId) as Approval[];
     return rows;
   } catch {
     return [];
@@ -59,37 +72,60 @@ export function getApprovalsByProject(projectId: string): Approval[] {
 }
 
 export function getPendingApprovals(): Approval[] {
+  return getPendingApprovalsForWorkspace(undefined);
+}
+
+export function getPendingApprovalsForWorkspace(workspaceId: string | undefined): Approval[] {
   const db = getDb();
+  const wsId = resolveWorkspaceId(workspaceId);
   const rows = db
     .prepare(
-      "SELECT id, action_type AS actionType, room, status, payload_json AS payloadJson, created_at AS createdAt FROM approvals WHERE status = 'pending' ORDER BY created_at ASC"
+      "SELECT id, workspace_id AS workspaceId, action_type AS actionType, room, status, payload_json AS payloadJson, created_at AS createdAt FROM approvals WHERE workspace_id = ? AND status = 'pending' ORDER BY created_at ASC"
     )
-    .all() as Approval[];
+    .all(wsId) as Approval[];
   return rows;
 }
 
 export function approveAction(id: string): Approval | null {
+  assertNotDemoMode("Approving actions");
+  return approveActionForWorkspace(undefined, id);
+}
+
+export function approveActionForWorkspace(workspaceId: string | undefined, id: string): Approval | null {
+  assertNotDemoMode("Approving actions");
   const db = getDb();
-  const stmt = db.prepare("UPDATE approvals SET status = 'approved' WHERE id = ? AND status = 'pending'");
-  const result = stmt.run(id);
+  const wsId = resolveWorkspaceId(workspaceId);
+  const stmt = db.prepare(
+    "UPDATE approvals SET status = 'approved' WHERE workspace_id = ? AND id = ? AND status = 'pending'"
+  );
+  const result = stmt.run(wsId, id);
   if (result.changes === 0) return null;
   const row = db
     .prepare(
-      "SELECT id, action_type AS actionType, room, status, payload_json AS payloadJson, created_at AS createdAt FROM approvals WHERE id = ?"
+      "SELECT id, workspace_id AS workspaceId, action_type AS actionType, room, status, payload_json AS payloadJson, created_at AS createdAt FROM approvals WHERE workspace_id = ? AND id = ?"
     )
-    .get(id) as Approval | undefined;
+    .get(wsId, id) as Approval | undefined;
   return row ?? null;
 }
 
 export function rejectAction(id: string): Approval | null {
+  assertNotDemoMode("Rejecting actions");
+  return rejectActionForWorkspace(undefined, id);
+}
+
+export function rejectActionForWorkspace(workspaceId: string | undefined, id: string): Approval | null {
+  assertNotDemoMode("Rejecting actions");
   const db = getDb();
-  const stmt = db.prepare("UPDATE approvals SET status = 'rejected' WHERE id = ? AND status = 'pending'");
-  const result = stmt.run(id);
+  const wsId = resolveWorkspaceId(workspaceId);
+  const stmt = db.prepare(
+    "UPDATE approvals SET status = 'rejected' WHERE workspace_id = ? AND id = ? AND status = 'pending'"
+  );
+  const result = stmt.run(wsId, id);
   if (result.changes === 0) return null;
   const row = db
     .prepare(
-      "SELECT id, action_type AS actionType, room, status, payload_json AS payloadJson, created_at AS createdAt FROM approvals WHERE id = ?"
+      "SELECT id, workspace_id AS workspaceId, action_type AS actionType, room, status, payload_json AS payloadJson, created_at AS createdAt FROM approvals WHERE workspace_id = ? AND id = ?"
     )
-    .get(id) as Approval | undefined;
+    .get(wsId, id) as Approval | undefined;
   return row ?? null;
 }

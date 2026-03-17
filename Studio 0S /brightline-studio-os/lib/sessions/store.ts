@@ -5,6 +5,7 @@
  */
 
 import { getDb } from "@/lib/db";
+import { resolveWorkspaceId } from "@/lib/db/workspace";
 
 export type Session = {
   id: string;
@@ -23,16 +24,18 @@ function nextId(): string {
 export type CreateSessionInput = {
   room: string;
   projectId?: string | null;
+  workspaceId?: string;
 };
 
 export function createSession(input: CreateSessionInput): Session {
   const id = nextId();
   const createdAt = new Date().toISOString();
   const db = getDb();
+  const wsId = resolveWorkspaceId(input.workspaceId);
   const stmt = db.prepare(
-    "INSERT INTO sessions (id, room, project_id, status, last_action, last_output) VALUES (?, ?, ?, ?, ?, ?)"
+    "INSERT INTO sessions (id, workspace_id, room, project_id, status, last_action, last_output) VALUES (?, ?, ?, ?, ?, ?, ?)"
   );
-  stmt.run(id, input.room, input.projectId ?? null, "active", null, null);
+  stmt.run(id, wsId, input.room, input.projectId ?? null, "active", null, null);
   return {
     id,
     room: input.room,
@@ -45,22 +48,32 @@ export function createSession(input: CreateSessionInput): Session {
 }
 
 export function getAllSessions(): Session[] {
+  return getAllSessionsForWorkspace(undefined);
+}
+
+export function getAllSessionsForWorkspace(workspaceId: string | undefined): Session[] {
   const db = getDb();
+  const wsId = resolveWorkspaceId(workspaceId);
   const rows = db
     .prepare(
-      "SELECT id, room, project_id AS projectId, status, last_action AS lastAction, last_output AS lastOutput, created_at AS createdAt FROM sessions ORDER BY created_at DESC"
+      "SELECT id, room, project_id AS projectId, status, last_action AS lastAction, last_output AS lastOutput, created_at AS createdAt FROM sessions WHERE workspace_id = ? ORDER BY created_at DESC"
     )
-    .all() as Session[];
+    .all(wsId) as Session[];
   return rows;
 }
 
 export function getSession(room: string): Session | null {
+  return getSessionForWorkspace(undefined, room);
+}
+
+export function getSessionForWorkspace(workspaceId: string | undefined, room: string): Session | null {
   const db = getDb();
+  const wsId = resolveWorkspaceId(workspaceId);
   const row = db
     .prepare(
-      "SELECT id, room, project_id AS projectId, status, last_action AS lastAction, last_output AS lastOutput, created_at AS createdAt FROM sessions WHERE room = ? ORDER BY created_at DESC LIMIT 1"
+      "SELECT id, room, project_id AS projectId, status, last_action AS lastAction, last_output AS lastOutput, created_at AS createdAt FROM sessions WHERE workspace_id = ? AND room = ? ORDER BY created_at DESC LIMIT 1"
     )
-    .get(room) as Session | undefined;
+    .get(wsId, room) as Session | undefined;
   return row ?? null;
 }
 
@@ -72,9 +85,18 @@ export type UpdateSessionInput = Partial<{
 }>;
 
 export function updateSession(room: string, input: UpdateSessionInput): Session | null {
-  const session = getSession(room);
+  return updateSessionForWorkspace(undefined, room, input);
+}
+
+export function updateSessionForWorkspace(
+  workspaceId: string | undefined,
+  room: string,
+  input: UpdateSessionInput
+): Session | null {
+  const session = getSessionForWorkspace(workspaceId, room);
   if (!session) return null;
   const db = getDb();
+  const wsId = resolveWorkspaceId(workspaceId);
   const updates: string[] = [];
   const values: (string | null)[] = [];
   if (input.lastAction !== undefined) {
@@ -94,7 +116,7 @@ export function updateSession(room: string, input: UpdateSessionInput): Session 
     values.push(input.status);
   }
   if (updates.length === 0) return session;
-  values.push(session.id);
-  db.prepare(`UPDATE sessions SET ${updates.join(", ")} WHERE id = ?`).run(...values);
-  return getSession(room);
+  values.push(wsId, session.id);
+  db.prepare(`UPDATE sessions SET ${updates.join(", ")} WHERE workspace_id = ? AND id = ?`).run(...values);
+  return getSessionForWorkspace(wsId, room);
 }

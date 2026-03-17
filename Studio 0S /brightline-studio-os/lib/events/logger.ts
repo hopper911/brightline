@@ -13,14 +13,16 @@ export type LogEventParams = {
   status: string;
   summary: string;
   projectId?: string | null;
+  workspaceId?: string;
 };
 
 export function logEvent(params: LogEventParams): EventRecord {
   return addEvent({
     ...params,
     projectId: params.projectId ?? null,
+    workspaceId: params.workspaceId,
   });
 }
 
-export { getEvents, getEventsByProject } from "./store";
+export { getEvents, getEventsByProject, getEventsForWorkspace, getEventsByProjectForWorkspace } from "./store";
 export type { EventRecord } from "./store";

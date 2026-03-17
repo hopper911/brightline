@@ -4,13 +4,32 @@
  * Routes to Ollama when available, fallback to templates otherwise.
  */
 
+import "server-only";
+
 import {
   isOllamaAvailable,
   generateStructuredText,
   type GenerateResult,
 } from "./ollama";
+import { getWorkspaceProfile, getWorkspaceProfileContextString } from "@/lib/profile/store";
+import { trackUsage } from "@/lib/usage/track";
 
 export type AIGenerationResult<T> = T & { source: "ollama" | "fallback" };
+
+function trackAgentUsage(kind: string): void {
+  trackUsage({ eventType: "agent_usage", quantity: 1, meta: { kind } });
+}
+
+function getStudioContextPrefix(): string {
+  try {
+    const profile = getWorkspaceProfile();
+    const ctx = getWorkspaceProfileContextString(profile);
+    if (!ctx) return "";
+    return `Studio context: ${ctx}\n\n`;
+  } catch {
+    return "";
+  }
+}
 
 function fallbackSummary(text: string): { summary: string; tone: string; intent: string } {
   const trimmed = text.trim().slice(0, 500);
@@ -26,6 +45,7 @@ function fallbackSummary(text: string): { summary: string; tone: string; intent:
 export async function generateInquirySummary(
   text: string
 ): Promise<AIGenerationResult<{ summary: string; tone: string; intent: string }>> {
+  trackAgentUsage("generateInquirySummary");
   const trimmed = text.trim().slice(0, 500);
   if (!trimmed) {
     return { ...fallbackSummary(""), source: "fallback" };
@@ -34,7 +54,7 @@ export async function generateInquirySummary(
   if (!available) {
     return { ...fallbackSummary(trimmed), source: "fallback" };
   }
-  const prompt = `You are the studio intake assistant. Summarize this photography inquiry in 1–2 sentences (plain, factual). Then state: tone (brief/detailed) and intent (question/request). Format exactly:\nSummary: ...\nTone: ...\nIntent: ...\n\nInquiry: ${trimmed}`;
+  const prompt = `${getStudioContextPrefix()}You are the studio intake assistant. Summarize this photography inquiry in 1–2 sentences (plain, factual). Then state: tone (brief/detailed) and intent (question/request). Format exactly:\nSummary: ...\nTone: ...\nIntent: ...\n\nInquiry: ${trimmed}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return { ...fallbackSummary(trimmed), source: "fallback" };
@@ -58,12 +78,13 @@ function fallbackProjectType(text: string): { projectType: string; confidence: s
 export async function classifyProjectType(text: string): Promise<
   AIGenerationResult<{ projectType: string; confidence: string }>
 > {
+  trackAgentUsage("classifyProjectType");
   const trimmed = text.trim().toLowerCase().slice(0, 500);
   const available = await isOllamaAvailable();
   if (!available || !trimmed) {
     return { ...fallbackProjectType(trimmed || "general"), source: "fallback" };
   }
-  const prompt = `Classify this photography inquiry into one type: brand, portrait, editorial, events, or general. Reply with only: Type: X Confidence: high/medium/low\n\nInquiry: ${trimmed}`;
+  const prompt = `${getStudioContextPrefix()}Classify this photography inquiry into one type: brand, portrait, editorial, events, or general. Reply with only: Type: X Confidence: high/medium/low\n\nInquiry: ${trimmed}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return { ...fallbackProjectType(trimmed), source: "fallback" };
@@ -74,6 +95,7 @@ export async function classifyProjectType(text: string): Promise<
 }
 
 export async function generateReplyDraft(text: string): Promise<AIGenerationResult<{ draft: string }>> {
+  trackAgentUsage("generateReplyDraft");
   const snippet = text.trim().slice(0, 80) || "your inquiry";
   const available = await isOllamaAvailable();
   if (!available) {
@@ -82,7 +104,7 @@ export async function generateReplyDraft(text: string): Promise<AIGenerationResu
       source: "fallback",
     };
   }
-  const prompt = `Write a brief, professional reply (2–3 sentences) to this photography inquiry. Keep it warm, calm, and concrete. Do not overpromise. Do not use emojis. Sign off as \"Bright Line Studio\".\n\nInquiry: ${snippet}`;
+  const prompt = `${getStudioContextPrefix()}Write a brief, professional reply (2–3 sentences) to this photography inquiry. Keep it warm, calm, and concrete. Do not overpromise. Do not use emojis. Sign off as \"Bright Line Studio\".\n\nInquiry: ${snippet}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return {
@@ -95,6 +117,7 @@ export async function generateReplyDraft(text: string): Promise<AIGenerationResu
 }
 
 export async function generateInstagramCaption(projectName: string): Promise<AIGenerationResult<{ caption: string }>> {
+  trackAgentUsage("generateInstagramCaption");
   const available = await isOllamaAvailable();
   if (!available) {
     return {
@@ -102,7 +125,7 @@ export async function generateInstagramCaption(projectName: string): Promise<AIG
       source: "fallback",
     };
   }
-  const prompt = `Write a short Instagram caption (1–2 sentences) for a photography project named \"${projectName}\". Calm, tasteful, minimal. No hashtags. End with \"— Bright Line Studio\".`;
+  const prompt = `${getStudioContextPrefix()}Write a short Instagram caption (1–2 sentences) for a photography project named \"${projectName}\". Calm, tasteful, minimal. No hashtags. End with \"— Bright Line Studio\".`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return {
@@ -117,6 +140,7 @@ export async function generateInstagramCaption(projectName: string): Promise<AIG
 export async function generateCaseStudy(projectName: string): Promise<
   AIGenerationResult<{ title: string; sections: string[] }>
 > {
+  trackAgentUsage("generateCaseStudy");
   const available = await isOllamaAvailable();
   if (!available) {
     return {
@@ -129,7 +153,7 @@ export async function generateCaseStudy(projectName: string): Promise<
       source: "fallback",
     };
   }
-  const prompt = `Create a case study outline for photography project \"${projectName}\". Keep it specific and businesslike. Give a title and 3 short section headings (Challenge, Approach, Result). Format: Title: ... Sections: 1. ... 2. ... 3. ...`;
+  const prompt = `${getStudioContextPrefix()}Create a case study outline for photography project \"${projectName}\". Keep it specific and businesslike. Give a title and 3 short section headings (Challenge, Approach, Result). Format: Title: ... Sections: 1. ... 2. ... 3. ...`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return {
@@ -153,6 +177,7 @@ export async function generateCaseStudy(projectName: string): Promise<
 export async function generateProjectBrief(projectName: string, notes: string): Promise<
   AIGenerationResult<{ project_name: string; client: string; type: string; notes: string }>
 > {
+  trackAgentUsage("generateProjectBrief");
   const available = await isOllamaAvailable();
   const fallback = {
     project_name: projectName || "New project",
@@ -162,7 +187,7 @@ export async function generateProjectBrief(projectName: string, notes: string): 
     source: "fallback" as const,
   };
   if (!available) return fallback;
-  const prompt = `From these notes, extract: project name, client (or \"Unknown\"), type (brand/portrait/editorial/events/general), and concise summary notes. Do not invent details. Format exactly:\nproject_name: ...\nclient: ...\ntype: ...\nnotes: ...\n\nProject: ${projectName}\nNotes: ${notes.slice(0, 300)}`;
+  const prompt = `${getStudioContextPrefix()}From these notes, extract: project name, client (or \"Unknown\"), type (brand/portrait/editorial/events/general), and concise summary notes. Do not invent details. Format exactly:\nproject_name: ...\nclient: ...\ntype: ...\nnotes: ...\n\nProject: ${projectName}\nNotes: ${notes.slice(0, 300)}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return fallback;
   const t = result.text;
@@ -178,6 +203,7 @@ export async function generateProjectBrief(projectName: string, notes: string): 
 export async function generateShotList(projectName: string, count?: number): Promise<
   AIGenerationResult<{ shots: string[] }>
 > {
+  trackAgentUsage("generateShotList");
   const n = count ?? 5;
   const available = await isOllamaAvailable();
   const fallbackShots = [
@@ -190,7 +216,7 @@ export async function generateShotList(projectName: string, count?: number): Pro
   if (!available) {
     return { shots: fallbackShots, source: "fallback" };
   }
-  const prompt = `List ${n} suggested shot types for photography project \"${projectName}\". Practical, specific, and brief. One per line. No numbering.`;
+  const prompt = `${getStudioContextPrefix()}List ${n} suggested shot types for photography project \"${projectName}\". Practical, specific, and brief. One per line. No numbering.`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return { shots: fallbackShots, source: "fallback" };
@@ -207,6 +233,7 @@ export async function generateChecklist(
   projectName: string,
   kind: "shoot" | "gear"
 ): Promise<AIGenerationResult<{ items: string[] }>> {
+  trackAgentUsage("generateChecklist");
   const available = await isOllamaAvailable();
   const fallbackShoot = [
     "Confirm date and time",
@@ -230,8 +257,8 @@ export async function generateChecklist(
   }
   const prompt =
     kind === "shoot"
-      ? `Create a shoot day checklist for photography project \"${projectName}\". List 6–8 items. Practical. One per line. No numbering.`
-      : `Create a gear checklist for photography project \"${projectName}\". List 6–8 items. Practical. One per line. No numbering.`;
+      ? `${getStudioContextPrefix()}Create a shoot day checklist for photography project \"${projectName}\". List 6–8 items. Practical. One per line. No numbering.`
+      : `${getStudioContextPrefix()}Create a gear checklist for photography project \"${projectName}\". List 6–8 items. Practical. One per line. No numbering.`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return { items: fallback, source: "fallback" };
@@ -247,6 +274,7 @@ export async function generateChecklist(
 export async function summarizeProject(projectName: string, notes: string): Promise<
   AIGenerationResult<{ summary: string; priorities: string[] }>
 > {
+  trackAgentUsage("summarizeProject");
   const available = await isOllamaAvailable();
   const fallback = {
     summary: notes ? notes.slice(0, 200) : `Project: ${projectName}. No notes.`,
@@ -256,7 +284,7 @@ export async function summarizeProject(projectName: string, notes: string): Prom
   if (!available || !notes.trim()) {
     return fallback;
   }
-  const prompt = `Summarize this photography project in 1–2 sentences (plain, factual). Then list 3 concrete priorities. Format exactly:\nSummary: ...\nPriorities: 1. ... 2. ... 3. ...\n\nProject: ${projectName}\nNotes: ${notes.slice(0, 400)}`;
+  const prompt = `${getStudioContextPrefix()}Summarize this photography project in 1–2 sentences (plain, factual). Then list 3 concrete priorities. Format exactly:\nSummary: ...\nPriorities: 1. ... 2. ... 3. ...\n\nProject: ${projectName}\nNotes: ${notes.slice(0, 400)}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return fallback;
@@ -277,6 +305,7 @@ export async function summarizeProject(projectName: string, notes: string): Prom
 export async function generateDeliveryChecklist(projectName: string): Promise<
   AIGenerationResult<{ items: string[] }>
 > {
+  trackAgentUsage("generateDeliveryChecklist");
   const available = await isOllamaAvailable();
   const fallback = [
     "Gallery link ready",
@@ -287,7 +316,7 @@ export async function generateDeliveryChecklist(projectName: string): Promise<
     "Follow-up reminder scheduled",
   ];
   if (!available) return { items: fallback, source: "fallback" };
-  const prompt = `Create a delivery prep checklist for photography project \"${projectName}\". List 6–8 client handoff items. Practical and brief. One per line. No numbering.`;
+  const prompt = `${getStudioContextPrefix()}Create a delivery prep checklist for photography project \"${projectName}\". List 6–8 client handoff items. Practical and brief. One per line. No numbering.`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return { items: fallback, source: "fallback" };
   const items = result.text
@@ -301,6 +330,7 @@ export async function generateDeliveryChecklist(projectName: string): Promise<
 export async function generateDeliveryEmailDraft(projectName: string, clientName?: string): Promise<
   AIGenerationResult<{ subject: string; body: string }>
 > {
+  trackAgentUsage("generateDeliveryEmailDraft");
   const available = await isOllamaAvailable();
   const client = clientName || "there";
   const fallback = {
@@ -309,7 +339,7 @@ export async function generateDeliveryEmailDraft(projectName: string, clientName
     source: "fallback" as const,
   };
   if (!available) return fallback;
-  const prompt = `Write a short client handoff email for photography project \"${projectName}\"${clientName ? `, client: ${clientName}` : ""}. Keep it warm, calm, and professional. Do not use placeholders like [link]; say \"your gallery link\" in prose. Format: Subject: ... Body: ... Sign off as Bright Line Studio.`;
+  const prompt = `${getStudioContextPrefix()}Write a short client handoff email for photography project \"${projectName}\"${clientName ? `, client: ${clientName}` : ""}. Keep it warm, calm, and professional. Do not use placeholders like [link]; say \"your gallery link\" in prose. Format: Subject: ... Body: ... Sign off as Bright Line Studio.`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return fallback;
   const t = result.text;
@@ -321,6 +351,7 @@ export async function generateDeliveryEmailDraft(projectName: string, clientName
 export async function summarizeFinalAssets(projectName: string, notes?: string): Promise<
   AIGenerationResult<{ summary: string; assetCount: string }>
 > {
+  trackAgentUsage("summarizeFinalAssets");
   const available = await isOllamaAvailable();
   const fallback = {
     summary: notes ? notes.slice(0, 150) : `Final deliverables for ${projectName}.`,
@@ -328,7 +359,7 @@ export async function summarizeFinalAssets(projectName: string, notes?: string):
     source: "fallback" as const,
   };
   if (!available) return fallback;
-  const prompt = `Summarize final photo deliverables for project \"${projectName}\"${notes ? `. Context: ${notes.slice(0, 200)}` : ""}. One sentence. If you can infer an approximate asset count, include it. Format: Summary: ... Asset count: ...`;
+  const prompt = `${getStudioContextPrefix()}Summarize final photo deliverables for project \"${projectName}\"${notes ? `. Context: ${notes.slice(0, 200)}` : ""}. One sentence. If you can infer an approximate asset count, include it. Format: Summary: ... Asset count: ...`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return fallback;
   const t = result.text;
@@ -338,13 +369,14 @@ export async function summarizeFinalAssets(projectName: string, notes?: string):
 }
 
 export async function generateFollowupText(projectName: string): Promise<AIGenerationResult<{ text: string }>> {
+  trackAgentUsage("generateFollowupText");
   const available = await isOllamaAvailable();
   const fallback = {
     text: `Quick reminder: your gallery for ${projectName} is ready for review. Let us know if you need anything.`,
     source: "fallback" as const,
   };
   if (!available) return fallback;
-  const prompt = `Write a brief follow-up reminder (1–2 sentences) for a client who hasn't viewed their gallery for project \"${projectName}\". Friendly, calm, not pushy. No emojis.`;
+  const prompt = `${getStudioContextPrefix()}Write a brief follow-up reminder (1–2 sentences) for a client who hasn't viewed their gallery for project \"${projectName}\". Friendly, calm, not pushy. No emojis.`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return fallback;
   const text = result.text.trim().slice(0, 200) || fallback.text;
@@ -397,6 +429,7 @@ function fallbackStrategyInsights(ctx: HistoricalContext): string[] {
 export async function generateStrategyInsights(
   ctx: HistoricalContext
 ): Promise<AIGenerationResult<{ insights: string[] }>> {
+  trackAgentUsage("generateStrategyInsights");
   const available = await isOllamaAvailable();
   if (!available) {
     return { insights: fallbackStrategyInsights(ctx), source: "fallback" };
@@ -414,7 +447,7 @@ export async function generateStrategyInsights(
     null,
     0
   );
-  const prompt = `You are a business advisor for a photography studio. Based on this data, generate 3–5 short, actionable insights (one sentence each). Sound like a strategic advisor. Examples: "Office photography is your highest converting niche", "Projects with executive headshots have higher total value", "Marketing content is underutilized for completed projects". Be specific with numbers when available. Output one insight per line, no numbering.\n\nData:\n${data}`;
+  const prompt = `${getStudioContextPrefix()}You are a business advisor for a photography studio. Based on this data, generate 3–5 short, actionable insights (one sentence each). Sound like a strategic advisor. Examples: "Office photography is your highest converting niche", "Projects with executive headshots have higher total value", "Marketing content is underutilized for completed projects". Be specific with numbers when available. Output one insight per line, no numbering.\n\nData:\n${data}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) {
     return { insights: fallbackStrategyInsights(ctx), source: "fallback" };
@@ -484,6 +517,7 @@ function fallbackFinanceNarrative(ctx: FinanceNarrativeContext): string[] {
 export async function generateFinanceNarrative(
   ctx: FinanceNarrativeContext
 ): Promise<AIGenerationResult<{ bullets: string[] }>> {
+  trackAgentUsage("generateFinanceNarrative");
   const available = await isOllamaAvailable();
   if (!available) return { bullets: fallbackFinanceNarrative(ctx), source: "fallback" };
 
@@ -498,7 +532,7 @@ export async function generateFinanceNarrative(
     0
   );
 
-  const prompt = `You are the Finance Agent for a photography studio. Based on the data, write 3–5 concise bullets with actionable recommendations. Be calm, specific, and practical. Use numbers when available. No hype. Output one bullet per line, no numbering.\n\nData:\n${data}`;
+  const prompt = `${getStudioContextPrefix()}You are the Finance Agent for a photography studio. Based on the data, write 3–5 concise bullets with actionable recommendations. Be calm, specific, and practical. Use numbers when available. No hype. Output one bullet per line, no numbering.\n\nData:\n${data}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return { bullets: fallbackFinanceNarrative(ctx), source: "fallback" };
   const bullets = parseBulletLines(result.text, 5);
@@ -518,11 +552,12 @@ function fallbackOpsNarrative(ctx: OpsNarrativeContext): string[] {
 export async function generateOpsNarrative(
   ctx: OpsNarrativeContext
 ): Promise<AIGenerationResult<{ bullets: string[] }>> {
+  trackAgentUsage("generateOpsNarrative");
   const available = await isOllamaAvailable();
   if (!available) return { bullets: fallbackOpsNarrative(ctx), source: "fallback" };
 
   const data = JSON.stringify(ctx, null, 0);
-  const prompt = `You are the Operations Agent for a photography studio. Produce 3–5 short bullets prioritizing today's actions (what to do first, next, and why). Be calm and direct. No fluff. Output one bullet per line, no numbering.\n\nData:\n${data}`;
+  const prompt = `${getStudioContextPrefix()}You are the Operations Agent for a photography studio. Produce 3–5 short bullets prioritizing today's actions (what to do first, next, and why). Be calm and direct. No fluff. Output one bullet per line, no numbering.\n\nData:\n${data}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return { bullets: fallbackOpsNarrative(ctx), source: "fallback" };
   const bullets = parseBulletLines(result.text, 5);
@@ -547,6 +582,7 @@ function fallbackBiNarrative(ctx: BiNarrativeContext): string[] {
 export async function generateBiNarrative(
   ctx: BiNarrativeContext
 ): Promise<AIGenerationResult<{ bullets: string[] }>> {
+  trackAgentUsage("generateBiNarrative");
   const available = await isOllamaAvailable();
   if (!available) return { bullets: fallbackBiNarrative(ctx), source: "fallback" };
 
@@ -561,7 +597,7 @@ export async function generateBiNarrative(
     0
   );
 
-  const prompt = `You are the BI Agent for a photography studio. Produce 3–5 concise insights that connect performance to strategy (what to double down on, what to stop, what to test). Use numbers when possible. No hype. Output one insight per line, no numbering.\n\nData:\n${data}`;
+  const prompt = `${getStudioContextPrefix()}You are the BI Agent for a photography studio. Produce 3–5 concise insights that connect performance to strategy (what to double down on, what to stop, what to test). Use numbers when possible. No hype. Output one insight per line, no numbering.\n\nData:\n${data}`;
   const result = await generateStructuredText(prompt);
   if ("error" in result) return { bullets: fallbackBiNarrative(ctx), source: "fallback" };
   const bullets = parseBulletLines(result.text, 5);

@@ -1,37 +1,26 @@
 /**
  * Bright Line Studio OS – event logger
  *
- * Writes events to the SQLite events table. Used by rooms and agents
- * to record actions. Local-first; no external services.
+ * In-memory only for living-system phase. No DB or filesystem.
  */
 
-import { getDb } from "@/lib/db";
+import { addEvent, type EventRecord } from "./store";
 
-function nextId(): string {
-  return `evt-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-export interface LogEventParams {
+export type LogEventParams = {
   room: string;
-  event_type: string;
+  agent: string;
+  type: string;
   status: string;
   summary: string;
-  agent_id?: string | null;
+  projectId?: string | null;
+};
+
+export function logEvent(params: LogEventParams): EventRecord {
+  return addEvent({
+    ...params,
+    projectId: params.projectId ?? null,
+  });
 }
 
-export function logEvent(params: LogEventParams): string {
-  const id = nextId();
-  const db = getDb();
-  const stmt = db.prepare(
-    "INSERT INTO events (id, room, agent_id, event_type, status, summary) VALUES (?, ?, ?, ?, ?, ?)"
-  );
-  stmt.run(
-    id,
-    params.room,
-    params.agent_id ?? null,
-    params.event_type,
-    params.status,
-    params.summary
-  );
-  return id;
-}
+export { getEvents, getEventsByProject } from "./store";
+export type { EventRecord } from "./store";

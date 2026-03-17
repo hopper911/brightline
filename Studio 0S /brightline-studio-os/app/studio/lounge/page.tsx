@@ -1,18 +1,16 @@
-import Link from "next/link";
+import { PageShell } from "@/components/studio/PageShell";
+import { EmptyState } from "@/components/studio/EmptyState";
 
 export default function LoungePage() {
   return (
-    <div className="min-h-screen bg-[#05060a] p-8 text-white">
-      <div className="mx-auto max-w-2xl">
-        <Link
-          href="/studio"
-          className="text-sm text-white/60 hover:text-white"
-        >
-          ← Studio
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold">Client Lounge</h1>
-        <p className="mt-2 text-white/60">Client experience.</p>
-      </div>
-    </div>
+    <PageShell
+      title="Client Lounge"
+      subtitle="Client experience. Preferences, lookbooks, and pre-session touchpoints."
+    >
+      <EmptyState
+        title="Coming soon"
+        description="Client profiles and lookbook management will be available here."
+      />
+    </PageShell>
   );
 }

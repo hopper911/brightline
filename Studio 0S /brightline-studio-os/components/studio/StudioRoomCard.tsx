@@ -21,23 +21,25 @@ export function StudioRoomCard({
       type="button"
       onClick={onSelect}
       aria-pressed={isSelected}
-      className={`w-full rounded-[24px] border p-4 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0b0f] ${
-        isCenter
-          ? "bg-gradient-to-br from-violet-500/10 via-white/[0.03] to-transparent"
-          : "bg-white/[0.02]"
+      className={`w-full rounded-studio-xl border p-4 text-left transition-all duration-180 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-border focus-visible:ring-offset-2 focus-visible:ring-offset-studio-bg ${
+        isCenter ? "sm:p-5" : ""
       } ${
         isSelected
-          ? "border-violet-500/50 bg-violet-500/10 shadow-[0_0_32px_rgba(139,92,246,0.25)]"
-          : "border-white/[0.06] hover:border-violet-500/30 hover:bg-white/[0.04]"
-      } ${isCenter ? "sm:p-5" : ""}`}
+          ? "border-accent-border bg-accent-glow/50 shadow-studio-glow"
+          : "border-white/[0.05] bg-white/[0.02] hover:border-white/[0.08] hover:bg-white/[0.03]"
+      } ${isCenter ? "bg-gradient-to-br from-accent-glow/30 via-white/[0.02] to-transparent" : ""}`}
     >
-      <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/40">
+      <p className="font-display text-[10px] font-medium uppercase tracking-[0.2em] text-white/40">
         {isCenter ? "Hub" : "Room"}
       </p>
-      <h3 className={`mt-2 font-semibold text-white ${isCenter ? "text-lg" : "text-base"}`}>
+      <h3
+        className={`mt-2 font-display font-medium text-white/95 ${
+          isCenter ? "text-lg" : "text-base"
+        }`}
+      >
         {room.name}
       </h3>
-      <p className="mt-1 text-sm text-white/55">{room.subtitle}</p>
+      <p className="mt-0.5 text-sm text-white/55">{room.subtitle}</p>
       <div className="mt-3 flex items-center justify-between">
         <StatusBadge status={room.status} />
       </div>

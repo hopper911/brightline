@@ -27,6 +27,61 @@ function ensureDataDir(): void {
 function applySchema(database: Database.Database): void {
   const schema = fs.readFileSync(SCHEMA_PATH, "utf-8");
   database.exec(schema);
+  // Add session columns for existing DBs
+  try {
+    database.exec("ALTER TABLE sessions ADD COLUMN last_action TEXT");
+  } catch {
+    /* column may already exist */
+  }
+  try {
+    database.exec("ALTER TABLE sessions ADD COLUMN last_output TEXT");
+  } catch {
+    /* column may already exist */
+  }
+  const projectCols = ["notes", "deliverables", "visual_direction", "checklist", "updated_at"];
+  for (const col of projectCols) {
+    try {
+      database.exec(`ALTER TABLE projects ADD COLUMN ${col} TEXT`);
+    } catch {
+      /* column may already exist */
+    }
+  }
+  try {
+    database.exec("ALTER TABLE events ADD COLUMN project_id TEXT");
+  } catch {
+    /* column may already exist */
+  }
+  const archiveCols = ["folder_path", "delivery_state", "content_state"];
+  for (const col of archiveCols) {
+    try {
+      database.exec(`ALTER TABLE projects ADD COLUMN ${col} TEXT`);
+    } catch {
+      /* column may already exist */
+    }
+  }
+  try {
+    database.exec("ALTER TABLE approvals ADD COLUMN project_id TEXT");
+  } catch {
+    /* column may already exist */
+  }
+  // Jobs table (safe background summaries/reminders)
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS jobs (
+        id TEXT PRIMARY KEY,
+        job_type TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'scheduled',
+        scheduled_for TEXT NOT NULL,
+        last_run_at TEXT,
+        result_summary TEXT,
+        project_id TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  } catch {
+    /* table may already exist */
+  }
 }
 
 /**

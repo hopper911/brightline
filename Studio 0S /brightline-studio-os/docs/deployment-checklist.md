@@ -6,6 +6,14 @@
 
 ---
 
+## Visual-only deployment readiness (verified)
+
+- **Safe for deployment:** Yes. No `app/` or `components/` imports of `@/lib/db`, `@/lib/events`, `fs`, `path`, `better-sqlite3`, or `child_process`. Server-only code lives in `lib/db/`, `lib/events/logger.ts`, and `scripts/`.
+- **Build-ready:** `npm run build` succeeds. All 15 routes compile; `/studio`, `/studio/reception`, and `/studio/marketing` use mock data only.
+- **UI-only mode:** Dashboard and room pages use `lib/studio/mockData.ts` only (MOCK_ROOMS, MOCK_SUMMARY, MOCK_PROJECTS, studioRooms). No environment variables required for the visual deploy.
+
+---
+
 ## Pre-deploy checks
 
 - [ ] **No DB in visual routes** – `/studio` and all `/studio/*` must not import `@/lib/db` or `@/lib/events` (they pull in better-sqlite3). Reception and Marketing actions use mock data only.
@@ -86,3 +94,10 @@ Re-enable them later in a separate branch or after switching to a server-compati
 
 - Confirm from phone and desktop: map, room links, summary cards, and styling look correct.
 - Then plan **Phase 2** (e.g. Reception/Marketing with mock-only actions first, then optional DB-backed logging and drafts when you’re ready and deployability is preserved).
+
+---
+
+## Live preview (Milestone 1 done)
+
+- **URL:** [https://studio-os-blue-xi.vercel.app](https://studio-os-blue-xi.vercel.app)
+- Map, room pages, summary cards, and styling are deployed; Reception and Marketing use mock data only.

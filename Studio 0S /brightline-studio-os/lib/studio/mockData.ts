@@ -11,7 +11,20 @@ export interface StudioRoom {
   status: RoomStatus;
   description?: string;
   keyTasks?: string[];
+  /** Agent label for mission control UI (optional). */
+  agent?: string;
 }
+
+/** Structured mock rooms for dashboard (id, name, status, description, agent). Use for visual-only deploy. */
+export const studioRooms = [
+  { id: "reception", name: "Reception", status: "amber" as RoomStatus, description: "Handle new leads and inquiries", agent: "Concierge Agent" },
+  { id: "lounge", name: "Client Lounge", status: "blue" as RoomStatus, description: "Project briefs and mood boards", agent: "Briefing Assistant" },
+  { id: "production", name: "Production Office", status: "blue" as RoomStatus, description: "Planning and scheduling", agent: "Producer Agent" },
+  { id: "editing", name: "Editing Bay", status: "red" as RoomStatus, description: "Image analysis and review", agent: "Editing Agent" },
+  { id: "delivery", name: "Delivery Suite", status: "green" as RoomStatus, description: "Client handoff and delivery", agent: "Delivery Agent" },
+  { id: "marketing", name: "Marketing Office", status: "blue" as RoomStatus, description: "Content and SEO generation", agent: "Marketing Agent" },
+  { id: "archive", name: "Archive Vault", status: "green" as RoomStatus, description: "Project storage and search", agent: "Archivist Agent" },
+];
 
 export interface SummaryMetric {
   id: string;
@@ -33,70 +46,14 @@ export const STUDIO_MAP_ORDER = [
 ] as const;
 
 export const MOCK_ROOMS: StudioRoom[] = [
-  {
-    id: "reception",
-    name: "Reception",
-    subtitle: "Leads and intake",
-    status: "amber",
-    description: "Front-of-house intake and lead triage. First point of contact for new enquiries and client check-ins.",
-    keyTasks: ["Capture new leads", "Schedule consultations", "View today's arrivals"],
-  },
-  {
-    id: "lounge",
-    name: "Client Lounge",
-    subtitle: "Client experience",
-    status: "blue",
-    description: "Client experience and hospitality. Manage preferences, lookbooks, and pre-session touchpoints.",
-    keyTasks: ["Open client profile", "Send lookbook", "Log preferences"],
-  },
-  {
-    id: "production",
-    name: "Production Office",
-    subtitle: "Scheduling and logistics",
-    status: "blue",
-    description: "Scheduling, crew, and logistics. The operational core for shoot planning and resource allocation.",
-    keyTasks: ["View production calendar", "Create shoot plan", "Assign crew"],
-  },
-  {
-    id: "main-studio",
-    name: "Main Studio Floor",
-    subtitle: "Capture operations hub",
-    status: "green",
-    description: "The heart of the studio. Live sessions, lighting setups, and capture pipelines in one operational view.",
-    keyTasks: ["View today's shoots", "Open shot list", "Log setup preset"],
-  },
-  {
-    id: "editing",
-    name: "Editing Bay",
-    subtitle: "Culling and post",
-    status: "red",
-    description: "Post-production and retouching queue. Prioritize edits and track delivery deadlines.",
-    keyTasks: ["View edit queue", "Flag rush jobs", "Open retouch board"],
-  },
-  {
-    id: "delivery",
-    name: "Delivery Suite",
-    subtitle: "Galleries and handoff",
-    status: "green",
-    description: "Client delivery and approvals. Prepare galleries, send delivery emails, and track sign-off.",
-    keyTasks: ["Prepare galleries", "Send delivery", "Review approvals"],
-  },
-  {
-    id: "marketing",
-    name: "Marketing Office",
-    subtitle: "Content and campaigns",
-    status: "blue",
-    description: "Content and campaigns. Social, portfolio updates, and outbound storytelling.",
-    keyTasks: ["Content calendar", "Portfolio updates", "Draft campaign"],
-  },
-  {
-    id: "archive",
-    name: "Archive Vault",
-    subtitle: "Storage and retrieval",
-    status: "green",
-    description: "Long-term storage and retrieval. Search past shoots and manage retention.",
-    keyTasks: ["Search archive", "Review expiring assets", "Restore collection"],
-  },
+  { id: "reception", name: "Reception", subtitle: "Leads and intake", status: "amber", description: "Front-of-house intake and lead triage. First point of contact for new enquiries and client check-ins.", keyTasks: ["Capture new leads", "Schedule consultations", "View today's arrivals"], agent: "Concierge Agent" },
+  { id: "lounge", name: "Client Lounge", subtitle: "Client experience", status: "blue", description: "Client experience and hospitality. Manage preferences, lookbooks, and pre-session touchpoints.", keyTasks: ["Open client profile", "Send lookbook", "Log preferences"], agent: "Briefing Assistant" },
+  { id: "production", name: "Production Office", subtitle: "Scheduling and logistics", status: "blue", description: "Scheduling, crew, and logistics. The operational core for shoot planning and resource allocation.", keyTasks: ["View production calendar", "Create shoot plan", "Assign crew"], agent: "Producer Agent" },
+  { id: "main-studio", name: "Main Studio Floor", subtitle: "Capture operations hub", status: "green", description: "The heart of the studio. Live sessions, lighting setups, and capture pipelines in one operational view.", keyTasks: ["View today's shoots", "Open shot list", "Log setup preset"], agent: "Session Agent" },
+  { id: "editing", name: "Editing Bay", subtitle: "Culling and post", status: "red", description: "Post-production and retouching queue. Prioritize edits and track delivery deadlines.", keyTasks: ["View edit queue", "Flag rush jobs", "Open retouch board"], agent: "Editing Agent" },
+  { id: "delivery", name: "Delivery Suite", subtitle: "Galleries and handoff", status: "green", description: "Client delivery and approvals. Prepare galleries, send delivery emails, and track sign-off.", keyTasks: ["Prepare galleries", "Send delivery", "Review approvals"], agent: "Delivery Agent" },
+  { id: "marketing", name: "Marketing Office", subtitle: "Content and campaigns", status: "blue", description: "Content and campaigns. Social, portfolio updates, and outbound storytelling.", keyTasks: ["Content calendar", "Portfolio updates", "Draft campaign"], agent: "Marketing Agent" },
+  { id: "archive", name: "Archive Vault", subtitle: "Storage and retrieval", status: "green", description: "Long-term storage and retrieval. Search past shoots and manage retention.", keyTasks: ["Search archive", "Review expiring assets", "Restore collection"], agent: "Archivist Agent" },
 ];
 
 export const MOCK_SUMMARY: SummaryMetric[] = [

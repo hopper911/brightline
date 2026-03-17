@@ -6,11 +6,13 @@
 - routes
 - SQLite schema
 
-## Phase 2
+## Phase 2 (current)
 - tool registry
 - event logger
-- Reception room
-- Marketing room
+- Reception room (mock analysis)
+- Marketing room (mock caption + project list)
+- Event feed UI (mock state)
+- Approval queue UI (mock state)
 
 ## Phase 3
 - agent router

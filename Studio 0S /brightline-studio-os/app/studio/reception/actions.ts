@@ -1,24 +1,23 @@
 "use server";
 
-/**
- * Mock analysis of an inquiry. Visual-only: no DB or event logging.
- * Re-add logEvent() from @/lib/events/logger when deploying with SQLite.
- */
-export interface AnalyzeResult {
+import { runReceptionAnalysis } from "@/lib/agents/conciergeAgent";
+
+export type ReceptionAnalysisResult = {
   summary: string;
-  suggestedType: string;
-  priority: string;
-}
+  tone: string;
+  intent: string;
+  projectType: string;
+  confidence: string;
+  replyDraft: string;
+  source?: "ollama" | "fallback";
+};
 
-export async function analyzeInquiry(formData: FormData): Promise<AnalyzeResult> {
+export async function analyzeInquiry(formData: FormData): Promise<ReceptionAnalysisResult | { error: string }> {
   const raw = formData.get("inquiry") ?? "";
-  const inquiry = typeof raw === "string" ? raw.trim() : "";
-
-  return {
-    summary: inquiry
-      ? `Inquiry analyzed: "${inquiry.slice(0, 80)}${inquiry.length > 80 ? "…" : ""}". Suggested: brand shoot, high priority.`
-      : "No text provided. Enter an inquiry to analyze.",
-    suggestedType: "brand",
-    priority: "high",
-  };
+  const text = typeof raw === "string" ? raw : "";
+  try {
+    return await runReceptionAnalysis({ text });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Analysis failed" };
+  }
 }

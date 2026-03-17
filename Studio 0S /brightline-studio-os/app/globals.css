@@ -2,13 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --color-bg: #05060a;
-  --color-text: rgba(255, 255, 255, 0.9);
-  --color-border: rgba(255, 255, 255, 0.06);
-}
+@layer base {
+  :root {
+    /* Backgrounds – charcoal / graphite */
+    --color-bg: #050608;
+    --color-bg-surface: #0c0e12;
+    --color-bg-elevated: #12151a;
+    --color-bg-panel: rgba(255, 255, 255, 0.02);
+    --color-bg-panel-hover: rgba(255, 255, 255, 0.035);
 
-body {
-  background: var(--color-bg);
-  color: var(--color-text);
+    /* Borders */
+    --color-border: rgba(255, 255, 255, 0.05);
+    --color-border-hover: rgba(139, 124, 160, 0.15);
+
+    /* Text – soft warm gray */
+    --color-text: rgba(255, 255, 255, 0.95);
+    --color-text-secondary: rgba(255, 255, 255, 0.65);
+    --color-text-muted: rgba(255, 255, 255, 0.45);
+    --color-text-dim: rgba(255, 255, 255, 0.35);
+
+    /* Accent – muted violet */
+    --color-accent: rgba(139, 124, 180, 0.9);
+    --color-accent-muted: rgba(139, 124, 180, 0.5);
+    --color-accent-glow: rgba(139, 124, 180, 0.1);
+    --color-accent-border: rgba(139, 124, 180, 0.2);
+
+    /* Radius */
+    --radius-sm: 0.5rem;
+    --radius-base: 0.75rem;
+    --radius-md: 1rem;
+    --radius-lg: 1.25rem;
+    --radius-xl: 1.5rem;
+    --radius-2xl: 1.75rem;
+
+    /* Transitions */
+    --transition-fast: 120ms ease;
+    --transition-base: 180ms ease;
+    --transition-slow: 240ms ease;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
 }

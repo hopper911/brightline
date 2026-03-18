@@ -79,6 +79,8 @@ export default function AdminGalleriesPage() {
       }
     }
 
+    
+
     load();
     return () => {
       active = false;

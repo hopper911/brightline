@@ -107,10 +107,9 @@ export default async function ServicePage({
 
   return (
     <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
+      <script type="application/ld+json">
+        {JSON.stringify(faqSchema)}
+      </script>
       <section className="grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
         <div className="space-y-4">
           <p className="section-kicker">Service</p>

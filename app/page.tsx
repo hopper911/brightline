@@ -112,12 +112,9 @@ export default async function Page() {
   return (
     <div className="page-shell min-h-screen">
       <div className="soft-grid">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(localBusinessSchema),
-          }}
-        />
+        <script type="application/ld+json">
+          {JSON.stringify(localBusinessSchema)}
+        </script>
         <HomeHero featuredImage={featuredImage} />
 
         <Reveal

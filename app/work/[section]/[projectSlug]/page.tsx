@@ -171,10 +171,9 @@ export default async function WorkProjectPage({
 
   return (
     <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
+      <script type="application/ld+json">
+        {JSON.stringify(breadcrumbSchema)}
+      </script>
 
       <Reveal className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>

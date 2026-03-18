@@ -1,0 +1,36 @@
+name: Prod DB Migrate
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "GitHub environment name that contains DATABASE_URL/DIRECT_URL secrets"
+        required: true
+        default: "production"
+
+concurrency:
+  group: prod-db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply Prisma migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: npx prisma migrate deploy
+

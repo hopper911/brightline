@@ -84,7 +84,9 @@ export async function PATCH(
     }
 
     if (body.slug !== undefined) {
-      const slug = (body.slug.trim() || slugify(existing.title)).replace(/^-+|-+$/g, "") || "project";
+      const slugInput = body.slug == null ? "" : String(body.slug).trim();
+      const slug =
+        (slugInput || slugify(existing.title)).replace(/^-+|-+$/g, "") || "project";
       const conflict = await prisma.workProject.findFirst({
         where: { section: existing.section, slug, id: { not: id } },
       });

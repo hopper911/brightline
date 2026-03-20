@@ -9,8 +9,8 @@ Mission control for your photography studio.
 **[https://studio-os-blue-xi.vercel.app](https://studio-os-blue-xi.vercel.app)**
 
 - Landing: `/`
-- Studio map and room links: `/studio`
-- Room pages: `/studio/reception`, `/studio/lounge`, `/studio/production`, `/studio/editing`, `/studio/delivery`, `/studio/marketing`, `/studio/archive`, `/studio/approvals`, `/studio/events`, `/studio/sessions`
+- Studio map and room links: `/studio` (redirects to `/studio/dashboard`)
+- Room pages: `/studio/dashboard`, `/studio/crm`, `/studio/crm/leads`, `/studio/crm/clients`, `/studio/crm/inquiry`, `/studio/crm/lounge`, `/studio/projects`, `/studio/projects/new`, `/studio/projects/jobs`, `/studio/projects/archive`, `/studio/production`, `/studio/production/editing`, `/studio/production/delivery`, `/studio/production/approvals`, `/studio/publishing`, `/studio/finance`, `/studio/settings`, `/studio/settings/automation`, `/studio/dashboard/events`, `/studio/dashboard/sessions`, `/studio/dashboard/strategy`
 
 ## Local development
 
@@ -20,6 +20,44 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). Build for production: `npm run build` then `npm run start`.
+
+## Database (Prisma + PostgreSQL)
+
+CRM and Projects modules use PostgreSQL via Prisma. The legacy SQLite layer (`lib/db`) remains for other routes.
+
+### Setup
+
+1. Start Postgres (Docker):
+
+```bash
+docker-compose up -d postgres
+```
+
+2. Set `DATABASE_URL` in `.env`:
+
+```
+DATABASE_URL="postgresql://studio:studio_password@localhost:5432/studio_os?schema=public"
+```
+
+3. Run migrations:
+
+```bash
+npm run db:migrate
+```
+
+4. (Optional) Open Prisma Studio to inspect data:
+
+```bash
+npm run db:studio
+```
+
+### Commands
+
+| Command | Purpose |
+|---------|---------|
+| `npm run db:generate` | Generate Prisma client |
+| `npm run db:migrate` | Create and apply migrations |
+| `npm run db:studio` | Open Prisma Studio |
 
 ## Optional: Local AI (Ollama)
 

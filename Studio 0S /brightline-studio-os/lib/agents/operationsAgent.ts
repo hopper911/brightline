@@ -7,12 +7,12 @@
 
 import { logEvent } from "@/lib/events/logger";
 import { getPipelineStats, getOpsAiContext } from "@/lib/analytics";
-import { getPendingApprovals } from "@/lib/approvals/store";
+import { getPendingApprovalsForWorkspace } from "@/lib/approvals/store";
 import { generateOpsNarrative } from "@/lib/ai";
 
-export function runGetOverdueTasks() {
-  const pipeline = getPipelineStats();
-  const approvals = getPendingApprovals();
+export function runGetOverdueTasks(workspaceId?: string) {
+  const pipeline = getPipelineStats(workspaceId);
+  const approvals = getPendingApprovalsForWorkspace(workspaceId);
   const tasks: string[] = [];
   if (pipeline.stuckInEditing > 0) {
     tasks.push(`${pipeline.stuckInEditing} project(s) stuck in editing (>7 days)`);
@@ -29,12 +29,13 @@ export function runGetOverdueTasks() {
     type: "ops_overdue_check",
     status: "success",
     summary: `Found ${tasks.length} overdue/blocked item(s)`,
+    workspaceId,
   });
   return tasks;
 }
 
-export function runGetPipelineStatus() {
-  const pipeline = getPipelineStats();
+export function runGetPipelineStatus(workspaceId?: string) {
+  const pipeline = getPipelineStats(workspaceId);
   const bottlenecks: string[] = [];
   if (pipeline.stuckInEditing > 0) {
     bottlenecks.push(`${pipeline.stuckInEditing} project(s) stuck in editing`);
@@ -48,6 +49,7 @@ export function runGetPipelineStatus() {
     type: "ops_pipeline_check",
     status: "success",
     summary: `Pipeline: ${pipeline.readyForDelivery} ready for delivery. ${bottlenecks.length > 0 ? bottlenecks.join("; ") : "No bottlenecks"}`,
+    workspaceId,
   });
   return {
     byStatus: pipeline.byStatus,
@@ -56,9 +58,9 @@ export function runGetPipelineStatus() {
   };
 }
 
-export function runSuggestPriorities() {
-  const approvals = getPendingApprovals();
-  const pipeline = getPipelineStats();
+export function runSuggestPriorities(workspaceId?: string) {
+  const approvals = getPendingApprovalsForWorkspace(workspaceId);
+  const pipeline = getPipelineStats(workspaceId);
   const priorities: string[] = [];
   if (approvals.length > 0) {
     priorities.push(`Review ${approvals.length} pending approval(s)`);
@@ -78,12 +80,13 @@ export function runSuggestPriorities() {
     type: "ops_priorities_generated",
     status: "success",
     summary: `Generated ${priorities.length} priority item(s)`,
+    workspaceId,
   });
   return priorities;
 }
 
-export async function runGenerateOpsNarrative() {
-  const approvals = getPendingApprovals();
+export async function runGenerateOpsNarrative(workspaceId?: string) {
+  const approvals = getPendingApprovalsForWorkspace(workspaceId);
   const ctx = getOpsAiContext({ pendingApprovals: approvals.length });
   const result = await generateOpsNarrative(ctx);
   logEvent({
@@ -92,6 +95,7 @@ export async function runGenerateOpsNarrative() {
     type: "ops_narrative_generated",
     status: "success",
     summary: `Operations narrative generated using ${result.source === "ollama" ? "Ollama" : "fallback"}`,
+    workspaceId,
   });
   return result;
 }

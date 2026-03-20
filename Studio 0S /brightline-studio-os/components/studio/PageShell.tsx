@@ -19,7 +19,7 @@ export function PageShell({ title, subtitle, children, maxWidth = "xl" }: PageSh
     <div className="min-h-screen bg-studio-bg p-6 text-white sm:p-8">
       <div className={`mx-auto ${maxWidthClasses[maxWidth]}`}>
         <Link
-          href="/studio"
+          href="/studio/dashboard"
           className="text-xs font-medium tracking-[0.1em] text-white/45 transition-colors hover:text-white/70"
         >
           ← Studio

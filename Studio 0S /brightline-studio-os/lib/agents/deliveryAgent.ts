@@ -8,8 +8,9 @@
 import { getTool } from "@/lib/tools/registry";
 import { logEvent } from "@/lib/events/logger";
 import { saveDraft } from "@/lib/drafts/store";
-import { getSession, createSession, updateSession } from "@/lib/sessions/store";
+import { getSessionForWorkspace, createSession, updateSessionForWorkspace } from "@/lib/sessions/store";
 import { createApproval } from "@/lib/approvals/store";
+import { requireWorkspaceContext } from "@/lib/auth/workspaceContext";
 
 export type DeliveryChecklistInput = { projectId: string; projectName: string };
 export type DeliveryChecklistResult = { items: string[]; draftId: string; source?: "ollama" | "fallback" };
@@ -17,6 +18,7 @@ export type DeliveryChecklistResult = { items: string[]; draftId: string; source
 export async function runGenerateDeliveryChecklist(
   input: DeliveryChecklistInput
 ): Promise<DeliveryChecklistResult | { error: string }> {
+  const ctx = await requireWorkspaceContext();
   const tool = getTool("generate_delivery_checklist");
   if (!tool) return { error: "Tool not found" };
 
@@ -30,6 +32,8 @@ export async function runGenerateDeliveryChecklist(
     room: "delivery",
     content,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
+    userId: ctx.userId,
   });
   const source = result.source ?? "fallback";
 
@@ -40,11 +44,16 @@ export async function runGenerateDeliveryChecklist(
     status: "success",
     summary: `Delivery generated checklist for ${input.projectName} using ${source === "ollama" ? "Ollama" : "fallback"}`,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
   });
 
-  let session = getSession("delivery");
-  if (!session) session = createSession({ room: "delivery", projectId: input.projectId });
-  updateSession("delivery", { lastAction: "delivery_checklist_generated", lastOutput: content, projectId: input.projectId });
+  let session = getSessionForWorkspace(ctx.workspaceId, "delivery");
+  if (!session) session = createSession({ room: "delivery", projectId: input.projectId, workspaceId: ctx.workspaceId });
+  updateSessionForWorkspace(ctx.workspaceId, "delivery", {
+    lastAction: "delivery_checklist_generated",
+    lastOutput: content,
+    projectId: input.projectId,
+  });
 
   return { items: result.items, draftId: draft.id, source };
 }
@@ -60,6 +69,7 @@ export type DeliveryEmailResult = {
 export async function runGenerateDeliveryEmail(
   input: DeliveryEmailInput
 ): Promise<DeliveryEmailResult | { error: string }> {
+  const ctx = await requireWorkspaceContext();
   const tool = getTool("generate_delivery_email_draft");
   if (!tool) return { error: "Tool not found" };
 
@@ -73,6 +83,8 @@ export async function runGenerateDeliveryEmail(
     room: "delivery",
     content,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
+    userId: ctx.userId,
   });
   const source = result.source ?? "fallback";
 
@@ -83,12 +95,15 @@ export async function runGenerateDeliveryEmail(
     status: "success",
     summary: `Delivery generated client email for ${input.projectName} using ${source === "ollama" ? "Ollama" : "fallback"}`,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
   });
 
   createApproval({
     actionType: "delivery_draft_save",
     room: "delivery",
     payload: { projectId: input.projectId, draftId: draft.id, subject: result.subject, body: result.body },
+    workspaceId: ctx.workspaceId,
+    projectId: input.projectId,
   });
 
   return { subject: result.subject, body: result.body, draftId: draft.id, source };
@@ -100,6 +115,7 @@ export type SummarizeAssetsResult = { summary: string; assetCount: string; sourc
 export async function runSummarizeFinalAssets(
   input: SummarizeAssetsInput
 ): Promise<SummarizeAssetsResult | { error: string }> {
+  const ctx = await requireWorkspaceContext();
   const tool = getTool("summarize_final_assets");
   if (!tool) return { error: "Tool not found" };
 
@@ -115,6 +131,7 @@ export async function runSummarizeFinalAssets(
     status: "success",
     summary: `Delivery summarized final assets for ${input.projectName}`,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
   });
 
   return result;
@@ -124,6 +141,7 @@ export type FollowupInput = { projectId: string; projectName: string };
 export type FollowupResult = { text: string; draftId: string; source?: "ollama" | "fallback" };
 
 export async function runGenerateFollowup(input: FollowupInput): Promise<FollowupResult | { error: string }> {
+  const ctx = await requireWorkspaceContext();
   const tool = getTool("generate_followup_text");
   if (!tool) return { error: "Tool not found" };
 
@@ -136,6 +154,8 @@ export async function runGenerateFollowup(input: FollowupInput): Promise<Followu
     room: "delivery",
     content: result.text,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
+    userId: ctx.userId,
   });
 
   logEvent({
@@ -145,6 +165,7 @@ export async function runGenerateFollowup(input: FollowupInput): Promise<Followu
     status: "success",
     summary: `Delivery generated follow-up for ${input.projectName}`,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
   });
 
   return { text: result.text, draftId: draft.id, source: result.source };

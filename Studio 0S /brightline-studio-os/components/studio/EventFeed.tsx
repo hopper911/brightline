@@ -54,7 +54,7 @@ export function EventFeed({ events, compact = false, maxItems }: EventFeedProps)
       {compact && events.length > (maxItems ?? 5) && (
         <li className="pt-1">
           <Link
-            href="/studio/events"
+            href="/studio/dashboard/events"
             className="text-xs font-medium uppercase tracking-[0.1em] text-accent transition-colors hover:text-accent-muted"
           >
             View all events

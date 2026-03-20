@@ -7,13 +7,15 @@
 import { getTool } from "@/lib/tools/registry";
 import { logEvent } from "@/lib/events/logger";
 import { saveDraft } from "@/lib/drafts/store";
-import { getSession, createSession, updateSession } from "@/lib/sessions/store";
+import { getSessionForWorkspace, createSession, updateSessionForWorkspace } from "@/lib/sessions/store";
 import { createApproval } from "@/lib/approvals/store";
+import { requireWorkspaceContext } from "@/lib/auth/workspaceContext";
 
 export type MarketingCaptionInput = { projectId: string; projectName: string };
 export type MarketingCaptionResult = { caption: string; draftId: string; source?: "ollama" | "fallback" };
 
 export async function runMarketingCaption(input: MarketingCaptionInput): Promise<MarketingCaptionResult> {
+  const ctx = await requireWorkspaceContext();
   const captionTool = getTool("generate_instagram_caption");
   if (!captionTool) throw new Error("Caption tool not found");
 
@@ -26,6 +28,8 @@ export async function runMarketingCaption(input: MarketingCaptionInput): Promise
     room: "marketing",
     content: result.caption,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
+    userId: ctx.userId,
   });
   const source = result.source ?? "fallback";
   logEvent({
@@ -35,11 +39,12 @@ export async function runMarketingCaption(input: MarketingCaptionInput): Promise
     status: "success",
     summary: `Marketing generated caption for ${input.projectName} using ${source === "ollama" ? "Ollama" : "fallback"}`,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
   });
 
-  let session = getSession("marketing");
-  if (!session) session = createSession({ room: "marketing", projectId: input.projectId });
-  updateSession("marketing", {
+  let session = getSessionForWorkspace(ctx.workspaceId, "marketing");
+  if (!session) session = createSession({ room: "marketing", projectId: input.projectId, workspaceId: ctx.workspaceId });
+  updateSessionForWorkspace(ctx.workspaceId, "marketing", {
     lastAction: "caption_generated",
     lastOutput: result.caption,
     projectId: input.projectId,
@@ -52,6 +57,7 @@ export type MarketingCaseStudyInput = { projectId: string; projectName: string }
 export type MarketingCaseStudyResult = { title: string; sections: string[]; draftId: string; source?: "ollama" | "fallback" };
 
 export async function runMarketingCaseStudy(input: MarketingCaseStudyInput): Promise<MarketingCaseStudyResult> {
+  const ctx = await requireWorkspaceContext();
   const caseStudyTool = getTool("generate_case_study");
   if (!caseStudyTool) throw new Error("Case study tool not found");
 
@@ -66,6 +72,8 @@ export async function runMarketingCaseStudy(input: MarketingCaseStudyInput): Pro
     room: "marketing",
     content,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
+    userId: ctx.userId,
   });
   const source = result.source ?? "fallback";
   logEvent({
@@ -75,17 +83,20 @@ export async function runMarketingCaseStudy(input: MarketingCaseStudyInput): Pro
     status: "success",
     summary: `Marketing generated case study for ${input.projectName} using ${source === "ollama" ? "Ollama" : "fallback"}`,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
   });
 
   createApproval({
     actionType: "case_study",
     room: "marketing",
     payload: { title: result.title, projectName: input.projectName },
+    workspaceId: ctx.workspaceId,
+    projectId: input.projectId,
   });
 
-  let session = getSession("marketing");
-  if (!session) session = createSession({ room: "marketing", projectId: input.projectId });
-  updateSession("marketing", {
+  let session = getSessionForWorkspace(ctx.workspaceId, "marketing");
+  if (!session) session = createSession({ room: "marketing", projectId: input.projectId, workspaceId: ctx.workspaceId });
+  updateSessionForWorkspace(ctx.workspaceId, "marketing", {
     lastAction: "case_study_generated",
     lastOutput: content,
     projectId: input.projectId,

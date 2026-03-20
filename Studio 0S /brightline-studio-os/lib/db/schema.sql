@@ -99,6 +99,11 @@ CREATE TABLE IF NOT EXISTS projects (
   folder_path TEXT,
   delivery_state TEXT,
   content_state TEXT,
+  total_price REAL,
+  deposit_amount REAL,
+  amount_paid REAL,
+  balance_remaining REAL,
+  payment_status TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );

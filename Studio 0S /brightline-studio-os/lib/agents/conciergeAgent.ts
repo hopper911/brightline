@@ -7,9 +7,12 @@
 import { getTool } from "@/lib/tools/registry";
 import { logEvent } from "@/lib/events/logger";
 import { saveDraft } from "@/lib/drafts/store";
-import { createHandoff } from "@/lib/handoffs/store";
-import { getSession, createSession, updateSession } from "@/lib/sessions/store";
-import { createApproval } from "@/lib/approvals/store";
+import { createHandoffForWorkspace } from "@/lib/handoffs/store";
+import { getSessionForWorkspace, createSession, updateSessionForWorkspace } from "@/lib/sessions/store";
+import { getRoomAssistModeForWorkspace } from "@/lib/roomSettings/store";
+import { DEFAULT_AUTOMATION_RULES } from "@/lib/automation/defaultRules";
+import { runAutomationWithOptions } from "@/lib/automation/engine";
+import { requireWorkspaceContext } from "@/lib/auth/workspaceContext";
 
 export type ReceptionInquiryInput = { text: string };
 
@@ -24,6 +27,7 @@ export type ReceptionAnalysisResult = {
 };
 
 export async function runReceptionAnalysis(input: ReceptionInquiryInput): Promise<ReceptionAnalysisResult> {
+  const ctx = await requireWorkspaceContext();
   const text = input.text?.trim() ?? "";
   const summarize = getTool("summarize_inquiry");
   const classify = getTool("classify_project_type");
@@ -53,11 +57,12 @@ export async function runReceptionAnalysis(input: ReceptionInquiryInput): Promis
     type: "inquiry_analyzed",
     status: "success",
     summary: `${shortSummary} using ${source === "ollama" ? "Ollama" : "fallback"}`,
+    workspaceId: ctx.workspaceId,
   });
 
-  let session = getSession("reception");
-  if (!session) session = createSession({ room: "reception" });
-  updateSession("reception", {
+  let session = getSessionForWorkspace(ctx.workspaceId, "reception");
+  if (!session) session = createSession({ room: "reception", workspaceId: ctx.workspaceId });
+  updateSessionForWorkspace(ctx.workspaceId, "reception", {
     lastAction: "inquiry_analyzed",
     lastOutput: JSON.stringify({ projectType: classData.projectType, summary: summaryData.summary }),
   });
@@ -72,9 +77,11 @@ export async function runReceptionAnalysis(input: ReceptionInquiryInput): Promis
     type: "project_draft",
     room: "reception",
     content: JSON.stringify(projectDraft, null, 2),
+    workspaceId: ctx.workspaceId,
+    userId: ctx.userId,
   });
 
-  createHandoff("reception", "production", {
+  createHandoffForWorkspace(ctx.workspaceId, "reception", "production", {
     projectName: projectDraft.project_name,
     client: projectDraft.client,
     type: projectDraft.type,
@@ -82,11 +89,32 @@ export async function runReceptionAnalysis(input: ReceptionInquiryInput): Promis
     inquirySnippet: text.slice(0, 150),
   });
 
-  createApproval({
-    actionType: "reply_draft",
-    room: "reception",
-    payload: { draft: replyData.draft, inquirySnippet: text.slice(0, 100) },
-  });
+  const assistMode = getRoomAssistModeForWorkspace(ctx.workspaceId, "reception", null);
+  if (assistMode !== "off") {
+    const evt = {
+      trigger: "new inquiry analyzed",
+      payload: replyData.draft,
+      room: "reception" as const,
+      workspaceId: ctx.workspaceId,
+      userId: ctx.userId,
+    };
+    const matching = DEFAULT_AUTOMATION_RULES.filter(
+      (r) => r.isActive && r.trigger.trim().toLowerCase() === evt.trigger.trim().toLowerCase()
+    );
+    const results = await Promise.all(matching.map((r) => runAutomationWithOptions(r, evt, { assistMode })));
+    updateSessionForWorkspace(ctx.workspaceId, "reception", {
+      lastAction: "assist_mode_automation",
+      lastOutput: JSON.stringify(
+        {
+          assistMode,
+          trigger: evt.trigger,
+          results: results.map((r) => (r.status === "skipped" ? { status: "skipped", reason: r.reason } : { status: r.status })),
+        },
+        null,
+        2
+      ),
+    });
+  }
 
   return {
     summary: summaryData.summary,

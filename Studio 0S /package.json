@@ -1,0 +1,11 @@
+{
+  "name": "studio-0s-workspace",
+  "private": true,
+  "scripts": {
+    "db:init": "cd brightline-studio-os && npm run db:init",
+    "db:seed": "cd brightline-studio-os && npm run db:seed",
+    "db:generate": "cd brightline-studio-os && npm run db:generate",
+    "db:migrate": "cd brightline-studio-os && npm run db:migrate",
+    "db:studio": "cd brightline-studio-os && npm run db:studio"
+  }
+}

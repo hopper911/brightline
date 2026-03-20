@@ -49,6 +49,11 @@ function rowToArchiveProject(row: Record<string, unknown>): ArchiveProject {
     deliverables: (row.deliverables as string | null) ?? null,
     visualDirection: (row.visualDirection as string | null) ?? null,
     checklist: (row.checklist as string | null) ?? null,
+    totalPrice: (row.totalPrice ?? row.total_price ?? null) as number | null,
+    depositAmount: (row.depositAmount ?? row.deposit_amount ?? null) as number | null,
+    amountPaid: (row.amountPaid ?? row.amount_paid ?? null) as number | null,
+    balanceRemaining: (row.balanceRemaining ?? row.balance_remaining ?? null) as number | null,
+    paymentStatus: (row.paymentStatus ?? row.payment_status ?? null) as string | null,
     createdAt: row.createdAt as string,
     updatedAt: (row.updatedAt as string) ?? (row.createdAt as string),
   };
@@ -102,7 +107,9 @@ export function searchArchive(params: ArchiveSearchParams): ArchiveProject[] {
     SELECT p.id, p.name, p.client, p.type, p.location, p.shoot_date AS shootDate,
            p.status, p.notes, p.deliverables, p.visual_direction AS visualDirection,
            p.checklist, p.folder_path AS folderPath, p.delivery_state AS deliveryState,
-           p.content_state AS contentState, p.created_at AS createdAt, p.updated_at AS updatedAt
+           p.content_state AS contentState, p.total_price AS totalPrice, p.deposit_amount AS depositAmount,
+           p.amount_paid AS amountPaid, p.balance_remaining AS balanceRemaining, p.payment_status AS paymentStatus,
+           p.created_at AS createdAt, p.updated_at AS updatedAt
     FROM projects p
     WHERE ${conditions.join(" AND ")}
     ORDER BY p.updated_at DESC, p.created_at DESC
@@ -161,7 +168,9 @@ export function getArchiveProjectForWorkspace(workspaceId: string | undefined, i
       `SELECT id, name, client, type, location, shoot_date AS shootDate,
               status, notes, deliverables, visual_direction AS visualDirection,
               checklist, folder_path AS folderPath, delivery_state AS deliveryState,
-              content_state AS contentState, created_at AS createdAt, updated_at AS updatedAt
+              content_state AS contentState, total_price AS totalPrice, deposit_amount AS depositAmount,
+              amount_paid AS amountPaid, balance_remaining AS balanceRemaining, payment_status AS paymentStatus,
+              created_at AS createdAt, updated_at AS updatedAt
        FROM projects WHERE workspace_id = ? AND id = ?`
     )
     .get(wsId, id) as Record<string, unknown> | undefined;

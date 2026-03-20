@@ -7,12 +7,12 @@
 
 import { logEvent } from "@/lib/events/logger";
 import { getRevenueSummary, getProjectStats, getBiAiContext } from "@/lib/analytics";
-import { listProjects } from "@/lib/projects/store";
+import { listProjectsForWorkspace } from "@/lib/projects/store";
 import { generateBiNarrative } from "@/lib/ai";
 
-export function runAnalyzeProjectTypes() {
-  const stats = getProjectStats();
-  const revenue = getRevenueSummary();
+export function runAnalyzeProjectTypes(workspaceId?: string) {
+  const stats = getProjectStats(workspaceId);
+  const revenue = getRevenueSummary(workspaceId);
   const rows: { type: string; count: number; revenueShare?: string }[] = [];
   const totalProjects = stats.total;
   for (const [type, count] of Object.entries(stats.byType)) {
@@ -26,13 +26,14 @@ export function runAnalyzeProjectTypes() {
     type: "bi_analysis_run",
     status: "success",
     summary: `Analyzed ${rows.length} project types`,
+    workspaceId,
   });
   return rows;
 }
 
-export function runGetMostProfitableCategories() {
-  const projects = listProjects();
-  const revenue = getRevenueSummary();
+export function runGetMostProfitableCategories(workspaceId?: string) {
+  const projects = listProjectsForWorkspace(workspaceId);
+  const revenue = getRevenueSummary(workspaceId);
   const projectIdToType = new Map(projects.map((p) => [p.id, p.type ?? "unknown"]));
   const revenueByType: Record<string, number> = {};
   const countByType: Record<string, number> = {};
@@ -53,8 +54,8 @@ export function runGetMostProfitableCategories() {
   return byType.slice(0, 10).map(({ type, count, avgPerProject }) => ({ type, count, avgPerProject }));
 }
 
-export function runGetRepeatClients() {
-  const projects = listProjects();
+export function runGetRepeatClients(workspaceId?: string) {
+  const projects = listProjectsForWorkspace(workspaceId);
   const byClient: Record<string, number> = {};
   for (const p of projects) {
     const c = p.client ?? "unknown";
@@ -71,12 +72,13 @@ export function runGetRepeatClients() {
     type: "bi_repeat_clients",
     status: "success",
     summary: `Found ${repeat.length} repeat client(s)`,
+    workspaceId,
   });
   return repeat;
 }
 
-export function runCompareLocations() {
-  const stats = getProjectStats();
+export function runCompareLocations(workspaceId?: string) {
+  const stats = getProjectStats(workspaceId);
   const rows: { location: string; count: number }[] = [];
   for (const [loc, count] of Object.entries(stats.byLocation)) {
     if (loc === "unknown") continue;
@@ -86,7 +88,7 @@ export function runCompareLocations() {
   return rows.slice(0, 10);
 }
 
-export async function runGenerateBiNarrative() {
+export async function runGenerateBiNarrative(workspaceId?: string) {
   const ctx = getBiAiContext();
   const result = await generateBiNarrative(ctx);
   logEvent({
@@ -95,6 +97,7 @@ export async function runGenerateBiNarrative() {
     type: "bi_narrative_generated",
     status: "success",
     summary: `BI narrative generated using ${result.source === "ollama" ? "Ollama" : "fallback"}`,
+    workspaceId,
   });
   return result;
 }

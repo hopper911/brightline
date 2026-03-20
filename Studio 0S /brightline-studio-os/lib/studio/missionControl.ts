@@ -25,8 +25,9 @@ import type { EventRecord } from "@/lib/events/logger";
 import type { Approval } from "@/lib/approvals/store";
 import type { Draft } from "@/lib/drafts/store";
 import type { Job } from "@/lib/jobs";
-import type { Session } from "@/lib/sessions/store";
 import type { Handoff } from "@/lib/handoffs/store";
+import type { Reminder } from "@/lib/reminders/store";
+import type { Invoice, Payment } from "@/lib/finance/store";
 
 const ROOM_TO_AGENT: Record<string, string> = {
   reception: "Concierge Agent",
@@ -36,6 +37,7 @@ const ROOM_TO_AGENT: Record<string, string> = {
   editing: "Editing Agent",
   delivery: "Delivery Agent",
   marketing: "Marketing Agent",
+  publishing: "Marketing Agent",
   archive: "Archivist Agent",
   strategy: "Founder Strategy Agent",
   jobs: "Jobs",
@@ -66,7 +68,49 @@ export type MissionControlData = {
   recentHandoffs: Handoff[];
   activeProjectsCount: number;
   projectsByStatus: Record<string, number>;
+
+  recentEventsByRoom?: Record<string, EventRecord[]>;
+  pendingApprovalsByRoom?: Record<string, Approval[]>;
+  draftCountsByRoom?: Record<string, { total: number; byType: Record<string, number> }>;
+
+  automationQueue?: Approval[];
+  recentAutomationEvents?: EventRecord[];
+
+  projectSpotlight?: {
+    projectId: string;
+    name: string;
+    client: string | null;
+    status: string | null;
+    stage: string | null;
+    deliverBy: string | null;
+    events: EventRecord[];
+    drafts: Draft[];
+    approvals: Approval[];
+    reminders: Reminder[];
+    jobs: Job[];
+    invoices: Invoice[];
+    payments: Payment[];
+  };
 };
+
+function groupBy<T>(items: T[], keyFn: (item: T) => string): Record<string, T[]> {
+  const out: Record<string, T[]> = {};
+  for (const item of items) {
+    const k = keyFn(item);
+    (out[k] ??= []).push(item);
+  }
+  return out;
+}
+
+function countDraftsByRoom(drafts: Draft[]): Record<string, { total: number; byType: Record<string, number> }> {
+  const out: Record<string, { total: number; byType: Record<string, number> }> = {};
+  for (const d of drafts) {
+    const bucket = (out[d.room] ??= { total: 0, byType: {} });
+    bucket.total += 1;
+    bucket.byType[d.type] = (bucket.byType[d.type] ?? 0) + 1;
+  }
+  return out;
+}
 
 export async function getMissionControlData(): Promise<MissionControlData> {
   const plan = getWorkspacePlan();
@@ -113,6 +157,63 @@ export async function getMissionControlData(): Promise<MissionControlData> {
         completed: DEMO_JOBS.filter((j) => j.status === "completed").length,
       };
 
+      const demoEvents: EventRecord[] = DEMO_EVENTS.map((e) => ({
+        id: e.id,
+        room: e.room,
+        projectId: e.projectId,
+        agent: e.agent,
+        type: e.type,
+        status: e.status,
+        summary: e.summary,
+        createdAt: e.createdAt,
+      }));
+      const demoApprovals: Approval[] = DEMO_APPROVALS.map((a) => ({
+        id: a.id,
+        workspaceId: "demo-workspace",
+        actionType: a.actionType,
+        room: a.room,
+        status: a.status,
+        payloadJson: a.payloadJson,
+        createdAt: a.createdAt,
+      }));
+      const demoDrafts: Draft[] = DEMO_DRAFTS.map((d) => ({
+        id: d.id,
+        type: d.type,
+        room: d.room,
+        content: d.content,
+        createdAt: d.createdAt,
+        projectId: d.projectId,
+      }));
+
+      const recentEventsByRoom = groupBy(demoEvents, (e) => e.room);
+      const pendingApprovalsByRoom = groupBy(demoApprovals, (a) => a.room);
+      const draftCountsByRoom = countDraftsByRoom(demoDrafts);
+      const automationQueue = demoApprovals.filter(
+        (a) => a.actionType === "automation_prepared_action" && a.status === "pending"
+      );
+      const recentAutomationEvents = demoEvents
+        .filter((e) => e.room === "automation" || e.type.startsWith("automation_"))
+        .slice(0, 20);
+
+      const spotlight = DEMO_PROJECTS[0] ?? null;
+      const projectSpotlight = spotlight
+        ? {
+            projectId: spotlight.id,
+            name: spotlight.name,
+            client: spotlight.client ?? null,
+            status: spotlight.status ?? null,
+            stage: null,
+            deliverBy: null,
+            events: demoEvents.filter((e) => e.projectId === spotlight.id),
+            drafts: demoDrafts.filter((d) => d.projectId === spotlight.id),
+            approvals: demoApprovals.filter((a) => a.payloadJson?.includes(spotlight.id) ?? false),
+            reminders: [],
+            jobs: [],
+            invoices: [],
+            payments: [],
+          }
+        : undefined;
+
       return {
         plan: { id: plan.id, name: plan.name, price: plan.price },
         entitlements: plan.limits,
@@ -121,14 +222,21 @@ export async function getMissionControlData(): Promise<MissionControlData> {
         summaryMetrics: DEMO_SUMMARY_METRICS,
         rooms: MOCK_ROOMS,
         sessions: [],
-        recentEvents: DEMO_EVENTS.slice(0, 10) as unknown as EventRecord[],
-        pendingApprovals: DEMO_APPROVALS as unknown as Approval[],
-        recentDrafts: DEMO_DRAFTS.slice(0, 8) as unknown as Draft[],
+        recentEvents: demoEvents.slice(0, 10),
+        pendingApprovals: demoApprovals,
+        recentDrafts: demoDrafts.slice(0, 8),
         jobIndicators: jobIndicators as unknown as JobIndicator[],
         jobsSummary,
         recentHandoffs: DEMO_HANDOFFS.slice(0, 10) as unknown as Handoff[],
         activeProjectsCount: DEMO_PROJECTS.length,
         projectsByStatus: byStatus,
+
+        recentEventsByRoom,
+        pendingApprovalsByRoom,
+        draftCountsByRoom,
+        automationQueue,
+        recentAutomationEvents,
+        projectSpotlight,
       };
     });
   }
@@ -169,6 +277,56 @@ export async function getMissionControlData(): Promise<MissionControlData> {
   const deliveryDrafts = drafts.filter((d) => d.room === "delivery").length;
   const marketingDrafts = drafts.filter((d) => d.room === "marketing").length;
 
+  const recentEventsByRoom = groupBy(events, (e) => e.room);
+  const pendingApprovalsByRoom = groupBy(approvals, (a) => a.room);
+  const draftCountsByRoom = countDraftsByRoom(drafts);
+
+  const automationQueue = approvals.filter(
+    (a) => a.actionType === "automation_prepared_action" && a.status === "pending"
+  );
+  const recentAutomationEvents = events
+    .filter((e) => e.room === "automation" || e.type.startsWith("automation_"))
+    .slice(0, 20);
+
+  const spotlightProject =
+    projects.find(
+      (p) =>
+        p.name.toLowerCase().includes("corporate headshots") ||
+        p.name.toLowerCase().includes("nimbus analytics")
+    ) ??
+    projects[0] ??
+    null;
+
+  let projectSpotlight: MissionControlData["projectSpotlight"] = undefined;
+  if (spotlightProject) {
+    const spotlightId = spotlightProject.id;
+    const [{ listReminders }, { getInvoicesByProjectForWorkspace, getPaymentsByProjectForWorkspace }] = await Promise.all([
+      import("@/lib/reminders/store"),
+      import("@/lib/finance/store"),
+    ]);
+
+    const reminders = listReminders({ workspaceId, projectId: spotlightId });
+    const invoices = getInvoicesByProjectForWorkspace(workspaceId, spotlightId);
+    const payments = getPaymentsByProjectForWorkspace(workspaceId, spotlightId);
+    const deliverBy = spotlightProject.timeline?.deliverBy ?? null;
+
+    projectSpotlight = {
+      projectId: spotlightId,
+      name: spotlightProject.name,
+      client: spotlightProject.client,
+      status: spotlightProject.status,
+      stage: spotlightProject.stage,
+      deliverBy,
+      events: events.filter((e) => e.projectId === spotlightId),
+      drafts: drafts.filter((d) => d.projectId === spotlightId),
+      approvals: approvals.filter((a) => a.payloadJson?.includes(spotlightId) ?? false),
+      reminders,
+      jobs: jobs.filter((j) => j.projectId === spotlightId),
+      invoices,
+      payments,
+    };
+  }
+
   return {
     plan: { id: plan.id, name: plan.name, price: plan.price },
     entitlements: plan.limits,
@@ -193,5 +351,12 @@ export async function getMissionControlData(): Promise<MissionControlData> {
     recentHandoffs: handoffs,
     activeProjectsCount: projects.length,
     projectsByStatus: byStatus,
+
+    recentEventsByRoom,
+    pendingApprovalsByRoom,
+    draftCountsByRoom,
+    automationQueue,
+    recentAutomationEvents,
+    projectSpotlight,
   };
 }

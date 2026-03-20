@@ -25,7 +25,7 @@ export type FounderSummary = {
 };
 
 export async function runGetDailySummary(): Promise<FounderSummary> {
-  const events = getRecentEventsSummary(10);
+  const events = getRecentEventsSummary(undefined, 10);
   const approvals = getPendingApprovals();
   const drafts = getDrafts();
   const ctx = getHistoricalContext();

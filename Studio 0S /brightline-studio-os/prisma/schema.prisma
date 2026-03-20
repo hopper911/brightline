@@ -1,0 +1,127 @@
+// Bright Line Studio OS – Prisma schema (PostgreSQL)
+// MVP models for CRM and Projects modules
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- CRM ---
+
+model Lead {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Core fields
+  name       String
+  email      String
+  phone      String?
+  company    String?
+  source     String?  // e.g. "inquiry", "referral", "website"
+  status     String   @default("new") // new | contacted | qualified | closed
+  notes      String?  @db.Text
+
+  // Conversion
+  convertedAt DateTime?
+  clientId    String?  @unique
+  client      Client?  @relation(fields: [clientId], references: [id])
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name    String
+  email   String
+  phone   String?
+  company String?
+  notes   String?   @db.Text
+
+  leads    Lead[]
+  projects Project[]
+}
+
+// --- Projects ---
+
+model Project {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name       String
+  status     String   @default("draft") // draft | active | completed | archived
+  shootDate  DateTime?
+  notes      String?  @db.Text
+
+  clientId String?
+  client   Client?  @relation(fields: [clientId], references: [id])
+
+  tasks    Task[]
+  assets   Asset[]
+  invoices Invoice[]
+  expenses Expense[]
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title    String
+  status   String   @default("pending") // pending | in_progress | done
+  dueDate  DateTime?
+  notes    String?  @db.Text
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// --- Finance ---
+
+model Invoice {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  amount   Float    @default(0)
+  status   String   @default("draft") // draft | sent | paid | overdue
+  dueDate  DateTime?
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category String
+  amount   Float    @default(0)
+  note     String?  @db.Text
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+}
+
+// --- Assets ---
+
+model Asset {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name     String
+  type     String?  // image | video | document
+  path     String?  // storage path or URL
+  metadata Json?    // optional extra data
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}

@@ -76,6 +76,11 @@ function applySchema(database: Database.Database): void {
     "deliverables",
     "visual_direction",
     "checklist",
+    "total_price",
+    "deposit_amount",
+    "amount_paid",
+    "balance_remaining",
+    "payment_status",
     "updated_at",
   ];
   for (const col of projectCols) {

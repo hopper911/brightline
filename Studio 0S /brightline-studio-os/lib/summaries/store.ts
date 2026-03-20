@@ -5,6 +5,7 @@
  */
 
 import { getDb } from "@/lib/db";
+import { resolveWorkspaceId } from "@/lib/db/workspace";
 
 export type Summary = {
   id: string;
@@ -18,29 +19,47 @@ function nextId(): string {
 }
 
 export function createSummary(type: "daily" | "weekly", content: string): Summary {
+  return createSummaryForWorkspace(undefined, type, content);
+}
+
+export function createSummaryForWorkspace(
+  workspaceId: string | undefined,
+  type: "daily" | "weekly",
+  content: string
+): Summary {
   const id = nextId();
   const now = new Date().toISOString();
   const db = getDb();
-  db.prepare("INSERT INTO summaries (id, type, content, created_at) VALUES (?, ?, ?, ?)").run(
+  const wsId = resolveWorkspaceId(workspaceId);
+  db.prepare("INSERT INTO summaries (id, workspace_id, type, content, created_at) VALUES (?, ?, ?, ?, ?)").run(
     id,
+    wsId,
     type,
     content,
     now
   );
   const row = db
     .prepare(
-      "SELECT id, type, content, created_at AS createdAt FROM summaries WHERE id = ?"
+      "SELECT id, type, content, created_at AS createdAt FROM summaries WHERE workspace_id = ? AND id = ?"
     )
-    .get(id) as { id: string; type: string; content: string; createdAt: string };
+    .get(wsId, id) as { id: string; type: string; content: string; createdAt: string };
   return row as Summary;
 }
 
 export function getLatestSummary(type: "daily" | "weekly"): Summary | null {
+  return getLatestSummaryForWorkspace(undefined, type);
+}
+
+export function getLatestSummaryForWorkspace(
+  workspaceId: string | undefined,
+  type: "daily" | "weekly"
+): Summary | null {
   const db = getDb();
+  const wsId = resolveWorkspaceId(workspaceId);
   const row = db
     .prepare(
-      "SELECT id, type, content, created_at AS createdAt FROM summaries WHERE type = ? ORDER BY created_at DESC LIMIT 1"
+      "SELECT id, type, content, created_at AS createdAt FROM summaries WHERE workspace_id = ? AND type = ? ORDER BY created_at DESC LIMIT 1"
     )
-    .get(type) as { id: string; type: string; content: string; createdAt: string } | undefined;
+    .get(wsId, type) as { id: string; type: string; content: string; createdAt: string } | undefined;
   return row ? (row as Summary) : null;
 }

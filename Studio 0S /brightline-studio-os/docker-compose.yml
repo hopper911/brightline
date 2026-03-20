@@ -1,0 +1,60 @@
+# Studio OS – optional local services
+#
+# Main app uses SQLite (data/studio.db). These services are for:
+# - Postgres (future Prisma migration)
+# - n8n (workflow automation)
+# - Ollama (local AI)
+#
+# Usage: docker-compose up -d
+# Requires .env or .env.example for service config.
+
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: studio_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: studio
+      POSTGRES_PASSWORD: studio_password
+      POSTGRES_DB: studio_os
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  n8n:
+    image: n8nio/n8n:stable
+    container_name: studio_n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: studio_os
+      DB_POSTGRESDB_USER: studio
+      DB_POSTGRESDB_PASSWORD: studio_password
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+    depends_on:
+      - postgres
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: studio_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  postgres_data:
+  n8n_data:
+  ollama_data:

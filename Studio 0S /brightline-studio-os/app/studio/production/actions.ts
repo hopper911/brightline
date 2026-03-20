@@ -18,6 +18,9 @@ import {
   createStatusChangeApproval,
 } from "@/lib/agents/producerAgent";
 import { logEvent } from "@/lib/events/logger";
+import { isDemoMode } from "@/lib/runtime/demo";
+import { runWithDemoMode } from "@/lib/runtime/demoContext";
+import { assertNotDemoMode } from "@/lib/runtime/demoGuard";
 
 export type ProjectOption = { id: string; name: string };
 
@@ -32,16 +35,20 @@ export async function getProjectDetail(id: string): Promise<Project | null> {
 
 export async function createProjectAction(input: CreateProjectInput): Promise<{ id: string } | { error: string }> {
   try {
-    const p = createProject(input);
-    logEvent({
-      room: "production",
-      agent: "Producer Agent",
-      type: "project_created",
-      status: "success",
-      summary: `Project "${p.name}" created`,
-      projectId: p.id,
+    const demo = await isDemoMode();
+    return runWithDemoMode(demo, async () => {
+      assertNotDemoMode("Creating projects");
+      const p = createProject(input);
+      logEvent({
+        room: "production",
+        agent: "Producer Agent",
+        type: "project_created",
+        status: "success",
+        summary: `Project "${p.name}" created`,
+        projectId: p.id,
+      });
+      return { id: p.id };
     });
-    return { id: p.id };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to create project" };
   }
@@ -52,9 +59,13 @@ export async function updateProjectAction(
   input: Partial<CreateProjectInput>
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const p = updateProject(id, input);
-    if (!p) return { ok: false, error: "Project not found" };
-    return { ok: true };
+    const demo = await isDemoMode();
+    return runWithDemoMode(demo, async () => {
+      assertNotDemoMode("Updating projects");
+      const p = updateProject(id, input);
+      if (!p) return { ok: false, error: "Project not found" };
+      return { ok: true };
+    });
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed to update" };
   }
@@ -69,11 +80,19 @@ export async function getHandoffs() {
 }
 
 export async function acceptHandoffAction(id: string): Promise<{ ok: boolean }> {
-  return { ok: acceptHandoff(id) };
+  const demo = await isDemoMode();
+  return runWithDemoMode(demo, async () => {
+    assertNotDemoMode("Accepting handoffs");
+    return { ok: acceptHandoff(id) };
+  });
 }
 
 export async function dismissHandoffAction(id: string): Promise<{ ok: boolean }> {
-  return { ok: dismissHandoff(id) };
+  const demo = await isDemoMode();
+  return runWithDemoMode(demo, async () => {
+    assertNotDemoMode("Dismissing handoffs");
+    return { ok: dismissHandoff(id) };
+  });
 }
 
 export async function generateBrief(projectId: string) {
@@ -109,5 +128,9 @@ export async function summarizeProjectAction(projectId: string) {
 }
 
 export async function requestStatusChange(projectId: string, suggestedStatus: string) {
-  createStatusChangeApproval({ projectId, suggestedStatus });
+  const demo = await isDemoMode();
+  return runWithDemoMode(demo, async () => {
+    assertNotDemoMode("Requesting status changes");
+    createStatusChangeApproval({ projectId, suggestedStatus });
+  });
 }

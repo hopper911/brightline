@@ -33,6 +33,11 @@ export type Project = {
   deliverables: string | null;
   visualDirection: string | null;
   checklist: string | null;
+  totalPrice: number | null;
+  depositAmount: number | null;
+  amountPaid: number | null;
+  balanceRemaining: number | null;
+  paymentStatus: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -55,6 +60,11 @@ export type CreateProjectInput = {
   deliverables?: string | null;
   visualDirection?: string | null;
   checklist?: string | null;
+  totalPrice?: number | null;
+  depositAmount?: number | null;
+  amountPaid?: number | null;
+  balanceRemaining?: number | null;
+  paymentStatus?: string | null;
 };
 
 export type UpdateProjectInput = Partial<CreateProjectInput>;
@@ -96,6 +106,12 @@ function rowToProject(row: Record<string, unknown>): Project {
     deliverables: (row.deliverables as string | null) ?? null,
     visualDirection: (row.visualDirection as string | null) ?? null,
     checklist: (row.checklist as string | null) ?? null,
+    totalPrice: row.totalPrice !== undefined && row.totalPrice !== null ? Number(row.totalPrice) : null,
+    depositAmount: row.depositAmount !== undefined && row.depositAmount !== null ? Number(row.depositAmount) : null,
+    amountPaid: row.amountPaid !== undefined && row.amountPaid !== null ? Number(row.amountPaid) : null,
+    balanceRemaining:
+      row.balanceRemaining !== undefined && row.balanceRemaining !== null ? Number(row.balanceRemaining) : null,
+    paymentStatus: (row.paymentStatus as string | null) ?? null,
     createdAt: row.createdAt as string,
     updatedAt: (row.updatedAt as string) ?? row.createdAt as string,
   };
@@ -162,6 +178,11 @@ export function getProjectForWorkspace(workspaceId: string | undefined, id: stri
               deliverables,
               visual_direction AS visualDirection,
               checklist,
+              total_price AS totalPrice,
+              deposit_amount AS depositAmount,
+              amount_paid AS amountPaid,
+              balance_remaining AS balanceRemaining,
+              payment_status AS paymentStatus,
               created_at AS createdAt,
               updated_at AS updatedAt
        FROM projects WHERE workspace_id = ? AND id = ?`
@@ -192,6 +213,11 @@ export function listProjectsForWorkspace(workspaceId: string | undefined): Proje
               deliverables,
               visual_direction AS visualDirection,
               checklist,
+              total_price AS totalPrice,
+              deposit_amount AS depositAmount,
+              amount_paid AS amountPaid,
+              balance_remaining AS balanceRemaining,
+              payment_status AS paymentStatus,
               created_at AS createdAt,
               updated_at AS updatedAt
        FROM projects WHERE workspace_id = ? ORDER BY updated_at DESC, created_at DESC`
@@ -233,6 +259,11 @@ export function updateProjectForWorkspace(
        deliverables = ?,
        visual_direction = ?,
        checklist = ?,
+       total_price = ?,
+       deposit_amount = ?,
+       amount_paid = ?,
+       balance_remaining = ?,
+       payment_status = ?,
        updated_at = ?
      WHERE workspace_id = ? AND id = ?`
   );
@@ -252,6 +283,11 @@ export function updateProjectForWorkspace(
     input.deliverables !== undefined ? input.deliverables : existing.deliverables,
     input.visualDirection !== undefined ? input.visualDirection : existing.visualDirection,
     input.checklist !== undefined ? input.checklist : existing.checklist,
+    input.totalPrice !== undefined ? input.totalPrice : existing.totalPrice,
+    input.depositAmount !== undefined ? input.depositAmount : existing.depositAmount,
+    input.amountPaid !== undefined ? input.amountPaid : existing.amountPaid,
+    input.balanceRemaining !== undefined ? input.balanceRemaining : existing.balanceRemaining,
+    input.paymentStatus !== undefined ? input.paymentStatus : existing.paymentStatus,
     now,
     wsId,
     id

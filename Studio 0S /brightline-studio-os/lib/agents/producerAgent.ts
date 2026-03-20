@@ -8,8 +8,9 @@
 import { getTool } from "@/lib/tools/registry";
 import { logEvent } from "@/lib/events/logger";
 import { saveDraft } from "@/lib/drafts/store";
-import { getSession, createSession, updateSession } from "@/lib/sessions/store";
+import { getSessionForWorkspace, createSession, updateSessionForWorkspace } from "@/lib/sessions/store";
 import { createApproval } from "@/lib/approvals/store";
+import { requireWorkspaceContext } from "@/lib/auth/workspaceContext";
 
 export type ProducerBriefInput = { projectId: string; projectName: string; notes: string };
 export type ProducerBriefResult = {
@@ -22,6 +23,7 @@ export type ProducerBriefResult = {
 };
 
 export async function runGenerateProjectBrief(input: ProducerBriefInput): Promise<ProducerBriefResult | { error: string }> {
+  const ctx = await requireWorkspaceContext();
   const briefTool = getTool("generate_project_brief");
   if (!briefTool) return { error: "Brief tool not found" };
 
@@ -37,6 +39,8 @@ export async function runGenerateProjectBrief(input: ProducerBriefInput): Promis
     room: "production",
     content: JSON.stringify({ project_name: result.project_name, client: result.client, type: result.type, notes: result.notes }, null, 2),
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
+    userId: ctx.userId,
   });
   const source = result.source ?? "fallback";
   logEvent({
@@ -46,11 +50,12 @@ export async function runGenerateProjectBrief(input: ProducerBriefInput): Promis
     status: "success",
     summary: `Producer generated brief for ${input.projectName} using ${source === "ollama" ? "Ollama" : "fallback"}`,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
   });
 
-  let session = getSession("production");
-  if (!session) session = createSession({ room: "production", projectId: input.projectId });
-  updateSession("production", {
+  let session = getSessionForWorkspace(ctx.workspaceId, "production");
+  if (!session) session = createSession({ room: "production", projectId: input.projectId, workspaceId: ctx.workspaceId });
+  updateSessionForWorkspace(ctx.workspaceId, "production", {
     lastAction: "brief_generated",
     lastOutput: draft.content,
     projectId: input.projectId,
@@ -60,6 +65,8 @@ export async function runGenerateProjectBrief(input: ProducerBriefInput): Promis
     actionType: "project_brief_save",
     room: "production",
     payload: { projectId: input.projectId, draftId: draft.id, brief: result },
+    workspaceId: ctx.workspaceId,
+    projectId: input.projectId,
   });
 
   return {
@@ -76,6 +83,7 @@ export type ProducerShotListInput = { projectId: string; projectName: string; co
 export type ProducerShotListResult = { shots: string[]; draftId: string; source?: "ollama" | "fallback" };
 
 export async function runGenerateShotList(input: ProducerShotListInput): Promise<ProducerShotListResult | { error: string }> {
+  const ctx = await requireWorkspaceContext();
   const shotTool = getTool("generate_shot_list");
   if (!shotTool) return { error: "Shot list tool not found" };
 
@@ -89,6 +97,8 @@ export async function runGenerateShotList(input: ProducerShotListInput): Promise
     room: "production",
     content,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
+    userId: ctx.userId,
   });
   const source = result.source ?? "fallback";
   logEvent({
@@ -98,11 +108,12 @@ export async function runGenerateShotList(input: ProducerShotListInput): Promise
     status: "success",
     summary: `Producer generated shot list for ${input.projectName} using ${source === "ollama" ? "Ollama" : "fallback"}`,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
   });
 
-  let session = getSession("production");
-  if (!session) session = createSession({ room: "production", projectId: input.projectId });
-  updateSession("production", {
+  let session = getSessionForWorkspace(ctx.workspaceId, "production");
+  if (!session) session = createSession({ room: "production", projectId: input.projectId, workspaceId: ctx.workspaceId });
+  updateSessionForWorkspace(ctx.workspaceId, "production", {
     lastAction: "shot_list_generated",
     lastOutput: content,
     projectId: input.projectId,
@@ -115,6 +126,7 @@ export type ProducerChecklistInput = { projectId: string; projectName: string; k
 export type ProducerChecklistResult = { items: string[]; draftId: string; source?: "ollama" | "fallback" };
 
 export async function runGenerateChecklist(input: ProducerChecklistInput): Promise<ProducerChecklistResult | { error: string }> {
+  const ctx = await requireWorkspaceContext();
   const checklistTool = getTool("generate_checklist");
   if (!checklistTool) return { error: "Checklist tool not found" };
 
@@ -128,6 +140,8 @@ export async function runGenerateChecklist(input: ProducerChecklistInput): Promi
     room: "production",
     content,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
+    userId: ctx.userId,
   });
   const source = result.source ?? "fallback";
   logEvent({
@@ -137,11 +151,12 @@ export async function runGenerateChecklist(input: ProducerChecklistInput): Promi
     status: "success",
     summary: `Producer generated ${input.kind} checklist for ${input.projectName} using ${source === "ollama" ? "Ollama" : "fallback"}`,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
   });
 
-  let session = getSession("production");
-  if (!session) session = createSession({ room: "production", projectId: input.projectId });
-  updateSession("production", {
+  let session = getSessionForWorkspace(ctx.workspaceId, "production");
+  if (!session) session = createSession({ room: "production", projectId: input.projectId, workspaceId: ctx.workspaceId });
+  updateSessionForWorkspace(ctx.workspaceId, "production", {
     lastAction: "checklist_generated",
     lastOutput: content,
     projectId: input.projectId,
@@ -154,6 +169,7 @@ export type ProducerSummarizeInput = { projectId: string; projectName: string; n
 export type ProducerSummarizeResult = { summary: string; priorities: string[]; source?: "ollama" | "fallback" };
 
 export async function runSummarizeProject(input: ProducerSummarizeInput): Promise<ProducerSummarizeResult | { error: string }> {
+  const ctx = await requireWorkspaceContext();
   const summarizeTool = getTool("summarize_project");
   if (!summarizeTool) return { error: "Summarize tool not found" };
 
@@ -169,6 +185,7 @@ export async function runSummarizeProject(input: ProducerSummarizeInput): Promis
     status: "success",
     summary: `Producer summarized ${input.projectName}`,
     projectId: input.projectId,
+    workspaceId: ctx.workspaceId,
   });
 
   return { summary: result.summary, priorities: result.priorities, source: result.source };
@@ -176,6 +193,7 @@ export async function runSummarizeProject(input: ProducerSummarizeInput): Promis
 
 export type ProducerStatusSuggestionInput = { projectId: string; suggestedStatus: string };
 export function createStatusChangeApproval(input: ProducerStatusSuggestionInput): void {
+  // Uses default workspace for now; callers should prefer the workflow/automation path with explicit workspace context.
   createApproval({
     actionType: "project_status_change",
     room: "production",

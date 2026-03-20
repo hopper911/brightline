@@ -22,9 +22,10 @@ export const studioRooms = [
   { id: "production", name: "Production Office", status: "blue" as RoomStatus, description: "Planning and scheduling", agent: "Producer Agent" },
   { id: "editing", name: "Editing Bay", status: "red" as RoomStatus, description: "Image analysis and review", agent: "Editing Agent" },
   { id: "delivery", name: "Delivery Suite", status: "green" as RoomStatus, description: "Client handoff and delivery", agent: "Delivery Agent" },
-  { id: "marketing", name: "Marketing Office", status: "blue" as RoomStatus, description: "Content and SEO generation", agent: "Marketing Agent" },
+  { id: "publishing", name: "Publishing Office", status: "blue" as RoomStatus, description: "Content and SEO generation", agent: "Marketing Agent" },
   { id: "archive", name: "Archive Vault", status: "green" as RoomStatus, description: "Project storage and search", agent: "Archivist Agent" },
   { id: "strategy", name: "Strategy Room", status: "blue" as RoomStatus, description: "CEO dashboard and executive intelligence", agent: "Founder Strategy Agent" },
+  { id: "automation", name: "Automation", status: "blue" as RoomStatus, description: "Approval-driven automation and reminders", agent: "Automation Engine" },
 ];
 
 export interface SummaryMetric {
@@ -41,10 +42,11 @@ export const STUDIO_MAP_ORDER = [
   "production",
   "editing",
   "main-studio",
-  "marketing",
+  "publishing",
   "delivery",
   "archive",
   "strategy",
+  "automation",
 ] as const;
 
 export const MOCK_ROOMS: StudioRoom[] = [
@@ -54,9 +56,10 @@ export const MOCK_ROOMS: StudioRoom[] = [
   { id: "main-studio", name: "Main Studio Floor", subtitle: "Capture operations hub", status: "green", description: "The heart of the studio. Live sessions, lighting setups, and capture pipelines in one operational view.", keyTasks: ["View today's shoots", "Open shot list", "Log setup preset"], agent: "Session Agent" },
   { id: "editing", name: "Editing Bay", subtitle: "Culling and post", status: "red", description: "Post-production and retouching queue. Prioritize edits and track delivery deadlines.", keyTasks: ["View edit queue", "Flag rush jobs", "Open retouch board"], agent: "Editing Agent" },
   { id: "delivery", name: "Delivery Suite", subtitle: "Galleries and handoff", status: "green", description: "Client delivery and approvals. Prepare galleries, send delivery emails, and track sign-off.", keyTasks: ["Prepare galleries", "Send delivery", "Review approvals"], agent: "Delivery Agent" },
-  { id: "marketing", name: "Marketing Office", subtitle: "Content and campaigns", status: "blue", description: "Content and campaigns. Social, portfolio updates, and outbound storytelling.", keyTasks: ["Content calendar", "Portfolio updates", "Draft campaign"], agent: "Marketing Agent" },
+  { id: "publishing", name: "Publishing Office", subtitle: "Content and campaigns", status: "blue", description: "Content and campaigns. Social, portfolio updates, and outbound storytelling.", keyTasks: ["Content calendar", "Portfolio updates", "Draft campaign"], agent: "Marketing Agent" },
   { id: "archive", name: "Archive Vault", subtitle: "Storage and retrieval", status: "green", description: "Long-term storage and retrieval. Search past shoots and manage retention.", keyTasks: ["Search archive", "Review expiring assets", "Restore collection"], agent: "Archivist Agent" },
   { id: "strategy", name: "Strategy Room", subtitle: "CEO dashboard", status: "blue", description: "Executive intelligence. Revenue snapshot, pipeline status, priorities, risks, and opportunities.", keyTasks: ["View daily summary", "Revenue overview", "Pipeline status", "Priorities & risks"], agent: "Founder Strategy Agent" },
+  { id: "automation", name: "Automation", subtitle: "Controlled automation", status: "blue", description: "Approval-driven automation. Rules prepare drafts/reminders; you approve before anything is saved.", keyTasks: ["Review pending automation approvals", "Toggle rules", "Review reminders"], agent: "Automation Engine" },
 ];
 
 export const MOCK_SUMMARY: SummaryMetric[] = [
@@ -69,7 +72,7 @@ export const MOCK_SUMMARY: SummaryMetric[] = [
 
 /** Mock projects for Marketing room selector. Visual-only deploy uses this; replace with getDb() when backend is wired. */
 export const MOCK_PROJECTS: { id: string; name: string }[] = [
-  { id: "proj-1", name: "Acme Brand Shoot" },
-  { id: "proj-2", name: "Portrait – Jane Doe" },
-  { id: "proj-3", name: "Editorial Fall 2025" },
+  { id: "demo-proj-office-jersey-city", name: "Office Shoot (Jersey City)" },
+  { id: "demo-proj-restaurant", name: "Restaurant Shoot" },
+  { id: "demo-proj-corporate-headshots", name: "Corporate Headshots" },
 ];

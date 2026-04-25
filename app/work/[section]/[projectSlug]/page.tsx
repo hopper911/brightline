@@ -89,12 +89,7 @@ export async function generateMetadata({
 
 function WorkUpdatingFallback() {
   return (
-    <>
-      <PageBackground
-        media={project.backgroundMediaUrl}
-        poster={project.backgroundPosterUrl}
-      />
-      <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
+    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
       <div className="rounded-2xl border border-white/10 bg-black/40 p-12 text-center">
         <h1 className="section-title">Work is updating</h1>
         <p className="mt-4 text-white/70">Please check back shortly.</p>
@@ -102,8 +97,7 @@ function WorkUpdatingFallback() {
           Back to work
         </Link>
       </div>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -143,6 +137,16 @@ export default async function WorkProjectPage({
   const defaults = PILLAR_CASE_STUDY_DEFAULTS[pillar.slug];
   const ctaCopy = project.ctaCopy ?? defaults.ctaCopy;
   const whoIsThisFor = project.whoIsThisFor ?? defaults.whoIsThisFor;
+  const pageBackgroundMedia =
+    project.backgroundMediaUrl ||
+    hero?.keyFull ||
+    hero?.keyThumb ||
+    project.media
+      .map((item) => item.media.keyFull || item.media.keyThumb)
+      .find(Boolean) ||
+    null;
+  const pageBackgroundPoster =
+    project.backgroundPosterUrl || hero?.posterKey || hero?.keyThumb || null;
 
   const serviceSlugs = PILLAR_TO_SERVICE_SLUGS[pillar.slug] ?? [];
   const relatedServices = serviceSlugs
@@ -196,7 +200,9 @@ export default async function WorkProjectPage({
     .join(" · ");
 
   return (
-    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+    <>
+      <PageBackground media={pageBackgroundMedia} poster={pageBackgroundPoster} />
+      <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
       <script type="application/ld+json">
         {JSON.stringify(breadcrumbSchema)}
       </script>
@@ -480,6 +486,7 @@ export default async function WorkProjectPage({
           </div>
         </div>
       </Reveal>
-    </div>
+      </div>
+    </>
   );
 }

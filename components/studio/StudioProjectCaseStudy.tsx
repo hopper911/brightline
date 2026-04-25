@@ -58,12 +58,21 @@ export default function StudioProjectCaseStudy({ project, adjacent }: Props) {
     (item) =>
       item.media.kind === "IMAGE" && (item.media.keyFull || item.media.keyThumb)
   );
+  const pageBackgroundMedia =
+    project.backgroundMediaUrl ||
+    hero?.keyFull ||
+    hero?.keyThumb ||
+    mediaForGallery
+      .map((item) => item.media.keyFull || item.media.keyThumb)
+      .find(Boolean) ||
+    null;
+  const pageBackgroundPoster = project.backgroundPosterUrl || hero?.posterKey || hero?.keyThumb || null;
 
   return (
     <>
       <PageBackground
-        media={project.backgroundMediaUrl}
-        poster={project.backgroundPosterUrl}
+        media={pageBackgroundMedia}
+        poster={pageBackgroundPoster}
       />
       <article className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
       <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>

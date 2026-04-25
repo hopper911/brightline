@@ -447,17 +447,27 @@ export default function AdminWorkEditPage() {
 
   async function saveBackgroundSettings(nextMedia: string, nextPoster: string) {
     if (id === "new") return;
-    const res = await fetch(`/api/admin/work-projects/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        backgroundMediaUrl: nextMedia.trim() || null,
-        backgroundPosterUrl: nextPoster.trim() || null,
-      }),
-    });
-    const data = (await res.json()) as { ok?: boolean; project?: WorkProject; error?: string };
-    if (!res.ok) throw new Error(data.error ?? "Failed to save background.");
-    if (data.project) setProject(data.project);
+    setSaveStatus("saving");
+    setSaveError("");
+    try {
+      const res = await fetch(`/api/admin/work-projects/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          backgroundMediaUrl: nextMedia.trim() || null,
+          backgroundPosterUrl: nextPoster.trim() || null,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; project?: WorkProject; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to save background.");
+      if (data.project) setProject(data.project);
+      setSaveStatus("idle");
+    } catch (err) {
+      setSaveStatus("error");
+      const msg = err instanceof Error ? err.message : "Failed to save background.";
+      setSaveError(msg);
+      throw err;
+    }
   }
 
   async function uploadBackgroundFile(file: File, target: "backgroundMedia" | "backgroundPoster") {
@@ -1058,6 +1068,7 @@ export default function AdminWorkEditPage() {
               <input
                 value={backgroundMediaUrl}
                 onChange={(e) => setBackgroundMediaUrl(e.target.value)}
+                onBlur={() => void saveBackgroundSettings(backgroundMediaUrl, backgroundPosterUrl)}
                 className="mt-1 w-full rounded border border-black/20 px-3 py-2 font-mono text-xs"
                 placeholder="R2 key, /path, or https://..."
               />
@@ -1079,7 +1090,14 @@ export default function AdminWorkEditPage() {
                   />
                 </label>
                 {backgroundMediaUrl ? (
-                  <button type="button" className="btn btn-ghost text-xs" onClick={() => setBackgroundMediaUrl("")}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost text-xs"
+                    onClick={() => {
+                      setBackgroundMediaUrl("");
+                      void saveBackgroundSettings("", backgroundPosterUrl);
+                    }}
+                  >
                     Clear
                   </button>
                 ) : null}
@@ -1090,6 +1108,7 @@ export default function AdminWorkEditPage() {
               <input
                 value={backgroundPosterUrl}
                 onChange={(e) => setBackgroundPosterUrl(e.target.value)}
+                onBlur={() => void saveBackgroundSettings(backgroundMediaUrl, backgroundPosterUrl)}
                 className="mt-1 w-full rounded border border-black/20 px-3 py-2 font-mono text-xs"
                 placeholder="Optional poster key or URL"
               />
@@ -1111,7 +1130,14 @@ export default function AdminWorkEditPage() {
                   />
                 </label>
                 {backgroundPosterUrl ? (
-                  <button type="button" className="btn btn-ghost text-xs" onClick={() => setBackgroundPosterUrl("")}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost text-xs"
+                    onClick={() => {
+                      setBackgroundPosterUrl("");
+                      void saveBackgroundSettings(backgroundMediaUrl, "");
+                    }}
+                  >
                     Clear
                   </button>
                 ) : null}

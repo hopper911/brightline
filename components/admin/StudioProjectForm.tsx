@@ -21,6 +21,26 @@ function adminFetch(input: RequestInfo | URL, init?: RequestInit) {
   return fetch(input, { ...init, credentials: "include" });
 }
 
+function mediaUrl(input?: string | null) {
+  const value = input?.trim();
+  if (!value) return "";
+  if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith("/")) return value;
+  return getPublicR2Url(value);
+}
+
+function isVideoUrl(input?: string | null) {
+  const value = mediaUrl(input);
+  if (!value) return false;
+  const decoded = decodeURIComponent(value);
+  try {
+    const parsed = new URL(decoded, "https://brightline.local");
+    const key = parsed.searchParams.get("key") ?? "";
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(key || parsed.pathname);
+  } catch {
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(decoded);
+  }
+}
+
 type GalleryRow = {
   mediaId: string;
   sortOrder: number;
@@ -51,6 +71,8 @@ type StudioProjectPayload = {
   publishedAt: string | null;
   heroImageId: string | null;
   heroImage: MediaAsset | null;
+  backgroundMediaUrl: string | null;
+  backgroundPosterUrl: string | null;
   galleryMedia?: GalleryRow[];
   contentStatus: string;
   captionDrafted: boolean;
@@ -100,6 +122,8 @@ export default function StudioProjectForm({ projectId }: Props) {
   const [reusableLater, setReusableLater] = useState(false);
   const [heroImageId, setHeroImageId] = useState<string | null>(null);
   const [heroPreview, setHeroPreview] = useState<MediaAsset | null>(null);
+  const [backgroundMediaUrl, setBackgroundMediaUrl] = useState("");
+  const [backgroundPosterUrl, setBackgroundPosterUrl] = useState("");
   const [galleryMedia, setGalleryMedia] = useState<GalleryRow[]>([]);
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
   const [error, setError] = useState("");
@@ -107,6 +131,7 @@ export default function StudioProjectForm({ projectId }: Props) {
   const [pubBusy, setPubBusy] = useState(false);
   const [r2HeroOpen, setR2HeroOpen] = useState(false);
   const [r2GalleryOpen, setR2GalleryOpen] = useState(false);
+  const [r2BackgroundTarget, setR2BackgroundTarget] = useState<"backgroundMedia" | "backgroundPoster" | null>(null);
 
   const computedSlug = slug.trim() || slugify(title) || "project";
 
@@ -150,6 +175,8 @@ export default function StudioProjectForm({ projectId }: Props) {
       setReusableLater(Boolean(p.reusableLater));
       setHeroImageId(p.heroImageId);
       setHeroPreview(p.heroImage ?? null);
+      setBackgroundMediaUrl(p.backgroundMediaUrl ?? "");
+      setBackgroundPosterUrl(p.backgroundPosterUrl ?? "");
       setGalleryMedia(
         (p.galleryMedia ?? []).map((g, i) => ({
           mediaId: g.mediaId,
@@ -215,6 +242,8 @@ export default function StudioProjectForm({ projectId }: Props) {
       contentPosted,
       reusableLater,
       heroImageId,
+      backgroundMediaUrl: backgroundMediaUrl.trim() || null,
+      backgroundPosterUrl: backgroundPosterUrl.trim() || null,
       gallery: buildGalleryJson(galleryMedia),
     };
 
@@ -408,6 +437,54 @@ export default function StudioProjectForm({ projectId }: Props) {
     } catch (e) {
       setStatus("error");
       setError(e instanceof Error ? e.message : "Upload failed");
+    }
+  }
+
+  async function uploadBackgroundMedia(file: File, target: "backgroundMedia" | "backgroundPoster") {
+    setStatus("saving");
+    setError("");
+    try {
+      const contentType = file.type || "application/octet-stream";
+      if (target === "backgroundPoster" && !contentType.startsWith("image/")) {
+        throw new Error("Poster must be an image file.");
+      }
+      if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
+        throw new Error("Only image and video uploads are supported.");
+      }
+      const res = await adminFetch("/api/admin/site-media/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType,
+          folder: "projects",
+        }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        url?: string;
+        key?: string;
+        headers?: Record<string, string>;
+        error?: string;
+      };
+      if (!res.ok || !data.url || !data.key) {
+        throw new Error(data.error ?? "Could not prepare background upload.");
+      }
+      const put = await fetch(data.url, {
+        method: "PUT",
+        headers: { "Content-Type": contentType, ...(data.headers ?? {}) },
+        body: file,
+      });
+      if (!put.ok) throw new Error(`Background upload failed (${put.status}).`);
+      if (target === "backgroundMedia") {
+        setBackgroundMediaUrl(data.key);
+      } else {
+        setBackgroundPosterUrl(data.key);
+      }
+      setStatus("idle");
+    } catch (e) {
+      setStatus("error");
+      setError(e instanceof Error ? e.message : "Background upload failed");
     }
   }
 
@@ -670,6 +747,106 @@ export default function StudioProjectForm({ projectId }: Props) {
           <p className="text-sm text-black/60">Save a draft once to enable image uploads.</p>
         ) : (
           <>
+            <div className="space-y-3 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-black/50">Page background</p>
+                <p className="mt-1 text-xs text-black/45">
+                  Optional image or looping video behind the public project/case study page.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="text-xs text-black/50">Background image/video</label>
+                  <input
+                    value={backgroundMediaUrl}
+                    onChange={(e) => setBackgroundMediaUrl(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/10 px-3 py-2 font-mono text-xs"
+                    placeholder="R2 key, /path, or https://..."
+                  />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-ghost text-xs"
+                      onClick={() => setR2BackgroundTarget("backgroundMedia")}
+                    >
+                      Browse R2
+                    </button>
+                    <label className="btn btn-ghost cursor-pointer text-xs">
+                      Upload
+                      <input
+                        type="file"
+                        accept="image/*,video/mp4,video/webm,video/quicktime"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void uploadBackgroundMedia(file, "backgroundMedia");
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                    {backgroundMediaUrl ? (
+                      <button type="button" className="btn btn-ghost text-xs" onClick={() => setBackgroundMediaUrl("")}>
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-black/50">Video poster image</label>
+                  <input
+                    value={backgroundPosterUrl}
+                    onChange={(e) => setBackgroundPosterUrl(e.target.value)}
+                    className="mt-1 w-full rounded border border-black/10 px-3 py-2 font-mono text-xs"
+                    placeholder="Optional poster key or URL"
+                  />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-ghost text-xs"
+                      onClick={() => setR2BackgroundTarget("backgroundPoster")}
+                    >
+                      Browse R2
+                    </button>
+                    <label className="btn btn-ghost cursor-pointer text-xs">
+                      Upload poster
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void uploadBackgroundMedia(file, "backgroundPoster");
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                    {backgroundPosterUrl ? (
+                      <button type="button" className="btn btn-ghost text-xs" onClick={() => setBackgroundPosterUrl("")}>
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              {backgroundMediaUrl ? (
+                <div className="overflow-hidden rounded-xl border border-black/10 bg-black">
+                  {isVideoUrl(backgroundMediaUrl) ? (
+                    <video
+                      src={mediaUrl(backgroundMediaUrl)}
+                      poster={mediaUrl(backgroundPosterUrl) || undefined}
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      className="h-40 w-full object-cover"
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={mediaUrl(backgroundMediaUrl)} alt="" className="h-40 w-full object-cover" />
+                  )}
+                </div>
+              ) : null}
+            </div>
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.2em] text-black/50">Hero image</p>
               {heroPreview && (heroPreview.keyThumb || heroPreview.keyFull) ? (
@@ -797,6 +974,17 @@ export default function StudioProjectForm({ projectId }: Props) {
         mode="multiple"
         onAddKeys={async (keys) => {
           await attachR2Keys(keys, false);
+        }}
+      />
+      <R2BrowserModal
+        isOpen={r2BackgroundTarget !== null}
+        onClose={() => setR2BackgroundTarget(null)}
+        mode="single"
+        onAddKeys={async (keys) => {
+          const key = keys[0]?.trim();
+          if (key && r2BackgroundTarget === "backgroundMedia") setBackgroundMediaUrl(key);
+          if (key && r2BackgroundTarget === "backgroundPoster") setBackgroundPosterUrl(key);
+          setR2BackgroundTarget(null);
         }}
       />
 

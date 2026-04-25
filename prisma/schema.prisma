@@ -428,6 +428,8 @@ model WorkProject {
   sortOrder           Int            @default(0)
   heroMediaId         String?
   heroMedia           MediaAsset?    @relation("HeroMedia", fields: [heroMediaId], references: [id])
+  backgroundMediaUrl  String?
+  backgroundPosterUrl String?
   media               ProjectMedia[]
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
@@ -540,6 +542,8 @@ model StudioProject {
 
   heroImageId       String?
   heroImage         MediaAsset?  @relation("StudioProjectHero", fields: [heroImageId], references: [id], onDelete: SetNull)
+  backgroundMediaUrl  String?
+  backgroundPosterUrl String?
   /// Preferred hero for Studio OS records (`StudioMedia.id`), independent of legacy `MediaAsset`.
   heroStudioMediaId String?
   heroStudioMedia   StudioMedia? @relation("StudioProjectHeroStudioMedia", fields: [heroStudioMediaId], references: [id], onDelete: SetNull)

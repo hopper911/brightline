@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function isAllowedSiteKey(key: string) {
-  return /^site\/(pages|services|blocks|theme)\//.test(key);
+  return /^site\/(pages|services|blocks|theme|projects)\//.test(key);
 }
 
 export async function POST(req: Request) {

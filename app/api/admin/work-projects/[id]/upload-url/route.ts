@@ -24,7 +24,7 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Project not found." }, { status: 404 });
     }
 
-    let body: { filename?: string; contentType?: string; subfolder?: "full" | "thumb" | "video" };
+    let body: { filename?: string; contentType?: string; subfolder?: "full" | "thumb" | "video" | "background" | "poster" };
     try {
       body = (await req.json()) as typeof body;
     } catch {

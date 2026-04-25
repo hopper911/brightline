@@ -10,7 +10,20 @@ import R2BrowserModal from "@/components/admin/R2BrowserModal";
 
 function mediaUrl(key: string | null): string {
   if (!key) return "";
+  if (/^(https?:|data:|blob:)/i.test(key) || key.startsWith("/")) return key;
   return getPublicR2Url(key);
+}
+
+function isVideoKey(key: string | null): boolean {
+  if (!key) return false;
+  const decoded = decodeURIComponent(key);
+  try {
+    const parsed = new URL(decoded, "https://brightline.local");
+    const storageKey = parsed.searchParams.get("key") ?? "";
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(storageKey || parsed.pathname);
+  } catch {
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(decoded);
+  }
 }
 
 type MediaAsset = {
@@ -41,6 +54,8 @@ type WorkProject = {
   sortOrder: number;
   heroMediaId: string | null;
   heroMedia: MediaAsset | null;
+  backgroundMediaUrl: string | null;
+  backgroundPosterUrl: string | null;
   media: ProjectMedia[];
   client?: string | null;
   projectType?: string | null;
@@ -136,6 +151,8 @@ export default function AdminWorkEditPage() {
   const [isFeatured, setIsFeatured] = useState(false);
   const [sortOrder, setSortOrder] = useState(0);
   const [heroMediaId, setHeroMediaId] = useState<string | null>(null);
+  const [backgroundMediaUrl, setBackgroundMediaUrl] = useState("");
+  const [backgroundPosterUrl, setBackgroundPosterUrl] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "error">("idle");
   const [saveError, setSaveError] = useState("");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "error">("idle");
@@ -143,7 +160,7 @@ export default function AdminWorkEditPage() {
   const [dragOver, setDragOver] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const [r2BrowserOpen, setR2BrowserOpen] = useState(false);
+  const [r2BrowserTarget, setR2BrowserTarget] = useState<"gallery" | "backgroundMedia" | "backgroundPoster" | null>(null);
   const [homepageFeaturedMediaId, setHomepageFeaturedMediaId] = useState<string | null>(null);
   const [caseStudyExpanded, setCaseStudyExpanded] = useState(false);
   const [client, setClient] = useState("");
@@ -202,6 +219,8 @@ export default function AdminWorkEditPage() {
         setIsFeatured(p.isFeatured);
         setSortOrder(p.sortOrder);
         setHeroMediaId(p.heroMediaId);
+        setBackgroundMediaUrl(p.backgroundMediaUrl ?? "");
+        setBackgroundPosterUrl(p.backgroundPosterUrl ?? "");
         setClient(p.client ?? "");
         setProjectType(p.projectType ?? "");
         setScope(p.scope ?? "");
@@ -260,6 +279,8 @@ export default function AdminWorkEditPage() {
           isFeatured,
           sortOrder,
           heroMediaId,
+          backgroundMediaUrl: backgroundMediaUrl.trim() || null,
+          backgroundPosterUrl: backgroundPosterUrl.trim() || null,
           client: client.trim() || null,
           projectType: projectType.trim() || null,
           scope: scope.trim() || null,
@@ -394,6 +415,17 @@ export default function AdminWorkEditPage() {
 
   async function handleAddKeysFromR2(keys: string[]) {
     setSaveError("");
+    const first = keys[0]?.trim();
+    if (r2BrowserTarget === "backgroundMedia") {
+      if (first) setBackgroundMediaUrl(first);
+      setR2BrowserTarget(null);
+      return;
+    }
+    if (r2BrowserTarget === "backgroundPoster") {
+      if (first) setBackgroundPosterUrl(first);
+      setR2BrowserTarget(null);
+      return;
+    }
     try {
       for (const key of keys) {
         const ext = key.split(".").pop()?.toLowerCase();
@@ -404,6 +436,63 @@ export default function AdminWorkEditPage() {
       const msg = err instanceof Error ? err.message : "Failed to add media";
       setSaveError(msg);
       throw err;
+    }
+  }
+
+  async function uploadBackgroundFile(file: File, target: "backgroundMedia" | "backgroundPoster") {
+    setSaveError("");
+    setUploadStatus("uploading");
+    const label = target === "backgroundMedia" ? "background" : "poster";
+    setUploadProgress((p) => ({ ...p, [file.name]: `uploading ${label}` }));
+    try {
+      const contentType = file.type || "application/octet-stream";
+      if (target === "backgroundPoster" && !contentType.startsWith("image/")) {
+        throw new Error("Poster must be an image file.");
+      }
+      if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
+        throw new Error("Only image and video uploads are supported.");
+      }
+      const uploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType,
+          subfolder: target === "backgroundMedia" ? "background" : "poster",
+        }),
+      });
+      const uploadData = (await uploadRes.json()) as {
+        ok?: boolean;
+        url?: string;
+        headers?: Record<string, string>;
+        key?: string;
+        error?: string;
+      };
+      if (!uploadRes.ok || !uploadData.url || !uploadData.key) {
+        throw new Error(uploadData.error ?? "Failed to prepare background upload.");
+      }
+      const putRes = await fetch(uploadData.url, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": contentType, ...(uploadData.headers ?? {}) },
+      });
+      if (!putRes.ok) throw new Error(`Background upload failed (${putRes.status}).`);
+      if (target === "backgroundMedia") {
+        setBackgroundMediaUrl(uploadData.key);
+      } else {
+        setBackgroundPosterUrl(uploadData.key);
+      }
+      setUploadProgress((p) => {
+        const next = { ...p };
+        delete next[file.name];
+        return next;
+      });
+      setUploadStatus("idle");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Background upload failed";
+      setUploadProgress((p) => ({ ...p, [file.name]: msg }));
+      setSaveError(msg);
+      setUploadStatus("error");
     }
   }
 
@@ -935,6 +1024,97 @@ export default function AdminWorkEditPage() {
           )}
         </div>
 
+        <div className="rounded-xl border border-black/10 bg-white p-6">
+          <h2 className="text-sm font-semibold text-black/80">Page background</h2>
+          <p className="mt-1 text-xs text-black/50">
+            Optional image or looping video behind this project/case study page. Use a poster image for videos.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs uppercase tracking-wide text-black/60">Background image/video</label>
+              <input
+                value={backgroundMediaUrl}
+                onChange={(e) => setBackgroundMediaUrl(e.target.value)}
+                className="mt-1 w-full rounded border border-black/20 px-3 py-2 font-mono text-xs"
+                placeholder="R2 key, /path, or https://..."
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button type="button" className="btn btn-ghost text-xs" onClick={() => setR2BrowserTarget("backgroundMedia")}>
+                  Browse R2
+                </button>
+                <label className="btn btn-ghost cursor-pointer text-xs">
+                  Upload
+                  <input
+                    type="file"
+                    accept="image/*,video/mp4,video/webm,video/quicktime"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void uploadBackgroundFile(file, "backgroundMedia");
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+                {backgroundMediaUrl ? (
+                  <button type="button" className="btn btn-ghost text-xs" onClick={() => setBackgroundMediaUrl("")}>
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-wide text-black/60">Video poster image</label>
+              <input
+                value={backgroundPosterUrl}
+                onChange={(e) => setBackgroundPosterUrl(e.target.value)}
+                className="mt-1 w-full rounded border border-black/20 px-3 py-2 font-mono text-xs"
+                placeholder="Optional poster key or URL"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button type="button" className="btn btn-ghost text-xs" onClick={() => setR2BrowserTarget("backgroundPoster")}>
+                  Browse R2
+                </button>
+                <label className="btn btn-ghost cursor-pointer text-xs">
+                  Upload poster
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void uploadBackgroundFile(file, "backgroundPoster");
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+                {backgroundPosterUrl ? (
+                  <button type="button" className="btn btn-ghost text-xs" onClick={() => setBackgroundPosterUrl("")}>
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          {backgroundMediaUrl ? (
+            <div className="mt-4 overflow-hidden rounded-xl border border-black/10 bg-black">
+              {isVideoKey(backgroundMediaUrl) ? (
+                <video
+                  src={mediaUrl(backgroundMediaUrl)}
+                  poster={mediaUrl(backgroundPosterUrl) || undefined}
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  className="h-40 w-full object-cover"
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={mediaUrl(backgroundMediaUrl)} alt="" className="h-40 w-full object-cover" />
+              )}
+            </div>
+          ) : null}
+        </div>
+
         {saveError && <p className="text-sm text-red-600">{saveError}</p>}
         <button type="submit" className="btn btn-primary" disabled={saveStatus === "saving"}>
           {saveStatus === "saving" ? "Saving…" : "Save changes"}
@@ -965,6 +1145,7 @@ export default function AdminWorkEditPage() {
                       preload="metadata"
                     />
                   ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={heroSrc}
                       alt={heroPm.media.alt ?? ""}
@@ -1024,7 +1205,7 @@ export default function AdminWorkEditPage() {
             </button>
             <button
               type="button"
-              onClick={() => setR2BrowserOpen(true)}
+              onClick={() => setR2BrowserTarget("gallery")}
               className="btn btn-ghost"
             >
               Browse R2
@@ -1036,9 +1217,10 @@ export default function AdminWorkEditPage() {
         </div>
 
         <R2BrowserModal
-          isOpen={r2BrowserOpen}
-          onClose={() => setR2BrowserOpen(false)}
+          isOpen={r2BrowserTarget !== null}
+          onClose={() => setR2BrowserTarget(null)}
           onAddKeys={handleAddKeysFromR2}
+          mode={r2BrowserTarget === "gallery" ? "multiple" : "single"}
           projectId={id}
           pillarSlug={pillarSlug}
           projectSlug={project?.slug}
@@ -1105,6 +1287,7 @@ export default function AdminWorkEditPage() {
                         </div>
                       </>
                     ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={src}
                         alt={pm.media.alt ?? ""}

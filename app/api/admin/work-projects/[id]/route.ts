@@ -62,6 +62,8 @@ export async function PATCH(
       isFeatured?: boolean;
       sortOrder?: number;
       heroMediaId?: string | null;
+      backgroundMediaUrl?: string | null;
+      backgroundPosterUrl?: string | null;
       client?: string | null;
       projectType?: string | null;
       scope?: string | null;
@@ -144,6 +146,18 @@ export async function PATCH(
         isFeatured: typeof body.isFeatured === "boolean" ? body.isFeatured : undefined,
         sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : undefined,
         heroMediaId: body.heroMediaId !== undefined ? body.heroMediaId : undefined,
+        backgroundMediaUrl:
+          body.backgroundMediaUrl !== undefined
+            ? body.backgroundMediaUrl == null
+              ? null
+              : String(body.backgroundMediaUrl).trim() || null
+            : undefined,
+        backgroundPosterUrl:
+          body.backgroundPosterUrl !== undefined
+            ? body.backgroundPosterUrl == null
+              ? null
+              : String(body.backgroundPosterUrl).trim() || null
+            : undefined,
         client: body.client !== undefined ? (body.client == null ? null : String(body.client).trim() || null) : undefined,
         projectType: body.projectType !== undefined ? (body.projectType == null ? null : String(body.projectType).trim() || null) : undefined,
         scope: body.scope !== undefined ? (body.scope == null ? null : String(body.scope).trim() || null) : undefined,

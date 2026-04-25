@@ -276,6 +276,8 @@ export async function createStudioProjectRecord(body: unknown): Promise<StudioPr
       published,
       publishedAt,
       heroImageId,
+      backgroundMediaUrl: optTrim(b.backgroundMediaUrl as string | null | undefined) ?? null,
+      backgroundPosterUrl: optTrim(b.backgroundPosterUrl as string | null | undefined) ?? null,
       gallery,
     },
     include: STUDIO_PROJECT_INCLUDE,
@@ -309,6 +311,8 @@ export type UpdateStudioProjectRecordBody = {
   contentPosted?: boolean;
   reusableLater?: boolean;
   heroImageId?: string | null;
+  backgroundMediaUrl?: string | null;
+  backgroundPosterUrl?: string | null;
   gallery?: unknown;
 };
 
@@ -440,6 +444,12 @@ export async function updateStudioProjectRecord(
     } else {
       data.heroImage = { disconnect: true };
     }
+  }
+  if (b.backgroundMediaUrl !== undefined) {
+    data.backgroundMediaUrl = optTrim(b.backgroundMediaUrl) ?? null;
+  }
+  if (b.backgroundPosterUrl !== undefined) {
+    data.backgroundPosterUrl = optTrim(b.backgroundPosterUrl) ?? null;
   }
   if (b.gallery !== undefined) {
     data.gallery = toGalleryJson(b.gallery);

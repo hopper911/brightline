@@ -25,6 +25,9 @@ export type CaseStudy = {
   imageKeys: string[];
   /** Optional hero key for card thumbnail */
   heroKey?: string;
+  /** Optional page background image/video key or URL. */
+  backgroundMediaUrl?: string;
+  backgroundPosterUrl?: string;
 };
 
 export const CASE_STUDIES: CaseStudy[] = [

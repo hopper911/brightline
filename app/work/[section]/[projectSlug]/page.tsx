@@ -23,6 +23,57 @@ export const dynamic = "force-dynamic";
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
 
+function mediaUrl(input?: string | null) {
+  const value = input?.trim();
+  if (!value) return "";
+  if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith("/")) return value;
+  return getPublicR2Url(value);
+}
+
+function isVideoUrl(url: string) {
+  const decoded = decodeURIComponent(url);
+  try {
+    const parsed = new URL(decoded, "https://brightline.local");
+    const key = parsed.searchParams.get("key") ?? "";
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(key || parsed.pathname);
+  } catch {
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(decoded);
+  }
+}
+
+function ProjectBackground({
+  media,
+  poster,
+}: {
+  media?: string | null;
+  poster?: string | null;
+}) {
+  const src = mediaUrl(media);
+  if (!src) return null;
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
+      {isVideoUrl(src) ? (
+        <video
+          src={src}
+          poster={mediaUrl(poster) || undefined}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-cover opacity-35"
+        />
+      ) : (
+        <div
+          className="h-full w-full bg-cover bg-center opacity-35"
+          style={{ backgroundImage: `url(${src})` }}
+        />
+      )}
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,9,11,0.58),rgba(7,9,11,0.9))]" />
+    </div>
+  );
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -88,7 +139,12 @@ export async function generateMetadata({
 
 function WorkUpdatingFallback() {
   return (
-    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+    <>
+      <ProjectBackground
+        media={project.backgroundMediaUrl}
+        poster={project.backgroundPosterUrl}
+      />
+      <div className="section-pad relative z-10 mx-auto max-w-6xl px-6 lg:px-10">
       <div className="rounded-2xl border border-white/10 bg-black/40 p-12 text-center">
         <h1 className="section-title">Work is updating</h1>
         <p className="mt-4 text-white/70">Please check back shortly.</p>
@@ -96,7 +152,8 @@ function WorkUpdatingFallback() {
           Back to work
         </Link>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

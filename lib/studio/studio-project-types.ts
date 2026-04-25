@@ -44,6 +44,8 @@ export type StudioProjectCreatePayload = {
   contentPosted?: boolean;
   reusableLater?: boolean;
   heroImageId?: string | null;
+  backgroundMediaUrl?: string | null;
+  backgroundPosterUrl?: string | null;
   /** Must serialize to JSON array/object; default `[]`. */
   gallery?: StudioProjectGalleryJson | Record<string, unknown>;
 };

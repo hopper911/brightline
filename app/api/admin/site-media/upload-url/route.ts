@@ -6,7 +6,7 @@ import { signPut } from "@/lib/storage-r2";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED_FOLDERS = new Set(["pages", "services", "blocks", "theme"]);
+const ALLOWED_FOLDERS = new Set(["pages", "services", "blocks", "theme", "projects"]);
 
 function safeFilename(name: string) {
   const base = name.split(/[/\\]/).pop() ?? "media";

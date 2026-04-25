@@ -417,12 +417,18 @@ export default function AdminWorkEditPage() {
     setSaveError("");
     const first = keys[0]?.trim();
     if (r2BrowserTarget === "backgroundMedia") {
-      if (first) setBackgroundMediaUrl(first);
+      if (first) {
+        setBackgroundMediaUrl(first);
+        await saveBackgroundSettings(first, backgroundPosterUrl);
+      }
       setR2BrowserTarget(null);
       return;
     }
     if (r2BrowserTarget === "backgroundPoster") {
-      if (first) setBackgroundPosterUrl(first);
+      if (first) {
+        setBackgroundPosterUrl(first);
+        await saveBackgroundSettings(backgroundMediaUrl, first);
+      }
       setR2BrowserTarget(null);
       return;
     }
@@ -437,6 +443,21 @@ export default function AdminWorkEditPage() {
       setSaveError(msg);
       throw err;
     }
+  }
+
+  async function saveBackgroundSettings(nextMedia: string, nextPoster: string) {
+    if (id === "new") return;
+    const res = await fetch(`/api/admin/work-projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        backgroundMediaUrl: nextMedia.trim() || null,
+        backgroundPosterUrl: nextPoster.trim() || null,
+      }),
+    });
+    const data = (await res.json()) as { ok?: boolean; project?: WorkProject; error?: string };
+    if (!res.ok) throw new Error(data.error ?? "Failed to save background.");
+    if (data.project) setProject(data.project);
   }
 
   async function uploadBackgroundFile(file: File, target: "backgroundMedia" | "backgroundPoster") {
@@ -479,8 +500,10 @@ export default function AdminWorkEditPage() {
       if (!putRes.ok) throw new Error(`Background upload failed (${putRes.status}).`);
       if (target === "backgroundMedia") {
         setBackgroundMediaUrl(uploadData.key);
+        await saveBackgroundSettings(uploadData.key, backgroundPosterUrl);
       } else {
         setBackgroundPosterUrl(uploadData.key);
+        await saveBackgroundSettings(backgroundMediaUrl, uploadData.key);
       }
       setUploadProgress((p) => {
         const next = { ...p };

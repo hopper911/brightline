@@ -478,14 +478,31 @@ export default function StudioProjectForm({ projectId }: Props) {
       if (!put.ok) throw new Error(`Background upload failed (${put.status}).`);
       if (target === "backgroundMedia") {
         setBackgroundMediaUrl(data.key);
+        await saveBackgroundSettings(data.key, backgroundPosterUrl);
       } else {
         setBackgroundPosterUrl(data.key);
+        await saveBackgroundSettings(backgroundMediaUrl, data.key);
       }
       setStatus("idle");
     } catch (e) {
       setStatus("error");
       setError(e instanceof Error ? e.message : "Background upload failed");
     }
+  }
+
+  async function saveBackgroundSettings(nextMedia: string, nextPoster: string) {
+    if (!projectId) return;
+    const res = await adminFetch(`/api/projects/${projectId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        backgroundMediaUrl: nextMedia.trim() || null,
+        backgroundPosterUrl: nextPoster.trim() || null,
+      }),
+    });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    if (!res.ok) throw new Error(data.error ?? "Failed to save background.");
+    await load();
   }
 
   async function persistGallery(nextRows: GalleryRow[], nextHero: string | null) {
@@ -982,8 +999,14 @@ export default function StudioProjectForm({ projectId }: Props) {
         mode="single"
         onAddKeys={async (keys) => {
           const key = keys[0]?.trim();
-          if (key && r2BackgroundTarget === "backgroundMedia") setBackgroundMediaUrl(key);
-          if (key && r2BackgroundTarget === "backgroundPoster") setBackgroundPosterUrl(key);
+          if (key && r2BackgroundTarget === "backgroundMedia") {
+            setBackgroundMediaUrl(key);
+            await saveBackgroundSettings(key, backgroundPosterUrl);
+          }
+          if (key && r2BackgroundTarget === "backgroundPoster") {
+            setBackgroundPosterUrl(key);
+            await saveBackgroundSettings(backgroundMediaUrl, key);
+          }
           setR2BackgroundTarget(null);
         }}
       />

@@ -1,46 +1,20 @@
-import type { NextAuthOptions } from "next-auth";
+import type { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-export const authOptions: NextAuthOptions = {
-  session: {
-    strategy: "jwt",
-  },
-  secret: process.env.NEXTAUTH_SECRET,
+/**
+ * Minimal NextAuth config for /api/auth/* route compatibility.
+ * Admin auth uses cookie-based flow via /api/admin/login.
+ */
+export const authOptions: AuthOptions = {
   providers: [
     CredentialsProvider({
-      id: "credentials",
-      name: "Access Code",
-      credentials: {
-        code: { label: "Access Code", type: "password" },
-      },
-      async authorize(credentials) {
-        const code = credentials?.code;
-        if (!code) return null;
-        const accessCode = process.env.ADMIN_ACCESS_CODE;
-        if (!accessCode) return null;
-        if (code !== accessCode) return null;
-        return { id: "admin", name: "Admin", email: "admin@local" };
+      name: "Credentials",
+      credentials: {},
+      async authorize() {
+        return null;
       },
     }),
   ],
-  pages: {
-    signIn: "/admin/login",
-  },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.isAdmin = true;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.name = session.user.name || "Admin";
-        (session.user as { isAdmin?: boolean }).isAdmin = Boolean(
-          token.isAdmin
-        );
-      }
-      return session;
-    },
-  },
+  secret: process.env.NEXTAUTH_SECRET,
+  session: { strategy: "jwt" },
 };

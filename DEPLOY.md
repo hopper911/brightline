@@ -8,14 +8,25 @@
 
 ## 1. Push to GitHub
 
+From the **app repo root** (the folder that contains `.git` — e.g. `brightline/brightline` if the repo is inside the outer brightline folder):
+
 ```bash
-cd brightline
+cd /path/to/brightline   # e.g. .../brightline/brightline
 git add .
-git commit -m "Fix build: Next.js 16 params, contact Suspense, audit vulnerabilities"
+git commit -m "Brightline: lib/storage + image-strategy + env, lint fixes, admin Link"
 git push origin main
 ```
 
-Vercel will auto-deploy when you push to the main branch.
+If your git repo root is your **Desktop** (and this app lives under `brightline/brightline`), stage only the project and then push:
+
+```bash
+cd ~/Desktop
+git add brightline/
+git commit -m "Brightline: lib/storage + image-strategy + env, lint fixes, admin Link"
+git push origin main   # or: git push origin work-v2 then merge to main on GitHub
+```
+
+Vercel will auto-deploy when you push to the branch it is configured to use (usually `main`).
 
 ## 2. Environment Variables (Vercel Dashboard)
 
@@ -32,19 +43,23 @@ Set these in **Vercel → Project → Settings → Environment Variables**:
 - `CONTACT_NOTIFY_EMAIL` — Where contact form submissions go
 
 ### Optional
+- `NEXT_PUBLIC_SITE_URL` — Base URL for sitemap and robots (set to `https://brightlinephotography.com` in Production; see Canonical domain below)
+- `SEED_TOKEN` — For POST /api/admin/seed (dev only; omit in production)
 - `NEXT_PUBLIC_CALENDLY_URL` — For booking modal
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` — Cloudflare Turnstile (contact form spam protection)
 - `TURNSTILE_SECRET_KEY`
 - `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` — Analytics
 - `NEXT_PUBLIC_GA_ID` — Google Analytics
 
-### Storage (R2/S3 for client galleries)
+### Storage (R2/S3 for client galleries and Work images)
 R2 (Cloudflare):
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
-- `R2_BUCKET`
-- `R2_ENDPOINT` — Base URL for the account (e.g. `https://<account-id>.r2.cloudflarestorage.com`)
+- `R2_BUCKET` — e.g. `brightline-main`
+- `R2_ENDPOINT` — e.g. `https://<account-id>.r2.cloudflarestorage.com`
 - `R2_REGION` — Use `auto`
+- `R2_PUBLIC_URL` — Public URL for serving images (e.g. `https://pub-xxx.r2.dev`)
+- `NEXT_PUBLIC_R2_PUBLIC_URL` — Same as R2_PUBLIC_URL (needed for client-side image URLs)
 
 S3 (AWS):
 - `S3_ACCESS_KEY_ID`
@@ -52,10 +67,6 @@ S3 (AWS):
 - `S3_BUCKET`
 - `S3_REGION`
 - `S3_ENDPOINT` — Optional (set only for S3-compatible providers)
-
-### Sentry (error tracking)
-- `SENTRY_DSN`
-- `SENTRY_AUTH_TOKEN` — For source maps
 
 ## 3. Database Migration
 
@@ -72,9 +83,21 @@ Or use Neon's dashboard to run migrations.
 After deploy:
 
 1. Visit your Vercel URL
-2. Test contact form
-3. Test client portal (`/client`)
-4. Check admin login (`/admin/login`)
+2. Test Work pages: `/work`, `/work/acd`, etc.
+3. Test contact form (saves to Inquiry; optional Resend email)
+4. Test Process page: `/process`
+5. Check admin login (`/admin/login`)
+6. Client portal (`/client`) if enabled
+
+## Canonical domain
+
+Production site URL: **`https://brightlinephotography.com`**.
+
+- **Redirects** for alternate hosts (`www.brightlinephotography.com`, `brightlinephotography.co`, `www.brightlinephotography.co`) live in `vercel.json`. This repo has two copies so different Vercel **Root Directory** layouts stay covered:
+  - **Repo root** deploy: [`vercel.json`](../../vercel.json) at the repository root (includes `outputDirectory` / `framework` when the monorepo builds the app from the parent folder).
+  - **App-only deploy**: [`vercel.json`](./vercel.json) next to this Next.js app.
+- Keep the **`redirects`** array identical in both files when you change host rules.
+- Whichever `vercel.json` your Vercel project actually loads is determined by **Project → Settings → General → Root Directory**. Only that file’s redirects apply at runtime.
 
 ## Build Configuration
 

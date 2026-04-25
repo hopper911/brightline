@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { findAccessByCode } from "@/lib/client-access";
+import { resolveClientAccessCode } from "@/lib/client-access";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const body = (await req.json()) as { token?: string };
@@ -15,13 +16,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const access = await findAccessByCode(token);
-  if (!access) {
+  const resolved = await resolveClientAccessCode(token);
+  if (!resolved.ok) {
     return NextResponse.json(
-      { ok: false, error: "That access code is not valid." },
+      { ok: false, error: resolved.error },
       { status: 404 }
     );
   }
+  const access = resolved.access;
 
   const jar = await cookies();
   jar.set("client_access", "true", {

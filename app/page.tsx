@@ -1,39 +1,54 @@
-import Image from "next/image";
 import Link from "next/link";
 import HomeHero from "@/components/HomeHero";
 import Reveal from "@/components/Reveal";
-import PortfolioCard from "@/components/PortfolioCard";
-import PrimaryCTA from "@/components/PrimaryCTA";
+import WorkCard from "@/components/WorkCard";
+import Testimonials from "@/components/testimonials/Testimonials";
+import WebsitePageView from "@/components/WebsitePageView";
 import { BRAND, getUrl } from "@/lib/config/brand";
-import { CREDIBILITY } from "@/lib/config/credibility";
+import {
+  AI_SECTION,
+  FOUR_BEATS,
+  HOMEPAGE_WORK_HEADLINE,
+  HOMEPAGE_WORK_SUB,
+  POSITIONING_STRIP,
+  STRUCTURED_DELIVERY,
+} from "@/lib/config/strategicPositioning";
+import { PILLARS } from "@/lib/portfolioPillars";
+import { getFeaturedHeroForSection } from "@/lib/queries/work";
+import { getHomepageFeaturedMedia } from "@/lib/queries/site";
+import { getPublishedGalleryCards } from "@/lib/queries/public-galleries";
+import { getPublicR2Url } from "@/lib/r2";
+import { getPublishedWebsitePageBySlug } from "@/lib/website-pages";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Commercial Photography | Bright Line Photography",
+  title: `Commercial Photography | ${BRAND.name}`,
   description:
-    "Commercial real estate, hospitality, and fashion photography in NYC and beyond.",
+    "Premium photography with structured delivery—visuals designed to perform across web, search, and social. Architecture, advertising, and corporate.",
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "Commercial Photography | Bright Line Photography",
+    title: `Commercial Photography | ${BRAND.name}`,
     description:
-      "Commercial real estate, hospitality, and fashion photography in NYC and beyond.",
+      "Premium photography with structured delivery—visuals designed to perform across web, search, and social.",
     url: "/",
     images: [
       {
         url: "/og-image.svg",
         width: 1200,
         height: 630,
-        alt: "Bright Line Photography",
+        alt: BRAND.name,
       },
     ],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Commercial Photography | Bright Line Photography",
+    title: `Commercial Photography | ${BRAND.name}`,
     description:
-      "Commercial real estate, hospitality, and fashion photography in NYC and beyond.",
+      "Premium photography with structured delivery—visuals designed to perform across web, search, and social.",
     images: ["/og-image.svg"],
   },
 };
@@ -44,355 +59,260 @@ const localBusinessSchema = {
   name: BRAND.name,
   url: BRAND.url,
   image: getUrl(BRAND.metadata.ogImage),
-  areaServed: "United States",
+  areaServed: [
+    "New York City, NY",
+    "Brooklyn, NY",
+    "Jersey City, NJ",
+    "Hoboken, NJ",
+    "Northern New Jersey",
+    "Tri-State Area",
+  ],
   address: {
     "@type": "PostalAddress",
-    addressLocality: "New York",
-    addressRegion: "NY",
+    addressLocality: "Jersey City",
+    addressRegion: "NJ",
     addressCountry: "US",
   },
   sameAs: Object.values(BRAND.social).filter(Boolean),
   serviceType: [
     "Commercial Photography",
-    "Hospitality Photography",
-    "Real Estate Photography",
-    "Fashion Photography",
+    "Architecture Photography",
+    "Advertising Photography",
+    "Corporate Photography",
+    "Visual Content Strategy",
   ],
 };
 
-const BLUR_DATA =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
+export default async function Page() {
+  const pageOverride = await getPublishedWebsitePageBySlug("home");
+  if (pageOverride) {
+    return <WebsitePageView page={pageOverride} />;
+  }
 
-const featured = [
-  {
-    title: "Architecture & Interiors",
-    tag: "Commercial",
-    href: "/portfolio/commercial-real-estate/real-estate-01",
-    image: "/images/real-estate.jpg",
-  },
-  {
-    title: "Hospitality & Travel",
-    tag: "Lifestyle",
-    href: "/portfolio/hospitality/hotel-01",
-    image: "/images/hospitality.jpg",
-  },
-  {
-    title: "Editorial Fashion",
-    tag: "Campaign",
-    href: "/portfolio/fashion/fashion-01",
-    image: "/images/fashion.jpg",
-  },
-  {
-    title: "Workplace Campaigns",
-    tag: "Commercial",
-    href: "/portfolio/commercial-real-estate/real-estate-02",
-    image: "/images/design.jpg",
-  },
-];
+  let pillarData: {
+    slug: string;
+    label: string;
+    homeMeta: string;
+    coverUrl: string;
+    coverAlt: string;
+  }[];
+  try {
+    pillarData = await Promise.all(
+      PILLARS.map(async (pillar) => {
+        const firstSection = pillar.sections[0];
+        const hero = firstSection
+          ? await getFeaturedHeroForSection(firstSection)
+          : null;
+        let coverUrl = "";
+        const imageKey = hero?.kind === "IMAGE" ? hero.keyFull ?? hero.keyThumb : null;
+        if (imageKey) {
+          coverUrl = getPublicR2Url(imageKey);
+        } else {
+          coverUrl = "/images/hero.jpg";
+        }
+        return {
+          ...pillar,
+          coverUrl,
+          coverAlt: hero?.alt ?? pillar.label,
+        };
+      })
+    );
+  } catch {
+    pillarData = PILLARS.map((p) => ({
+      ...p,
+      coverUrl: "/images/hero.jpg",
+      coverAlt: p.label,
+    }));
+  }
 
-const services = [
-  {
-    title: "Brand Identity Shoots",
-    copy: "Full-bleed storyboarding, art direction, and images crafted for consistent brand voice.",
-  },
-  {
-    title: "Location & Property",
-    copy: "Luxury interiors, hospitality, and real estate imagery with cinematic daylight focus.",
-  },
-  {
-    title: "Editorial & Campaign",
-    copy: "Collaborative sets, on-location styling, and images designed to travel across platforms.",
-  },
-  {
-    title: "Content Libraries",
-    copy: "Quarterly photo banks that stay on-message for web, social, and print.",
-  },
-];
+  let featuredImage: { url: string; alt: string } | null = null;
+  try {
+    const media = await getHomepageFeaturedMedia();
+    if (media) {
+      featuredImage = {
+        url: getPublicR2Url(media.displayKey),
+        alt: media.alt ?? "Featured work",
+      };
+    }
+  } catch {
+    featuredImage = null;
+  }
 
-const testimonials = [
-  {
-    quote:
-      "Bright Line understands how to make a space feel alive. We booked out our new suites within two weeks.",
-    name: "Elena Marquis",
-    role: "Director, Maison Delmar",
-  },
-  {
-    quote:
-      "They came with a visual narrative, not just a shot list. The campaign felt elevated from day one.",
-    name: "Noah Kim",
-    role: "Creative Lead, Meridian Studio",
-  },
-];
+  let galleryCards: Awaited<ReturnType<typeof getPublishedGalleryCards>> = [];
+  try {
+    galleryCards = await getPublishedGalleryCards(3);
+  } catch {
+    galleryCards = [];
+  }
 
-const whatYouGet = [
-  {
-    title: "Deliverables",
-    items: [
-      "Hero imagery + supporting selects",
-      "Crops for web, social, and print",
-      "Consistent color + tonal grading",
-    ],
-  },
-  {
-    title: "Turnaround",
-    items: [
-      "Proofs in 5–7 days",
-      "Finals in 10–14 days",
-      "Rush options on request",
-    ],
-  },
-  {
-    title: "Usage options",
-    items: [
-      "Web + social usage included",
-      "Paid media extensions available",
-      "Print-ready exports",
-    ],
-  },
-];
-
-const howItWorks = [
-  { step: "Inquiry", detail: "Share your goals, timeline, and locations." },
-  { step: "Shoot", detail: "On-site art direction with a calm, precise crew." },
-  { step: "Selects", detail: "Proof gallery with recommendations and edits." },
-  { step: "Delivery", detail: "Final library optimized for every channel." },
-];
-
-export default function Page() {
   return (
     <div className="page-shell min-h-screen">
       <div className="soft-grid">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(localBusinessSchema),
-          }}
-        />
-        <HomeHero />
+        <script type="application/ld+json">
+          {JSON.stringify(localBusinessSchema)}
+        </script>
+        <HomeHero featuredImage={featuredImage} />
 
-        <Reveal id="portfolio" className="relative mx-auto max-w-6xl px-4 pb-20 pt-12 scroll-mt-20">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.35em] text-black/50">
-                Featured Work
-              </p>
-              <h2 className="font-display text-3xl md:text-4xl text-black">
-                Galleries curated for design-forward brands.
-              </h2>
+        <Reveal className="section-pad relative mx-auto max-w-3xl px-6 text-center lg:px-10">
+          <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">
+            {POSITIONING_STRIP.kicker}
+          </p>
+          <p className="mt-4 text-sm leading-relaxed text-white/85 md:text-base">
+            {POSITIONING_STRIP.body}
+          </p>
+        </Reveal>
+
+        {galleryCards.length > 0 ? (
+          <Reveal
+            id="galleries"
+            className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10 scroll-mt-20"
+          >
+            <div className="flex flex-wrap items-end justify-between gap-6">
+              <div className="space-y-2">
+                <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">
+                  Galleries
+                </p>
+                <h2 className="font-display text-2xl md:text-3xl text-white text-balance">
+                  Published image sets from recent deliveries.
+                </h2>
+                <p className="max-w-xl text-sm text-white/75">
+                  A quick look at selected galleries across proofing, selections, and final delivery.
+                </p>
+              </div>
+              <Link href="/galleries" className="btn btn-ghost">
+                View galleries
+              </Link>
             </div>
-            <Link
-              href="/work"
-              className="btn btn-ghost"
-            >
+            <div className="mt-10 grid gap-5 md:grid-cols-3">
+              {galleryCards.map((gallery, index) => (
+                <Reveal key={gallery.id} delay={index * 0.08}>
+                  <Link
+                    href={`/galleries/${gallery.slug}`}
+                    className="group block overflow-hidden rounded-2xl border border-white/10 bg-black/40 lift-card"
+                  >
+                    <div className="relative h-[260px] overflow-hidden bg-black/60">
+                      {gallery.coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={gallery.coverUrl}
+                          alt={gallery.title}
+                          className="h-full w-full object-cover image-zoom"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center px-6 text-center text-xs uppercase tracking-[0.24em] text-white/40">
+                          {gallery.title}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <p className="text-[0.62rem] uppercase tracking-[0.28em] text-white/45">
+                        {gallery.galleryType?.replace(/_/g, " ").toLowerCase() ?? "gallery"}
+                      </p>
+                      <h3 className="mt-2 font-display text-lg text-white group-hover:underline">
+                        {gallery.title}
+                      </h3>
+                    </div>
+                  </Link>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+        ) : null}
+
+        <Reveal className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10">
+          <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">
+            Approach
+          </p>
+          <h2 className="mt-2 font-display text-2xl text-white md:text-3xl">
+            Beyond the shoot
+          </h2>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {FOUR_BEATS.map((beat, index) => (
+              <Reveal key={beat.title} delay={index * 0.05}>
+                <div className="h-full rounded-2xl border border-white/10 bg-white/80 p-5 shadow-sm">
+                  <h3 className="font-display text-lg text-black">{beat.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-black/80">{beat.body}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </Reveal>
+
+        <Reveal className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10">
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.06] p-6 md:p-10">
+            <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">
+              {STRUCTURED_DELIVERY.headline}
+            </p>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 md:text-base">
+              {STRUCTURED_DELIVERY.intro}
+            </p>
+            <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+              {STRUCTURED_DELIVERY.bullets.map((line) => (
+                <li key={line} className="flex gap-2 text-sm text-white/80">
+                  <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-white/45" aria-hidden />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Reveal>
+
+        <Reveal className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10">
+          <div className="rounded-[24px] border border-white/10 p-6 md:p-8">
+            <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">
+              {AI_SECTION.headline}
+            </p>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/80 md:text-base">
+              {AI_SECTION.body}
+            </p>
+          </div>
+        </Reveal>
+
+        <Reveal
+          id="work"
+          className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10 scroll-mt-20"
+        >
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div className="space-y-2">
+              <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">
+                Work
+              </p>
+              <h2 className="font-display text-2xl md:text-3xl text-white text-balance">
+                {HOMEPAGE_WORK_HEADLINE}
+              </h2>
+              <p className="max-w-xl text-sm text-white/75">{HOMEPAGE_WORK_SUB}</p>
+            </div>
+            <Link href="/work" className="btn btn-ghost">
               See all work
             </Link>
           </div>
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
-            {featured.map((item, index) => (
-              <Reveal key={item.title} delay={index * 0.08}>
-                <PortfolioCard
-                  href={item.href}
-                  cover={item.image}
-                  alt={item.title}
-                  tag={item.tag}
-                  title={item.title}
-                  meta="View project"
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {pillarData.map((pillar, index) => (
+              <Reveal key={pillar.slug} delay={index * 0.08}>
+                <WorkCard
+                  href={`/work/${pillar.slug}`}
+                  cover={pillar.coverUrl}
+                  alt={pillar.coverAlt ?? pillar.label}
+                  title={pillar.label}
+                  meta={pillar.homeMeta}
                 />
               </Reveal>
             ))}
           </div>
         </Reveal>
 
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
-          <Link
-            href="/about"
-            className="lift-card group block"
-            aria-label="Learn about the Bright Line approach"
-          >
-            <div className="grid gap-10 rounded-[32px] border border-black/10 bg-white/70 p-8 shadow-[0_24px_60px_rgba(27,26,23,0.12)] transition group-hover:border-black/20 md:grid-cols-[1.1fr_0.9fr] md:p-12">
-              <div className="space-y-5">
-                <p className="text-xs uppercase tracking-[0.35em] text-black/50">
-                  The Approach
-                </p>
-                <h2 className="font-display text-3xl md:text-4xl text-black">
-                  A calm, precise process from concept to final delivery.
-                </h2>
-                <p className="text-base text-black/70">
-                  From location scouting and lighting design to post-production
-                  color stories, we build image systems that feel cinematic and
-                  cohesive across every touchpoint.
-                </p>
-                <div className="flex flex-wrap gap-4 text-xs uppercase tracking-[0.3em] text-black/60">
-                  <span className="rounded-full border border-black/20 px-4 py-2">
-                    Art Direction
-                  </span>
-                  <span className="rounded-full border border-black/20 px-4 py-2">
-                    Styling
-                  </span>
-                  <span className="rounded-full border border-black/20 px-4 py-2">
-                    Retouching
-                  </span>
-                </div>
-              </div>
-              <div className="relative overflow-hidden rounded-[24px]">
-                <Image
-                  src="/images/design.jpg"
-                  alt="Studio moodboard"
-                  width={560}
-                  height={520}
-                  sizes="(min-width: 1024px) 520px, 100vw"
-                  placeholder="blur"
-                  blurDataURL={BLUR_DATA}
-                  className="h-full w-full object-cover image-fade"
-                />
-              </div>
-            </div>
-        </Link>
-        </Reveal>
-
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
-          <div className="grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-start">
-            <div className="space-y-4">
-              <p className="text-xs uppercase tracking-[0.35em] text-black/50">
-                What you get
-              </p>
-              <h2 className="font-display text-3xl md:text-4xl text-black">
-                A premium image system built for conversion.
-              </h2>
-              <p className="text-base text-black/70">
-                Every engagement delivers a strategic library: hero imagery,
-                supporting sets, and crops designed for web, social, and print.
-              </p>
-            </div>
-            <div className="grid gap-4">
-              {whatYouGet.map((block) => (
-                <div
-                  key={block.title}
-                  className="rounded-2xl border border-black/10 bg-white/70 p-6"
-                >
-                  <p className="text-xs uppercase tracking-[0.3em] text-black/50">
-                    {block.title}
-                  </p>
-                  <ul className="mt-4 space-y-2 text-sm text-black/70">
-                    {block.items.map((item) => (
-                      <li key={item} className="flex items-start gap-2">
-                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/60" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+        <Reveal className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10">
+          <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">
+            Kind words
+          </p>
+          <div className="mt-6">
+            <Testimonials />
           </div>
-        </Reveal>
-
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
-          <div className="rounded-[28px] border border-black/10 bg-white/70 p-6 md:p-10">
-            <p className="text-xs uppercase tracking-[0.35em] text-black/50">
-              How it works
-            </p>
-            <div className="mt-6 grid gap-4 md:grid-cols-4">
-              {howItWorks.map((item, index) => (
-                <div key={item.step} className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-black/50">
-                    {String(index + 1).padStart(2, "0")} · {item.step}
-                  </p>
-                  <p className="text-sm text-black/70">{item.detail}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Reveal>
-
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
-          <div className="grid gap-8 md:grid-cols-2">
-            <div className="space-y-4">
-              <p className="text-xs uppercase tracking-[0.35em] text-black/50">
-                Services
-              </p>
-              <h2 className="font-display text-3xl md:text-4xl text-black">
-                High-touch visual production for teams that value taste.
-              </h2>
-            </div>
-            <p className="text-base text-black/70">
-              We partner with founders, marketing leads, and interior teams to
-              craft imagery with strong ROI. Every session delivers a library of
-              content mapped to your channels.
-            </p>
-          </div>
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
-            {services.map((service) => (
-              <Link
-                key={service.title}
-                href="/services"
-                className="lift-card group rounded-[28px] border border-black/10 bg-white/70 p-6 shadow-[0_20px_50px_rgba(27,26,23,0.1)]"
-                aria-label={`View services for ${service.title}`}
-              >
-                <h3 className="font-display text-xl text-black">
-                  {service.title}
-                </h3>
-                <p className="mt-3 text-sm text-black/70">{service.copy}</p>
-                <span className="mt-4 inline-flex items-center text-xs uppercase tracking-[0.3em] text-black/60 link-underline">
-                  Learn more
-                </span>
-              </Link>
-            ))}
-          </div>
-        </Reveal>
-
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-20">
-          <div className="grid gap-6 md:grid-cols-2">
-            {testimonials.map((item, index) => (
-              <div
-                key={item.name}
-                className="lift-card rounded-[28px] border border-black/10 bg-white/80 p-6"
-              >
-                <p className="font-display text-2xl text-black">
-                  “{item.quote}”
-                </p>
-                <p className="mt-4 text-xs uppercase tracking-[0.3em] text-black/60">
-                  {item.name} · {item.role}
-                </p>
-                {index === 0 && (
-                  <div className="mt-6 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-black/50">
-                    <span>{CREDIBILITY.stats[1].value} {CREDIBILITY.stats[1].label}</span>
-                    <span>{CREDIBILITY.stats[0].value} {CREDIBILITY.stats[0].label}</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="mt-8">
-            <PrimaryCTA service="general" />
-          </div>
-        </Reveal>
-
-        <Reveal className="relative mx-auto max-w-6xl px-4 pb-24">
-          <div className="rounded-[36px] border border-black/10 bg-black px-8 py-12 text-white md:px-12">
-            <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-center">
-              <div className="space-y-4">
-                <p className="text-xs uppercase tracking-[0.35em] text-white/60">
-                  Let&apos;s collaborate
-                </p>
-                <h2 className="font-display text-3xl md:text-4xl text-white">
-                  If the work resonates, let&apos;s talk.
-                </h2>
-                <p className="text-sm text-white/70">
-                  Schedule a discovery call or request the full pricing
-                  overview.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-4 md:justify-end">
-                <PrimaryCTA service="general" className="btn btn-light" />
-                <Link
-                  href="/services"
-                  className="btn btn-outline-light"
-                >
-                  View Services
-                </Link>
-              </div>
-            </div>
+          <div className="mt-10">
+            <Link href="/services" className="btn btn-primary">
+              Services
+            </Link>
           </div>
         </Reveal>
       </div>

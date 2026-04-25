@@ -1,21 +1,28 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { adminCookieIndicatesAccess } from "@/lib/admin-cookie";
 
-export default async function proxy(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (!pathname.startsWith("/admin") && !pathname.startsWith("/api/admin")) {
+  if (
+    !pathname.startsWith("/admin") &&
+    !pathname.startsWith("/api/admin") &&
+    !pathname.startsWith("/studio")
+  ) {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/admin/login")) {
+  if (pathname.startsWith("/admin/login") || pathname.startsWith("/api/admin/login")) {
     return NextResponse.next();
   }
 
-  const token = await getToken({ req: request });
-  const isAdmin = Boolean(token?.isAdmin);
-  if (isAdmin) {
-    return NextResponse.next();
+  const adminAccess = adminCookieIndicatesAccess(
+    request.cookies.get("admin_access")?.value
+  );
+  if (adminAccess) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-brightline-admin-pathname", pathname);
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   if (pathname.startsWith("/api/admin")) {
@@ -29,5 +36,5 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  matcher: ["/admin/:path*", "/api/admin/:path*", "/studio", "/studio/:path*"],
 };

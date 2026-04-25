@@ -29,26 +29,28 @@ export default function MagneticButton({
   }
 
   return (
-    <m.div style={{ x: sx, y: sy }} className="inline-block">
-      <Link
-        ref={ref}
-        href={href}
-        className={className}
-        onMouseMove={(e) => {
-          const r = ref.current?.getBoundingClientRect();
-          if (!r) return;
-          const dx = e.clientX - (r.left + r.width / 2);
-          const dy = e.clientY - (r.top + r.height / 2);
-          x.set(dx * 0.12);
-          y.set(dy * 0.12);
-        }}
-        onMouseLeave={() => {
-          x.set(0);
-          y.set(0);
-        }}
-      >
-        {children}
-      </Link>
-    </m.div>
+    <div className="inline-block">
+      <m.div style={{ x: sx, y: sy }}>
+        <Link
+          ref={ref}
+          href={href}
+          className={className}
+          onMouseMove={(e) => {
+            const r = ref.current?.getBoundingClientRect();
+            if (!r) return;
+            const dx = e.clientX - (r.left + r.width / 2);
+            const dy = e.clientY - (r.top + r.height / 2);
+            x.set(dx * 0.12);
+            y.set(dy * 0.12);
+          }}
+          onMouseLeave={() => {
+            x.set(0);
+            y.set(0);
+          }}
+        >
+          {children}
+        </Link>
+      </m.div>
+    </div>
   );
 }

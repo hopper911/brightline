@@ -8,6 +8,108 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// Studio OS enums (Phase 1)
+enum ProjectStatus {
+  INQUIRY
+  PLANNED
+  SCHEDULED
+  SHOT
+  INGESTING
+  EDITING
+  PROOF_READY
+  CLIENT_REVIEWING
+  FINAL_APPROVED
+  DELIVERED
+  CASE_STUDY_DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum LeadStatus {
+  NEW
+  REVIEWED
+  QUALIFIED
+  FOLLOW_UP_NEEDED
+  PROPOSAL_PENDING
+  WON
+  LOST
+  ARCHIVED
+}
+
+enum GalleryStatus {
+  DRAFT
+  READY_TO_SEND
+  SENT
+  CLIENT_REVIEWING
+  SELECTIONS_RECEIVED
+  FINALIZED
+  DELIVERED
+  EXPIRED
+  ARCHIVED
+}
+
+enum GalleryType {
+  PROOF
+  SELECTION
+  FINAL_DELIVERY
+  INTERNAL_REVIEW
+}
+
+enum WorkStatus {
+  NOT_STARTED
+  DRAFT
+  AI_DRAFTED
+  HUMAN_EDITED
+  READY_FOR_REVIEW
+  APPROVED
+  PUBLISHED
+  UPDATED
+}
+
+enum MediaVisibility {
+  INTERNAL
+  CLIENT
+  PUBLIC
+}
+
+enum MediaOrientation {
+  LANDSCAPE
+  PORTRAIT
+  SQUARE
+  PANORAMIC
+}
+
+enum PaymentStatus {
+  UNPRICED
+  DEPOSIT_DUE
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  WRITE_OFF
+}
+
+enum PaymentType {
+  DEPOSIT
+  FINAL
+  OTHER
+}
+
+enum ClientFollowUpStatus {
+  NONE
+  NEEDED
+  SCHEDULED
+  DONE
+}
+
+enum ContentStatus {
+  NONE
+  CAPTION_DRAFTED
+  WEBSITE_COPY_DRAFTED
+  READY_TO_POST
+  POSTED
+  REUSABLE
+}
+
 model ContactMessage {
   id        String   @id @default(cuid())
   name      String
@@ -18,49 +120,55 @@ model ContactMessage {
 
 // Portfolio (marketing site)
 model PortfolioCategory {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  projects  PortfolioProject[]
+  id       String             @id @default(cuid())
+  name     String
+  slug     String             @unique
+  projects PortfolioProject[]
 }
 
 model PortfolioProject {
-  id                  String    @id @default(cuid())
-  title               String
-  slug                String
-  category            String
-  categorySlug        String
-  categoryId          String?
-  location            String?
-  year                String?
-  description         String?
-  coverUrl            String?
-  coverStorageKey     String?
-  coverAlt            String?
-  seoTitle            String?
-  seoDescription      String?
-  ogImageUrl          String?
-  externalGalleryUrl  String?
-  published           Boolean   @default(false)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  categoryRef         PortfolioCategory? @relation(fields: [categoryId], references: [id])
-  images              PortfolioImage[]
+  id                 String             @id @default(cuid())
+  title              String
+  slug               String
+  category           String
+  categorySlug       String
+  /// Optional link to Studio OS public CMS row (`StudioProject.id`).
+  studioProjectId    String?
+  categoryId         String?
+  location           String?
+  year               String?
+  description        String?
+  coverUrl           String?
+  coverStorageKey    String?
+  coverAlt           String?
+  seoTitle           String?
+  seoDescription     String?
+  ogImageUrl         String?
+  externalGalleryUrl String?
+  published          Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  categoryRef        PortfolioCategory? @relation(fields: [categoryId], references: [id])
+  images             PortfolioImage[]
+  StudioProject      StudioProject?     @relation(fields: [studioProjectId], references: [id])
 }
 
 model PortfolioImage {
-  id        String   @id @default(cuid())
-  projectId String
-  url       String
+  id         String           @id @default(cuid())
+  projectId  String
+  url        String
+  thumbUrl   String?
+  fullUrl    String?
   storageKey String?
-  alt       String?
-  sortOrder Int      @default(0)
-  project   PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  alt        String?
+  sortOrder  Int              @default(0)
+  isHero     Boolean          @default(false)
+  project    PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 // Client portal
 model Client {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   email     String
   company   String?
@@ -69,24 +177,29 @@ model Client {
 }
 
 model Project {
-  id           String    @id @default(cuid())
-  slug         String    @unique
-  title        String
-  description  String?
-  category     String?
-  location     String?
-  year         String?
-  coverUrl     String?
-  featured     Boolean   @default(false)
-  clientId     String?
-  published    Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  client       Client?   @relation(fields: [clientId], references: [id])
-  galleries    Gallery[]
-  images       ProjectImage[]
-  tags         ProjectTag[]
-  testimonials Testimonial[]
+  id              String         @id @default(cuid())
+  slug            String         @unique
+  title           String
+  description     String?
+  category        String?
+  location        String?
+  year            String?
+  coverUrl        String?
+  featured        Boolean        @default(false)
+  clientId        String?
+  /// Optional link to canonical Studio OS project record (`StudioProject.id`).
+  studioProjectId String?
+  published       Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  client          Client?        @relation(fields: [clientId], references: [id])
+  studioProject   StudioProject? @relation("ClientPortalProjectToStudioProject", fields: [studioProjectId], references: [id], onDelete: SetNull)
+  galleries       Gallery[]
+  images          ProjectImage[]
+  tags            ProjectTag[]
+  testimonials    Testimonial[]
+
+  @@index([studioProjectId])
 }
 
 model ProjectImage {
@@ -98,10 +211,11 @@ model ProjectImage {
 }
 
 model Tag {
-  id        String       @id @default(cuid())
-  name      String
-  slug      String       @unique
-  projects  ProjectTag[]
+  id            String            @id @default(cuid())
+  name          String
+  slug          String            @unique
+  projects      ProjectTag[]
+  galleryImages GalleryImageTag[]
 }
 
 model ProjectTag {
@@ -109,6 +223,7 @@ model ProjectTag {
   tagId     String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
   @@id([projectId, tagId])
 }
 
@@ -143,81 +258,626 @@ model Lead {
   source            String?
   internalNotes     String?
   contactedAt       DateTime?
+  /// Optional link to Studio OS lead record (`StudioLead.id`).
+  studioLeadId      String?   @unique
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+
+  studioLead StudioLead? @relation("LegacyLeadToStudioLead", fields: [studioLeadId], references: [id], onDelete: SetNull)
+
+  @@index([studioLeadId])
 }
 
 model Gallery {
-  id           String    @id @default(cuid())
-  title        String
-  slug         String    @unique
-  description  String?
-  coverUrl     String?
-  clientNotes  String?
-  published    Boolean   @default(false)
-  clientId     String?
-  projectId    String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  client       Client?   @relation(fields: [clientId], references: [id])
-  project      Project?  @relation(fields: [projectId], references: [id])
-  images       GalleryImage[]
-  accessTokens GalleryAccessToken[]
+  id              String               @id @default(cuid())
+  title           String
+  slug            String               @unique
+  section         String? // acd, rea, cul, biz, tri
+  description     String?
+  coverUrl        String?
+  clientNotes     String?
+  /// Operator-only notes (never exposed on client gallery API).
+  internalNotes   String?
+  published       Boolean              @default(false)
+  isFeatured      Boolean              @default(false)
+  sortOrder       Int                  @default(0)
+  clientId        String?
+  projectId       String?
+  /// Optional link to canonical Studio OS project record (`StudioProject.id`).
+  studioProjectId String?
+  status          GalleryStatus        @default(DRAFT)
+  galleryType     GalleryType          @default(PROOF)
+  sentAt          DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  client          Client?              @relation(fields: [clientId], references: [id])
+  project         Project?             @relation(fields: [projectId], references: [id])
+  studioProject   StudioProject?       @relation("ClientPortalGalleryToStudioProject", fields: [studioProjectId], references: [id], onDelete: SetNull)
+  images          GalleryImage[]
+  accessTokens    GalleryAccessToken[]
+
+  @@index([studioProjectId])
+  @@index([status])
+  @@index([galleryType])
 }
 
 model GalleryImage {
-  id         String   @id @default(cuid())
+  id         String            @id @default(cuid())
   galleryId  String
   url        String
+  thumbUrl   String?
+  fullUrl    String?
   alt        String?
   filename   String?
-  sortOrder  Int      @default(0)
+  sortOrder  Int               @default(0)
+  isHero     Boolean           @default(false)
   storageKey String?
-  gallery    Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  meta       Json? // optional: { title?, caption?, keywords? } from Lightroom/EXIF
+  gallery    Gallery           @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  tags       GalleryImageTag[]
+  selections GalleryImageSelection[]
+}
+
+model GalleryImageTag {
+  imageId String
+  tagId   String
+  image   GalleryImage @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  tag     Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([imageId, tagId])
 }
 
 model GalleryAccessToken {
-  id            String    @id @default(cuid())
+  id            String             @id @default(cuid())
   codeHash      String
   codeSalt      String
   codeHint      String
   galleryId     String
   label         String?
   expiresAt     DateTime?
-  allowDownload Boolean   @default(false)
+  allowDownload Boolean            @default(false)
   maxDownloads  Int?
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime           @default(now())
   lastUsedAt    DateTime?
-  isActive      Boolean   @default(true)
-  gallery       Gallery   @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  isActive      Boolean            @default(true)
+  /// When the client submitted proof/final selections (locks further toggles).
+  selectionsSubmittedAt DateTime?
+  gallery       Gallery            @relation(fields: [galleryId], references: [id], onDelete: Cascade)
   accessLogs    GalleryAccessLog[]
   favorites     GalleryFavorite[]
   downloads     GalleryDownload[]
+  selections    GalleryImageSelection[]
 }
 
 model GalleryAccessLog {
-  id        String   @id @default(cuid())
+  id        String              @id @default(cuid())
   tokenId   String?
   action    String?
   imageId   String?
   ip        String?
   userAgent String?
-  createdAt DateTime @default(now())
+  createdAt DateTime            @default(now())
   token     GalleryAccessToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
 }
 
 model GalleryFavorite {
-  tokenId   String
-  imageId   String
-  note      String?
-  token     GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  tokenId String
+  imageId String
+  note    String?
+  token   GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
   @@id([tokenId, imageId])
 }
 
+/// Client proofing / pick selections per access token (distinct from favorites/shortlist).
+model GalleryImageSelection {
+  id        String   @id @default(cuid())
+  tokenId   String
+  imageId   String
+  selected  Boolean  @default(false)
+  /// Future: per-image client notes (optional scaffold).
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  token GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  image GalleryImage       @relation(fields: [imageId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, imageId])
+  @@index([tokenId])
+  @@index([imageId])
+}
+
 model GalleryDownload {
-  id       String   @id @default(cuid())
-  tokenId  String
-  imageId  String?
-  type     String?
-  token    GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  id      String             @id @default(cuid())
+  tokenId String
+  imageId String?
+  type    String?
+  token   GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+}
+
+// Work system (5-section taxonomy)
+enum WorkSection {
+  ACD
+  REA
+  CUL
+  BIZ
+  TRI
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+enum VideoProvider {
+  YOUTUBE
+}
+
+model WorkProject {
+  id                  String         @id @default(cuid())
+  section             WorkSection
+  title               String
+  slug                String
+  summary             String?
+  description         String?
+  location            String?
+  year                Int?
+  published           Boolean        @default(false)
+  isFeatured          Boolean        @default(false)
+  sortOrder           Int            @default(0)
+  heroMediaId         String?
+  heroMedia           MediaAsset?    @relation("HeroMedia", fields: [heroMediaId], references: [id])
+  media               ProjectMedia[]
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  // Case study / SEO fields
+  client              String?
+  projectType         String?
+  scope               String?
+  overviewExtended    String?
+  whatWasPhotographed String?
+  visualApproach      String?
+  locationContext     String?
+  whoIsThisFor        String?
+  seoTitle            String?
+  metaDescription     String?
+  ctaCopy             String?
+  /// Editorial CMS (Studio OS)
+  opening             String?
+  context             String?
+  approach            String?
+  highlight           String?
+  execution           String?
+  closing             String?
+  publishedAt         DateTime?
+  tags                String[]       @default([])
+  credits             String?
+  /// Optional link to canonical Studio OS project record (`StudioProject.id`).
+  studioProjectId     String?
+
+  @@unique([section, slug])
+  @@index([section])
+  @@index([published])
+  @@index([studioProjectId])
+}
+
+model MediaAsset {
+  id            String          @id @default(cuid())
+  kind          MediaKind
+  alt           String?
+  width         Int?
+  height        Int?
+  keyFull       String?
+  keyThumb      String?
+  provider      VideoProvider?
+  providerId    String?
+  posterKey     String?
+  createdAt     DateTime        @default(now())
+  heroFor       WorkProject[]   @relation("HeroMedia")
+  projectMedia  ProjectMedia[]
+  studioHeroFor StudioProject[] @relation("StudioProjectHero")
+
+  @@index([kind])
+}
+
+/// Studio OS — public project CMS (distinct from client portal `Project` and `/work` `WorkProject`).
+/// Slug is globally unique for future `/work`-style or dedicated routes.
+model StudioProject {
+  id    String @id @default(uuid())
+  title String
+  slug  String @unique
+
+  // Canonical Studio OS linkage (additive; keeps legacy CMS strings)
+  clientId    String?
+  /// Legacy CMS: client name (kept for compatibility with existing UI/content).
+  client      String
+  category    String
+  subcategory String?
+  location    String
+  year        Int
+
+  // Studio OS operational fields (Phase 1)
+  status           ProjectStatus @default(INQUIRY)
+  pillar           String?
+  projectType      String?
+  shootDate        DateTime?
+  deliveryDate     DateTime?
+  publishingStatus String?
+  summary          String?
+  notes            String?
+  isPublicReady    Boolean       @default(false)
+
+  // Studio OS finance fields (single-user operator tracking; no bank integrations).
+  totalPrice       Decimal       @default(0) @db.Decimal(10, 2)
+  depositAmount    Decimal       @default(0) @db.Decimal(10, 2)
+  amountPaid       Decimal       @default(0) @db.Decimal(10, 2)
+  balanceRemaining Decimal       @default(0) @db.Decimal(10, 2)
+  paymentStatus    PaymentStatus @default(UNPRICED)
+
+  // Manual content pipeline status for marketing reuse.
+  contentStatus     ContentStatus @default(NONE)
+  captionDrafted    Boolean       @default(false)
+  websiteCopyDrafted Boolean      @default(false)
+  contentPosted     Boolean       @default(false)
+  reusableLater     Boolean       @default(false)
+
+  opening   String
+  context   String
+  approach  String
+  highlight String
+  execution String?
+  closing   String
+
+  seoTitle       String?
+  seoDescription String?
+  tags           String[] @default([])
+  credits        String?
+
+  featured    Boolean   @default(false)
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+
+  heroImageId       String?
+  heroImage         MediaAsset?  @relation("StudioProjectHero", fields: [heroImageId], references: [id], onDelete: SetNull)
+  /// Preferred hero for Studio OS records (`StudioMedia.id`), independent of legacy `MediaAsset`.
+  heroStudioMediaId String?
+  heroStudioMedia   StudioMedia? @relation("StudioProjectHeroStudioMedia", fields: [heroStudioMediaId], references: [id], onDelete: SetNull)
+  gallery           Json         @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studioClient          StudioClient?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  media                 StudioMedia[]
+  galleries             StudioGallery[]
+  payments              StudioPayment[]
+  expenses              StudioExpense[]
+  analytics             AnalyticsSnapshot[]
+  workCaseStudy         WorkCaseStudy?
+  portfolioProjects     PortfolioProject[]
+  clientPortalProjects  Project[]           @relation("ClientPortalProjectToStudioProject")
+  clientPortalGalleries Gallery[]           @relation("ClientPortalGalleryToStudioProject")
+  StudioLead            StudioLead[]
+
+  @@index([published])
+  @@index([featured])
+  @@index([clientId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([contentStatus])
+}
+
+// Studio OS (internal) — normalized Client record.
+model StudioClient {
+  id                 String   @id @default(cuid())
+  companyName        String
+  primaryContactName String?
+  email              String?
+  phone              String?
+  website            String?
+  industry           String?
+  addressLine1       String?
+  addressLine2       String?
+  city               String?
+  state              String?
+  postalCode         String?
+  country            String?
+  notes              String?
+  followUpStatus     ClientFollowUpStatus @default(NONE)
+  followUpAt         DateTime?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  projects   StudioProject[]
+  StudioLead StudioLead[]
+
+  @@index([companyName])
+  @@index([isActive])
+  @@index([followUpStatus])
+  @@index([followUpAt])
+}
+
+// Studio OS (internal) — manual payment tracking for a single operator.
+model StudioPayment {
+  id        String      @id @default(cuid())
+  projectId String
+  amount    Decimal     @db.Decimal(10, 2)
+  date      DateTime    @default(now())
+  type      PaymentType @default(OTHER)
+  note      String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  project StudioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+  @@index([projectId, date])
+  @@index([type])
+}
+
+// Studio OS (internal) — manual expense tracking with optional receipt link.
+model StudioExpense {
+  id                 String   @id @default(cuid())
+  projectId          String?
+  amount             Decimal  @db.Decimal(10, 2)
+  category           String
+  note               String?
+  date               DateTime @default(now())
+  receiptPath        String?
+  receiptKey         String?
+  receiptFilename    String?
+  receiptContentType String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project StudioProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([projectId, date])
+  @@index([category])
+}
+
+// Studio OS (internal) — inbound lead tracking and conversion pointers.
+model StudioLead {
+  id                 String     @id @default(cuid())
+  name               String
+  company            String?
+  email              String
+  phone              String?
+  inquirySource      String?
+  serviceType        String?
+  budgetRange        String?
+  timeline           String?
+  message            String?
+  status             LeadStatus @default(NEW)
+  followUpDate       DateTime?
+  notes              String?
+  convertedClientId  String?
+  convertedProjectId String?
+  /// Optional pointer to legacy `Lead.id` for compatibility during transition.
+  legacyLeadId       String?    @unique
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  convertedClient  StudioClient?  @relation(fields: [convertedClientId], references: [id], onDelete: SetNull)
+  convertedProject StudioProject? @relation(fields: [convertedProjectId], references: [id], onDelete: SetNull)
+  legacyLead       Lead?          @relation("LegacyLeadToStudioLead")
+
+  @@index([status])
+  @@index([followUpDate])
+  @@index([convertedClientId])
+  @@index([convertedProjectId])
+}
+
+// Studio OS (internal) — media records tied to canonical StudioProject and R2 keys.
+model StudioMedia {
+  id                     String            @id @default(cuid())
+  projectId              String
+  filename               String
+  filenameBase           String
+  r2KeyFull              String
+  r2KeyThumb             String?
+  urlFull                String
+  urlThumb               String?
+  width                  Int?
+  height                 Int?
+  orientation            MediaOrientation?
+  altText                String?
+  description            String?
+  tagsCsv                String?
+  visibility             MediaVisibility   @default(INTERNAL)
+  isHeroCandidate        Boolean           @default(false)
+  isHeroSelected         Boolean           @default(false)
+  isApprovedForWork      Boolean           @default(false)
+  isApprovedForPortfolio Boolean           @default(false)
+  isFeatured             Boolean           @default(false)
+  sequenceNumber         Int?
+  aiLabels               Json?
+  qualityScore           Decimal?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  project                StudioProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  galleryLinks           StudioGalleryMedia[]
+  workLinks              WorkMedia[]
+  heroForProjects        StudioProject[]      @relation("StudioProjectHeroStudioMedia")
+  heroForWorkCaseStudies WorkCaseStudy[]      @relation("WorkCaseStudyHeroStudioMedia")
+
+  @@index([projectId])
+  @@index([visibility])
+  @@index([isApprovedForWork])
+  @@index([isApprovedForPortfolio])
+  @@index([isFeatured])
+}
+
+// Studio OS (internal) — client delivery / proofing galleries.
+model StudioGallery {
+  id           String        @id @default(cuid())
+  projectId    String
+  title        String
+  galleryType  GalleryType
+  status       GalleryStatus @default(DRAFT)
+  accessCode   String?       @unique
+  passwordHash String?
+  sentAt       DateTime?
+  expiresAt    DateTime?
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  project StudioProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  media   StudioGalleryMedia[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([galleryType])
+  @@index([sentAt])
+  @@index([expiresAt])
+}
+
+// Studio OS (internal) — join table for gallery ordering + selection state.
+model StudioGalleryMedia {
+  id             String   @id @default(cuid())
+  galleryId      String
+  mediaId        String
+  sortOrder      Int      @default(0)
+  selectionState String?
+  createdAt      DateTime @default(now())
+
+  gallery StudioGallery @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  media   StudioMedia   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([galleryId, mediaId])
+  @@index([galleryId, sortOrder])
+  @@index([mediaId])
+}
+
+// Studio OS (internal) — long-form case study tied 1:1 to canonical StudioProject.
+model WorkCaseStudy {
+  id              String     @id @default(cuid())
+  projectId       String     @unique
+  slug            String     @unique
+  title           String
+  subtitle        String?
+  heroMediaId     String?
+  summary         String?
+  businessContext String?
+  approach        String?
+  outcome         String?
+  seoTitle        String?
+  seoDescription  String?
+  status          WorkStatus @default(NOT_STARTED)
+  publishedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  project   StudioProject       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  heroMedia StudioMedia?        @relation("WorkCaseStudyHeroStudioMedia", fields: [heroMediaId], references: [id], onDelete: SetNull)
+  media     WorkMedia[]
+  analytics AnalyticsSnapshot[]
+
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model WorkMedia {
+  id        String   @id @default(cuid())
+  workId    String
+  mediaId   String
+  sortOrder Int      @default(0)
+  isHero    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  work  WorkCaseStudy @relation(fields: [workId], references: [id], onDelete: Cascade)
+  media StudioMedia   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([workId, mediaId])
+  @@index([workId, sortOrder])
+  @@index([mediaId])
+}
+
+model AnalyticsSnapshot {
+  id                   String   @id @default(cuid())
+  dateBucket           DateTime
+  pagePath             String
+  pageType             String
+  projectId            String?
+  workId               String?
+  views                Int      @default(0)
+  users                Int      @default(0)
+  avgEngagementSeconds Float?
+  sourceMedium         String?
+  conversions          Int      @default(0)
+  notes                String?
+  createdAt            DateTime @default(now())
+
+  project StudioProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  work    WorkCaseStudy? @relation(fields: [workId], references: [id], onDelete: SetNull)
+
+  @@index([dateBucket])
+  @@index([pageType])
+  @@index([projectId])
+  @@index([workId])
+}
+
+model AutomationRun {
+  id           String    @id @default(cuid())
+  workflowName String
+  status       String
+  triggerType  String?
+  entityType   String?
+  entityId     String?
+  message      String?
+  startedAt    DateTime
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([workflowName])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model AutomationRule {
+  id           String   @id @default(cuid())
+  name         String
+  isEnabled    Boolean  @default(true)
+  triggerEvent String
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isEnabled])
+  @@index([triggerEvent])
+}
+
+model ProjectMedia {
+  projectId String
+  mediaId   String
+  sortOrder Int         @default(0)
+  project   WorkProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  media     MediaAsset  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, mediaId])
+  @@index([projectId, sortOrder])
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String?
+  updatedAt DateTime @updatedAt
+}
+
+model Inquiry {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  message     String
+  company     String?
+  projectType String?
+  budget      String?
+  location    String?
+  timeline    String?
+  createdAt   DateTime @default(now())
 }

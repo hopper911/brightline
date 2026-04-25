@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Admin Login · Bright Line Photography",
+  title: "Admin Login · BRIGHTLINE Photography",
   robots: { index: false, follow: false },
 };
 

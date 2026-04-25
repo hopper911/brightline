@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       contentType: body.contentType,
       expiresIn: body.expiresIn,
     });
-    return NextResponse.json({ ok: true, url: signed.url, expiresIn: signed.expiresIn });
+    return NextResponse.json({ ok: true, url: signed.url, headers: signed.headers, expiresIn: signed.expiresIn });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Unable to sign." },

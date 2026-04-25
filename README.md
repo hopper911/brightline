@@ -60,20 +60,6 @@ Editing flow:
 3. Ensure `cover` and `gallery` point to valid image paths in `public/`.
 4. Visit `/work` to confirm filters + cards.
 
-## Sentry setup
-
-1. Install the Sentry Next.js SDK (already in `package.json`).
-2. Add env vars in Vercel and `.env.local`:
-   - `SENTRY_DSN`
-   - `NEXT_PUBLIC_SENTRY_DSN`
-   - `SENTRY_ORG`
-   - `SENTRY_PROJECT`
-   - `SENTRY_AUTH_TOKEN`
-   - `SENTRY_ENVIRONMENT` (optional)
-3. Deploy; source maps are enabled in `next.config.ts`.
-
-Note: `sentry.properties` reads `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` from env at build time.
-
 ## Operations: database backups (Neon)
 
 This project uses Neon Postgres. Neon provides automated backups and point-in-time recovery (PITR).
@@ -109,3 +95,4 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Deployment test Mon Feb  9 15:41:31 EST 2026

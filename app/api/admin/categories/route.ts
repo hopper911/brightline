@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
+import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
+  if (!(await authorizeAdminRequest(req))) {
+    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+  }
+
   const categories = await prisma.portfolioCategory.findMany({
     orderBy: { name: "asc" },
   });
@@ -11,6 +16,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  if (!(await authorizeAdminRequest(req))) {
+    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+  }
+
   const body = (await req.json()) as { name?: string; slug?: string };
 
   if (!body.name || !body.slug) {

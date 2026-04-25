@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
-import { getClientDownloadUrl } from "@/lib/image-strategy";
+import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
@@ -59,6 +59,13 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!access.gallery || !isGalleryViewableByClient(access.gallery)) {
+      return NextResponse.json(
+        { ok: false, error: "Gallery is not available." },
+        { status: 403 }
+      );
+    }
+
     if (!access.allowDownload) {
       return NextResponse.json(
         { ok: false, error: "Downloads are not enabled for this gallery." },
@@ -105,6 +112,7 @@ export async function POST(req: Request) {
         );
       }
 
+      const { getClientDownloadUrl } = await import("@/lib/image-strategy");
       const signed = await getClientDownloadUrl({
         key: image.storageKey,
       });
@@ -148,6 +156,7 @@ export async function POST(req: Request) {
       // Generate signed URLs for all favorites
       const downloads = await Promise.all(
         favoriteImages.map(async (image) => {
+          const { getClientDownloadUrl } = await import("@/lib/image-strategy");
           const signed = await getClientDownloadUrl({
             key: image.storageKey!,
           });
@@ -185,8 +194,7 @@ export async function POST(req: Request) {
       { ok: false, error: "Invalid download request." },
       { status: 400 }
     );
-  } catch (error) {
-    Sentry.captureException(error);
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Failed to generate download." },
       { status: 500 }

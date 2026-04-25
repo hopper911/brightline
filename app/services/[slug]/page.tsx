@@ -2,12 +2,67 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { services } from "../data";
-import PortfolioCard from "@/components/PortfolioCard";
 import PrimaryCTA from "@/components/PrimaryCTA";
-import { workItems } from "@/app/lib/work";
+import { getImageAltFallback } from "@/lib/config/brand";
+import { getEditableServicePageBySlug } from "@/lib/service-pages";
+
+export const dynamic = "force-dynamic";
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
+
+function isVideoUrl(url: string) {
+  return /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
+}
+
+function ServiceMedia({
+  src,
+  alt,
+  priority = false,
+  className = "",
+}: {
+  src: string;
+  alt: string;
+  priority?: boolean;
+  className?: string;
+}) {
+  if (!src) {
+    return <div className={`bg-white/10 ${className}`} aria-label={alt} />;
+  }
+
+  if (isVideoUrl(src)) {
+    return (
+      <video
+        src={src}
+        className={className}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-label={alt}
+      />
+    );
+  }
+
+  if (src.startsWith("http")) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt={alt} className={className} />;
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      className={className}
+      priority={priority}
+      sizes="(min-width: 1024px) 420px, 100vw"
+      placeholder="blur"
+      blurDataURL={BLUR_DATA}
+    />
+  );
+}
 
 export function generateStaticParams() {
   return services.map((service) => ({ slug: service.slug }));
@@ -19,11 +74,11 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const service = services.find((item) => item.slug === slug);
+  const service = await getEditableServicePageBySlug(slug);
 
   if (!service) {
     return {
-      title: "Service · Bright Line Photography",
+      title: "Service · BRIGHTLINE Photography",
       description: "Commercial photography services.",
       alternates: {
         canonical: "/services",
@@ -32,13 +87,13 @@ export async function generateMetadata({
   }
 
   return {
-    title: `${service.title} · Bright Line Photography`,
+    title: `${service.title} · BRIGHTLINE Photography`,
     description: service.description,
     alternates: {
       canonical: `/services/${service.slug}`,
     },
     openGraph: {
-      title: `${service.title} · Bright Line Photography`,
+      title: `${service.title} · BRIGHTLINE Photography`,
       description: service.description,
       url: `/services/${service.slug}`,
       images: [
@@ -52,7 +107,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title: `${service.title} · Bright Line Photography`,
+      title: `${service.title} · BRIGHTLINE Photography`,
       description: service.description,
       images: [service.heroImage],
     },
@@ -65,7 +120,7 @@ export default async function ServicePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const service = services.find((item) => item.slug === slug);
+  const service = await getEditableServicePageBySlug(slug);
 
   if (!service) {
     return (
@@ -81,10 +136,15 @@ export default async function ServicePage({
     );
   }
 
-  const getCaseStudyHref = (projectSlug: string) => {
-    const project = workItems.find((item) => item.slug === projectSlug);
-    if (!project) return "/portfolio";
-    return `/portfolio/${project.categorySlug}/${project.slug}`;
+  const categoryToSection: Record<string, string> = {
+    Hospitality: "tri",
+    "Commercial Real Estate": "rea",
+    Fashion: "acd",
+    Culinary: "cul",
+  };
+  const getCaseStudyHref = (projectSlug: string, category: string) => {
+    const section = categoryToSection[category] ?? "acd";
+    return `/work/${section}`;
   };
 
   const faqSchema = {
@@ -101,34 +161,41 @@ export default async function ServicePage({
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
+    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+      <script type="application/ld+json">
+        {JSON.stringify(faqSchema)}
+      </script>
       <section className="grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
         <div className="space-y-4">
-          <p className="section-kicker">Service</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p className="section-kicker mb-0">Service</p>
+            <Link
+              href="/services"
+              className="inline-flex items-center rounded-full border border-white/25 bg-white/5 px-3 py-1.5 text-[0.6rem] font-medium uppercase tracking-[0.28em] text-white/90 transition-colors hover:border-white/40 hover:bg-white/10"
+            >
+              All services
+            </Link>
+          </div>
           <h1 className="section-title">{service.title}</h1>
-          <p className="section-subtitle">{service.description}</p>
+          <p className="section-subtitle text-balance text-white/85">
+            {service.description}
+          </p>
           <div className="flex flex-wrap gap-3">
             <Link href={service.portfolioHref} className="btn btn-ghost">
               {service.portfolioLabel}
             </Link>
-            <PrimaryCTA service={service.slug} className="btn btn-solid" />
+            <PrimaryCTA service={service.slug} className="btn btn-solid">
+              Get in touch
+            </PrimaryCTA>
           </div>
         </div>
         <div className="panel p-2">
           <div className="relative h-[320px] w-full overflow-hidden rounded-[20px]">
-            <Image
-              src={service.heroImage}
+            <ServiceMedia
+              src={service.heroVideo || service.heroImage}
               alt={service.title}
-              fill
-              className="object-cover"
+              className="h-full w-full object-cover"
               priority
-              sizes="(min-width: 1024px) 420px, 100vw"
-              placeholder="blur"
-              blurDataURL={BLUR_DATA}
             />
           </div>
         </div>
@@ -140,14 +207,10 @@ export default async function ServicePage({
           {service.proofImages.map((img) => (
             <div key={img} className="card-luxe">
               <div className="relative h-[180px] w-full overflow-hidden">
-                <Image
+                <ServiceMedia
                   src={img}
-                  alt=""
-                  fill
-                  sizes="(min-width: 1024px) 280px, (min-width: 768px) 45vw, 100vw"
-                  placeholder="blur"
-                  blurDataURL={BLUR_DATA}
-                  className="object-cover"
+                  alt={getImageAltFallback(service.title)}
+                  className="h-full w-full object-cover"
                 />
               </div>
             </div>
@@ -227,10 +290,9 @@ export default async function ServicePage({
               {service.pricing.licensing}
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <PrimaryCTA service={service.slug} className="btn btn-solid" />
               <Link
                 href={`/contact?service=${service.slug}&type=availability`}
-                className="text-xs uppercase tracking-[0.3em] text-white/70 underline"
+                className="btn btn-solid"
               >
                 Check availability
               </Link>
@@ -249,19 +311,25 @@ export default async function ServicePage({
         </h2>
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           {service.caseStudies.slice(0, 2).map((item) => (
-            <PortfolioCard
+            <Link
               key={item.slug}
-              href={getCaseStudyHref(item.slug)}
-              cover={item.image}
-              alt={item.title}
-              tag={item.category}
-              title={item.title}
-              meta={item.meta}
-            />
+              href={getCaseStudyHref(item.slug, item.category)}
+              className="group overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04]"
+            >
+              <div className="relative h-[240px] overflow-hidden bg-black/30">
+                <ServiceMedia
+                  src={item.image}
+                  alt={item.title}
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                />
+              </div>
+              <div className="p-5">
+                <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.category}</p>
+                <h3 className="mt-2 font-display text-xl text-white">{item.title}</h3>
+                <p className="mt-2 text-sm text-white/60">{item.meta}</p>
+              </div>
+            </Link>
           ))}
-        </div>
-        <div className="mt-6">
-          <PrimaryCTA service={service.slug} className="btn btn-solid" />
         </div>
       </section>
 
@@ -282,8 +350,8 @@ export default async function ServicePage({
         </div>
       </section>
 
-      <section className="mt-16">
-        <div className="rounded-[28px] border border-white/10 bg-black/60 px-8 py-10">
+      <section className="mt-16 border-t border-white/10 pt-16">
+        <div className="rounded-2xl border border-white/10 bg-black/60 px-8 py-10">
           <p className="section-kicker">Next step</p>
           <h2 className="font-display text-2xl text-white">
             Let’s scope your production.

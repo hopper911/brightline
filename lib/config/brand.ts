@@ -1,28 +1,39 @@
 export const BRAND = {
-  name: "Bright Line Photography",
-  url: "https://brightlinephotography.co",
+  name: "BRIGHTLINE Photography",
+  url: "https://brightlinephotography.com",
   metadata: {
     description:
-      "Commercial photography studio specializing in hospitality, real estate, and fashion brands.",
+      "Premium visual studio: photography with structured delivery and intelligent systems—assets prepared for web, search, and social. Architecture, advertising, and corporate.",
     ogImage: "/og-image.svg",
     twitterCard: "summary_large_image" as const,
   },
-  contact: {
-    email: "hello@brightlinephotography.co",
-    locations: ["New York", "Miami", "Remote"],
+  assets: {
+    monogram: "/brand/brightline-bl-monogram.png",
+    wordmark: "/brand/brightline-photography-wordmark.png",
   },
-  booking: {
-    enabled: Boolean(process.env.NEXT_PUBLIC_CALENDLY_URL),
-    calendlyUrl: process.env.NEXT_PUBLIC_CALENDLY_URL || "",
+  contact: {
+    email: "info@brightlinephotography.com",
+    /** Service area for hero, footer, and project rules—NJ/NY metro only (no Miami / worldwide). */
+    locations: [
+      "New York City",
+      "Brooklyn",
+      "Jersey City",
+      "Hoboken",
+      "New Jersey",
+      "Tri-State Area",
+    ],
   },
   social: {
     instagram: "",
     linkedin: "",
-    behance: "",
+  },
+  booking: {
+    enabled: false,
+    calendlyUrl: "",
   },
 };
 
-export function getUrl(path: string) {
+export function getUrl(path?: string) {
   if (!path) return BRAND.url;
   if (path.startsWith("http")) return path;
   return `${BRAND.url}${path.startsWith("/") ? "" : "/"}${path}`;
@@ -30,4 +41,9 @@ export function getUrl(path: string) {
 
 export function getMailtoLink(email: string = BRAND.contact.email) {
   return `mailto:${email}`;
+}
+
+export function getImageAltFallback(category?: string): string {
+  if (category) return `${category} photography by ${BRAND.name}`;
+  return `Photography by ${BRAND.name}`;
 }

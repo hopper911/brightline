@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
+import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -11,9 +12,13 @@ const updateSchema = z.object({
 });
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!(await authorizeAdminRequest(req))) {
+    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+  }
+
   const { id } = await context.params;
   const lead = await prisma.lead.findUnique({ where: { id } });
 
@@ -28,6 +33,10 @@ export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!(await authorizeAdminRequest(req))) {
+    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+  }
+
   const { id } = await context.params;
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);

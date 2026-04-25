@@ -1,0 +1,19 @@
+import AdminNav from "../admin/AdminNav";
+
+export const metadata = {
+  title: "Studio OS · BRIGHTLINE Photography",
+  robots: { index: false, follow: false },
+};
+
+export default function StudioLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-screen bg-[#0f1319]">
+      <AdminNav />
+      <main className="pt-14 lg:pt-0 lg:pl-64">{children}</main>
+    </div>
+  );
+}

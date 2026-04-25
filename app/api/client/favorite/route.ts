@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
+import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
     // Validate token
     const access = await prisma.galleryAccessToken.findUnique({
       where: { id: accessId },
+      include: { gallery: true },
     });
 
     if (!access) {
@@ -47,6 +49,13 @@ export async function POST(req: Request) {
     if (!access.isActive) {
       return NextResponse.json(
         { ok: false, error: "Access code is no longer active." },
+        { status: 403 }
+      );
+    }
+
+    if (!access.gallery || !isGalleryViewableByClient(access.gallery)) {
+      return NextResponse.json(
+        { ok: false, error: "Gallery is not available." },
         { status: 403 }
       );
     }
@@ -114,8 +123,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, action });
-  } catch (error) {
-    Sentry.captureException(error);
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Failed to update favorite." },
       { status: 500 }

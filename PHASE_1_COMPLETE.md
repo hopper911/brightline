@@ -24,7 +24,7 @@ All hardcoded references replaced with `BRAND` config:
 ### 3. **Portfolio Pages (No Placeholders)**
 Portfolio case study template is **complete** with:
 - ✅ Hero image
-- ✅ Gallery with lightbox (via `GalleryLightbox.tsx`)
+- ✅ Gallery with lightbox
 - ✅ Quick facts (location, year, category)
 - ✅ Goals section (category-specific)
 - ✅ Deliverables section (category-specific)
@@ -34,7 +34,7 @@ Portfolio case study template is **complete** with:
 
 **Data flow:**
 - Database-first: Pulls from `PortfolioProject` (Prisma)
-- **Fallback:** If DB empty, uses `workItems` from `app/lib/work.ts` (4 projects: Harborline Hotel, Northpoint Tower, Aurum Atelier, Sable & Salt)
+- **Data:** Pulls from `PortfolioProject` / `WorkProject` via Prisma
 - All routes functional: `/portfolio`, `/portfolio/[category]`, `/portfolio/[category]/[slug]`
 
 ### 4. **Bugs Fixed**
@@ -45,14 +45,10 @@ Portfolio case study template is **complete** with:
 ## 📍 Current State
 
 ### Portfolio Content
-- **Database projects:** Will show if added via `/admin/portfolio`
-- **Static fallback:** 4 sample projects with:
-  - Real titles, locations, descriptions
-  - Placeholder SVG covers (`/work/*/cover.svg`)
-  - 3 gallery images each (SVGs)
+- **Database projects:** Show projects added via `/admin/portfolio` (WorkProject/PortfolioProject)
 
 ### Contact Info
-- **Email:** `hello@brightlinephotography.co`
+- **Email:** `info@brightlinephotography.com`
 - **Phone:** `+1 (212) 555-0139` *(Note: Update in `lib/config/brand.ts` or remove if not using)*
 - **Locations:** Miami, New York, Available Worldwide
 

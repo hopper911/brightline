@@ -1,19 +1,9 @@
 /**
- * Client-safe image utilities.
- * This file contains only functions that can run in the browser.
- * For server-side storage operations, use lib/image-strategy.ts instead.
+ * Helpers for Next/Image and gallery markup.
+ * `data-image-mode` is used for styling / analytics hooks on client galleries.
  */
-
-export type ImageMode = "marketing" | "client";
-
-/**
- * Determine if a URL is a signed client URL or a public marketing URL.
- */
-export function getImageModeForUrl(url: string): ImageMode {
-  if (!url) return "marketing";
-  const lowered = url.toLowerCase();
-  if (lowered.includes("x-amz-signature") || lowered.includes("x-amz-expires")) {
-    return "client";
-  }
-  return "marketing";
+export function getImageModeForUrl(url: string): "remote" | "data" | "unknown" {
+  if (!url) return "unknown";
+  if (url.startsWith("data:")) return "data";
+  return "remote";
 }

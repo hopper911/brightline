@@ -7,6 +7,7 @@ export type Service = {
   portfolioLabel: string;
   portfolioHref: string;
   heroImage: string;
+  heroVideo?: string;
   proofImages: string[];
   industries: string[];
   deliverables: string[];
@@ -23,64 +24,64 @@ export type Service = {
 
 export const services: Service[] = [
   {
-    slug: "hospitality-photography",
-    title: "Hospitality Photography",
+    slug: "architecture-photography",
+    title: "Architecture & Spaces Photography",
     summary:
-      "Guest-first imagery for hotels, resorts, and wellness brands that need bookings to convert.",
+      "Interiors, exteriors, and built environments—imagery with architectural clarity for listings, proposals, and brand touchpoints.",
     description:
-      "We capture the full guest journey—rooms, amenities, dining, and atmosphere—designed for booking engines, campaigns, and social.",
-    heroTagline: "Rooms, amenities, and atmosphere designed to convert.",
-    portfolioLabel: "Hospitality Portfolio",
-    portfolioHref: "/portfolio/hospitality",
+      "We emphasize scale, light, and composition so assets read as premium across web, print, and investor materials—and deliver structured files ready for your channels.",
+    heroTagline: "Spaces and structures, prepared for real-world use.",
+    portfolioLabel: "Architecture Portfolio",
+    portfolioHref: "/work/architecture",
     heroImage: "/images/hospitality.jpg",
     proofImages: ["/images/hospitality.jpg", "/images/food.jpg", "/images/hero.jpg"],
-    industries: ["Hotels + resorts", "Wellness + spa", "Boutique properties", "Travel + lifestyle"],
+    industries: ["Commercial real estate", "Architecture & design", "Hospitality", "Retail & amenity"],
     deliverables: [
-      "Hero room suite sets (day + dusk)",
-      "Amenity and lifestyle vignettes",
-      "Food + beverage editorial set",
-      "Social cutdowns and vertical crops",
+      "Hero exterior + interior sets",
+      "Detail and context imagery",
+      "Web, listing, and print crops",
+      "Structured delivery with SEO-aware metadata",
     ],
     process: [
-      "Pre-production call + shot list",
-      "On-site art direction + capture",
-      "Curated proof gallery within 5–7 days",
-      "Final delivery + optimized crops",
+      "Pre-production + shot list aligned to usage",
+      "On-site capture with art direction",
+      "Proof gallery within 5–7 days",
+      "Final delivery: organized files, naming, and platform-ready outputs",
     ],
     pricing: {
       label: "Typical investment",
       range: "$4.5k–$12k",
       disclaimer:
-        "Pricing reflects half-day to multi-day hospitality coverage and scales with room count, styling, and usage.",
+        "Pricing reflects half-day to multi-day coverage and scales with square footage, access, styling, and usage.",
       licensing:
         "Usage includes web, listings, and editorial. Paid media, OOH, and global campaigns are quoted separately.",
     },
     faqs: [
       {
-        q: "How long does a hospitality shoot take?",
-        a: "Most properties book 1–3 production days depending on room count and amenities.",
+        q: "How long does an architecture shoot take?",
+        a: "Most projects book 1–3 production days depending on scope, access, and the number of spaces.",
       },
       {
         q: "Do you work with on-site teams?",
-        a: "Yes—housekeeping, F&B, and marketing teams coordinate with us to stage each scene.",
+        a: "Yes—facilities, marketing, and design partners coordinate with us to stage and capture each scene.",
       },
       {
-        q: "Can you deliver seasonal updates?",
-        a: "Absolutely. We offer quarterly or seasonal refresh packages for campaigns.",
+        q: "Can you deliver seasonal or phased updates?",
+        a: "Yes. We offer refresh packages when spaces evolve or campaigns require new assets.",
       },
     ],
     caseStudies: [
       {
         slug: "hotel-01",
         title: "Harborline Hotel",
-        category: "Hospitality",
+        category: "Architecture",
         image: "/work/hotel-01/cover.svg",
-        meta: "Miami, FL · 2025",
+        meta: "Jersey City, NJ · 2025",
       },
       {
         slug: "hotel-02",
         title: "Cedar House Resort",
-        category: "Hospitality",
+        category: "Architecture",
         image: "/work/hotel-02/cover.svg",
         meta: "Nashville, TN · 2025",
       },
@@ -92,10 +93,10 @@ export const services: Service[] = [
     summary:
       "Architectural clarity for leasing, investment decks, and luxury developments.",
     description:
-      "We focus on scale, daylight, and composition so assets feel premium across web, print, and investor materials.",
+      "We focus on scale, daylight, and composition so assets feel premium across web, print, and investor materials—with structured handoffs for listings and teams.",
     heroTagline: "Architecture-first visuals for premium leasing.",
     portfolioLabel: "Real Estate Portfolio",
-    portfolioHref: "/portfolio/commercial-real-estate",
+    portfolioHref: "/work/architecture",
     heroImage: "/images/real-estate.jpg",
     proofImages: ["/images/real-estate.jpg", "/images/design.jpg", "/images/hero.jpg"],
     industries: ["Office + mixed-use", "Luxury residential", "Retail + lobby", "Amenity suites"],
@@ -103,13 +104,13 @@ export const services: Service[] = [
       "Exterior hero + context shots",
       "Interior suites + amenity sets",
       "Floor-to-ceiling detailing",
-      "Investor deck-ready selects",
+      "Investor deck-ready selects + metadata",
     ],
     process: [
       "Site walk + lighting plan",
       "Capture day with staging support",
       "Proofing gallery + selects",
-      "Final delivery with print/web crops",
+      "Final delivery: web, print, and listing crops with organized structure",
     ],
     pricing: {
       label: "Starting at",
@@ -152,28 +153,28 @@ export const services: Service[] = [
   },
   {
     slug: "fashion-campaign-photography",
-    title: "Fashion Campaign Photography",
+    title: "Fashion & Advertising Photography",
     summary:
-      "Editorial campaigns with cinematic lighting and tailored art direction.",
+      "Editorial and campaign work with cinematic lighting and tailored art direction.",
     description:
-      "From concept boards to final selects, we build a visual story designed to scale across lookbooks and campaigns.",
+      "From concept boards to final selects, we build a visual story designed to scale across lookbooks, ads, and social—plus structured delivery so your team can ship faster.",
     heroTagline: "Editorial lighting with campaign-level polish.",
     portfolioLabel: "Fashion Portfolio",
-    portfolioHref: "/portfolio/fashion",
+    portfolioHref: "/work/advertising",
     heroImage: "/images/fashion.jpg",
     proofImages: ["/images/fashion.jpg", "/images/hero.jpg", "/images/design.jpg"],
-    industries: ["Editorial", "Lookbooks", "Campaigns", "Ecommerce"],
+    industries: ["Editorial", "Lookbooks", "Advertising", "Ecommerce"],
     deliverables: [
       "Lookbook hero sets",
       "Campaign close-ups + texture",
       "Studio + location combinations",
-      "Social and ecommerce crops",
+      "Social, ecommerce, and ad crops with organized delivery",
     ],
     process: [
       "Concept + moodboard alignment",
       "Styling + production coordination",
       "Capture day with live art direction",
-      "Final selects with retouching",
+      "Final selects with retouching and channel-ready structure",
     ],
     pricing: {
       label: "Typical investment",
@@ -190,7 +191,7 @@ export const services: Service[] = [
       },
       {
         q: "Can we shoot in multiple locations?",
-        a: "Yes—multi-location days are common for campaign work.",
+        a: "Yes—multi-location days are common for advertising and campaign work.",
       },
       {
         q: "What is your typical turnaround?",

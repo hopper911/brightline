@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
-import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
-import { getClientUploadUrl } from "@/lib/image-strategy";
-import { hasAdminAccess } from "@/lib/admin-auth";
+import { authorizeAdminRequest } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAdmin = await hasAdminAccess();
+    const isAdmin = await authorizeAdminRequest(req);
     if (!isAdmin) {
       return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
     }
@@ -31,10 +30,10 @@ export async function POST(
       );
     }
 
-    const ext = body.filename.split(".").pop() || "jpg";
     const safeName = body.filename.replace(/[^\w.-]/g, "-");
     const key = `client-galleries/${id}/${Date.now()}-${safeName}`;
 
+    const { getClientUploadUrl } = await import("@/lib/image-strategy");
     const signed = await getClientUploadUrl({
       key,
       contentType: body.contentType || "image/jpeg",
@@ -51,8 +50,7 @@ export async function POST(
     });
 
     return NextResponse.json({ ok: true, image, upload: signed });
-  } catch (error) {
-    Sentry.captureException(error);
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Unable to create upload URL." },
       { status: 500 }

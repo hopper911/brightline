@@ -1,105 +1,132 @@
-import { getPublicUrl, signDownloadUrl, signUploadUrl } from "@/lib/storage";
-
-export async function getR2UploadUrl({
-  key,
-  contentType,
-  expiresIn,
-}: {
-  key: string;
-  contentType?: string;
-  expiresIn?: number;
-}) {
-  return signUploadUrl({ key, contentType, expiresIn });
-}
-
-export async function getR2DownloadUrl({
-  key,
-  expiresIn,
-}: {
-  key: string;
-  expiresIn?: number;
-}) {
-  return signDownloadUrl({ key, expiresIn });
-}
-
-export function getR2PublicUrl(key: string) {
-  return getPublicUrl(key);
-}
+import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
+import { mergeParentDotenvIntoProcess } from "@/lib/merge-parent-dotenv";
 
-const DEFAULT_EXPIRES = 60 * 10;
+const DEFAULT_EXPIRES_IN = 3600;
+const PUBLIC_READ_HEADERS = { "x-amz-acl": "public-read" };
 
-function getR2Client() {
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const endpoint = process.env.R2_ENDPOINT || (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : undefined);
+function normalizeCredential(value: string | undefined): string {
+  if (value == null || typeof value !== "string") return "";
+  return value
+    .replace(/\r\n|\r|\n/g, "")
+    .replace(/[\u201C\u201D\u2018\u2019]/g, "")
+    .replace(/^["']|["']$/g, "")
+    .trim();
+}
 
-  if (!accessKeyId || !secretAccessKey || !endpoint) {
-    throw new Error("R2 credentials are missing.");
+function getR2Client(): S3Client {
+  mergeParentDotenvIntoProcess();
+  const endpoint = normalizeCredential(process.env.R2_ENDPOINT);
+  const region = process.env.R2_REGION || "auto";
+  const accessKeyId = normalizeCredential(process.env.R2_ACCESS_KEY_ID);
+  const secretAccessKey = normalizeCredential(process.env.R2_SECRET_ACCESS_KEY);
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    throw new Error("R2 credentials not configured (R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).");
   }
-
   return new S3Client({
-    region: "auto",
-    endpoint,
+    region,
+    endpoint: endpoint.replace(/\/$/, ""),
     credentials: { accessKeyId, secretAccessKey },
-    forcePathStyle: true,
   });
 }
 
-function getBucket() {
-  const bucket = process.env.R2_BUCKET;
-  if (!bucket) throw new Error("R2_BUCKET is missing.");
-  return bucket;
+function getBucket(): string {
+  const bucket = normalizeCredential(process.env.R2_BUCKET);
+  if (!bucket) throw new Error("R2_BUCKET not set.");
+  return bucket.replace(/\/$/, "");
 }
 
-export async function signPut({
-  key,
-  contentType,
-  expiresIn = DEFAULT_EXPIRES,
-  cacheControl = "private, max-age=0, no-store",
-}: {
+export type SignPutOptions = {
   key: string;
   contentType?: string;
   expiresIn?: number;
-  cacheControl?: string;
-}) {
+  access?: "private" | "public-read";
+};
+
+export type SignPutResult = { url: string; expiresIn: number; headers: Record<string, string> };
+
+export async function signPut(options: SignPutOptions): Promise<SignPutResult> {
+  const { key, contentType, expiresIn = DEFAULT_EXPIRES_IN, access = "private" } = options;
   const client = getR2Client();
   const bucket = getBucket();
-
+  const publicRead = access === "public-read";
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: key,
-    ContentType: contentType || "application/octet-stream",
-    CacheControl: cacheControl,
+    ContentType: contentType ?? "application/octet-stream",
+    ...(publicRead ? { ACL: "public-read" as const } : {}),
   });
-
-  const url = await getSignedUrl(client, command, { expiresIn });
-  return { url, key, expiresIn };
+  const url = await getSignedUrl(client, command, {
+    expiresIn,
+    ...(publicRead ? { unhoistableHeaders: new Set(["x-amz-acl"]) } : {}),
+  });
+  return { url, expiresIn, headers: publicRead ? PUBLIC_READ_HEADERS : {} };
 }
 
-export async function signGet({
-  key,
-  expiresIn = DEFAULT_EXPIRES,
-  responseCacheControl = "private, max-age=0, no-store",
-  responseContentDisposition,
-}: {
+export type SignGetOptions = {
   key: string;
   expiresIn?: number;
-  responseCacheControl?: string;
-  responseContentDisposition?: string;
-}) {
+};
+
+export type SignGetResult = { url: string; expiresIn: number };
+
+export async function signGet(options: SignGetOptions): Promise<SignGetResult> {
+  const { key, expiresIn = DEFAULT_EXPIRES_IN } = options;
   const client = getR2Client();
   const bucket = getBucket();
-
-  const command = new GetObjectCommand({
-    Bucket: bucket,
-    Key: key,
-    ResponseCacheControl: responseCacheControl,
-    ResponseContentDisposition: responseContentDisposition,
-  });
-
+  const command = new GetObjectCommand({ Bucket: bucket, Key: key });
   const url = await getSignedUrl(client, command, { expiresIn });
-  return { url, key, expiresIn };
+  return { url, expiresIn };
 }
+
+export type ListObjectsOptions = {
+  prefix: string;
+  maxKeys?: number;
+  continuationToken?: string;
+};
+
+export type ListObjectsResult = {
+  keys: string[];
+  nextContinuationToken?: string;
+  isTruncated: boolean;
+};
+
+export async function listObjects(options: ListObjectsOptions): Promise<string[]> {
+  const { prefix, maxKeys = 500 } = options;
+  const client = getR2Client();
+  const bucket = getBucket();
+  const command = new ListObjectsV2Command({
+    Bucket: bucket,
+    Prefix: prefix.replace(/^\//, ""),
+    MaxKeys: Math.min(maxKeys, 1000),
+  });
+  const response = await client.send(command);
+  const keys =
+    response.Contents?.map((obj) => obj.Key).filter((k): k is string => typeof k === "string") ?? [];
+  return keys;
+}
+
+export type PutObjectBufferOptions = {
+  key: string;
+  body: Buffer;
+  contentType: string;
+  access?: "private" | "public-read";
+};
+
+/** Server-side upload (e.g. multipart → R2). */
+export async function putObjectBuffer(options: PutObjectBufferOptions): Promise<void> {
+  const { key, body, contentType, access = "private" } = options;
+  const client = getR2Client();
+  const bucket = getBucket();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key.replace(/^\//, ""),
+      Body: body,
+      ContentType: contentType,
+      ...(access === "public-read" ? { ACL: "public-read" as const } : {}),
+    })
+  );
+}
+

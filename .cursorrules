@@ -1,12 +1,14 @@
 # Bright Line Photography - Cursor Project Rules
 
+**Mega Prompt (V2):** See `.cursor/rules/mega-prompt.mdc` for the canonical "Small Business Pro" spec: Work system (5 sections), R2 images, YouTube embeds, contact flow, SEO. Non-negotiables, routes, and quality bar are defined there.
+
 ## Next.js Conventions
 - Use App Router (Next.js 16)
 - Server components by default; use "use client" only when needed (hooks, events, browser APIs)
 - File conventions: page.tsx, layout.tsx, loading.tsx, error.tsx, not-found.tsx
 - Route handlers in app/api/*/route.ts
 - Metadata exports in every page/layout for SEO
-- Use proxy.ts (not middleware.ts) for request interception
+- Use `proxy.ts` at the app root for admin request interception (`/admin`, `/api/admin`; Next.js 16+ convention)
 
 ## Styling & Design
 - **Tailwind only** - no inline styles, no CSS modules
@@ -40,7 +42,7 @@
 
 ## Data & API
 - Prisma for DB (Neon/Postgres): portfolio, leads, galleries, clients
-- Static fallback: app/lib/work.ts for portfolio items
+- Portfolio data from Prisma (lib/queries/work.ts)
 - Contact API at /api/contact with Turnstile (Cloudflare)
 - NextAuth for admin (/admin/*) via email magic link
 - S3/R2 for image storage
@@ -62,14 +64,18 @@
 ## Deployment (Vercel)
 - proxy.ts for admin auth (Next.js 16)
 - Admin login uses dynamic = "force-dynamic" (useSearchParams)
-- Env vars: DATABASE_URL, NEXTAUTH_*, SENTRY_*, TURNSTILE_*, admin emails
+- Env vars: DATABASE_URL, NEXTAUTH_*, TURNSTILE_*, admin emails
 - Build command: prisma generate && next build
 
 ## Contact Info (single source of truth)
-- Email: hello@brightlinephotography.co
+- Email: info@brightlinephotography.com
 - Phone: +1 (212) 555-0139
-- Locations: Miami, New York, Available Worldwide
-- Domain: brightlinephotography.co
+- Domain: brightlinephotography.com
+
+## Service area (copy, SEO, structured data)
+- **Positioning:** Local commercial photographer based in **New Jersey and the New York metro** (not Miami, not “available worldwide” unless explicitly requested).
+- **Primary markets to mention:** NYC, Brooklyn, Jersey City, Hoboken, New Jersey, Tri-State area.
+- Prefer [`lib/config/brand.ts`](lib/config/brand.ts) `BRAND.contact.locations` for repeated location lists on the marketing site.
 
 
 - Prefer server actions for login/contact forms.

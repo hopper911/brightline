@@ -1,7 +1,9 @@
 import ClientAccessForm from "@/components/ClientAccessForm";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
-  title: "Client Access · Bright Line Photography",
+  title: "Client Access · BRIGHTLINE Photography",
   robots: {
     index: false,
     follow: false,
@@ -18,7 +20,7 @@ export default function ClientAccessPage() {
         Enter your access code.
       </h1>
       <p className="section-subtitle">
-        Use the private code provided by Bright Line to view your gallery.
+        Use the private code provided by BRIGHTLINE to view your gallery.
       </p>
 
       <ClientAccessForm />

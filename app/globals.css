@@ -31,14 +31,14 @@
   --font-body: var(--font-inter), system-ui, sans-serif;
   --font-display: var(--font-montserrat), system-ui, sans-serif;
   --ls-body: -0.01em;
-  --ls-display: 0.02em;
+  --ls-display: 0.01em;
   --ls-caps: 0.32em;
 
-  --step-0: clamp(0.95rem, 0.9rem + 0.2vw, 1rem);
-  --step-1: clamp(1.05rem, 0.95rem + 0.45vw, 1.2rem);
-  --step-2: clamp(1.35rem, 1.1rem + 1vw, 1.75rem);
-  --step-3: clamp(1.75rem, 1.35rem + 1.5vw, 2.5rem);
-  --step-4: clamp(2.2rem, 1.7rem + 2vw, 3.2rem);
+  --step-0: clamp(0.8rem, 0.8rem + 0.1vw, 0.9rem);
+  --step-1: clamp(0.9rem, 0.85rem + 0.25vw, 1rem);
+  --step-2: clamp(1.1rem, 1rem + 0.5vw, 1.35rem);
+  --step-3: clamp(1.35rem, 1.2rem + 0.8vw, 1.75rem);
+  --step-4: clamp(1.6rem, 1.4rem + 1vw, 2.25rem);
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -121,17 +121,18 @@ img {
 }
 
 .lift-card {
-  transition: transform var(--motion-med) ease, box-shadow var(--motion-med) ease, border-color var(--motion-fast) ease;
+  transition: border-color var(--motion-fast) ease, transform var(--motion-fast) ease;
   transform: translateY(0);
   backdrop-filter: blur(6px);
   background: var(--card);
   border: 1px solid var(--color-border-strong);
+  border-radius: 1rem;
+  overflow: hidden;
 }
 
 .lift-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 22px 50px var(--color-shadow);
-  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .lift-card img {
@@ -155,6 +156,16 @@ img {
   opacity: 1;
 }
 
+/* Browse R2 modal: native scrollbar hidden, custom scrollbar used instead */
+.r2-modal-scroll {
+  overflow-y: scroll;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.r2-modal-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .heading-hover {
   letter-spacing: 0.02em;
   transition: letter-spacing var(--motion-med) ease;
@@ -171,7 +182,7 @@ img {
   gap: 0.5rem;
   border-radius: 999px;
   padding: 0.8rem 1.6rem;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: var(--ls-caps);
   transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease, border-color var(--motion-fast) ease;
@@ -195,7 +206,6 @@ img {
 
 .btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 30px var(--color-shadow);
 }
 
 .btn-primary {
@@ -204,8 +214,14 @@ img {
 }
 
 .btn-ghost {
-  border: 1px solid var(--color-border-strong);
-  color: var(--color-text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.btn-ghost:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .btn-light {
@@ -247,7 +263,7 @@ img {
 .card-grid {
   margin-top: 2.5rem;
   display: grid;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 @media (min-width: 768px) {
@@ -257,17 +273,17 @@ img {
 }
 
 .card {
-  border-radius: 28px;
+  border-radius: 1rem;
   overflow: hidden;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
 }
 
 .card-luxe {
-  border-radius: 28px;
+  border-radius: 1rem;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 
 .card-media {
@@ -333,7 +349,7 @@ img {
 }
 
 .card-body {
-  padding: 1.4rem 1.6rem;
+  padding: 1.2rem 1.4rem;
 }
 
 .card-tag {
@@ -345,7 +361,7 @@ img {
 
 .card-title {
   margin-top: 0.5rem;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   color: var(--color-text);
 }
 
@@ -466,30 +482,65 @@ summary:focus-visible {
   background-color: color-mix(in srgb, var(--color-bg-muted) 40%, transparent) !important;
 }
 
+/* Typography: H1 / section titles — luxury minimal */
 .section-title {
   font-family: var(--font-display);
-  font-size: var(--step-4);
-  letter-spacing: var(--ls-display);
+  font-size: clamp(1.875rem, 4vw, 3rem);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
   color: var(--color-text);
 }
 
-.section-subtitle {
-  font-size: var(--step-1);
-  color: var(--color-text-muted);
+/* Typography: H2 */
+.section-title-lg {
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
 }
 
+/* Body — relaxed line height */
+.section-subtitle {
+  font-size: clamp(0.875rem, 1.2vw, 1.125rem);
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--color-text) 82%, transparent);
+}
+
+/* Meta labels */
 .section-kicker {
-  font-size: 0.65rem;
+  font-size: 0.6875rem;
   text-transform: uppercase;
-  letter-spacing: 0.32em;
+  letter-spacing: 0.22em;
   color: var(--color-text-subtle);
 }
 
 .panel {
-  border-radius: 20px;
+  border-radius: 1rem;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   overflow: hidden;
+}
+
+/* Section spacing: py-16 md:py-24 — more whitespace */
+.section-pad {
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+
+@media (min-width: 768px) {
+  .section-pad {
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .section-pad {
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
 }
 
 .callout {

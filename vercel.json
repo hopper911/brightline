@@ -1,0 +1,33 @@
+{
+  "buildCommand": "npm run build",
+  "redirects": [
+    {
+      "source": "/work/campaign",
+      "destination": "/work/advertising",
+      "permanent": true
+    },
+    {
+      "source": "/work/campaign/:path*",
+      "destination": "/work/advertising/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.brightlinephotography.com" }],
+      "destination": "https://brightlinephotography.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "brightlinephotography.co" }],
+      "destination": "https://brightlinephotography.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.brightlinephotography.co" }],
+      "destination": "https://brightlinephotography.com/:path*",
+      "permanent": true
+    }
+  ]
+}

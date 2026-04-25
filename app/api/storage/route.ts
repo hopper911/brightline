@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { assertServerEnv } from "@/lib/env";
-import { handleStorage, normalizeStoragePayload } from "@/lib/services/storage";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
     assertServerEnv();
+    const { handleStorage, normalizeStoragePayload } = await import(
+      "@/lib/services/storage"
+    );
     const payload = normalizeStoragePayload(await req.json());
     const result = await handleStorage(payload);
 
@@ -16,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, ...result.data });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Failed to create signed URL." },
       { status: 500 }

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
-import { getClientDownloadUrl } from "@/lib/image-strategy";
+import { gallerySupportsSelectionWorkflow } from "@/lib/gallery-client-delivery";
+import { loadClientGallerySession } from "@/lib/client-gallery-session";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function getClientIp(req: Request): string | null {
   const forwardedFor = req.headers.get("x-forwarded-for");
@@ -17,49 +17,23 @@ function getClientIp(req: Request): string | null {
 export async function POST(req: Request) {
   try {
     await req.json();
-    const jar = await cookies();
-    const accessId = jar.get("client_access_id")?.value;
-
-    if (!accessId) {
+    const loaded = await loadClientGallerySession();
+    if (!loaded.ok) {
       return NextResponse.json(
-        { ok: false, error: "Access session required." },
-        { status: 401 }
+        { ok: false, error: loaded.error },
+        { status: loaded.status }
       );
     }
 
-    const access = await prisma.galleryAccessToken.findUnique({
-      where: { id: accessId },
-      include: {
-        gallery: {
-          include: {
-            images: { orderBy: { sortOrder: "asc" } },
-            client: true,
-            project: true,
-          },
-        },
-        favorites: true,
-      },
-    });
+    const { access } = loaded;
 
-    if (!access || !access.gallery) {
-      return NextResponse.json(
-        { ok: false, error: "That access code is not valid." },
-        { status: 404 }
-      );
-    }
-
-    if (!access.isActive) {
-      return NextResponse.json(
-        { ok: false, error: "That access code is no longer active." },
-        { status: 403 }
-      );
-    }
-
-    if (access.expiresAt && access.expiresAt.getTime() < Date.now()) {
-      return NextResponse.json(
-        { ok: false, error: "That access code has expired." },
-        { status: 410 }
-      );
+    if (access.gallery.status === "SENT") {
+      void prisma.gallery
+        .update({
+          where: { id: access.gallery.id },
+          data: { status: "CLIENT_REVIEWING" },
+        })
+        .catch(() => {});
     }
 
     await prisma.galleryAccessToken.update({
@@ -67,7 +41,6 @@ export async function POST(req: Request) {
       data: { lastUsedAt: new Date() },
     });
 
-    // Log gallery view
     try {
       await prisma.galleryAccessLog.create({
         data: {
@@ -84,34 +57,60 @@ export async function POST(req: Request) {
     const { gallery } = access;
     const favoriteImageIds = new Set(access.favorites.map((f) => f.imageId));
 
+    const selectionRows = await prisma.galleryImageSelection.findMany({
+      where: { tokenId: access.id },
+    });
+    const selectedMap = new Map(
+      selectionRows.map((r) => [r.imageId, r.selected])
+    );
+
+    const selectionsLocked = Boolean(access.selectionsSubmittedAt);
+    const workflowEnabled = gallerySupportsSelectionWorkflow(gallery);
+    const showSelectionTools =
+      workflowEnabled && !selectionsLocked && gallery.status !== "FINALIZED";
+
     let missingPrivate = 0;
     const images = await Promise.all(
       gallery.images.map(async (image) => {
-        if (!image.storageKey) {
-          missingPrivate += 1;
-          return {
-            id: image.id,
-            url: image.url,
-            alt: image.alt,
-            filename: image.filename,
-            sortOrder: image.sortOrder,
-            storageKey: null,
-            isFavorite: favoriteImageIds.has(image.id),
-          };
-        }
-
-        const signed = await getClientDownloadUrl({ key: image.storageKey });
-        return {
+        const base = {
           id: image.id,
-          url: signed.url,
           alt: image.alt,
           filename: image.filename,
           sortOrder: image.sortOrder,
-          storageKey: image.storageKey,
+          isHero: image.isHero ?? false,
           isFavorite: favoriteImageIds.has(image.id),
+          isSelected: selectedMap.get(image.id) ?? false,
+          meta: image.meta ?? null,
+        };
+
+        if (!image.storageKey && !image.thumbUrl && !image.fullUrl) {
+          missingPrivate += 1;
+          return {
+            ...base,
+            url: image.url,
+            thumbUrl: image.thumbUrl ?? image.url,
+            fullUrl: image.fullUrl ?? image.url,
+            storageKey: null,
+          };
+        }
+
+        const { getClientDownloadUrl } = await import("@/lib/image-strategy");
+        const signed = image.storageKey
+          ? await getClientDownloadUrl({ key: image.storageKey })
+          : null;
+        const resolvedUrl = signed?.url ?? image.url;
+
+        return {
+          ...base,
+          url: resolvedUrl,
+          thumbUrl: image.thumbUrl ?? resolvedUrl,
+          fullUrl: image.fullUrl ?? resolvedUrl,
+          storageKey: image.storageKey,
         };
       })
     );
+
+    const selectedCount = images.filter((img) => img.isSelected).length;
 
     return NextResponse.json({
       ok: true,
@@ -127,6 +126,12 @@ export async function POST(req: Request) {
         images: images.filter(Boolean),
         allowDownload: access.allowDownload && missingPrivate === 0,
         expiresAt: access.expiresAt?.toISOString() ?? null,
+        selectionWorkflow: workflowEnabled,
+        showSelectionTools,
+        selectionsLocked,
+        selectionsSubmittedAt:
+          access.selectionsSubmittedAt?.toISOString() ?? null,
+        selectedCount,
       },
       tokenId: access.id,
       warning:
@@ -134,8 +139,7 @@ export async function POST(req: Request) {
           ? "Some images use public URLs and are not available for download."
           : null,
     });
-  } catch (error) {
-    Sentry.captureException(error);
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Unable to load gallery." },
       { status: 500 }

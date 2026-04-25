@@ -23,6 +23,8 @@ function blankService(slug = "new-service"): Service {
     portfolioHref: "/work",
     heroImage: "/images/hero.jpg",
     heroVideo: "",
+    backgroundMediaUrl: "",
+    backgroundPosterUrl: "",
     proofImages: ["/images/hero.jpg"],
     industries: ["Industry"],
     deliverables: ["Deliverable"],
@@ -111,6 +113,14 @@ export function normalizeServicePage(input: unknown, fallback: Service): Service
         ? row.heroImage.trim()
         : fallback.heroImage,
     heroVideo: typeof row.heroVideo === "string" ? row.heroVideo.trim() : fallback.heroVideo,
+    backgroundMediaUrl:
+      typeof row.backgroundMediaUrl === "string"
+        ? row.backgroundMediaUrl.trim()
+        : fallback.backgroundMediaUrl,
+    backgroundPosterUrl:
+      typeof row.backgroundPosterUrl === "string"
+        ? row.backgroundPosterUrl.trim()
+        : fallback.backgroundPosterUrl,
     proofImages: stringArray(row.proofImages, fallback.proofImages),
     industries: stringArray(row.industries, fallback.industries),
     deliverables: stringArray(row.deliverables, fallback.deliverables),

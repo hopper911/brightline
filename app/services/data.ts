@@ -8,6 +8,8 @@ export type Service = {
   portfolioHref: string;
   heroImage: string;
   heroVideo?: string;
+  backgroundMediaUrl?: string;
+  backgroundPosterUrl?: string;
   proofImages: string[];
   industries: string[];
   deliverables: string[];

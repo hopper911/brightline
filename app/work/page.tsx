@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import Reveal from "@/components/Reveal";
 import { PILLARS } from "@/lib/portfolioPillars";
 import { getFeaturedHeroForSection } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
-
-const BLUR_DATA =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
 
 async function fetchPillarData() {
   return Promise.all(
@@ -74,15 +70,11 @@ export default async function WorkIndexPage() {
             >
               <div className="relative h-[200px] w-full">
                 {pillar.coverUrl ? (
-                  <Image
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
                     src={pillar.coverUrl}
                     alt={pillar.coverAlt ?? pillar.label}
-                    fill
-                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    quality={85}
-                    placeholder="blur"
-                    blurDataURL={BLUR_DATA}
-                    className="object-cover image-zoom"
+                    className="h-full w-full object-cover image-zoom"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">

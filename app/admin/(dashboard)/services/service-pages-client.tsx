@@ -11,6 +11,7 @@ type Props = {
 };
 
 type R2Target = "heroImage" | "heroVideo" | "proofImages" | "caseStudies";
+type BackgroundTarget = "backgroundMediaUrl" | "backgroundPosterUrl";
 
 function linesToArray(value: string) {
   return value
@@ -39,6 +40,8 @@ function newService(slug: string): Service {
     portfolioHref: "/work",
     heroImage: "/images/hero.jpg",
     heroVideo: "",
+    backgroundMediaUrl: "",
+    backgroundPosterUrl: "",
     proofImages: ["/images/hero.jpg"],
     industries: ["Industry"],
     deliverables: ["Deliverable"],
@@ -139,6 +142,7 @@ export default function ServicePagesClient({ initialServices }: Props) {
   const [services, setServices] = useState<Service[]>(initialServices);
   const [selectedSlug, setSelectedSlug] = useState(initialServices[0]?.slug ?? "");
   const [r2Target, setR2Target] = useState<R2Target | null>(null);
+  const [r2BackgroundTarget, setR2BackgroundTarget] = useState<BackgroundTarget | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
 
@@ -221,7 +225,28 @@ export default function ServicePagesClient({ initialServices }: Props) {
     });
   }
 
+  async function useBackgroundR2Key(keys: string[]) {
+    if (!selected || !r2BackgroundTarget) return;
+    const url = keys.map(getPublicR2Url).find(Boolean);
+    if (!url) return;
+    updateSelected({ [r2BackgroundTarget]: url } as Partial<Service>);
+    setR2BackgroundTarget(null);
+  }
+
   async function uploadSelectedMedia(file: File, target: "heroImage" | "heroVideo") {
+    setStatus("saving");
+    setError("");
+    try {
+      const publicUrl = await uploadSiteMedia(file, "services");
+      updateSelected({ [target]: publicUrl } as Partial<Service>);
+      setStatus("idle");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+      setStatus("error");
+    }
+  }
+
+  async function uploadBackgroundMedia(file: File, target: BackgroundTarget) {
     setStatus("saving");
     setError("");
     try {
@@ -313,6 +338,12 @@ export default function ServicePagesClient({ initialServices }: Props) {
         onClose={() => setR2Target(null)}
         onAddKeys={useR2Keys}
         mode={r2Target === "proofImages" || r2Target === "caseStudies" ? "multiple" : "single"}
+      />
+      <R2BrowserModal
+        isOpen={r2BackgroundTarget !== null}
+        onClose={() => setR2BackgroundTarget(null)}
+        onAddKeys={useBackgroundR2Key}
+        mode="single"
       />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -479,6 +510,50 @@ export default function ServicePagesClient({ initialServices }: Props) {
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) void uploadSelectedMedia(file, "heroVideo");
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+          <label className="block text-sm text-white/70">
+            Page background image/video
+            <input
+              value={selected.backgroundMediaUrl ?? ""}
+              onChange={(event) => updateSelected({ backgroundMediaUrl: event.target.value })}
+              placeholder="Optional full-page background"
+              className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
+            />
+            <button type="button" className="mt-2 text-xs uppercase tracking-[0.2em] text-white/55 underline" onClick={() => setR2BackgroundTarget("backgroundMediaUrl")}>
+              Choose background from R2
+            </button>
+            <input
+              type="file"
+              accept="image/*,video/mp4,video/webm,video/quicktime,.mov,.m4v"
+              className="mt-2 block w-full text-xs text-white/55"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void uploadBackgroundMedia(file, "backgroundMediaUrl");
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+          <label className="block text-sm text-white/70">
+            Page background video poster
+            <input
+              value={selected.backgroundPosterUrl ?? ""}
+              onChange={(event) => updateSelected({ backgroundPosterUrl: event.target.value })}
+              placeholder="Optional poster for video backgrounds"
+              className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
+            />
+            <button type="button" className="mt-2 text-xs uppercase tracking-[0.2em] text-white/55 underline" onClick={() => setR2BackgroundTarget("backgroundPosterUrl")}>
+              Choose poster from R2
+            </button>
+            <input
+              type="file"
+              accept="image/*"
+              className="mt-2 block w-full text-xs text-white/55"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void uploadBackgroundMedia(file, "backgroundPosterUrl");
                 event.currentTarget.value = "";
               }}
             />

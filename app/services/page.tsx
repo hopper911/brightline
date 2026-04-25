@@ -8,6 +8,7 @@ import { getEditableServicePages } from "@/lib/service-pages";
 import { CREDIBILITY } from "@/lib/config/credibility";
 import { STRUCTURED_DELIVERY } from "@/lib/config/strategicPositioning";
 import { getPublishedWebsitePageBySlug } from "@/lib/website-pages";
+import { getPublicR2Url } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +16,20 @@ function isVideoUrl(url: string) {
   return /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
 }
 
+function mediaUrl(input: string) {
+  const value = input.trim();
+  if (!value) return "";
+  if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith("/")) return value;
+  return getPublicR2Url(value);
+}
+
 function ServicePreviewMedia({ src, title }: { src: string; title: string }) {
-  if (!src) return null;
-  if (isVideoUrl(src)) {
+  const resolved = mediaUrl(src);
+  if (!resolved) return null;
+  if (isVideoUrl(resolved)) {
     return (
       <video
-        src={src}
+        src={resolved}
         className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
         autoPlay
         muted
@@ -33,7 +42,7 @@ function ServicePreviewMedia({ src, title }: { src: string; title: string }) {
   }
 
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />;
+  return <img src={resolved} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />;
 }
 
 const additionalServices = [

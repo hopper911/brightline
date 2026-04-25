@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import Reveal from "@/components/Reveal";
+import PageBackground from "@/components/PageBackground";
 import {
   CASE_STUDIES,
   getCaseStudyBySlug,
@@ -41,57 +42,6 @@ function imageUrl(key: string): string {
   return getPublicR2Url(key);
 }
 
-function mediaUrl(input?: string | null) {
-  const value = input?.trim();
-  if (!value) return "";
-  if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith("/")) return value;
-  return getPublicR2Url(value);
-}
-
-function isVideoUrl(url: string) {
-  const decoded = decodeURIComponent(url);
-  try {
-    const parsed = new URL(decoded, "https://brightline.local");
-    const key = parsed.searchParams.get("key") ?? "";
-    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(key || parsed.pathname);
-  } catch {
-    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(decoded);
-  }
-}
-
-function CaseStudyBackground({
-  media,
-  poster,
-}: {
-  media?: string | null;
-  poster?: string | null;
-}) {
-  const src = mediaUrl(media);
-  if (!src) return null;
-  return (
-    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
-      {isVideoUrl(src) ? (
-        <video
-          src={src}
-          poster={mediaUrl(poster) || undefined}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          className="h-full w-full object-cover opacity-35"
-        />
-      ) : (
-        <div
-          className="h-full w-full bg-cover bg-center opacity-35"
-          style={{ backgroundImage: `url(${src})` }}
-        />
-      )}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,9,11,0.58),rgba(7,9,11,0.9))]" />
-    </div>
-  );
-}
-
 export default async function CaseStudyPage({
   params,
 }: {
@@ -103,11 +53,11 @@ export default async function CaseStudyPage({
 
   return (
     <>
-      <CaseStudyBackground
+      <PageBackground
         media={study.backgroundMediaUrl}
         poster={study.backgroundPosterUrl}
       />
-      <div className="section-pad relative z-10 mx-auto max-w-6xl px-6 lg:px-10">
+      <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
       <Reveal className="mb-12">
         <Link href="/case-studies" className="btn btn-ghost mb-6">
           Back to case studies

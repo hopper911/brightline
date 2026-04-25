@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { services } from "../data";
+import PageBackground from "@/components/PageBackground";
 import PrimaryCTA from "@/components/PrimaryCTA";
 import { getImageAltFallback } from "@/lib/config/brand";
 import { getEditableServicePageBySlug } from "@/lib/service-pages";
@@ -161,7 +162,9 @@ export default async function ServicePage({
   };
 
   return (
-    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+    <>
+      <PageBackground media={service.backgroundMediaUrl} poster={service.backgroundPosterUrl} />
+      <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
       <script type="application/ld+json">
         {JSON.stringify(faqSchema)}
       </script>
@@ -362,6 +365,7 @@ export default async function ServicePage({
           <PrimaryCTA service={service.slug} className="btn btn-solid mt-6" />
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }

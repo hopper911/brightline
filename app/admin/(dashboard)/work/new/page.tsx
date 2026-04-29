@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PILLARS, PILLAR_SLUGS } from "@/lib/portfolioPillars";
 
 export default function AdminWorkNewPage() {
   const router = useRouter();
+  const [pillarOptions, setPillarOptions] = useState<{ slug: string; label: string }[]>([]);
   const [pillar, setPillar] = useState<string>("architecture");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -16,6 +17,29 @@ export default function AdminWorkNewPage() {
   const [published, setPublished] = useState(true);
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadPillars() {
+      try {
+        const res = await fetch("/api/admin/work-pillars", { credentials: "include" });
+        const d = (await res.json()) as {
+          ok?: boolean;
+          pillars?: { slug: string; label: string }[];
+        };
+        if (d.ok && d.pillars?.length) {
+          const opts = d.pillars.map((p) => ({ slug: p.slug, label: p.label }));
+          setPillarOptions(opts);
+          setPillar((prev) => (opts.some((o) => o.slug === prev) ? prev : opts[0]!.slug));
+        } else {
+          const opts = PILLAR_SLUGS.map((s) => ({ slug: s, label: PILLARS.find((p) => p.slug === s)?.label ?? s }));
+          setPillarOptions(opts);
+        }
+      } catch {
+        setPillarOptions(PILLAR_SLUGS.map((s) => ({ slug: s, label: PILLARS.find((p) => p.slug === s)?.label ?? s })));
+      }
+    }
+    void loadPillars();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,9 +93,9 @@ export default function AdminWorkNewPage() {
             className="mt-1 w-full rounded border border-black/20 bg-white px-3 py-2 text-sm"
             required
           >
-            {PILLAR_SLUGS.map((slug) => (
-              <option key={slug} value={slug}>
-                {PILLARS.find((p) => p.slug === slug)?.label ?? slug}
+            {pillarOptions.map((opt) => (
+              <option key={opt.slug} value={opt.slug}>
+                {opt.label}
               </option>
             ))}
           </select>

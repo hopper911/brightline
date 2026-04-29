@@ -1,20 +1,21 @@
 import type { WorkSection } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { WORK_SECTIONS } from "@/lib/portfolioPillars";
 import {
-  isPillarSlug,
-  PILLAR_TO_SECTION,
-  SECTION_TO_PILLAR,
-  WORK_SECTIONS,
-} from "@/lib/portfolioPillars";
-import type { PillarSlug } from "@/lib/portfolioPillars";
+  getPillarBySlug,
+  getPrimaryWorkSection,
+  sectionToPillarSlug as mapWorkSectionToPillarSlug,
+} from "@/lib/work-pillar-settings";
 import { slugify } from "@/lib/slugify";
 
-function resolveSection(input: {
+async function resolveSection(input: {
   pillar?: string;
   section?: string;
-}): WorkSection | null {
-  if (input.pillar && isPillarSlug(input.pillar)) {
-    return PILLAR_TO_SECTION[input.pillar];
+}): Promise<WorkSection | null> {
+  const pillarKey = input.pillar?.trim().toLowerCase();
+  if (pillarKey) {
+    const pillar = await getPillarBySlug(pillarKey);
+    if (pillar) return getPrimaryWorkSection(pillar);
   }
   if (input.section && WORK_SECTIONS.includes(input.section as WorkSection)) {
     return input.section as WorkSection;
@@ -55,10 +56,10 @@ export async function createStudioProject(body: CreateStudioProjectBody) {
     throw new Error("title is required.");
   }
 
-  const section = resolveSection(body);
+  const section = await resolveSection(body);
   if (!section) {
     throw new Error(
-      "pillar (architecture, advertising, corporate) or valid section (ACD, REA, CUL, BIZ, TRI) is required."
+      "pillar (any configured work pillar slug) or valid section (ACD, REA, CUL, BIZ, TRI) is required."
     );
   }
 
@@ -284,7 +285,7 @@ export async function deleteStudioProject(id: string) {
   await prisma.workProject.delete({ where: { id } });
 }
 
-/** Public URL pillar segment from DB section. */
-export function sectionToPillarSlug(section: WorkSection): PillarSlug {
-  return SECTION_TO_PILLAR[section];
+/** Public URL pillar segment from DB section (uses CMS pillar map). */
+export async function sectionToPillarSlug(section: WorkSection): Promise<string> {
+  return mapWorkSectionToPillarSlug(section);
 }

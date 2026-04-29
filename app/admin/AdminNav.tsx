@@ -1,6 +1,5 @@
-"use client";
-
 import Link from "next/link";
+import { getAdminNav } from "@/lib/admin-nav";
 
 function NavGroup({
   label,
@@ -19,7 +18,15 @@ function NavGroup({
   );
 }
 
-export default function AdminNav() {
+export default async function AdminNav() {
+  const groups = await getAdminNav();
+  const visibleGroups = groups
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((item) => item.visible),
+    }))
+    .filter((g) => g.items.length > 0);
+
   const link =
     "text-sm text-white/70 hover:text-white lg:rounded-lg lg:px-4 lg:py-2 lg:hover:bg-white/10";
 
@@ -34,77 +41,15 @@ export default function AdminNav() {
       </Link>
 
       <div className="flex min-w-0 flex-1 flex-row flex-nowrap items-center gap-2 overflow-x-auto lg:flex-col lg:gap-0 lg:overflow-visible lg:pb-6">
-        <NavGroup label="Operate">
-          <Link prefetch={false} href="/studio" className={link}>
-            Mission Control
-          </Link>
-          <Link prefetch={false} href="/studio/finance" className={link}>
-            Finance
-          </Link>
-          <Link prefetch={false} href="/admin/studio-leads" className={link}>
-            Studio leads
-          </Link>
-          <Link prefetch={false} href="/admin/clients" className={link}>
-            Clients
-          </Link>
-          <Link prefetch={false} href="/admin/automations" className={link}>
-            Automations
-          </Link>
-        </NavGroup>
-
-        <NavGroup label="Publish">
-          <Link prefetch={false} href="/admin/pages" className={link}>
-            Website pages
-          </Link>
-          <Link prefetch={false} href="/admin/services" className={link}>
-            Service pages
-          </Link>
-          <Link prefetch={false} href="/admin/work" className={link}>
-            Work
-          </Link>
-          <Link prefetch={false} href="/admin/projects" className={link}>
-            Studio CMS
-          </Link>
-          <Link prefetch={false} href="/admin/portfolio" className={link}>
-            Portfolio
-          </Link>
-        </NavGroup>
-
-        <NavGroup label="Deliver">
-          <Link prefetch={false} href="/admin/galleries" className={link}>
-            Galleries
-          </Link>
-          <Link prefetch={false} href="/admin/client-access" className={link}>
-            Gallery access
-          </Link>
-        </NavGroup>
-
-        <NavGroup label="Assets">
-          <Link prefetch={false} href="/admin/media" className={link}>
-            Media
-          </Link>
-        </NavGroup>
-
-        <NavGroup label="Insight">
-          <Link prefetch={false} href="/admin/analytics" className={link}>
-            Analytics
-          </Link>
-          <Link prefetch={false} href="/admin/settings" className={link}>
-            Settings
-          </Link>
-        </NavGroup>
-
-        <NavGroup label="Legacy">
-          <Link prefetch={false} href="/admin/leads" className={link}>
-            Leads (legacy)
-          </Link>
-          <Link prefetch={false} href="/admin/tags" className={link}>
-            Tags
-          </Link>
-          <Link prefetch={false} href="/admin/testimonials" className={link}>
-            Testimonials
-          </Link>
-        </NavGroup>
+        {visibleGroups.map((group) => (
+          <NavGroup key={group.id} label={group.label}>
+            {group.items.map((item) => (
+              <Link key={item.id} prefetch={false} href={item.href} className={link}>
+                {item.label}
+              </Link>
+            ))}
+          </NavGroup>
+        ))}
       </div>
     </nav>
   );

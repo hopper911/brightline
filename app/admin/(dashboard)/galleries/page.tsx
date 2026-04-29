@@ -16,6 +16,9 @@ type Gallery = {
   slug: string;
   description?: string | null;
   coverUrl?: string | null;
+  deliveryDriveLink?: string | null;
+  usageGuideText?: string | null;
+  deliveredAt?: string | null;
   published: boolean;
   status?: string;
   galleryType?: string;
@@ -62,13 +65,19 @@ export default function AdminGalleriesPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
+  const [deliveryDriveLink, setDeliveryDriveLink] = useState("");
+  const [usageGuideText, setUsageGuideText] = useState("");
+  const [galleryType, setGalleryType] = useState("PROOF");
+  const [galleryStatus, setGalleryStatus] = useState("DRAFT");
   const [clientId, setClientId] = useState<string | "">("");
   const [projectId, setProjectId] = useState<string | "">("");
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [items, setItems] = useState<Gallery[]>([]);
+  const [viewFilter, setViewFilter] = useState<"all" | "deliveries">("all");
   const [lastGeneratedToken, setLastGeneratedToken] = useState<string | null>(null);
   const [lastGeneratedTokenGalleryId, setLastGeneratedTokenGalleryId] = useState<string | null>(null);
+  const [showRevokedAccessHistory, setShowRevokedAccessHistory] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
 
   const [editOpen, setEditOpen] = useState(false);
@@ -85,6 +94,8 @@ export default function AdminGalleriesPage() {
     galleryType: "PROOF",
     clientId: "",
     projectId: "",
+    deliveryDriveLink: "",
+    usageGuideText: "",
   });
 
   const slug = useMemo(() => slugify(title || "gallery"), [title]);
@@ -141,6 +152,8 @@ export default function AdminGalleriesPage() {
       galleryType: (g.galleryType || "PROOF") as string,
       clientId: (g.client?.id ?? "") as string,
       projectId: (g.project?.id ?? "") as string,
+      deliveryDriveLink: (g.deliveryDriveLink ?? "") as string,
+      usageGuideText: (g.usageGuideText ?? "") as string,
     });
     setEditOpen(true);
   }
@@ -172,6 +185,8 @@ export default function AdminGalleriesPage() {
           galleryType: editForm.galleryType,
           clientId: editForm.clientId || null,
           projectId: editForm.projectId || null,
+          deliveryDriveLink: editForm.deliveryDriveLink.trim() || null,
+          usageGuideText: editForm.usageGuideText.trim() || null,
         }),
       });
       const data = (await res.json()) as { ok?: boolean; gallery?: Gallery; error?: string };
@@ -199,6 +214,10 @@ export default function AdminGalleriesPage() {
           slug,
           description: description || undefined,
           coverUrl: coverUrl || undefined,
+          deliveryDriveLink: deliveryDriveLink || undefined,
+          usageGuideText: usageGuideText || undefined,
+          status: galleryStatus,
+          galleryType,
           clientId: clientId || null,
           projectId: projectId || null,
         }),
@@ -210,6 +229,10 @@ export default function AdminGalleriesPage() {
       setTitle("");
       setDescription("");
       setCoverUrl("");
+      setDeliveryDriveLink("");
+      setUsageGuideText("");
+      setGalleryType("PROOF");
+      setGalleryStatus("DRAFT");
       setClientId("");
       setProjectId("");
       setStatus("idle");
@@ -242,24 +265,30 @@ export default function AdminGalleriesPage() {
   }
 
   async function generateToken(galleryId: string) {
+    const gallery = items.find((item) => item.id === galleryId);
     const res = await fetch(`/api/admin/galleries/${galleryId}/token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        allowDownload: gallery?.galleryType === "FINAL_DELIVERY" ? true : undefined,
+      }),
     });
     if (!res.ok) return;
-    const data = (await res.json()) as { token?: string; error?: string };
+    const data = (await res.json()) as { token?: string; gallery?: Gallery; error?: string };
     if (!data.token) return;
     setLastGeneratedToken(data.token);
     setLastGeneratedTokenGalleryId(galleryId);
-    // Refetch galleries so the new token appears in the list
-    const galleriesRes = await fetch("/api/admin/galleries", {
-      credentials: "include",
-    });
-    if (galleriesRes.ok) {
-      const json = (await galleriesRes.json()) as { galleries: Gallery[] };
-      setItems(json.galleries || []);
+    if (data.gallery) {
+      setItems((prev) => prev.map((g) => (g.id === data.gallery!.id ? data.gallery! : g)));
+    } else {
+      const galleriesRes = await fetch("/api/admin/galleries", {
+        credentials: "include",
+      });
+      if (galleriesRes.ok) {
+        const json = (await galleriesRes.json()) as { galleries: Gallery[] };
+        setItems(json.galleries || []);
+      }
     }
   }
 
@@ -276,17 +305,72 @@ export default function AdminGalleriesPage() {
         g.id === galleryId
           ? {
               ...g,
-              accessTokens: (g.accessTokens || []).filter((t) => t.id !== tokenId),
+              accessTokens: (g.accessTokens || []).map((t) =>
+                t.id === tokenId ? { ...t, isActive: false } : t
+              ),
             }
           : g
       )
     );
   }
 
+  async function markDelivered(item: Gallery) {
+    const deliveredAt = new Date().toISOString();
+    const res = await fetch(`/api/admin/galleries/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        status: "DELIVERED",
+        deliveredAt: item.deliveredAt || deliveredAt,
+        sentAt: item.deliveredAt || deliveredAt,
+      }),
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { gallery: Gallery };
+    setItems((prev) =>
+      prev.map((g) => (g.id === data.gallery.id ? data.gallery : g))
+    );
+  }
+
+  const visibleItems =
+    viewFilter === "deliveries"
+      ? items.filter((item) => item.galleryType === "FINAL_DELIVERY")
+      : items;
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-16">
       <h1 className="section-title">Admin · Galleries</h1>
       <p className="section-subtitle">Create client galleries and manage access.</p>
+
+      <div className="mt-6 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={`btn ${viewFilter === "all" ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => setViewFilter("all")}
+        >
+          All galleries
+        </button>
+        <button
+          type="button"
+          className={`btn ${viewFilter === "deliveries" ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => setViewFilter("deliveries")}
+        >
+          Deliveries
+        </button>
+      </div>
+
+      <div className="mt-4">
+        <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-black/70">
+          <input
+            type="checkbox"
+            checked={showRevokedAccessHistory}
+            onChange={(e) => setShowRevokedAccessHistory(e.target.checked)}
+            className="rounded border-black/20"
+          />
+          Show revoked access history
+        </label>
+      </div>
 
       {editOpen && editing ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -347,6 +431,33 @@ export default function AdminGalleriesPage() {
                   disabled={editSaving}
                 />
               </label>
+              {editForm.galleryType === "FINAL_DELIVERY" ? (
+                <>
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-[0.2em] text-black/50">
+                      Backup Google Drive link
+                    </span>
+                    <input
+                      className="mt-1 w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
+                      value={editForm.deliveryDriveLink}
+                      onChange={(e) => setEditForm((p) => ({ ...p, deliveryDriveLink: e.target.value }))}
+                      disabled={editSaving}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-[0.2em] text-black/50">
+                      Usage guide override
+                    </span>
+                    <textarea
+                      className="mt-1 w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
+                      value={editForm.usageGuideText}
+                      onChange={(e) => setEditForm((p) => ({ ...p, usageGuideText: e.target.value }))}
+                      rows={3}
+                      disabled={editSaving}
+                    />
+                  </label>
+                </>
+              ) : null}
 
               <div className="grid gap-3 md:grid-cols-2">
                 <label className="block">
@@ -466,6 +577,47 @@ export default function AdminGalleriesPage() {
         <div className="grid gap-3 md:grid-cols-2">
           <select
             className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
+            value={galleryStatus}
+            onChange={(e) => setGalleryStatus(e.target.value)}
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+          <select
+            className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
+            value={galleryType}
+            onChange={(e) => setGalleryType(e.target.value)}
+          >
+            {TYPE_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+        </div>
+        {galleryType === "FINAL_DELIVERY" ? (
+          <>
+            <input
+              className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
+              placeholder="Backup Google Drive link (optional)"
+              value={deliveryDriveLink}
+              onChange={(e) => setDeliveryDriveLink(e.target.value)}
+            />
+            <textarea
+              className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
+              placeholder="Usage guide override (optional)"
+              value={usageGuideText}
+              onChange={(e) => setUsageGuideText(e.target.value)}
+              rows={3}
+            />
+          </>
+        ) : null}
+        <div className="grid gap-3 md:grid-cols-2">
+          <select
+            className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
           >
@@ -501,7 +653,7 @@ export default function AdminGalleriesPage() {
       </form>
 
       <div className="mt-10 space-y-4">
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <div
             key={item.id}
             className="rounded-2xl border border-black/10 bg-white/70 px-4 py-4"
@@ -520,6 +672,11 @@ export default function AdminGalleriesPage() {
                     {item.galleryType?.replace(/_/g, " ") ?? ""}
                   </p>
                 )}
+                {item.deliveredAt ? (
+                  <p className="mt-1 text-xs text-black/40">
+                    Delivered {new Date(item.deliveredAt).toLocaleDateString()}
+                  </p>
+                ) : null}
               </div>
               <div className="flex items-center gap-3">
                 <Link href={`/admin/galleries/${item.id}`} className="btn btn-ghost">
@@ -540,6 +697,14 @@ export default function AdminGalleriesPage() {
                 >
                   Generate token
                 </button>
+                {item.galleryType === "FINAL_DELIVERY" ? (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => markDelivered(item)}
+                  >
+                    Mark delivered
+                  </button>
+                ) : null}
                 <button
                   className="btn btn-ghost"
                   onClick={() => deleteGallery(item.id)}
@@ -591,19 +756,39 @@ export default function AdminGalleriesPage() {
                 })()}
               </div>
             ) : null}
-            {item.accessTokens?.length ? (
+            {(() => {
+              const allTokens = item.accessTokens ?? [];
+              const rowTokens = showRevokedAccessHistory
+                ? allTokens
+                : allTokens.filter((t) => t.isActive !== false);
+              if (!rowTokens.length) return null;
+              return (
               <div className="mt-3 space-y-2 text-xs text-black/50">
-                {item.accessTokens.map((token) => (
+                {rowTokens.map((token) => (
                   <div key={token.id} className="flex flex-wrap items-center gap-3">
-                    <span>Code ending: {token.codeHint || "—"}</span>
+                    <span>
+                      {token.isActive === false ? (
+                        <>
+                          Inactive code{" "}
+                          <span className="font-mono text-black/40">•••••</span>
+                        </>
+                      ) : (
+                        <>
+                          Access code{" "}
+                          <span className="font-mono text-black/80">{token.codeHint || "—"}</span>
+                        </>
+                      )}
+                    </span>
                     {token.expiresAt ? (
                       <span>Expires: {new Date(token.expiresAt).toLocaleDateString()}</span>
                     ) : null}
                     {token.isActive === false ? (
-                      <span className="text-red-500">Disabled</span>
+                      <span className="text-red-500">Revoked</span>
                     ) : null}
                     <button
                       className="btn btn-ghost"
+                      type="button"
+                      disabled={token.isActive === false}
                       onClick={() => revokeToken(item.id, token.id)}
                     >
                       Revoke
@@ -611,7 +796,8 @@ export default function AdminGalleriesPage() {
                   </div>
                 ))}
               </div>
-            ) : null}
+              );
+            })()}
             {lastGeneratedToken && lastGeneratedTokenGalleryId === item.id ? (
               <div className="mt-3 rounded-xl border border-black/10 bg-white/70 px-3 py-2 text-xs">
                 New access code: <span className="font-semibold">{lastGeneratedToken}</span>

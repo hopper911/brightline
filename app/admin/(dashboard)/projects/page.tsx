@@ -92,8 +92,12 @@ export default function AdminProjectsListPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="section-title">Studio project pages</h1>
-          <p className="section-subtitle">
-            Studio CMS — create, edit, and publish structured project content.
+          <p className="section-subtitle max-w-3xl">
+            Studio CMS — create, edit, and publish structured project content. When published, the
+            public page is{" "}
+            <span className="font-mono text-[0.9em] text-black/80">/work/your-slug</span> (not the
+            legacy <span className="font-mono text-[0.9em] text-black/80">/work/pillar/slug</span>{" "}
+            route). Matching categories also show on the pillar index.
           </p>
         </div>
         <Link href="/admin/projects/new" className="btn btn-primary shrink-0">
@@ -111,7 +115,15 @@ export default function AdminProjectsListPage() {
         </div>
       ) : null}
 
-      <div className="mt-8 flex flex-wrap gap-4">
+      <p className="mt-6 text-sm text-black/55">
+        Customize the left admin menu (labels, URLs, what shows) under{" "}
+        <Link href="/admin/navigation" className="font-medium text-sky-800 underline">
+          Admin sidebar
+        </Link>
+        .
+      </p>
+
+      <div className="mt-6 flex flex-wrap gap-4">
         <label className="text-xs uppercase tracking-[0.25em] text-black/50">
           Status
           <select
@@ -154,8 +166,39 @@ export default function AdminProjectsListPage() {
                   {p.client} · {p.year} · {p.location}
                 </p>
                 <p className="text-xs text-black/50">
-                  {p.published ? "Published" : "Draft"}
-                  {p.slug ? ` · /${p.slug}` : ""}
+                  {p.published ? (
+                    <>
+                      Published
+                      {p.slug ? (
+                        <>
+                          {" "}
+                          ·{" "}
+                          <Link
+                            href={`/work/${encodeURIComponent(p.slug)}`}
+                            className="font-mono font-medium text-sky-800 underline decoration-sky-800/40 underline-offset-2 hover:text-sky-900"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            /work/{p.slug}
+                          </Link>
+                        </>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      Draft
+                      {p.slug ? (
+                        <>
+                          {" "}
+                          · Public path{" "}
+                          <span className="font-mono text-black/55">
+                            /work/{p.slug}
+                          </span>{" "}
+                          after publishing
+                        </>
+                      ) : null}
+                    </>
+                  )}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">

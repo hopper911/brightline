@@ -53,11 +53,24 @@ export type PriorityClient = {
   projectsCount: number;
 };
 
+export type PriorityEmailThread = {
+  id: string;
+  subject: string;
+  fromName: string | null;
+  fromEmail: string | null;
+  unread: boolean;
+  lastMessageAt: Date;
+  matchedClientId: string | null;
+  matchedLeadId: string | null;
+  matchedProjectId: string | null;
+};
+
 export type PriorityEngineInput = {
   now?: Date;
   leads: PriorityLead[];
   projects: PriorityProject[];
   clients: PriorityClient[];
+  emailThreads?: PriorityEmailThread[];
 };
 
 export type PriorityEngineOutput = {
@@ -99,6 +112,28 @@ export function computeStudioPriorities(input: PriorityEngineInput): PriorityEng
   const risks: PriorityItem[] = [];
   const opportunities: PriorityItem[] = [];
   const suggestions: PriorityItem[] = [];
+  const emailThreads = input.emailThreads ?? [];
+
+  for (const thread of emailThreads) {
+    if (!thread.unread) continue;
+    const sender = thread.fromName || thread.fromEmail || "client";
+    const href = thread.matchedLeadId
+      ? `/admin/studio-leads/${thread.matchedLeadId}`
+      : thread.matchedClientId
+        ? `/admin/clients/${thread.matchedClientId}`
+        : thread.matchedProjectId
+          ? `/admin/projects/${thread.matchedProjectId}/edit`
+          : "/studio";
+    pushCapped(todayFocus, {
+      kind: "focus",
+      severity: "medium",
+      title: `Reply to ${sender}`,
+      detail: thread.subject,
+      href,
+      entityType: thread.matchedProjectId ? "project" : thread.matchedLeadId ? "lead" : "client",
+      entityId: thread.matchedProjectId ?? thread.matchedLeadId ?? thread.matchedClientId ?? thread.id,
+    });
+  }
 
   for (const lead of input.leads) {
     const followUpDue = lead.followUpDate ? lead.followUpDate <= now : false;
@@ -209,6 +244,26 @@ export function computeStudioPriorities(input: PriorityEngineInput): PriorityEng
         entityType: "project",
         entityId: project.id,
       });
+    }
+
+    if (project.status === "DELIVERED" && project.deliveryDate) {
+      const deliveredAge = daysBetween(now, project.deliveryDate);
+      const hasFollowUpEmail = emailThreads.some(
+        (thread) =>
+          thread.matchedProjectId === project.id &&
+          thread.lastMessageAt >= project.deliveryDate!
+      );
+      if (deliveredAge >= 7 && !hasFollowUpEmail) {
+        suggestions.push({
+          kind: "suggestion",
+          severity: "low",
+          title: `Send delivery follow-up: ${project.title}`,
+          detail: "Delivered more than 7 days ago with no synced follow-up email.",
+          href: projectHref,
+          entityType: "project",
+          entityId: project.id,
+        });
+      }
     }
   }
 

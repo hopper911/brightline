@@ -35,6 +35,14 @@ function newService(slug: string): Service {
     title: "New Service Page",
     summary: "Short service summary.",
     description: "Describe this service page.",
+    overview: ["Describe how this service works, who it is for, and how the final assets are used."],
+    serviceDetails: [
+      {
+        title: "Service detail",
+        body: "Explain a specific part of the service in more depth.",
+      },
+    ],
+    bestFor: ["Ideal client or project type"],
     heroTagline: "Short positioning line.",
     portfolioLabel: "View portfolio",
     portfolioHref: "/work",

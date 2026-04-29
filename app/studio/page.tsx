@@ -4,6 +4,8 @@ import { hasAdminAccess } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { getFinanceOverview } from "@/lib/studio/finance";
 import { computeStudioPriorities } from "@/lib/studio/priorityEngine";
+import { getEmailProviderStatus } from "@/lib/integrations/emailProvider";
+import { MissionControlEmailPanel } from "@/components/studio/MissionControlEmailPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +43,18 @@ export default async function StudioMissionControlPage() {
   const isAdmin = await hasAdminAccess();
   if (!isAdmin) redirect("/admin/login?next=%2Fstudio");
 
-  const [finance, leads, projects, clients, recentPayments, recentExpenses] = await Promise.all([
+  const emailStatus = getEmailProviderStatus();
+
+  const [
+    finance,
+    leads,
+    projects,
+    clients,
+    recentPayments,
+    recentExpenses,
+    emailAccount,
+    emailThreads,
+  ] = await Promise.all([
     getFinanceOverview(),
     prisma.studioLead.findMany({
       where: { convertedProjectId: null },
@@ -100,6 +113,36 @@ export default async function StudioMissionControlPage() {
       take: 5,
       include: { project: { select: { title: true } } },
     }),
+    emailStatus.emailAddress
+      ? prisma.studioEmailAccount.findFirst({
+          where: {
+            emailAddress: { equals: emailStatus.emailAddress, mode: "insensitive" },
+          },
+          orderBy: { updatedAt: "desc" },
+          select: {
+            id: true,
+            emailAddress: true,
+            displayName: true,
+            lastSyncedAt: true,
+          },
+        })
+      : Promise.resolve(null),
+    prisma.studioEmailThread.findMany({
+      orderBy: { lastMessageAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        subject: true,
+        fromName: true,
+        fromEmail: true,
+        snippet: true,
+        lastMessageAt: true,
+        unread: true,
+        matchedClientId: true,
+        matchedLeadId: true,
+        matchedProjectId: true,
+      },
+    }),
   ]);
 
   const priorities = computeStudioPriorities({
@@ -112,6 +155,7 @@ export default async function StudioMissionControlPage() {
       followUpAt: client.followUpAt,
       projectsCount: client._count.projects,
     })),
+    emailThreads,
   });
 
   const activeProjects = projects.filter(
@@ -215,6 +259,37 @@ export default async function StudioMissionControlPage() {
               ))
             )}
           </div>
+        </Panel>
+
+        <Panel title="Email">
+          <MissionControlEmailPanel
+            status={emailStatus}
+            account={
+              emailAccount
+                ? {
+                    ...emailAccount,
+                    lastSyncedAt: emailAccount.lastSyncedAt?.toISOString() ?? null,
+                  }
+                : null
+            }
+            unreadCount={emailThreads.filter((thread) => thread.unread).length}
+            threads={emailThreads.map((thread) => ({
+              id: thread.id,
+              subject: thread.subject,
+              fromName: thread.fromName,
+              fromEmail: thread.fromEmail,
+              snippet: thread.snippet,
+              lastMessageAt: thread.lastMessageAt.toISOString(),
+              unread: thread.unread,
+              href: thread.matchedLeadId
+                ? `/admin/studio-leads/${thread.matchedLeadId}`
+                : thread.matchedClientId
+                  ? `/admin/clients/${thread.matchedClientId}`
+                  : thread.matchedProjectId
+                    ? `/admin/projects/${thread.matchedProjectId}/edit`
+                    : null,
+            }))}
+          />
         </Panel>
 
         <Panel title="Risks">

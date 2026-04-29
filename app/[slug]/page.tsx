@@ -1,6 +1,6 @@
 import { permanentRedirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { SECTION_TO_PILLAR } from "@/lib/portfolioPillars";
+import { sectionToPillarSlug } from "@/lib/work-pillar-settings";
 import { normalizeProjectSlug } from "@/lib/slugify";
 import WebsitePageView from "@/components/WebsitePageView";
 import { getPublishedWebsitePageBySlug } from "@/lib/website-pages";
@@ -35,8 +35,9 @@ export default async function LegacyRootSlugRedirectPage({
   });
   if (workProjects.length === 1) {
     const project = workProjects[0]!;
+    const pillarSeg = await sectionToPillarSlug(project.section);
     permanentRedirect(
-      `/work/${SECTION_TO_PILLAR[project.section]}/${encodeURIComponent(project.slug)}`
+      `/work/${pillarSeg}/${encodeURIComponent(project.slug)}`
     );
   }
   if (workProjects.length > 1) {

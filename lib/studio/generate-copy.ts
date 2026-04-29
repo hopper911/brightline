@@ -1,25 +1,35 @@
 import { GENERATE_COPY_SYSTEM } from "@/lib/ai/projectCopyPrompt";
+import { slugify } from "@/lib/slugify";
 
 export type GenerateCopyInput = {
-  client: string;
-  category: string;
-  location: string;
-  /** Normalized calendar year as string, e.g. "2024" */
-  year: string;
-  notes: string;
-  /** Optional working title; may inform SEO and tone */
   title?: string;
-  /** Optional; e.g. Lookbook, Annual report */
+  client?: string;
+  category?: string;
   subcategory?: string;
+  location?: string;
+  year?: string;
+  briefNotes?: string;
+  notes?: string;
+  imageNotes?: string[];
+  imageUrls?: string[];
+  credits?: string;
 };
 
 export type GenerateCopyResult = {
+  title: string;
+  slug: string;
+  client: string;
+  category: string;
+  subcategory: string;
+  location: string;
+  year: string;
   opening: string;
   context: string;
   approach: string;
   highlight: string;
   execution: string;
-  closing: string;
+  next: string;
+  credits: string;
   seoTitle: string;
   seoDescription: string;
   tags: string[];
@@ -28,7 +38,8 @@ export type GenerateCopyResult = {
 const YEAR_MIN = 1980;
 const YEAR_MAX = 2035;
 
-function normalizeYear(raw: unknown): { ok: true; year: string } | { ok: false; error: string } {
+function normalizeYear(raw: unknown): { ok: true; year?: string } | { ok: false; error: string } {
+  if (raw === undefined || raw === null || raw === "") return { ok: true };
   if (typeof raw === "number" && Number.isFinite(raw)) {
     const y = Math.trunc(raw);
     if (y < YEAR_MIN || y > YEAR_MAX) {
@@ -40,14 +51,26 @@ function normalizeYear(raw: unknown): { ok: true; year: string } | { ok: false; 
     const trimmed = raw.trim();
     const y = parseInt(trimmed, 10);
     if (!/^\d{4}$/.test(trimmed) || Number.isNaN(y)) {
-      return { ok: false, error: "year must be a four-digit year." };
+      return { ok: false, error: "year must be a four-digit year when provided." };
     }
     if (y < YEAR_MIN || y > YEAR_MAX) {
       return { ok: false, error: `year must be between ${YEAR_MIN} and ${YEAR_MAX}.` };
     }
     return { ok: true, year: String(y) };
   }
-  return { ok: false, error: "year is required (number or four-digit string)." };
+  return { ok: false, error: "year must be a four-digit year when provided." };
+}
+
+function stringValue(raw: unknown): string | undefined {
+  return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+}
+
+function stringArray(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 50);
 }
 
 export function parseGenerateCopyInput(body: unknown):
@@ -58,119 +81,45 @@ export function parseGenerateCopyInput(body: unknown):
   }
 
   const o = body as Record<string, unknown>;
-
-  const client = typeof o.client === "string" ? o.client.trim() : "";
-  const category = typeof o.category === "string" ? o.category.trim() : "";
-  const location = typeof o.location === "string" ? o.location.trim() : "";
-  const notesRaw = o.notes ?? o.rawNotes;
-  const notes = typeof notesRaw === "string" ? notesRaw.trim() : "";
-
-  const titleRaw = o.title ?? o.projectTitle;
-  const title =
-    typeof titleRaw === "string" && titleRaw.trim() ? titleRaw.trim() : undefined;
-
-  const subRaw = o.subcategory ?? o.subCategory;
-  const subcategory =
-    typeof subRaw === "string" && subRaw.trim() ? subRaw.trim() : undefined;
-
-  if (!client) {
-    return { ok: false, error: "client is required.", status: 400 };
+  const title = stringValue(o.title ?? o.projectTitle);
+  const briefNotes = stringValue(o.briefNotes ?? o.notes ?? o.rawNotes);
+  if (!title && !briefNotes) {
+    return { ok: false, error: "title or briefNotes is required.", status: 400 };
   }
-  if (!category) {
-    return { ok: false, error: "category is required.", status: 400 };
-  }
-  if (!location) {
-    return { ok: false, error: "location is required.", status: 400 };
-  }
+
   const yearResult = normalizeYear(o.year);
   if (!yearResult.ok) {
     return { ok: false, error: yearResult.error, status: 400 };
   }
 
-  return {
-    ok: true,
-    data: {
-      client,
-      category,
-      location,
-      year: yearResult.year,
-      notes: notes || "No extra notes provided. Draft practical, polished case-study copy from the available project details.",
-      title,
-      ...(subcategory ? { subcategory } : {}),
-    },
+  const input: GenerateCopyInput = {
+    ...(title ? { title } : {}),
+    ...(stringValue(o.client) ? { client: stringValue(o.client) } : {}),
+    ...(stringValue(o.category) ? { category: stringValue(o.category) } : {}),
+    ...(stringValue(o.subcategory ?? o.subCategory)
+      ? { subcategory: stringValue(o.subcategory ?? o.subCategory) }
+      : {}),
+    ...(stringValue(o.location) ? { location: stringValue(o.location) } : {}),
+    ...(yearResult.year ? { year: yearResult.year } : {}),
+    ...(briefNotes ? { briefNotes, notes: briefNotes } : {}),
+    ...(stringArray(o.imageNotes).length ? { imageNotes: stringArray(o.imageNotes) } : {}),
+    ...(stringArray(o.imageUrls).length ? { imageUrls: stringArray(o.imageUrls) } : {}),
+    ...(stringValue(o.credits) ? { credits: stringValue(o.credits) } : {}),
   };
+
+  return { ok: true, data: input };
 }
 
 function sentence(parts: Array<string | undefined>) {
   return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
-function titleCase(value: string) {
-  return value
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-    .join(" ");
+function compact(input?: string) {
+  return input?.trim() || "";
 }
 
-export function generateLocalProjectCopy(data: GenerateCopyInput): GenerateCopyResult {
-  const projectTitle = data.title?.trim() || `${data.client} ${data.category}`;
-  const service = data.subcategory ? `${data.category} ${data.subcategory}` : data.category;
-  const note = data.notes.replace(/^No extra notes provided\.\s*/i, "").trim();
-  const noteContext = note && !note.startsWith("Draft practical") ? ` The brief emphasized ${note.replace(/\.$/, "")}.` : "";
-
-  return {
-    opening: sentence([
-      `${projectTitle} was developed as a ${service.toLowerCase()} story for ${data.client}.`,
-      `The goal was to create polished, practical imagery that could carry across web, portfolio, social, and client-facing materials.`,
-    ]),
-    context: sentence([
-      `Photographed in ${data.location} in ${data.year}, the project needed to balance atmosphere, clarity, and commercial usefulness.`,
-      `${noteContext}`,
-      `Every scene was approached with the final delivery in mind so the assets would feel cohesive beyond the shoot day.`,
-    ]),
-    approach: sentence([
-      `BRIGHTLINE built the production around intentional composition, controlled pacing, and a structured shot list.`,
-      `The work focused on strong hero frames, supporting details, and flexible crops that could be reused across digital channels.`,
-    ]),
-    highlight: `${titleCase(service)} visuals prepared for real-world brand use.`,
-    execution: sentence([
-      `Final assets were organized for quick review and practical activation, with attention to naming, sequence, visual consistency, and channel-ready presentation.`,
-    ]),
-    closing: sentence([
-      `The result is a focused visual library for ${data.client}: refined enough for a premium first impression and structured enough for ongoing use.`,
-    ]),
-    seoTitle: `${projectTitle} | BRIGHTLINE Photography`,
-    seoDescription: `${service} project for ${data.client} in ${data.location}, photographed by BRIGHTLINE Photography with structured delivery for web, search, and social.`,
-    tags: Array.from(
-      new Set([
-        data.client,
-        data.category,
-        ...(data.subcategory ? [data.subcategory] : []),
-        data.location,
-        data.year,
-        "BRIGHTLINE Photography",
-        "commercial photography",
-        "structured delivery",
-      ].map((tag) => tag.trim()).filter(Boolean))
-    ).slice(0, 12),
-  };
-}
-
-export function buildGenerateCopyUserPayload(data: GenerateCopyInput): string {
-  return JSON.stringify(
-    {
-      client: data.client,
-      category: data.category,
-      location: data.location,
-      year: data.year,
-      notes: data.notes,
-      ...(data.title ? { title: data.title } : {}),
-      ...(data.subcategory ? { subcategory: data.subcategory } : {}),
-    },
-    null,
-    0
-  );
+function truncate(input: string, max: number) {
+  return input.length <= max ? input : input.slice(0, max - 1).trimEnd();
 }
 
 function parseTags(raw: unknown): string[] {
@@ -178,18 +127,155 @@ function parseTags(raw: unknown): string[] {
   return raw.map((t) => String(t).trim()).filter(Boolean).slice(0, 24);
 }
 
-export function parseGenerateCopyModelJson(parsed: Record<string, unknown>): GenerateCopyResult {
+export function normalizeGeneratedProject(
+  parsed: Record<string, unknown>,
+  input: GenerateCopyInput
+): GenerateCopyResult {
+  const title = String(parsed.title ?? input.title ?? "").trim();
+  const client = String(parsed.client ?? input.client ?? "").trim();
+  const category = String(parsed.category ?? input.category ?? "").trim();
+  const subcategory = String(parsed.subcategory ?? input.subcategory ?? "").trim();
+  const location = String(parsed.location ?? input.location ?? "").trim();
+  const year = String(parsed.year ?? input.year ?? "").trim();
+  const next = String(parsed.next ?? parsed.closing ?? "").trim();
+  const slugRaw = String(parsed.slug ?? "").trim();
+
   return {
+    title,
+    slug: slugify(slugRaw || title || client || "project"),
+    client,
+    category,
+    subcategory,
+    location,
+    year,
     opening: String(parsed.opening ?? "").trim(),
     context: String(parsed.context ?? "").trim(),
     approach: String(parsed.approach ?? "").trim(),
     highlight: String(parsed.highlight ?? "").trim(),
     execution: String(parsed.execution ?? "").trim(),
-    closing: String(parsed.closing ?? "").trim(),
-    seoTitle: String(parsed.seoTitle ?? "").trim(),
-    seoDescription: String(parsed.seoDescription ?? "").trim(),
-    tags: parseTags(parsed.tags),
+    next,
+    credits: String(parsed.credits ?? input.credits ?? "").trim(),
+    seoTitle: truncate(String(parsed.seoTitle ?? "").trim(), 65),
+    seoDescription: truncate(String(parsed.seoDescription ?? "").trim(), 155),
+    tags: parseTags(parsed.tags).slice(0, 12),
   };
+}
+
+export function parseGenerateCopyModelJson(
+  parsed: Record<string, unknown>,
+  input: GenerateCopyInput = {}
+): GenerateCopyResult {
+  return normalizeGeneratedProject(parsed, input);
+}
+
+export function generatedProjectToStudioPayload(result: GenerateCopyResult) {
+  const yearNumber = Number(result.year);
+  return {
+    title: result.title || "Untitled Project",
+    slug: result.slug || undefined,
+    client: result.client || "—",
+    category: result.category || "—",
+    subcategory: result.subcategory || null,
+    location: result.location || "—",
+    year:
+      Number.isFinite(yearNumber) && yearNumber > 0
+        ? Math.trunc(yearNumber)
+        : new Date().getFullYear(),
+    opening: result.opening || "—",
+    context: result.context || "—",
+    approach: result.approach || "—",
+    highlight: result.highlight || "—",
+    execution: result.execution || null,
+    closing: result.next || "Ready for final review and publishing.",
+    seoTitle: result.seoTitle || null,
+    seoDescription: result.seoDescription || null,
+    tags: result.tags,
+    credits: result.credits || null,
+    contentStatus: "WEBSITE_COPY_DRAFTED",
+    websiteCopyDrafted: true,
+    published: false,
+    gallery: [],
+  };
+}
+
+export function generateLocalProjectCopy(data: GenerateCopyInput): GenerateCopyResult {
+  const title = compact(data.title) || compact(data.client) || "Project";
+  const client = compact(data.client);
+  const category = compact(data.category);
+  const subcategory = compact(data.subcategory);
+  const location = compact(data.location);
+  const year = compact(data.year);
+  const brief = compact(data.briefNotes ?? data.notes);
+  const service = [category, subcategory].filter(Boolean).join(" ");
+  const subject = service || "commercial photography";
+
+  return {
+    title,
+    slug: slugify(title),
+    client,
+    category,
+    subcategory,
+    location,
+    year,
+    opening: sentence([
+      `${title} was developed as a focused ${subject.toLowerCase()} project${client ? ` for ${client}` : ""}.`,
+      "The work was shaped for practical marketing use across web, portfolio, and client-facing materials.",
+    ]),
+    context: sentence([
+      location ? `The project is grounded in ${location}${year ? `, ${year}` : ""}.` : undefined,
+      brief ? `The brief emphasized ${brief.replace(/\.$/, "")}.` : undefined,
+      "The copy stays general where the source notes do not provide specific facts.",
+    ]),
+    approach: sentence([
+      "The visual strategy prioritizes clear composition, controlled perspective, useful detail coverage, and a structured final asset set.",
+      "Each frame is considered for how it can support website, marketing, social, and archive use.",
+    ]),
+    highlight: "A structured visual library built for commercial use beyond the shoot day.",
+    execution: "Final presentation should prioritize clean sequencing, consistent naming, and channel-ready delivery.",
+    next: "Ready for final review and publishing.",
+    credits: compact(data.credits),
+    seoTitle: truncate(`${title} | BRIGHTLINE Photography`, 65),
+    seoDescription: truncate(
+      `${subject} project${client ? ` for ${client}` : ""}${location ? ` in ${location}` : ""}, created as structured marketing-ready visual assets.`,
+      155
+    ),
+    tags: Array.from(
+      new Set(
+        [
+          client,
+          category,
+          subcategory,
+          location,
+          year,
+          "BRIGHTLINE Photography",
+          "commercial photography",
+          "marketing-ready assets",
+          "project delivery",
+        ]
+          .map((tag) => tag.trim())
+          .filter(Boolean)
+      )
+    ).slice(0, 12),
+  };
+}
+
+export function buildGenerateCopyUserPayload(data: GenerateCopyInput): string {
+  return JSON.stringify(
+    {
+      ...(data.title ? { title: data.title } : {}),
+      ...(data.client ? { client: data.client } : {}),
+      ...(data.category ? { category: data.category } : {}),
+      ...(data.subcategory ? { subcategory: data.subcategory } : {}),
+      ...(data.location ? { location: data.location } : {}),
+      ...(data.year ? { year: data.year } : {}),
+      ...(data.briefNotes || data.notes ? { briefNotes: data.briefNotes ?? data.notes } : {}),
+      ...(data.imageNotes?.length ? { imageNotes: data.imageNotes } : {}),
+      ...(data.imageUrls?.length ? { imageUrls: data.imageUrls } : {}),
+      ...(data.credits ? { credits: data.credits } : {}),
+    },
+    null,
+    0
+  );
 }
 
 export { GENERATE_COPY_SYSTEM };

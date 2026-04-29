@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { Prisma } from "@prisma/client";
+import type { LeadStatus, Prisma } from "@prisma/client";
 import { hasAdminAccess } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -31,7 +31,7 @@ export default async function AdminStudioLeadsPage({
   const converted = parseConverted(sp.converted);
 
   const where: Prisma.StudioLeadWhereInput = {};
-  if (status) where.status = status as Prisma.LeadStatus;
+  if (status) where.status = status as LeadStatus;
   if (converted !== undefined) {
     where.convertedProjectId = converted ? { not: null } : null;
   }

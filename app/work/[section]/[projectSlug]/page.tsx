@@ -7,16 +7,13 @@ import VideoEmbed from "@/components/VideoEmbed";
 import WorkProjectGallery from "@/components/WorkProjectGallery";
 import PageBackground from "@/components/PageBackground";
 import { normalizeProjectSlug } from "@/lib/slugify";
-import { getPillarBySlug, isPillarSlug } from "@/lib/portfolioPillars";
+import { getPillarBySlug, isKnownPillarSlug } from "@/lib/work-pillar-settings";
 import { getProjectByPillarAndSlug } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
 import { BRAND } from "@/lib/config/brand";
-import { PILLAR_CASE_STUDY_DEFAULTS } from "@/lib/pillarCaseStudyDefaults";
-import {
-  PILLAR_TO_SEO_LINK_PHRASE,
-  PILLAR_TO_SEO_SERVICE_URL,
-} from "@/lib/pillarToSeoServiceUrl";
-import { PILLAR_TO_SERVICE_SLUGS } from "@/lib/pillarToServices";
+import { getPillarCaseStudyDefaults } from "@/lib/pillarCaseStudyDefaults";
+import { getPillarSeoLinkPhrase, getPillarSeoServiceUrl } from "@/lib/pillarToSeoServiceUrl";
+import { getServiceSlugsForPillar } from "@/lib/pillarToServices";
 import { services } from "@/app/services/data";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +27,7 @@ export async function generateMetadata({
   params: Promise<{ section: string; projectSlug: string }>;
 }): Promise<Metadata> {
   const { section, projectSlug } = await params;
-  if (!isPillarSlug(section)) {
+  if (!(await isKnownPillarSlug(section))) {
     return { title: "Project · BRIGHTLINE Photography" };
   }
   const slug = normalizeProjectSlug(projectSlug);
@@ -44,8 +41,8 @@ export async function generateMetadata({
     return { title: "Project · BRIGHTLINE Photography" };
   }
 
-  const pillar = getPillarBySlug(section);
-  const defaults = pillar ? PILLAR_CASE_STUDY_DEFAULTS[pillar.slug] : null;
+  const pillar = await getPillarBySlug(section);
+  const defaults = pillar ? getPillarCaseStudyDefaults(pillar.slug) : null;
   const servicePhrase = defaults?.serviceTypePhrase ?? "Photographer";
   const locationPart = proj.location ? ` in ${proj.location}` : "";
 
@@ -108,12 +105,12 @@ export default async function WorkProjectPage({
 }) {
   const { section: pillarParam, projectSlug } = await params;
 
-  if (!isPillarSlug(pillarParam)) {
+  if (!(await isKnownPillarSlug(pillarParam))) {
     notFound();
   }
 
-  const pillar = getPillarBySlug(pillarParam);
-  if (!pillar) notFound();
+  const pillar = await getPillarBySlug(pillarParam);
+  if (!pillar || pillar.visible === false) notFound();
 
   const slug = normalizeProjectSlug(projectSlug);
   let project;
@@ -134,7 +131,7 @@ export default async function WorkProjectPage({
   const heroVideoId =
     hero?.kind === "VIDEO" && hero.providerId ? hero.providerId : null;
 
-  const defaults = PILLAR_CASE_STUDY_DEFAULTS[pillar.slug];
+  const defaults = getPillarCaseStudyDefaults(pillar.slug);
   const ctaCopy = project.ctaCopy ?? defaults.ctaCopy;
   const whoIsThisFor = project.whoIsThisFor ?? defaults.whoIsThisFor;
   const pageBackgroundMedia =
@@ -148,7 +145,7 @@ export default async function WorkProjectPage({
   const pageBackgroundPoster =
     project.backgroundPosterUrl || hero?.posterKey || hero?.keyThumb || null;
 
-  const serviceSlugs = PILLAR_TO_SERVICE_SLUGS[pillar.slug] ?? [];
+  const serviceSlugs = getServiceSlugsForPillar(pillar.slug);
   const relatedServices = serviceSlugs
     .map((s) => services.find((svc) => svc.slug === s))
     .filter(Boolean) as typeof services;
@@ -439,10 +436,10 @@ export default async function WorkProjectPage({
           <p className="mt-2 text-sm text-white/70">
             This project is part of our{" "}
             <Link
-              href={PILLAR_TO_SEO_SERVICE_URL[pillar.slug]}
+              href={getPillarSeoServiceUrl(pillar.slug)}
               className="text-white underline hover:no-underline"
             >
-              {PILLAR_TO_SEO_LINK_PHRASE[pillar.slug]}
+              {getPillarSeoLinkPhrase(pillar.slug)}
             </Link>
             .{" "}
             {relatedServices.length > 0

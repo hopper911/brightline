@@ -33,10 +33,31 @@ export default function AdminMediaPage() {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pillarOptions, setPillarOptions] = useState<{ slug: string; label: string }[]>(() =>
+    PILLAR_SLUGS.map((s) => ({ slug: s, label: PILLARS.find((p) => p.slug === s)?.label ?? s }))
+  );
   const [sectionFilter, setSectionFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [projectFilter, setProjectFilter] = useState<string>("");
   const [search, setSearch] = useState<string>("");
+
+  useEffect(() => {
+    async function loadPillars() {
+      try {
+        const res = await fetch("/api/admin/work-pillars", { credentials: "include" });
+        const d = (await res.json()) as {
+          ok?: boolean;
+          pillars?: { slug: string; label: string }[];
+        };
+        if (d.ok && d.pillars?.length) {
+          setPillarOptions(d.pillars.map((p) => ({ slug: p.slug, label: p.label })));
+        }
+      } catch {
+        /* keep defaults */
+      }
+    }
+    void loadPillars();
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -92,18 +113,18 @@ export default function AdminMediaPage() {
           className="min-w-[180px] rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
         />
         <div className="flex gap-1 rounded-lg bg-white/5 p-1">
-          {PILLAR_SLUGS.map((slug) => (
+          {pillarOptions.map((opt) => (
             <button
-              key={slug}
+              key={opt.slug}
               type="button"
-              onClick={() => setSectionFilter(sectionFilter === slug ? "" : slug)}
+              onClick={() => setSectionFilter(sectionFilter === opt.slug ? "" : opt.slug)}
               className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-                sectionFilter === slug
+                sectionFilter === opt.slug
                   ? "bg-white/20 text-white"
                   : "text-white/70 hover:bg-white/10 hover:text-white"
               }`}
             >
-              {PILLARS.find((p) => p.slug === slug)?.label ?? slug}
+              {opt.label}
             </button>
           ))}
         </div>

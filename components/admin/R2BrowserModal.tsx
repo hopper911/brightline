@@ -33,6 +33,8 @@ type R2BrowserModalProps = {
   pillarSlug?: string;
   /** When provided with projectId, uses portfolio/{pillarSlug}/{projectSlug}/ for "This project" */
   projectSlug?: string;
+  /** When the modal opens, switch to Custom source with this prefix (e.g. client-galleries/{id}/). */
+  initialCustomPrefix?: string;
 };
 
 export default function R2BrowserModal({
@@ -43,6 +45,7 @@ export default function R2BrowserModal({
   projectId,
   pillarSlug = "architecture",
   projectSlug,
+  initialCustomPrefix,
 }: R2BrowserModalProps) {
   const [pillar, setPillar] = useState<string>(pillarSlug);
   const [source, setSource] = useState<"portfolio" | "project" | "custom">(
@@ -73,6 +76,13 @@ export default function R2BrowserModal({
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollState, setScrollState] = useState({ top: 0, height: 0, scrollHeight: 0, clientHeight: 0 });
+
+  useEffect(() => {
+    if (!isOpen || !initialCustomPrefix?.trim()) return;
+    setSource("custom");
+    const p = initialCustomPrefix.trim().replace(/^\//, "");
+    setCustomPrefix(p.endsWith("/") ? p : `${p}/`);
+  }, [isOpen, initialCustomPrefix]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -410,7 +420,7 @@ export default function R2BrowserModal({
                 <> Try &quot;All portfolio&quot; to browse all media.</>
               ) : null}
               {source === "custom" ? (
-                <> Try prefixes like <code>site/</code>, <code>studio/</code>, <code>portfolio/</code>, or <code>work/</code>.</>
+                <> Try prefixes like <code>site/</code>, <code>studio/</code>, <code>portfolio/</code>, <code>work/</code>, or <code>client-galleries/…</code> for gallery delivery.</>
               ) : null}
             </p>
           ) : keys.length > 0 ? (

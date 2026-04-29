@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 
 type EnvStatus = Record<string, boolean>;
 
+type MissionControlEmailStatus = {
+  provider: string;
+  configured: boolean;
+  emailAddress?: string;
+  displayName?: string;
+  missing: string[];
+};
+
 type SiteSetting = { key: string; value: string | null; updatedAt: string };
 type AutomationRule = {
   id: string;
@@ -15,7 +23,13 @@ type AutomationRule = {
   updatedAt: string;
 };
 
-export default function SettingsClient({ env }: { env: EnvStatus }) {
+export default function SettingsClient({
+  env,
+  emailStatus,
+}: {
+  env: EnvStatus;
+  emailStatus: MissionControlEmailStatus;
+}) {
   const [settings, setSettings] = useState<SiteSetting[]>([]);
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +162,61 @@ export default function SettingsClient({ env }: { env: EnvStatus }) {
           {error}
         </p>
       ) : null}
+
+      <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h2 className="text-xs uppercase tracking-[0.3em] text-white/50">
+          Mission Control · Business mailbox
+        </h2>
+        <p className="mt-3 text-sm text-white/65">
+          This is the mailbox Mission Control uses on{" "}
+          <span className="text-white/85">/studio</span> for inbox sync and send (when SMTP/IMAP is
+          configured). Set <span className="font-mono text-xs text-white/55">STUDIO_OS_*</span> or
+          Resend in Vercel. See <span className="font-mono text-xs text-white/55">DEPLOY.md</span> in the
+          repository root for environment variables.
+        </p>
+
+        {emailStatus.configured && emailStatus.emailAddress ? (
+          <div className="mt-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {emailStatus.provider === "resend" ? (
+                <span className="rounded-full border border-violet-400/35 bg-violet-500/15 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-violet-200/95">
+                  Transactional (Resend)
+                </span>
+              ) : (
+                <span className="rounded-full border border-emerald-400/35 bg-emerald-500/15 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-emerald-200/95">
+                  Business account
+                </span>
+              )}
+              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-white/75">
+                Connected
+              </span>
+            </div>
+            <p className="mt-3 font-mono text-sm text-white/90">
+              {emailStatus.displayName
+                ? `${emailStatus.displayName} · ${emailStatus.emailAddress}`
+                : emailStatus.emailAddress}
+            </p>
+            <p className="mt-1 text-xs text-white/45">
+              Provider: <span className="font-mono text-white/55">{emailStatus.provider}</span>
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
+            <p className="text-sm text-amber-100/95">Mission Control email is not fully configured.</p>
+            {emailStatus.missing.length > 0 ? (
+              <p className="mt-2 text-xs text-amber-100/75">
+                Missing env:{" "}
+                <span className="font-mono text-amber-50/90">{emailStatus.missing.join(", ")}</span>
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-amber-100/75">
+                Set <span className="font-mono">STUDIO_OS_EMAIL_PROVIDER</span> and the related variables
+                in your environment.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-2">
         <section className="rounded-2xl border border-white/10 bg-white/5 p-6">

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { getPillarBySlug, SECTION_TO_PILLAR } from "@/lib/portfolioPillars";
+import { PILLARS } from "@/lib/portfolioPillars";
 import type { WorkSection } from "@prisma/client";
 import { getPublicR2Url } from "@/lib/r2";
 import R2BrowserModal from "@/components/admin/R2BrowserModal";
@@ -140,6 +140,7 @@ export default function AdminWorkEditPage() {
   const id = params.id as string;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [project, setProject] = useState<WorkProject | null>(null);
+  const [sectionToPillar, setSectionToPillar] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -204,8 +205,14 @@ export default function AdminWorkEditPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/work-projects/${id}`);
-      const data = (await res.json()) as { ok: boolean; project?: WorkProject; error?: string };
+      const data = (await res.json()) as {
+        ok: boolean;
+        project?: WorkProject;
+        sectionToPillar?: Record<string, string>;
+        error?: string;
+      };
       if (!res.ok) throw new Error(data.error ?? "Failed to load");
+      if (data.sectionToPillar) setSectionToPillar(data.sectionToPillar);
       const p = data.project;
       if (p) {
         setProject(p);
@@ -695,8 +702,9 @@ export default function AdminWorkEditPage() {
     );
   }
 
-  const pillarSlug = SECTION_TO_PILLAR[project.section];
-  const pillarLabel = getPillarBySlug(pillarSlug)?.label ?? project.section;
+  const pillarSlug = sectionToPillar[project.section] ?? "";
+  const pillarLabel =
+    (PILLARS.find((p) => p.slug === pillarSlug)?.label ?? pillarSlug) || project.section;
   const orderedMedia = [...(project.media ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
   const uploadProgressEntries = Object.entries(uploadProgress);
 

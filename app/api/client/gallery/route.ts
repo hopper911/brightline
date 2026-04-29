@@ -70,6 +70,7 @@ export async function POST(req: Request) {
       workflowEnabled && !selectionsLocked && gallery.status !== "FINALIZED";
 
     let missingPrivate = 0;
+    const { getClientDownloadUrl } = await import("@/lib/image-strategy");
     const images = await Promise.all(
       gallery.images.map(async (image) => {
         const base = {
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
           meta: image.meta ?? null,
         };
 
-        if (!image.storageKey && !image.thumbUrl && !image.fullUrl) {
+        if (!image.storageKey && !image.lowResStorageKey && !image.thumbUrl && !image.fullUrl) {
           missingPrivate += 1;
           return {
             ...base,
@@ -94,18 +95,40 @@ export async function POST(req: Request) {
           };
         }
 
-        const { getClientDownloadUrl } = await import("@/lib/image-strategy");
-        const signed = image.storageKey
+        const lowSigned = image.lowResStorageKey
+          ? await getClientDownloadUrl({ key: image.lowResStorageKey })
+          : null;
+        const highSigned = image.storageKey
           ? await getClientDownloadUrl({ key: image.storageKey })
           : null;
-        const resolvedUrl = signed?.url ?? image.url;
+        const resolvedUrl = lowSigned?.url ?? highSigned?.url ?? image.url;
 
         return {
           ...base,
           url: resolvedUrl,
           thumbUrl: image.thumbUrl ?? resolvedUrl,
-          fullUrl: image.fullUrl ?? resolvedUrl,
+          fullUrl: highSigned?.url ?? image.fullUrl ?? resolvedUrl,
           storageKey: image.storageKey,
+          lowResStorageKey: image.lowResStorageKey,
+          highResWidth: image.highResWidth,
+          highResHeight: image.highResHeight,
+          lowResWidth: image.lowResWidth,
+          lowResHeight: image.lowResHeight,
+        };
+      })
+    );
+    const videos = await Promise.all(
+      gallery.videos.map(async (video) => {
+        const signed = await getClientDownloadUrl({ key: video.storageKey });
+        const poster = video.posterKey ? await getClientDownloadUrl({ key: video.posterKey }) : null;
+        return {
+          id: video.id,
+          title: video.title,
+          filename: video.filename,
+          url: signed.url,
+          posterUrl: poster?.url ?? null,
+          allowDownload: video.allowDownload,
+          sortOrder: video.sortOrder,
         };
       })
     );
@@ -120,10 +143,15 @@ export async function POST(req: Request) {
         slug: gallery.slug,
         description: gallery.description,
         clientNotes: gallery.clientNotes,
+        galleryType: gallery.galleryType,
+        deliveryDriveLink: gallery.deliveryDriveLink,
+        usageGuideText: gallery.usageGuideText,
+        deliveredAt: gallery.deliveredAt?.toISOString() ?? null,
         coverUrl: gallery.coverUrl,
         clientName: gallery.client?.name ?? null,
         projectTitle: gallery.project?.title ?? null,
         images: images.filter(Boolean),
+        videos,
         allowDownload: access.allowDownload && missingPrivate === 0,
         expiresAt: access.expiresAt?.toISOString() ?? null,
         selectionWorkflow: workflowEnabled,

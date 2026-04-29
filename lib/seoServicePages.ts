@@ -1,6 +1,4 @@
 import type { WorkSection } from "@prisma/client";
-import { SECTION_TO_PILLAR } from "@/lib/portfolioPillars";
-import type { PillarSlug } from "@/lib/portfolioPillars";
 
 export type SeoServicePageSlug =
   | "architecture-photographer-nyc"
@@ -137,12 +135,4 @@ export function getSeoServicePageBySlug(
   slug: string
 ): SeoServicePageConfig | null {
   return SEO_SERVICE_PAGES.find((p) => p.slug === slug) ?? null;
-}
-
-export function getProjectHref(
-  section: WorkSection,
-  projectSlug: string
-): string {
-  const pillar = SECTION_TO_PILLAR[section] as PillarSlug;
-  return `/work/${pillar}/${projectSlug}`;
 }

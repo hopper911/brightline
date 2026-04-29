@@ -24,7 +24,7 @@ export default function ClientAccessForm() {
       className="mt-8 flex w-full max-w-md flex-col gap-3"
     >
       <input
-        className="w-full rounded-full border border-black/20 bg-white/70 px-6 py-3 text-sm text-black/80"
+        className="w-full rounded-full border border-white/15 bg-white/10 px-6 py-3 text-sm text-white placeholder:text-white/40"
         placeholder="Access code"
         name="code"
         required

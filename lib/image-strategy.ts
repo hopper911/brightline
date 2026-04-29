@@ -10,7 +10,7 @@ export async function getClientUploadUrl(options: GetClientUploadUrlOptions) {
   return signPut({
     key: options.key,
     contentType: options.contentType ?? "image/jpeg",
-    access: "public-read",
+    access: "private",
   });
 }
 

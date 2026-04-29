@@ -4,9 +4,8 @@ import { requireProjectsApiAuth } from "@/lib/api/automation-auth";
 import {
   buildGenerateCopyUserPayload,
   GENERATE_COPY_SYSTEM,
-  generateLocalProjectCopy,
+  normalizeGeneratedProject,
   parseGenerateCopyInput,
-  parseGenerateCopyModelJson,
   type GenerateCopyResult,
 } from "@/lib/studio/generate-copy";
 
@@ -54,13 +53,10 @@ export async function POST(req: Request) {
   }
 
   if (!apiKey) {
-    const result = generateLocalProjectCopy(parsed.data);
-    return NextResponse.json({
-      ok: true,
-      ...result,
-      provider: "local-template",
-      warning: "OPENAI_API_KEY is not configured, so Studio OS used the built-in copy generator.",
-    });
+    return NextResponse.json(
+      { ok: false, error: "OPENAI_API_KEY is not configured." },
+      { status: 500 }
+    );
   }
 
   const model = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
@@ -86,21 +82,24 @@ export async function POST(req: Request) {
       raw = JSON.parse(text) as Record<string, unknown>;
     } catch {
       return NextResponse.json(
-        { ok: false, error: "Model returned invalid JSON." },
+        {
+          ok: false,
+          error: "Model returned invalid JSON.",
+          ...(process.env.NODE_ENV === "development" ? { rawResponse: text } : {}),
+        },
         { status: 502 }
       );
     }
 
-    const result = parseGenerateCopyModelJson(raw);
-    return NextResponse.json({ ok: true, ...result });
+    const result = normalizeGeneratedProject(raw, parsed.data);
+    return NextResponse.json(result);
   } catch (err: unknown) {
-    const result = generateLocalProjectCopy(parsed.data);
-    return NextResponse.json({
-      ok: true,
-      ...result,
-      provider: "local-template",
-      warning: safeClientMessage(err),
-      providerStatus: openAiStatus(err),
-    });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: safeClientMessage(err),
+      },
+      { status: openAiStatus(err) }
+    );
   }
 }

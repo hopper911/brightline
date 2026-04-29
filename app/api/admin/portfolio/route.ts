@@ -4,6 +4,7 @@ import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { normalizeProjectSlug } from "@/lib/slugify";
 import { createStudioProjectRecord } from "@/lib/studio/studio-project-cms";
 import { getPublicR2Url } from "@/lib/r2";
+import { getWorkPillarList } from "@/lib/work-pillar-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,6 +47,23 @@ function buildStudioPlaceholders(params: {
   };
 }
 
+async function inferDefaultWorkPillar(categorySlug: string, categoryName: string): Promise<string | null> {
+  const raw = `${categorySlug} ${categoryName}`.toLowerCase();
+  const preferred = raw.includes("corporate")
+    ? "corporate"
+    : raw.includes("architecture") || raw.includes("real-estate") || raw.includes("real estate")
+      ? "architecture"
+      : "advertising";
+
+  const pillars = await getWorkPillarList();
+  return (
+    pillars.find((p) => p.slug === preferred)?.slug ??
+    pillars.find((p) => p.visible)?.slug ??
+    pillars[0]?.slug ??
+    null
+  );
+}
+
 function noStoreJson(body: unknown, init?: { status?: number }) {
   const res = NextResponse.json(body, init);
   res.headers.set("Cache-Control", "private, no-store, max-age=0");
@@ -62,6 +80,9 @@ export async function GET(req: Request) {
       include: {
         images: { orderBy: { sortOrder: "asc" } },
         categoryRef: true,
+        StudioProject: {
+          select: { id: true, slug: true, published: true, pillar: true },
+        },
       },
       orderBy: { updatedAt: "desc" },
     });
@@ -171,6 +192,7 @@ export async function POST(req: Request) {
 
     const studioSlug = normalizeProjectSlug(project.slug);
     const studioExisting = await prisma.studioProject.findUnique({ where: { slug: studioSlug } });
+    const defaultPillar = await inferDefaultWorkPillar(project.categorySlug, project.category);
 
     const studioProject =
       studioExisting ??
@@ -182,6 +204,7 @@ export async function POST(req: Request) {
         location: project.location?.trim() || DEFAULT_STUDIO_LOCATION,
         year: parseYearFromPortfolio(project.year),
         published: project.published,
+        pillar: defaultPillar,
         ...buildStudioPlaceholders({
           title: project.title,
           category: project.category,
@@ -201,12 +224,13 @@ export async function POST(req: Request) {
 
     if (studioExisting) {
       const desiredPublished = project.published;
-      if (studioExisting.published !== desiredPublished) {
+      if (studioExisting.published !== desiredPublished || (desiredPublished && !studioExisting.pillar)) {
         await prisma.studioProject.update({
           where: { id: studioExisting.id },
           data: {
             published: desiredPublished,
             publishedAt: desiredPublished ? new Date() : null,
+            ...(desiredPublished && !studioExisting.pillar ? { pillar: defaultPillar } : {}),
           },
         });
       }
@@ -349,6 +373,7 @@ export async function PATCH(req: Request) {
     const desiredStudioSlug = normalizeProjectSlug(project.slug);
     const desiredLocation = project.location?.trim() || DEFAULT_STUDIO_LOCATION;
     const desiredYear = parseYearFromPortfolio(project.year);
+    const defaultPillar = await inferDefaultWorkPillar(project.categorySlug, project.category);
 
     let studio =
       project.studioProjectId != null
@@ -375,6 +400,7 @@ export async function PATCH(req: Request) {
         location: desiredLocation,
         year: desiredYear,
         published: project.published,
+        pillar: defaultPillar,
         ...buildStudioPlaceholders({
           title: project.title,
           category: project.category,
@@ -414,6 +440,7 @@ export async function PATCH(req: Request) {
         year: desiredYear,
         published: desiredPublished,
         publishedAt: desiredPublished ? new Date() : null,
+        ...(desiredPublished && !studio.pillar ? { pillar: defaultPillar } : {}),
       },
     });
 

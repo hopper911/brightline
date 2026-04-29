@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { WebsiteBlock, WebsiteBlockItem, WebsiteBlockType, WebsitePage } from "@/lib/website-pages";
 import type { SiteTheme } from "@/lib/site-theme";
 import type { SiteNavItem } from "@/lib/site-nav";
+import type { WorkPillarNavItem } from "@/lib/work-pillar-settings";
+import { mergeWorkPillarNavIntoSiteNav } from "@/lib/site-nav";
 import { getPublicR2Url } from "@/lib/r2";
 import R2BrowserModal from "../work/R2BrowserModal";
 
@@ -154,12 +156,47 @@ export default function WebsitePagesClient({
   const [pages, setPages] = useState<WebsitePage[]>(initialPages);
   const [theme, setTheme] = useState<SiteTheme>(initialTheme);
   const [nav, setNav] = useState<SiteNavItem[]>(initialNav);
+  const [pillarNav, setPillarNav] = useState<WorkPillarNavItem[]>([]);
   const [selectedId, setSelectedId] = useState(initialPages[0]?.id ?? "");
   const [selectedBlockId, setSelectedBlockId] = useState(initialPages[0]?.blocks[0]?.id ?? "");
   const [newBlockType, setNewBlockType] = useState<WebsiteBlockType>("text");
   const [r2Target, setR2Target] = useState<R2Target | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadPillars() {
+      try {
+        const res = await fetch("/api/admin/work-pillars", { credentials: "include" });
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          pillars?: Array<{ slug: string; label: string; visible?: boolean }>;
+        };
+        if (!res.ok || !json.ok || !Array.isArray(json.pillars)) return;
+        const next = json.pillars
+          .filter((p) => p && p.visible !== false)
+          .map((p) => ({ slug: p.slug, href: `/work/${p.slug}`, label: p.label })) satisfies WorkPillarNavItem[];
+        setPillarNav(next);
+      } catch {
+        // ignore — preview stays empty
+      }
+    }
+    void loadPillars();
+  }, []);
+
+  const navWithPillarsPreview = useMemo(
+    () => mergeWorkPillarNavIntoSiteNav(nav, pillarNav),
+    [nav, pillarNav]
+  );
+
+  const workHubVisible = useMemo(() => {
+    return navWithPillarsPreview.some((i) => (i.id === "work" || i.id === "projects") && i.visible);
+  }, [navWithPillarsPreview]);
+
+  const autoPillarLinks = useMemo(
+    () => navWithPillarsPreview.filter((i) => i.id.startsWith("work_pillar_") && i.visible),
+    [navWithPillarsPreview]
+  );
 
   const selected = useMemo(
     () => pages.find((page) => page.id === selectedId) ?? pages[0],
@@ -580,6 +617,46 @@ export default function WebsitePagesClient({
             Save nav
           </button>
         </div>
+
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-white/55">
+                Auto Work pillar links (preview)
+              </p>
+              <p className="mt-1 text-xs text-white/60">
+                These links appear in the site header after your Work link. Toggle them under{" "}
+                <Link href="/admin/work-pillars" className="underline text-white/80 hover:text-white">
+                  Work pillars
+                </Link>
+                .
+              </p>
+            </div>
+          </div>
+
+          {!workHubVisible ? (
+            <p className="mt-3 text-xs text-amber-200/80">
+              Work is hidden in navigation, so pillar links will not be injected.
+            </p>
+          ) : autoPillarLinks.length === 0 ? (
+            <p className="mt-3 text-xs text-white/55">
+              No visible pillars (or pillars not loaded yet). If this is unexpected, check Work pillars.
+            </p>
+          ) : (
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              {autoPillarLinks.map((item) => (
+                <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/25 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-white/85">{item.label}</p>
+                    <p className="truncate font-mono text-[0.7rem] text-white/50">{item.href}</p>
+                  </div>
+                  <span className="text-[0.65rem] uppercase tracking-[0.2em] text-white/40">Auto</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="mt-5 space-y-3">
           {nav.map((item, index) => (
             <div key={item.id} className="grid gap-3 rounded-xl border border-white/10 bg-black/20 p-3 md:grid-cols-[90px_1fr_1fr_90px_120px] md:items-center">

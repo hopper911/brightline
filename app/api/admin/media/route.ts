@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { SECTION_TO_PILLAR, isPillarSlug } from "@/lib/portfolioPillars";
+import { WORK_SECTIONS } from "@/lib/portfolioPillars";
+import { getSectionToPillarSlugMap } from "@/lib/work-pillar-settings";
 import type { WorkSection } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -19,11 +20,12 @@ export async function GET(req: Request) {
     const projectIdParam = url.searchParams.get("projectId");
     const searchParam = url.searchParams.get("search")?.trim().toLowerCase() ?? "";
 
+    const sectionMap = await getSectionToPillarSlugMap();
+
     const whereSection: { section?: WorkSection | { in: WorkSection[] } } = {};
-    if (sectionParam && isPillarSlug(sectionParam)) {
-      const sections = (["ACD", "REA", "CUL", "BIZ", "TRI"] as WorkSection[]).filter(
-        (s) => SECTION_TO_PILLAR[s] === sectionParam
-      );
+    if (sectionParam?.trim()) {
+      const slug = sectionParam.trim().toLowerCase();
+      const sections = WORK_SECTIONS.filter((s) => sectionMap[s] === slug);
       if (sections.length > 0) {
         whereSection.section = { in: sections };
       }
@@ -62,7 +64,7 @@ export async function GET(req: Request) {
       projectId: pm.project.id,
       projectTitle: pm.project.title,
       projectSlug: pm.project.slug,
-      pillarSlug: SECTION_TO_PILLAR[pm.project.section],
+      pillarSlug: sectionMap[pm.project.section],
     }));
 
     if (searchParam) {
@@ -85,7 +87,7 @@ export async function GET(req: Request) {
       id: p.id,
       title: p.title,
       slug: p.slug,
-      pillarSlug: SECTION_TO_PILLAR[p.section],
+      pillarSlug: sectionMap[p.section],
     }));
 
     return NextResponse.json({

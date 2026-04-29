@@ -62,6 +62,9 @@ export async function POST(req: Request) {
     slug?: string;
     description?: string;
     coverUrl?: string;
+    deliveryDriveLink?: string | null;
+    usageGuideText?: string | null;
+    deliveredAt?: string | null;
     published?: boolean;
     clientId?: string | null;
     projectId?: string | null;
@@ -92,6 +95,9 @@ export async function POST(req: Request) {
       slug,
       description: body.description || null,
       coverUrl: body.coverUrl || null,
+      deliveryDriveLink: body.deliveryDriveLink || null,
+      usageGuideText: body.usageGuideText || null,
+      deliveredAt: body.deliveredAt ? new Date(body.deliveredAt) : null,
       published: Boolean(body.published),
       clientId: body.clientId || null,
       projectId: body.projectId || null,

@@ -8,10 +8,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { MediaAsset } from "@prisma/client";
+import type { PillarConfig } from "@/lib/portfolioPillars";
 import { getPublicR2Url } from "@/lib/r2";
 import { slugify } from "@/lib/slugify";
 import R2BrowserModal from "@/components/admin/R2BrowserModal";
-import { GenerateCopyButton } from "@/components/admin/studio-os/GenerateCopyButton";
 import { ProjectStatusBadge } from "@/components/admin/studio-os/ProjectStatusBadge";
 import { PublishProjectButton } from "@/components/admin/studio-os/PublishProjectButton";
 
@@ -67,6 +67,7 @@ type StudioProjectPayload = {
   tags: string[];
   credits: string | null;
   featured: boolean;
+  pillar: string | null;
   published: boolean;
   publishedAt: string | null;
   heroImageId: string | null;
@@ -112,8 +113,12 @@ export default function StudioProjectForm({ projectId }: Props) {
   const [seoDescription, setSeoDescription] = useState("");
   const [tagsRaw, setTagsRaw] = useState("");
   const [credits, setCredits] = useState("");
-  const [aiNotes, setAiNotes] = useState("");
+  const [generatorBriefNotes, setGeneratorBriefNotes] = useState("");
+  const [generatorImageUrlsRaw, setGeneratorImageUrlsRaw] = useState("");
+  const [generatorSaveToProject, setGeneratorSaveToProject] = useState(false);
   const [isFeatured, setIsFeatured] = useState(false);
+  const [workPillar, setWorkPillar] = useState("");
+  const [pillarOptions, setPillarOptions] = useState<Array<Pick<PillarConfig, "slug" | "label">>>([]);
   const [published, setPublished] = useState(false);
   const [contentStatus, setContentStatus] = useState("NONE");
   const [captionDrafted, setCaptionDrafted] = useState(false);
@@ -127,13 +132,32 @@ export default function StudioProjectForm({ projectId }: Props) {
   const [galleryMedia, setGalleryMedia] = useState<GalleryRow[]>([]);
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
   const [error, setError] = useState("");
-  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [generatorStatus, setGeneratorStatus] = useState<"idle" | "loading" | "error">("idle");
   const [pubBusy, setPubBusy] = useState(false);
   const [r2HeroOpen, setR2HeroOpen] = useState(false);
   const [r2GalleryOpen, setR2GalleryOpen] = useState(false);
+  const [r2GeneratorOpen, setR2GeneratorOpen] = useState(false);
   const [r2BackgroundTarget, setR2BackgroundTarget] = useState<"backgroundMedia" | "backgroundPoster" | null>(null);
 
   const computedSlug = slug.trim() || slugify(title) || "project";
+
+  useEffect(() => {
+    async function loadPillars() {
+      try {
+        const res = await adminFetch("/api/admin/work-pillars");
+        const data = (await res.json()) as {
+          ok?: boolean;
+          pillars?: Array<Pick<PillarConfig, "slug" | "label">>;
+        };
+        if (res.ok && data.ok && Array.isArray(data.pillars)) {
+          setPillarOptions(data.pillars.map((p) => ({ slug: p.slug, label: p.label })));
+        }
+      } catch {
+        setPillarOptions([]);
+      }
+    }
+    void loadPillars();
+  }, []);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -167,6 +191,7 @@ export default function StudioProjectForm({ projectId }: Props) {
       setTagsRaw((p.tags ?? []).join(", "));
       setCredits(p.credits ?? "");
       setIsFeatured(p.featured);
+      setWorkPillar(p.pillar ?? "");
       setPublished(p.published);
       setContentStatus(p.contentStatus ?? "NONE");
       setCaptionDrafted(Boolean(p.captionDrafted));
@@ -236,6 +261,7 @@ export default function StudioProjectForm({ projectId }: Props) {
       tags,
       credits: credits.trim() || null,
       featured: isFeatured,
+      pillar: workPillar || null,
       contentStatus,
       captionDrafted,
       websiteCopyDrafted,
@@ -296,7 +322,12 @@ export default function StudioProjectForm({ projectId }: Props) {
       const res = await adminFetch("/api/projects/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: projectId, published: true }),
+        body: JSON.stringify({
+          id: projectId,
+          published: true,
+          featured: isFeatured,
+          pillar: workPillar || null,
+        }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Publish failed");
@@ -330,61 +361,118 @@ export default function StudioProjectForm({ projectId }: Props) {
     }
   }
 
-  async function generateAi() {
-    setAiStatus("loading");
+  function hasGeneratorTargetContent() {
+    return [
+      title,
+      slug,
+      client,
+      category,
+      subcategory,
+      location,
+      year === "" ? "" : String(year),
+      opening,
+      context,
+      approach,
+      highlight,
+      execution,
+      closing,
+      credits,
+      seoTitle,
+      seoDescription,
+      tagsRaw,
+    ].some((value) => value.trim().length > 0);
+  }
+
+  async function generateProjectCopy() {
+    if (hasGeneratorTargetContent()) {
+      const ok = window.confirm("This will replace existing project copy. Continue?");
+      if (!ok) return;
+    }
+
+    setGeneratorStatus("loading");
     setError("");
-    if (
-      !client.trim() ||
-      !category.trim() ||
-      !location.trim()
-    ) {
-      setError("Fill client, category, and location before generating.");
-      setAiStatus("idle");
+    const briefNotes = generatorBriefNotes.trim();
+    if (!title.trim() && !briefNotes) {
+      setError("Add a title or brief notes before generating.");
+      setGeneratorStatus("idle");
       return;
     }
     try {
-      const y = yearNumber();
-      const res = await adminFetch("/api/projects/generate-copy", {
+      const imageUrls = generatorImageUrlsRaw
+        .split(/\r?\n/)
+        .map((url) => url.trim())
+        .filter(Boolean);
+      const res = await adminFetch("/api/projects/generate-from-brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          client: client.trim(),
-          category: category.trim(),
-          location: location.trim(),
-          year: y,
-          notes: aiNotes.trim(),
           title: title.trim() || undefined,
-          ...(subcategory.trim() ? { subcategory: subcategory.trim() } : {}),
+          client: client.trim() || undefined,
+          category: category.trim() || undefined,
+          subcategory: subcategory.trim() || undefined,
+          location: location.trim() || undefined,
+          year: year === "" ? undefined : String(year),
+          briefNotes: briefNotes || undefined,
+          imageUrls,
+          saveToDatabase: generatorSaveToProject,
+          projectId,
         }),
       });
       const data = (await res.json()) as {
         ok?: boolean;
         error?: string;
+        title?: string;
+        slug?: string;
+        client?: string;
+        category?: string;
+        subcategory?: string;
+        location?: string;
+        year?: string;
         opening?: string;
         context?: string;
         approach?: string;
         highlight?: string;
         execution?: string;
-        closing?: string;
+        next?: string;
+        credits?: string;
         seoTitle?: string;
         seoDescription?: string;
         tags?: string[];
+        savedProjectId?: string;
+        warning?: string;
       };
       if (!res.ok) throw new Error(data.error ?? "AI request failed");
-      if (data.opening) setOpening(data.opening);
-      if (data.context) setContext(data.context);
-      if (data.approach) setApproach(data.approach);
-      if (data.highlight) setHighlight(data.highlight);
+      if (data.title !== undefined) setTitle(data.title);
+      if (data.slug !== undefined) setSlug(data.slug);
+      if (data.client !== undefined) setClient(data.client);
+      if (data.category !== undefined) setCategory(data.category);
+      if (data.subcategory !== undefined) setSubcategory(data.subcategory);
+      if (data.location !== undefined) setLocation(data.location);
+      if (data.year !== undefined) {
+        const y = Number(data.year);
+        setYear(Number.isFinite(y) ? y : "");
+      }
+      if (data.opening !== undefined) setOpening(data.opening);
+      if (data.context !== undefined) setContext(data.context);
+      if (data.approach !== undefined) setApproach(data.approach);
+      if (data.highlight !== undefined) setHighlight(data.highlight);
       if (data.execution !== undefined) setExecution(data.execution);
-      if (data.closing) setClosing(data.closing);
-      if (data.seoTitle) setSeoTitle(data.seoTitle);
-      if (data.seoDescription) setSeoDescription(data.seoDescription);
+      if (data.next !== undefined) setClosing(data.next);
+      if (data.credits !== undefined) setCredits(data.credits);
+      if (data.seoTitle !== undefined) setSeoTitle(data.seoTitle);
+      if (data.seoDescription !== undefined) setSeoDescription(data.seoDescription);
       if (data.tags?.length) setTagsRaw(data.tags.join(", "));
       setWebsiteCopyDrafted(true);
-      setContentStatus((current) => current === "NONE" ? "WEBSITE_COPY_DRAFTED" : current);
-      setAiStatus("idle");
+      setContentStatus((current) =>
+        current === "NONE" ? "WEBSITE_COPY_DRAFTED" : current
+      );
+      if (data.warning) setError(data.warning);
+      setGeneratorStatus("idle");
+      if (!projectId && data.savedProjectId) {
+        router.push(`/admin/projects/${data.savedProjectId}/edit`);
+      }
     } catch (e) {
-      setAiStatus("error");
+      setGeneratorStatus("error");
       setError(e instanceof Error ? e.message : "AI failed");
     }
   }
@@ -549,6 +637,34 @@ export default function StudioProjectForm({ projectId }: Props) {
     }
   }
 
+  const GENERATOR_IMAGE_EXT = /\.(jpg|jpeg|png|webp|gif|avif)$/i;
+
+  function mergeGeneratorImageUrlLines(lines: string[]) {
+    setGeneratorImageUrlsRaw((prev) => {
+      const set = new Set(
+        prev
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter(Boolean)
+      );
+      for (const line of lines) {
+        if (line) set.add(line);
+      }
+      return [...set].join("\n");
+    });
+  }
+
+  async function addGeneratorImagesFromR2(keys: string[]) {
+    const imageKeys = keys.filter((k) => GENERATOR_IMAGE_EXT.test(k));
+    const urls = imageKeys.map((k) => getPublicR2Url(k.replace(/^\/+/, ""))).filter(Boolean);
+    if (urls.length === 0) {
+      setR2GeneratorOpen(false);
+      return;
+    }
+    mergeGeneratorImageUrlLines(urls);
+    setR2GeneratorOpen(false);
+  }
+
   async function setHero(mediaId: string) {
     if (!projectId) return;
     setHeroImageId(mediaId);
@@ -577,6 +693,59 @@ export default function StudioProjectForm({ projectId }: Props) {
           {error}
         </p>
       ) : null}
+
+      <section className="space-y-4 rounded-2xl border border-black/10 bg-white/70 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xs font-medium uppercase tracking-[0.3em] text-black/50">
+              AI Project Generator
+            </h2>
+            <p className="mt-2 text-xs text-black/50">
+              Generate structured Studio OS project copy from brief notes and optional image URLs.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={generatorStatus === "loading"}
+            onClick={() => void generateProjectCopy()}
+          >
+            {generatorStatus === "loading" ? "Generating..." : "Generate Project Copy"}
+          </button>
+        </div>
+        <textarea
+          className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
+          placeholder="Brief Notes"
+          rows={4}
+          value={generatorBriefNotes}
+          onChange={(e) => setGeneratorBriefNotes(e.target.value)}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-black/45">Public URLs or R2-signed links, one per line</p>
+          <button
+            type="button"
+            className="btn btn-ghost text-xs uppercase tracking-[0.18em]"
+            onClick={() => setR2GeneratorOpen(true)}
+          >
+            Add from R2
+          </button>
+        </div>
+        <textarea
+          className="w-full rounded-xl border border-black/10 px-4 py-3 font-mono text-xs"
+          placeholder="Image URLs, one per line"
+          rows={4}
+          value={generatorImageUrlsRaw}
+          onChange={(e) => setGeneratorImageUrlsRaw(e.target.value)}
+        />
+        <label className="flex items-center gap-2 text-sm text-black/70">
+          <input
+            type="checkbox"
+            checked={generatorSaveToProject}
+            onChange={(e) => setGeneratorSaveToProject(e.target.checked)}
+          />
+          Save generated copy to project
+        </label>
+      </section>
 
       <section className="space-y-4 rounded-2xl border border-black/10 bg-white/70 p-6">
         <h2 className="text-xs font-medium uppercase tracking-[0.3em] text-black/50">Basic info</h2>
@@ -736,26 +905,6 @@ export default function StudioProjectForm({ projectId }: Props) {
         <p className="text-xs text-black/50">
           Manual checklist only. Studio OS will suggest opportunities but will never post automatically.
         </p>
-      </section>
-
-      <section className="space-y-4 rounded-2xl border border-black/10 bg-white/70 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xs font-medium uppercase tracking-[0.3em] text-black/50">AI generation</h2>
-          <GenerateCopyButton
-            loading={aiStatus === "loading"}
-            onClick={() => void generateAi()}
-          />
-        </div>
-        <p className="text-xs text-black/50">
-          Fills content and SEO from basic info, year, and optional notes. Requires client, category, and location.
-        </p>
-        <textarea
-          className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
-          placeholder="Notes for AI (brief, deliverables, tone)"
-          rows={4}
-          value={aiNotes}
-          onChange={(e) => setAiNotes(e.target.value)}
-        />
       </section>
 
       <section className="space-y-4 rounded-2xl border border-black/10 bg-white/70 p-6">
@@ -1010,6 +1159,17 @@ export default function StudioProjectForm({ projectId }: Props) {
           setR2BackgroundTarget(null);
         }}
       />
+      <R2BrowserModal
+        isOpen={r2GeneratorOpen}
+        onClose={() => setR2GeneratorOpen(false)}
+        mode="multiple"
+        projectId={projectId}
+        pillarSlug={workPillar || "architecture"}
+        projectSlug={computedSlug}
+        onAddKeys={async (keys) => {
+          await addGeneratorImagesFromR2(keys);
+        }}
+      />
 
       <section className="space-y-4 rounded-2xl border border-black/10 bg-white/70 p-6">
         <h2 className="text-xs font-medium uppercase tracking-[0.3em] text-black/50">SEO</h2>
@@ -1040,14 +1200,45 @@ export default function StudioProjectForm({ projectId }: Props) {
           <span>Status:</span> <ProjectStatusBadge published={published} />
           {published ? <span>· Use Unpublish to return to draft.</span> : null}
         </p>
-        <label className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-black/60">
-          <input
-            type="checkbox"
-            checked={isFeatured}
-            onChange={(e) => setIsFeatured(e.target.checked)}
-          />
-          Featured
-        </label>
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.7fr)]">
+          <label className="space-y-2">
+            <span className="block text-xs font-medium uppercase tracking-[0.3em] text-black/50">
+              Work pillar
+            </span>
+            <select
+              className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm"
+              value={workPillar}
+              onChange={(e) => setWorkPillar(e.target.value)}
+            >
+              <option value="">No pillar selected</option>
+              {pillarOptions.map((pillar) => (
+                <option key={pillar.slug} value={pillar.slug}>
+                  {pillar.label}
+                </option>
+              ))}
+            </select>
+            <span className="block text-xs text-black/50">
+              Selecting a pillar places this project on its `/work/{workPillar || "pillar"}` page.
+            </span>
+          </label>
+          <label className="flex items-center gap-3 rounded-xl border border-black/10 bg-black/[0.03] px-4 py-3 text-xs uppercase tracking-[0.3em] text-black/60">
+            <input
+              type="checkbox"
+              checked={isFeatured}
+              onChange={(e) => setIsFeatured(e.target.checked)}
+            />
+            Featured on /work
+          </label>
+        </div>
+        {published ? (
+          <Link
+            href={`/work/${computedSlug}`}
+            className="inline-flex text-sm font-medium text-black underline-offset-4 hover:underline"
+            target="_blank"
+          >
+            View live project
+          </Link>
+        ) : null}
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"

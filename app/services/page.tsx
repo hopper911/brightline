@@ -113,6 +113,33 @@ export default async function ServicesPage() {
         </p>
       </section>
 
+      <section className="mt-12 grid gap-8 rounded-[24px] border border-white/10 bg-white/[0.04] p-6 md:grid-cols-[1.1fr_0.9fr] md:p-8">
+        <div>
+          <p className="text-xs uppercase tracking-[0.35em] text-white/55">
+            Full-service production
+          </p>
+          <h2 className="mt-3 font-display text-2xl text-white">
+            Photography planned around how your team will actually use the images.
+          </h2>
+        </div>
+        <div className="space-y-4 text-sm leading-relaxed text-white/72">
+          <p>
+            BRIGHTLINE Photography provides commercial image production for architecture,
+            real estate, hospitality, interiors, fashion, advertising, and brand campaigns.
+            Each service is shaped around the client&apos;s business goal: launch a property,
+            support leasing, refresh a website, build a campaign, document a designed
+            environment, or create a long-term visual library.
+          </p>
+          <p>
+            The process includes planning, shot-list development, production, editing,
+            retouching direction, organized delivery, and publishing-ready file preparation.
+            The result is not just a set of polished photographs, but a usable asset system
+            your team can deploy across web, search, social, decks, listings, press, and
+            internal marketing.
+          </p>
+        </div>
+      </section>
+
       {/* Credibility Stats */}
       <section className="mt-12 rounded-[24px] border border-white/10 bg-white/[0.04] p-6 md:p-8">
         <CredibilityBar variant="dark" showDescription />
@@ -135,32 +162,32 @@ export default async function ServicesPage() {
             <Link
               key={service.slug}
               href={`/services/${service.slug}`}
-              className="group overflow-hidden rounded-[24px] border border-black/10 bg-white shadow-sm transition-all hover:border-black/20 hover:shadow-lg"
+              className="group overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.05] shadow-sm transition-all hover:border-white/25 hover:bg-white/[0.07]"
             >
-              <div className="h-44 overflow-hidden bg-black/10">
+              <div className="h-44 overflow-hidden bg-black/30">
                 <ServicePreviewMedia src={service.heroVideo || service.heroImage} title={service.title} />
               </div>
               <div className="p-6">
-              <h3 className="font-display text-xl text-black">{service.title}</h3>
-              <p className="mt-3 text-sm text-black/70">{service.summary}</p>
+              <h3 className="font-display text-xl text-white">{service.title}</h3>
+              <p className="mt-3 text-sm text-white/70">{service.summary}</p>
               
-              <div className="mt-6 border-t border-black/10 pt-4">
-                <p className="text-xs uppercase tracking-[0.28em] text-black/50">
+              <div className="mt-6 border-t border-white/10 pt-4">
+                <p className="text-xs uppercase tracking-[0.28em] text-white/55">
                   {service.pricing.label}
                 </p>
-                <p className="font-display text-lg text-black">{service.pricing.range}</p>
+                <p className="font-display text-lg text-white">{service.pricing.range}</p>
               </div>
               
               <ul className="mt-4 space-y-2">
                 {service.deliverables.slice(0, 3).map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-black/60">
-                    <span className="mt-1.5 h-1 w-1 rounded-full bg-black/40" />
+                  <li key={item} className="flex items-start gap-2 text-sm text-white/70">
+                    <span className="mt-1.5 h-1 w-1 rounded-full bg-white/45" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
               
-              <span className="mt-6 inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-black/60 group-hover:text-black transition-colors">
+              <span className="mt-6 inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-white/70 group-hover:text-white transition-colors">
                 View details
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M5 12h14M12 5l7 7-7 7" />
@@ -195,15 +222,15 @@ export default async function ServicesPage() {
       </section>
 
       <section className="mt-16" aria-labelledby="structured-delivery">
-        <div className="rounded-[24px] border border-black/10 bg-white p-6 md:p-8">
-          <p className="text-xs uppercase tracking-[0.35em] text-black/50" id="structured-delivery">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-6 md:p-8">
+          <p className="text-xs uppercase tracking-[0.35em] text-white/60" id="structured-delivery">
             {STRUCTURED_DELIVERY.headline}
           </p>
-          <p className="mt-3 max-w-2xl text-base text-black/70">{STRUCTURED_DELIVERY.intro}</p>
+          <p className="mt-3 max-w-2xl text-base text-white/80">{STRUCTURED_DELIVERY.intro}</p>
           <ul className="mt-6 grid gap-3 sm:grid-cols-2">
             {STRUCTURED_DELIVERY.bullets.map((line) => (
-              <li key={line} className="flex gap-2 text-sm text-black/70">
-                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-black/35" aria-hidden />
+              <li key={line} className="flex gap-2 text-sm text-white/80">
+                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-white/45" aria-hidden />
                 {line}
               </li>
             ))}
@@ -230,42 +257,42 @@ export default async function ServicesPage() {
 
       {/* Turnaround & Licensing */}
       <section className="mt-20 grid gap-6 md:grid-cols-2" aria-labelledby="turnaround">
-        <div className="rounded-[24px] border border-black/10 bg-white p-6 md:p-8">
-          <p className="text-xs uppercase tracking-[0.28em] text-black/50">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-6 md:p-8">
+          <p className="text-xs uppercase tracking-[0.28em] text-white/60">
             Turnaround
           </p>
-          <h3 className="font-display text-xl text-black mt-3">
+          <h3 className="font-display text-xl text-white mt-3">
             Delivery timelines
           </h3>
           <div className="mt-6 space-y-4">
-            <div className="flex justify-between border-b border-black/10 pb-3">
-              <span className="text-sm text-black/70">Proof gallery</span>
-              <span className="text-sm font-medium text-black">{CREDIBILITY.turnaround.proofs}</span>
+            <div className="flex justify-between border-b border-white/10 pb-3">
+              <span className="text-sm text-white/70">Proof gallery</span>
+              <span className="text-sm font-medium text-white">{CREDIBILITY.turnaround.proofs}</span>
             </div>
-            <div className="flex justify-between border-b border-black/10 pb-3">
-              <span className="text-sm text-black/70">Final delivery</span>
-              <span className="text-sm font-medium text-black">{CREDIBILITY.turnaround.finals}</span>
+            <div className="flex justify-between border-b border-white/10 pb-3">
+              <span className="text-sm text-white/70">Final delivery</span>
+              <span className="text-sm font-medium text-white">{CREDIBILITY.turnaround.finals}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-black/70">Rush delivery</span>
-              <span className="text-sm font-medium text-black">{CREDIBILITY.turnaround.rush}</span>
+              <span className="text-sm text-white/70">Rush delivery</span>
+              <span className="text-sm font-medium text-white">{CREDIBILITY.turnaround.rush}</span>
             </div>
           </div>
         </div>
         
-        <div className="rounded-[24px] border border-black/10 bg-white p-6 md:p-8">
-          <p className="text-xs uppercase tracking-[0.28em] text-black/50">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-6 md:p-8">
+          <p className="text-xs uppercase tracking-[0.28em] text-white/60">
             Usage & licensing
           </p>
-          <h3 className="font-display text-xl text-black mt-3">
+          <h3 className="font-display text-xl text-white mt-3">
             What&apos;s included
           </h3>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-black/50 mb-3">Standard</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/55 mb-3">Standard</p>
               <ul className="space-y-2">
                 {CREDIBILITY.licensing.included.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-black/70">
+                  <li key={item} className="flex items-start gap-2 text-sm text-white/75">
                     <span className="mt-1 text-emerald-600">✓</span>
                     <span>{item}</span>
                   </li>
@@ -273,18 +300,18 @@ export default async function ServicesPage() {
               </ul>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-black/50 mb-3">Extended</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/55 mb-3">Extended</p>
               <ul className="space-y-2">
                 {CREDIBILITY.licensing.additional.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-black/70">
-                    <span className="mt-1 text-black/40">+</span>
+                  <li key={item} className="flex items-start gap-2 text-sm text-white/75">
+                    <span className="mt-1 text-white/40">+</span>
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
           </div>
-          <p className="mt-4 text-xs text-black/50">{CREDIBILITY.licensing.note}</p>
+          <p className="mt-4 text-xs text-white/55">{CREDIBILITY.licensing.note}</p>
         </div>
       </section>
 
@@ -301,13 +328,13 @@ export default async function ServicesPage() {
           {CREDIBILITY.faqs.map((faq) => (
             <details
               key={faq.question}
-              className="group rounded-[16px] border border-black/10 bg-white p-5 transition-colors hover:border-black/20"
+              className="group rounded-[16px] border border-white/10 bg-white/[0.04] p-5 transition-colors hover:border-white/25"
             >
-              <summary className="cursor-pointer text-sm font-medium text-black list-none flex items-start justify-between gap-4">
+              <summary className="cursor-pointer text-sm font-medium text-white list-none flex items-start justify-between gap-4">
                 <span>{faq.question}</span>
-                <span className="shrink-0 text-black/40 group-open:rotate-45 transition-transform">+</span>
+                <span className="shrink-0 text-white/40 group-open:rotate-45 transition-transform">+</span>
               </summary>
-              <p className="mt-3 text-sm text-black/70 pr-8">{faq.answer}</p>
+              <p className="mt-3 text-sm text-white/70 pr-8">{faq.answer}</p>
             </details>
           ))}
         </div>

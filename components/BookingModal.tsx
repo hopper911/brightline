@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BRAND } from "@/lib/config/brand";
 
@@ -81,12 +82,12 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
               <code className="text-white/90">NEXT_PUBLIC_CALENDLY_URL</code> in
               your environment variables.
             </p>
-            <a
+            <Link
               href="/contact?type=availability"
               className="btn btn-light mt-6 inline-block"
             >
               Check availability instead
-            </a>
+            </Link>
           </div>
         )}
       </div>

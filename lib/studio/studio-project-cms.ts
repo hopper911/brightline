@@ -1,6 +1,7 @@
 import type { MediaAsset } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getWorkPillarList } from "@/lib/work-pillar-settings";
 import { normalizeProjectSlug, slugify } from "@/lib/slugify";
 
 const STUDIO_PROJECT_INCLUDE = {
@@ -139,6 +140,13 @@ function parseTags(input: unknown): string[] {
   return input.map((t) => String(t).trim()).filter(Boolean);
 }
 
+async function normalizeConfiguredPillarSlug(input: unknown): Promise<string | null> {
+  const slug = typeof input === "string" ? input.trim().toLowerCase() : "";
+  if (!slug) return null;
+  const pillars = await getWorkPillarList();
+  return pillars.some((p) => p.slug === slug) ? slug : null;
+}
+
 /** Globally unique slug; appends -2, -3, … on collision. */
 export async function ensureUniqueStudioSlug(baseRaw: string, excludeId?: string): Promise<string> {
   const base = (baseRaw || "project").replace(/^-+|-+$/g, "") || "project";
@@ -228,6 +236,7 @@ export async function createStudioProjectRecord(body: unknown): Promise<StudioPr
 
   const gallery = toGalleryJson(b.gallery);
   const tags = parseTags(b.tags);
+  const pillar = await normalizeConfiguredPillarSlug(b.pillar);
 
   const published = Boolean(b.published);
   let publishedAt: Date | null = null;
@@ -260,6 +269,7 @@ export async function createStudioProjectRecord(body: unknown): Promise<StudioPr
       tags,
       credits,
       featured: typeof b.featured === "boolean" ? b.featured : false,
+      pillar,
       contentStatus:
         b.contentStatus === "CAPTION_DRAFTED" ||
         b.contentStatus === "WEBSITE_COPY_DRAFTED" ||
@@ -303,6 +313,7 @@ export type UpdateStudioProjectRecordBody = {
   subcategory?: string | null;
   credits?: string | null;
   featured?: boolean;
+  pillar?: string | null;
   published?: boolean;
   publishedAt?: string | null;
   contentStatus?: string | null;
@@ -400,6 +411,9 @@ export async function updateStudioProjectRecord(
   if (typeof b.featured === "boolean") {
     data.featured = b.featured;
   }
+  if (b.pillar !== undefined) {
+    data.pillar = await normalizeConfiguredPillarSlug(b.pillar);
+  }
   if (typeof b.published === "boolean") {
     data.published = b.published;
   }
@@ -475,7 +489,7 @@ export async function publishStudioProjectRecord(body: unknown): Promise<StudioP
   if (body === null || typeof body !== "object") {
     throw new Error("Request body must be a JSON object.");
   }
-  const b = body as { id?: string; slug?: string; published?: boolean };
+  const b = body as { id?: string; slug?: string; published?: boolean; pillar?: string | null; featured?: boolean };
   const idRaw = typeof b.id === "string" ? b.id.trim() : "";
   const slugRaw = typeof b.slug === "string" ? b.slug.trim() : "";
 
@@ -497,12 +511,20 @@ export async function publishStudioProjectRecord(body: unknown): Promise<StudioP
 
   const wantPublish = b.published !== false;
 
+  const data: Prisma.StudioProjectUpdateInput = {
+    published: wantPublish,
+    publishedAt: wantPublish ? new Date() : null,
+  };
+  if (b.pillar !== undefined) {
+    data.pillar = await normalizeConfiguredPillarSlug(b.pillar);
+  }
+  if (typeof b.featured === "boolean") {
+    data.featured = b.featured;
+  }
+
   return prisma.studioProject.update({
     where: { id: existing.id },
-    data: {
-      published: wantPublish,
-      publishedAt: wantPublish ? new Date() : null,
-    },
+    data,
     include: STUDIO_PROJECT_INCLUDE,
   });
 }
@@ -558,6 +580,122 @@ export async function getPublishedStudioProjectMetaBySlug(slugParam: string) {
 }
 
 /** Prev/next among published studio projects (order: publishedAt desc, title asc). */
+/** When set on `StudioProject.pillar`, routes this project onto the pillar work index tiles. */
+function normalizeStoredPillar(
+  p: string | null | undefined,
+  knownSlugs: Set<string>
+): string | null {
+  const v = p?.trim().toLowerCase();
+  return v && knownSlugs.has(v) ? v : null;
+}
+
+/**
+ * Infer work pillar index from CMS category text when `pillar` is unset.
+ * Intentionally returns null when the label is ambiguous (omit from pillar grids).
+ */
+function inferPillarSlugFromStudioCategory(category: string): string | null {
+  const c = category.trim().toLowerCase();
+  if (!c) return null;
+  if (
+    /\b(fashion|advertising|campaign|culinar|editorial|lookbook|brand|styling)\b/i.test(c)
+  ) {
+    return "advertising";
+  }
+  if (/\b(corporate|workplace|leadership|portrait|professional|executive)\b/i.test(c)) {
+    return "corporate";
+  }
+  if (
+    /\b(architecture|architect|real\s*estate|interior|hospitality|building|spatial|property|residential)\b/i.test(
+      c
+    )
+  ) {
+    return "architecture";
+  }
+  return null;
+}
+
+export function studioProjectBelongsOnPillarIndex(
+  pillarSlug: string,
+  category: string,
+  pillarField: string | null | undefined,
+  knownSlugs: Set<string>
+): boolean {
+  const explicit = normalizeStoredPillar(pillarField, knownSlugs);
+  if (explicit) return explicit === pillarSlug;
+  const inferred = inferPillarSlugFromStudioCategory(category);
+  return inferred === pillarSlug;
+}
+
+/** Compact row for pillar index cards — canonical case study URLs are `/work/{slug}`. */
+export type PublishedStudioTileForWorkPillar = {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string | null;
+  location: string;
+  year: number;
+  heroImage: StudioProjectWithHero["heroImage"];
+};
+
+export async function listFeaturedPublishedStudioProjectsForHub(
+  limit = 6
+): Promise<PublishedStudioTileForWorkPillar[]> {
+  const rows = await prisma.studioProject.findMany({
+    where: { published: true, featured: true },
+    include: STUDIO_PROJECT_INCLUDE,
+    orderBy: [{ publishedAt: "desc" }, { year: "desc" }, { updatedAt: "desc" }],
+    take: limit,
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    slug: r.slug,
+    summary: r.summary?.trim() || null,
+    location: r.location,
+    year: r.year,
+    heroImage: r.heroImage,
+  }));
+}
+
+export async function listPublishedStudioProjectsForWorkPillar(
+  pillarSlug: string
+): Promise<PublishedStudioTileForWorkPillar[]> {
+  const pillars = await getWorkPillarList();
+  const slugSet = new Set(pillars.map((p) => p.slug));
+  if (!slugSet.has(pillarSlug)) return [];
+
+  const rows = await prisma.studioProject.findMany({
+    where: { published: true },
+    include: STUDIO_PROJECT_INCLUDE,
+    orderBy: [{ featured: "desc" }, { year: "desc" }, { updatedAt: "desc" }],
+  });
+
+  const filtered = rows.filter((r) =>
+    studioProjectBelongsOnPillarIndex(pillarSlug, r.category, r.pillar ?? null, slugSet)
+  );
+
+  return filtered.map((r) => ({
+    id: r.id,
+    title: r.title,
+    slug: r.slug,
+    summary: r.summary?.trim() || null,
+    location: r.location,
+    year: r.year,
+    heroImage: r.heroImage,
+  }));
+}
+
+export async function listPublishedStudioProjectSlugsForSitemap(): Promise<
+  Array<{ slug: string; updatedAt: Date }>
+> {
+  return prisma.studioProject.findMany({
+    where: { published: true },
+    select: { slug: true, updatedAt: true },
+    orderBy: { updatedAt: "desc" },
+  });
+}
+
 export async function getAdjacentPublishedStudioProjects(currentSlug: string): Promise<{
   prev: { slug: string; title: string } | null;
   next: { slug: string; title: string } | null;

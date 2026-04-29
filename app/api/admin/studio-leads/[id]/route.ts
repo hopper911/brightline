@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
+import type { LeadStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 
@@ -53,9 +53,9 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Not found." }, { status: 404 });
   }
 
-  const data: Prisma.StudioLeadUpdateInput = {};
+  const data: Prisma.StudioLeadUncheckedUpdateInput = {};
 
-  const optStr = (k: keyof Prisma.StudioLeadUpdateInput, v: unknown) => {
+  const optStr = (k: keyof Prisma.StudioLeadUncheckedUpdateInput, v: unknown) => {
     if (v === undefined) return;
     if (v === null) {
       (data as Record<string, unknown>)[k as string] = null;
@@ -79,7 +79,7 @@ export async function PATCH(
   optStr("notes", body.notes);
 
   if (typeof body.status === "string" && body.status.trim()) {
-    data.status = body.status.trim() as Prisma.LeadStatus;
+    data.status = body.status.trim() as LeadStatus;
   }
 
   if (body.followUpDate === null) {

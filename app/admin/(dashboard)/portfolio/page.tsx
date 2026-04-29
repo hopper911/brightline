@@ -31,6 +31,12 @@ type PortfolioProject = {
   ogImageUrl?: string | null;
   externalGalleryUrl?: string | null;
   published: boolean;
+  StudioProject?: {
+    id: string;
+    slug: string;
+    published: boolean;
+    pillar: string | null;
+  } | null;
   images: PortfolioImage[];
 };
 
@@ -915,15 +921,31 @@ export default function AdminPortfolioPage() {
               <div>
                 <div className="text-sm font-semibold">{project.title}</div>
                 <div className="text-xs text-black/50">
-                  /work/{project.slug}
+                  /work/{project.StudioProject?.slug ?? project.slug}
                 </div>
                 <div className="text-xs text-black/50">
                   {project.published ? "Published" : "Draft"} · {project.category}
+                  {project.StudioProject?.pillar ? ` · ${project.StudioProject.pillar}` : ""}
                 </div>
               </div>
-              <button className="btn btn-ghost" onClick={() => handleEdit(project)}>
-                Edit
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {project.StudioProject?.published ? (
+                  <Link
+                    href={`/work/${project.StudioProject.slug}`}
+                    className="btn btn-primary"
+                    target="_blank"
+                  >
+                    View on site
+                  </Link>
+                ) : (
+                  <span className="rounded-full border border-black/10 px-3 py-2 text-xs uppercase tracking-[0.2em] text-black/45">
+                    Not live
+                  </span>
+                )}
+                <button className="btn btn-ghost" onClick={() => handleEdit(project)}>
+                  Edit
+                </button>
+              </div>
             </div>
           ))}
           {!projects.length && !loadingProjects ? (

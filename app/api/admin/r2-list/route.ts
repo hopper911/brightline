@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { listObjects } from "@/lib/storage-r2";
+import { listPublicR2Objects } from "@/lib/storage-r2-public";
 
-const ALLOWED_PREFIXES = ["portfolio/", "work/", "studio/", "site/"];
+const ALLOWED_PREFIXES = [
+  "portfolio/",
+  "work/",
+  "studio/",
+  "site/",
+  "client-galleries/",
+];
 
 function isPrefixAllowed(prefix: string): boolean {
   const normalized = prefix.replace(/^\/+/, "").toLowerCase();
@@ -33,12 +39,12 @@ export async function POST(req: Request) {
 
     if (!isPrefixAllowed(prefix)) {
       return NextResponse.json(
-        { ok: false, error: "Prefix must start with portfolio/, work/, studio/, or site/." },
+        { ok: false, error: "Prefix must start with portfolio/, work/, studio/, site/, or client-galleries/." },
         { status: 400 }
       );
     }
 
-    const keys = await listObjects({
+    const keys = await listPublicR2Objects({
       prefix: prefix.endsWith("/") ? prefix : `${prefix}/`,
       maxKeys: Math.min(typeof body.maxKeys === "number" ? body.maxKeys : 500, 1000),
     });

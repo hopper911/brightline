@@ -29,8 +29,14 @@ export default async function AdminGalleryDetailPage({
     createdAt: gallery.createdAt.toISOString(),
     updatedAt: gallery.updatedAt.toISOString(),
     sentAt: gallery.sentAt ? gallery.sentAt.toISOString() : null,
+    deliveredAt: gallery.deliveredAt ? gallery.deliveredAt.toISOString() : null,
     images: gallery.images.map((i) => ({
       ...i,
+    })),
+    videos: gallery.videos.map((v) => ({
+      ...v,
+      createdAt: v.createdAt.toISOString(),
+      updatedAt: v.updatedAt.toISOString(),
     })),
     accessTokens: gallery.accessTokens.map((t) => ({
       ...t,

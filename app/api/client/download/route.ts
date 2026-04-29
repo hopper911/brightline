@@ -6,16 +6,48 @@ import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type DeliveryGroup = "full-res" | "web-ready" | "social" | "heroes";
+
+function metaString(meta: unknown, key: string): string {
+  if (!meta || typeof meta !== "object" || !(key in meta)) return "";
+  const value = (meta as Record<string, unknown>)[key];
+  return typeof value === "string" ? value.toLowerCase() : "";
+}
+
+function imageMatchesDeliveryGroup(
+  image: { isHero?: boolean | null; meta?: unknown },
+  group: DeliveryGroup
+) {
+  if (group === "heroes") return Boolean(image.isHero);
+
+  const usageType = metaString(image.meta, "usageType");
+  const deliveryFolder = metaString(image.meta, "deliveryFolder");
+  const combined = `${usageType} ${deliveryFolder}`;
+
+  if (group === "social") return combined.includes("social");
+  if (group === "web-ready") {
+    return combined.includes("web") || combined.includes("online");
+  }
+  return (
+    combined.includes("full") ||
+    combined.includes("print") ||
+    combined.includes("archive")
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
       token?: string;
       imageId?: string;
-      type?: "single" | "favorites";
+      videoId?: string;
+      type?: "single" | "favorites" | "deliveryGroup";
+      deliveryGroup?: DeliveryGroup;
+      quality?: "low" | "high";
     };
 
     const jar = await cookies();
-    const { imageId, type = "single" } = body;
+    const { imageId, videoId, type = "single", deliveryGroup, quality = "high" } = body;
     const accessId = jar.get("client_access_id")?.value;
 
     if (!accessId) {
@@ -32,6 +64,7 @@ export async function POST(req: Request) {
         gallery: {
           include: {
             images: true,
+            videos: true,
           },
         },
         favorites: true,
@@ -102,10 +135,44 @@ export async function POST(req: Request) {
       }
     }
 
+    if (type === "single" && videoId) {
+      const video = access.gallery?.videos.find((row) => row.id === videoId);
+      if (!video || !video.allowDownload) {
+        return NextResponse.json(
+          { ok: false, error: "Video not found." },
+          { status: 404 }
+        );
+      }
+
+      const { getClientDownloadUrl } = await import("@/lib/image-strategy");
+      const signed = await getClientDownloadUrl({ key: video.storageKey });
+
+      await prisma.galleryDownload.create({
+        data: {
+          tokenId: access.id,
+          type: "video",
+        },
+      });
+
+      await prisma.galleryAccessLog.create({
+        data: {
+          tokenId: access.id,
+          action: "download:video",
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        downloadUrl: signed.url,
+        filename: video.filename || `video-${video.id}.mp4`,
+      });
+    }
+
     if (type === "single" && imageId) {
       // Single image download
       const image = access.gallery?.images.find((img) => img.id === imageId);
-      if (!image || !image.storageKey) {
+      const key = quality === "low" ? (image?.lowResStorageKey ?? image?.storageKey) : image?.storageKey;
+      if (!image || !key) {
         return NextResponse.json(
           { ok: false, error: "Image not found." },
           { status: 404 }
@@ -114,7 +181,7 @@ export async function POST(req: Request) {
 
       const { getClientDownloadUrl } = await import("@/lib/image-strategy");
       const signed = await getClientDownloadUrl({
-        key: image.storageKey,
+        key,
       });
 
       // Log download
@@ -122,14 +189,14 @@ export async function POST(req: Request) {
         data: {
           tokenId: access.id,
           imageId,
-          type: "single",
+          type: `single:${quality}`,
         },
       });
 
       await prisma.galleryAccessLog.create({
         data: {
           tokenId: access.id,
-          action: "download",
+          action: `download:${quality}`,
           imageId,
         },
       });
@@ -137,13 +204,15 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         downloadUrl: signed.url,
-        filename: image.filename || `image-${image.id}.jpg`,
+        filename: `${quality}-${image.filename || `image-${image.id}.jpg`}`,
       });
     } else if (type === "favorites") {
       // Get all favorite images
       const favoriteImageIds = access.favorites.map((f) => f.imageId);
       const favoriteImages = access.gallery?.images.filter(
-        (img) => favoriteImageIds.includes(img.id) && img.storageKey
+        (img) =>
+          favoriteImageIds.includes(img.id) &&
+          (quality === "low" ? img.lowResStorageKey || img.storageKey : img.storageKey)
       );
 
       if (!favoriteImages || favoriteImages.length === 0) {
@@ -157,13 +226,14 @@ export async function POST(req: Request) {
       const downloads = await Promise.all(
         favoriteImages.map(async (image) => {
           const { getClientDownloadUrl } = await import("@/lib/image-strategy");
+          const key = quality === "low" ? (image.lowResStorageKey ?? image.storageKey!) : image.storageKey!;
           const signed = await getClientDownloadUrl({
-            key: image.storageKey!,
+            key,
           });
           return {
             id: image.id,
             url: signed.url,
-            filename: image.filename || `image-${image.id}.jpg`,
+            filename: `${quality}-${image.filename || `image-${image.id}.jpg`}`,
           };
         })
       );
@@ -172,14 +242,69 @@ export async function POST(req: Request) {
       await prisma.galleryDownload.create({
         data: {
           tokenId: access.id,
-          type: "favorites",
+          type: `favorites:${quality}`,
         },
       });
 
       await prisma.galleryAccessLog.create({
         data: {
           tokenId: access.id,
-          action: "download",
+          action: `download:favorites:${quality}`,
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        downloads,
+        count: downloads.length,
+      });
+    } else if (type === "deliveryGroup" && deliveryGroup) {
+      const downloadableImages = (access.gallery?.images || []).filter(
+        (img) => (quality === "low" ? img.lowResStorageKey || img.storageKey : img.storageKey)
+      );
+      const explicitMatches = downloadableImages.filter((img) =>
+        imageMatchesDeliveryGroup(img, deliveryGroup)
+      );
+      const deliveryImages =
+        explicitMatches.length > 0 ||
+        deliveryGroup === "social" ||
+        deliveryGroup === "heroes"
+          ? explicitMatches
+          : downloadableImages;
+
+      if (deliveryImages.length === 0) {
+        return NextResponse.json(
+          { ok: false, error: "No files available for this delivery section." },
+          { status: 400 }
+        );
+      }
+
+      const downloads = await Promise.all(
+        deliveryImages.map(async (image) => {
+          const { getClientDownloadUrl } = await import("@/lib/image-strategy");
+          const key = quality === "low" ? (image.lowResStorageKey ?? image.storageKey!) : image.storageKey!;
+          const signed = await getClientDownloadUrl({
+            key,
+          });
+          return {
+            id: image.id,
+            url: signed.url,
+            filename: `${quality}-${image.filename || `image-${image.id}.jpg`}`,
+          };
+        })
+      );
+
+      await prisma.galleryDownload.create({
+        data: {
+          tokenId: access.id,
+          type: `delivery:${deliveryGroup}:${quality}`,
+        },
+      });
+
+      await prisma.galleryAccessLog.create({
+        data: {
+          tokenId: access.id,
+          action: `download:${deliveryGroup}:${quality}`,
         },
       });
 

@@ -1,26 +1,42 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import PageBackground from "@/components/PageBackground";
 import Reveal from "@/components/Reveal";
-import { PILLARS } from "@/lib/portfolioPillars";
 import { getFeaturedHeroForSection } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
+import { listFeaturedPublishedStudioProjectsForHub } from "@/lib/studio/studio-project-cms";
+import { getBackgroundMediaFromPage, getPublishedWebsitePageBySlug } from "@/lib/website-pages";
+import { getVisibleWorkPillars, resolvePillarCoverUrl } from "@/lib/work-pillar-settings";
 
 export const dynamic = "force-dynamic";
 
 async function fetchPillarData() {
+  const pillars = await getVisibleWorkPillars();
   return Promise.all(
-    PILLARS.map(async (pillar) => {
+    pillars.map(async (pillar) => {
       const firstSection = pillar.sections[0];
       const hero = firstSection
         ? await getFeaturedHeroForSection(firstSection)
         : null;
-      let coverUrl: string | null = null;
-      let coverAlt: string | null = null;
+      let autoCover: string | null = null;
+      let defaultAlt: string | null = null;
       if (hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)) {
-        coverUrl = getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? "");
-        coverAlt = hero.alt ?? pillar.label;
+        autoCover = getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? "");
+        defaultAlt = hero.alt ?? pillar.label;
       }
-      return { ...pillar, coverUrl, coverAlt };
+      const coverUrl =
+        resolvePillarCoverUrl(pillar.coverImageKey, autoCover) ?? autoCover;
+      const coverAlt =
+        pillar.coverAlt.trim() ? pillar.coverAlt.trim() : (defaultAlt ?? pillar.label);
+      return {
+        slug: pillar.slug,
+        label: pillar.label,
+        description: pillar.description,
+        homeMeta: pillar.homeMeta,
+        coverUrl,
+        coverAlt,
+        sections: pillar.sections,
+      };
     })
   );
 }
@@ -40,62 +56,149 @@ export const metadata: Metadata = {
 };
 
 export default async function WorkIndexPage() {
+  const [publishedPage, featuredStudioProjects] = await Promise.all([
+    getPublishedWebsitePageBySlug("work"),
+    listFeaturedPublishedStudioProjectsForHub(),
+  ]);
+  const { media, poster } = getBackgroundMediaFromPage(publishedPage);
   let pillarData: Awaited<ReturnType<typeof fetchPillarData>>;
   try {
     pillarData = await fetchPillarData();
   } catch {
-    pillarData = PILLARS.map((p) => ({
-      ...p,
-      coverUrl: null as string | null,
-      coverAlt: null as string | null,
+    const pillars = await getVisibleWorkPillars();
+    pillarData = pillars.map((p) => ({
+      slug: p.slug,
+      label: p.label,
+      description: p.description,
+      homeMeta: p.homeMeta,
+      coverUrl: resolvePillarCoverUrl(p.coverImageKey, null),
+      coverAlt: p.coverAlt.trim() ? p.coverAlt.trim() : p.label,
+      sections: p.sections,
     }));
   }
 
   return (
-    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
-      <Reveal>
-        <p className="section-kicker">Work</p>
-        <h1 className="section-title">Case studies</h1>
-        <p className="section-subtitle">
-          Architecture, advertising, and corporate—visuals prepared for how teams actually use them.
-        </p>
-      </Reveal>
+    <>
+      <PageBackground media={media} poster={poster} />
+      <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
+        <Reveal>
+          <p className="section-kicker">Work</p>
+          <h1 className="section-title">Case studies</h1>
+          <p className="section-subtitle">
+            Architecture, advertising, and corporate—visuals prepared for how teams actually use them.
+          </p>
+        </Reveal>
 
-      <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {pillarData.map((pillar) => (
-          <Reveal key={pillar.slug}>
-            <Link
-              href={`/work/${pillar.slug}`}
-              className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
-            >
-              <div className="relative h-[200px] w-full">
-                {pillar.coverUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={pillar.coverUrl}
-                    alt={pillar.coverAlt ?? pillar.label}
-                    className="h-full w-full object-cover image-zoom"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">
-                    <span className="text-xs uppercase tracking-[0.2em]">
-                      {pillar.label}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="p-5">
-                <p className="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">
-                  {pillar.label}
-                </p>
-                <p className="mt-2 text-xs text-white/80 group-hover:text-white">
-                  View projects →
+        {featuredStudioProjects.length > 0 ? (
+          <section className="mt-12">
+            <Reveal>
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="section-kicker">Featured</p>
+                  <h2 className="font-display text-3xl text-white sm:text-4xl">
+                    Featured case studies
+                  </h2>
+                </div>
+                <p className="max-w-xl text-sm leading-relaxed text-white/60">
+                  Published Studio CMS projects marked as featured are promoted here and remain available at their direct `/work/project-slug` URL.
                 </p>
               </div>
-            </Link>
-          </Reveal>
-        ))}
+            </Reveal>
+            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {featuredStudioProjects.map((project) => {
+                const hero = project.heroImage;
+                const heroUrl =
+                  hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)
+                    ? getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? "")
+                    : null;
+
+                return (
+                  <Reveal key={project.id}>
+                    <Link
+                      href={`/work/${encodeURIComponent(project.slug)}`}
+                      className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
+                    >
+                      <div className="relative h-[220px] w-full">
+                        {heroUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={heroUrl}
+                            alt={hero?.alt ?? project.title}
+                            className="h-full w-full object-cover image-zoom"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">
+                            <span className="text-xs uppercase tracking-[0.2em]">
+                              {project.title}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-5">
+                        <p className="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">
+                          Case study
+                        </p>
+                        <h3 className="mt-2 text-base text-white group-hover:text-white">
+                          {project.title}
+                        </h3>
+                        {project.summary ? (
+                          <p className="mt-2 line-clamp-2 text-sm text-white/70">
+                            {project.summary}
+                          </p>
+                        ) : null}
+                        {(project.location || project.year) && (
+                          <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/50">
+                            {[project.location, project.year].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  </Reveal>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {pillarData.map((pillar) => (
+            <Reveal key={pillar.slug}>
+              <Link
+                href={`/work/${pillar.slug}`}
+                className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
+              >
+                <div className="relative h-[200px] w-full">
+                  {pillar.coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={pillar.coverUrl}
+                      alt={pillar.coverAlt ?? pillar.label}
+                      className="h-full w-full object-cover image-zoom"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">
+                      <span className="text-xs uppercase tracking-[0.2em]">
+                        {pillar.label}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="p-5">
+                  <p className="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">
+                    {pillar.label}
+                  </p>
+                  {pillar.homeMeta ? (
+                    <p className="mt-1 line-clamp-2 text-xs text-white/60">{pillar.homeMeta}</p>
+                  ) : null}
+                  <p className="mt-2 text-xs text-white/80 group-hover:text-white">
+                    View projects →
+                  </p>
+                </div>
+              </Link>
+            </Reveal>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

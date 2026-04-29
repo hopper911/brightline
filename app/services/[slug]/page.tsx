@@ -221,6 +221,50 @@ export default async function ServicePage({
         </div>
       </section>
 
+      <section className="mt-16" aria-labelledby="service-overview">
+        <p className="section-kicker">Service overview</p>
+        <div className="mt-4 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div>
+            <h2 id="service-overview" className="font-display text-2xl text-white">
+              What this service includes
+            </h2>
+            <div className="mt-5 space-y-5 text-base leading-relaxed text-white/78">
+              {service.overview.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/55">
+              Best for
+            </p>
+            <ul className="mt-5 space-y-3 text-sm text-white/75">
+              {service.bestFor.map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/60" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-16" aria-labelledby="service-details">
+        <p className="section-kicker">How we approach it</p>
+        <h2 id="service-details" className="sr-only">
+          Service details
+        </h2>
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          {service.serviceDetails.map((item) => (
+            <article key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+              <h3 className="font-display text-lg text-white">{item.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-white/70">{item.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="mt-16" aria-labelledby="service-industries">
         <p className="section-kicker">Industries served</p>
         <h2 id="service-industries" className="sr-only">

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
+import type { WorkPillarNavItem } from "@/lib/work-pillar-settings";
+
 export type SiteNavItem = {
   id: string;
   label: string;
@@ -12,6 +14,8 @@ export const SITE_NAV_SETTING_KEY = "site_nav:v1";
 
 export const DEFAULT_SITE_NAV: SiteNavItem[] = [
   { id: "work", label: "Work", href: "/work", visible: true },
+  /** Off by default; turn on under Admin → Website pages → Navigation. Same destination as Work unless you edit the URL. */
+  { id: "projects", label: "Projects", href: "/work", visible: false },
   { id: "galleries", label: "Galleries", href: "/galleries", visible: true },
   { id: "services", label: "Services", href: "/services", visible: true },
   { id: "about", label: "About", href: "/about", visible: true },
@@ -83,4 +87,48 @@ export async function saveSiteNav(input: unknown): Promise<SiteNavItem[]> {
     create: { key: SITE_NAV_SETTING_KEY, value: JSON.stringify(nav) },
   });
   return nav;
+}
+
+/** Inserts pillar links immediately after the first visible Work hub item (`/work`). */
+export function mergeWorkPillarNavIntoSiteNav(
+  nav: SiteNavItem[],
+  pillarLinks: WorkPillarNavItem[]
+): SiteNavItem[] {
+  if (!pillarLinks.length) return nav;
+  const out: SiteNavItem[] = [];
+  let inserted = false;
+  for (const link of nav) {
+    out.push(link);
+    if (!inserted && link.visible && isWorkHubNavItem(link)) {
+      for (const p of pillarLinks) {
+        out.push({
+          id: `work_pillar_${p.slug}`,
+          label: p.label,
+          href: p.href,
+          visible: true,
+          cta: false,
+        });
+      }
+      inserted = true;
+    }
+  }
+  return out;
+}
+
+function isWorkHubNavItem(link: SiteNavItem): boolean {
+  if (link.id === "work" || link.id === "projects") return true;
+  const raw = link.href.trim();
+  if (!raw) return false;
+  const pathOnly = raw.split("#")[0]?.split("?")[0] ?? raw;
+  if (pathOnly.startsWith("http://") || pathOnly.startsWith("https://")) {
+    try {
+      const u = new URL(pathOnly);
+      const path = u.pathname.replace(/\/+$/, "") || "/";
+      return path === "/work";
+    } catch {
+      return false;
+    }
+  }
+  const path = pathOnly.replace(/\/+$/, "") || "/";
+  return path === "/work";
 }

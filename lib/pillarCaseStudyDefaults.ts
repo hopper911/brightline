@@ -1,5 +1,3 @@
-import type { PillarSlug } from "@/lib/portfolioPillars";
-
 export type PillarDefaults = {
   ctaCopy: string;
   whoIsThisFor: string;
@@ -7,7 +5,7 @@ export type PillarDefaults = {
 };
 
 /** Default CTA and audience copy per pillar. Used when project has no custom ctaCopy or whoIsThisFor. */
-export const PILLAR_CASE_STUDY_DEFAULTS: Record<PillarSlug, PillarDefaults> = {
+export const PILLAR_CASE_STUDY_DEFAULTS: Record<string, PillarDefaults> = {
   architecture: {
     ctaCopy:
       "Planning a commercial renovation, workplace launch, or architecture shoot? BRIGHTLINE Photography creates refined imagery for office interiors, real estate marketing, and design-driven commercial spaces. Request availability to discuss your timeline, deliverables, and usage needs.",
@@ -30,3 +28,14 @@ export const PILLAR_CASE_STUDY_DEFAULTS: Record<PillarSlug, PillarDefaults> = {
     serviceTypePhrase: "Corporate Photographer",
   },
 };
+
+const GENERIC_FALLBACK: PillarDefaults = {
+  ctaCopy:
+    "Planning a commercial photography project? BRIGHTLINE Photography delivers structured, channel-ready imagery. Request availability to discuss your timeline and deliverables.",
+  whoIsThisFor: "brands, agencies, architects, developers, and communications teams",
+  serviceTypePhrase: "Commercial Photographer",
+};
+
+export function getPillarCaseStudyDefaults(slug: string): PillarDefaults {
+  return PILLAR_CASE_STUDY_DEFAULTS[slug] ?? GENERIC_FALLBACK;
+}

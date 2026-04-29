@@ -4,6 +4,7 @@ import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
 
 const galleryInclude = {
   images: { orderBy: { sortOrder: "asc" as const } },
+  videos: { orderBy: { sortOrder: "asc" as const } },
   client: true,
   project: true,
 } as const;

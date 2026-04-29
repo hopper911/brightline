@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { getSectionToPillarSlugMap } from "@/lib/work-pillar-settings";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,11 @@ export async function GET(
     if (!project) {
       return NextResponse.json({ ok: false, error: "Project not found." }, { status: 404 });
     }
-    return NextResponse.json({ ok: true, project });
+    return NextResponse.json({
+      ok: true,
+      project,
+      sectionToPillar: await getSectionToPillarSlugMap(),
+    });
   } catch (err: unknown) {
     console.error("WORK_PROJECT_GET_ERROR", err);
     const message = err instanceof Error ? err.message : "Failed to load project.";

@@ -1,6 +1,5 @@
 import type { WorkSection } from "@prisma/client";
-import { getPillarBySlug } from "@/lib/portfolioPillars";
-import type { PillarSlug } from "@/lib/portfolioPillars";
+import { getPillarBySlug } from "@/lib/work-pillar-settings";
 import { prisma } from "@/lib/prisma";
 
 export async function getPublishedProjectsBySection(section: WorkSection) {
@@ -18,11 +17,8 @@ export async function getPublishedProjectsBySection(section: WorkSection) {
   });
 }
 
-export async function getProjectByPillarAndSlug(
-  pillarSlug: PillarSlug,
-  slug: string
-) {
-  const pillar = getPillarBySlug(pillarSlug);
+export async function getProjectByPillarAndSlug(pillarSlug: string, slug: string) {
+  const pillar = await getPillarBySlug(pillarSlug);
   if (!pillar) return null;
   return prisma.workProject.findFirst({
     where: {

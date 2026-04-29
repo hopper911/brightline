@@ -5,8 +5,9 @@ import Providers from "./providers";
 import Analytics from "../components/Analytics";
 import { BRAND } from "@/lib/config/brand";
 import AppShell from "./AppShell";
-import { getSiteTheme, themeToCssVars } from "@/lib/site-theme";
-import { getSiteNav } from "@/lib/site-nav";
+import { DEFAULT_SITE_THEME, getSiteTheme, themeToCssVars } from "@/lib/site-theme";
+import { DEFAULT_SITE_NAV, getSiteNav, mergeWorkPillarNavIntoSiteNav } from "@/lib/site-nav";
+import { getDefaultVisibleWorkPillarNavItems, getVisibleWorkPillarNavItems } from "@/lib/work-pillar-settings";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -65,20 +66,38 @@ export const metadata: Metadata = {
   },
 };
 
+async function withTimeout<T>(promise: Promise<T>, fallback: T, timeoutMs = 1500): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const theme = await getSiteTheme();
-  const nav = await getSiteNav();
+  const [theme, nav, pillarNav] = await Promise.all([
+    withTimeout(getSiteTheme(), DEFAULT_SITE_THEME),
+    withTimeout(getSiteNav(), DEFAULT_SITE_NAV),
+    withTimeout(getVisibleWorkPillarNavItems(), getDefaultVisibleWorkPillarNavItems()),
+  ]);
+  const mergedNav = mergeWorkPillarNavIntoSiteNav(nav, pillarNav);
   const themeStyle = themeToCssVars(theme) as CSSProperties;
 
   return (
     <html lang="en" className={`${inter.variable} ${montserrat.variable}`}>
       <body className="antialiased" style={themeStyle}>
         <Providers>
-          <AppShell siteNav={nav} siteTheme={theme}>{children}</AppShell>
+          <AppShell siteNav={mergedNav} siteTheme={theme}>{children}</AppShell>
         </Providers>
         <Analytics />
       </body>

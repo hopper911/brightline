@@ -44,6 +44,7 @@ export async function POST(
         galleryId: id,
         url: "",
         alt: body.alt || null,
+        filename: safeName,
         sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : 0,
         storageKey: key,
       },

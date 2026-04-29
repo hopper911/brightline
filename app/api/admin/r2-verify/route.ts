@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { listPublicR2Objects } from "@/lib/storage-r2-public";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,9 +13,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
     }
 
-    // Lazily import AWS SDK codepaths to avoid Next build-time evaluation quirks.
-    const { listObjects } = await import("@/lib/storage-r2");
-    const keys = await listObjects({
+    const keys = await listPublicR2Objects({
       prefix: "portfolio/",
       maxKeys: 1,
     });

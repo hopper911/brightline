@@ -60,6 +60,8 @@
 
 html {
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -71,6 +73,33 @@ body {
   color: var(--color-text);
   font-family: var(--font-body);
   letter-spacing: var(--ls-body);
+  overflow-x: hidden;
+}
+
+/* Prevent accidental horizontal scroll on iOS (100vw + shadows, etc.). */
+html,
+body {
+  max-width: 100%;
+}
+
+/* Avoid iOS Safari form zoom + keep inputs readable on small screens. */
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select,
+  button {
+    font-size: 16px;
+  }
+}
+
+/*
+  Typography safety net:
+  This codebase is dark-first. If any component uses Tailwind `text-black*`
+  utilities (often from older admin screens), force those to render white so
+  pages never end up with low-contrast black-on-dark text.
+*/
+[class*="text-black"] {
+  color: var(--color-text) !important;
 }
 
 img {

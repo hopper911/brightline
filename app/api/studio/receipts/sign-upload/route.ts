@@ -52,7 +52,7 @@ export async function POST(req: Request) {
       key,
       receiptPath: key,
       uploadUrl: signed.url,
-      uploadHeaders: signed.headers,
+      uploadHeaders: {},
       expiresIn: signed.expiresIn,
       storageProvider: storage.name,
       ocrProvider: ocrProvider.name,

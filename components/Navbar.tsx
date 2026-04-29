@@ -64,7 +64,7 @@ export default function Navbar({ links }: { links: SiteNavItem[] }) {
         <nav className="hidden md:flex items-center gap-8 text-[0.7rem] uppercase tracking-[0.32em] text-white/70">
           {navLinks.map((l) => (
             <Link
-              key={l.href}
+              key={l.id}
               href={l.href}
               className={l.cta ? "nav-link rounded-full border border-white/30 bg-white/10 px-4 py-2 hover:bg-white/20 hover:text-white hover:border-white/40" : "nav-link hover:text-white"}
             >
@@ -122,7 +122,7 @@ export default function Navbar({ links }: { links: SiteNavItem[] }) {
             <nav className="mx-auto max-w-6xl px-4 pb-6">
               <ul className="space-y-2">
                 {navLinks.map((l) => (
-                  <li key={l.href}>
+                  <li key={l.id}>
                     <Link
                       href={l.href}
                       onClick={() => setOpen(false)}

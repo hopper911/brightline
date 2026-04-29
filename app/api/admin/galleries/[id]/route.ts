@@ -60,6 +60,9 @@ export async function PATCH(
     slug?: string;
     description?: string | null;
     coverUrl?: string | null;
+    deliveryDriveLink?: string | null;
+    usageGuideText?: string | null;
+    deliveredAt?: string | null;
     clientNotes?: string | null;
     internalNotes?: string | null;
     published?: boolean;
@@ -79,6 +82,18 @@ export async function PATCH(
     body.galleryType !== undefined && GALLERY_TYPES.includes(body.galleryType)
       ? body.galleryType
       : undefined;
+  const existing = await prisma.gallery.findUnique({
+    where: { id },
+    select: { deliveredAt: true, studioProjectId: true },
+  });
+  const nextDeliveredAt =
+    body.deliveredAt === undefined
+      ? status === "DELIVERED"
+        ? existing?.deliveredAt ?? new Date()
+        : undefined
+      : body.deliveredAt === null
+        ? null
+        : new Date(body.deliveredAt);
 
   await prisma.gallery.update({
     where: { id },
@@ -87,6 +102,9 @@ export async function PATCH(
       slug: body.slug ?? undefined,
       description: body.description ?? undefined,
       coverUrl: body.coverUrl ?? undefined,
+      deliveryDriveLink: body.deliveryDriveLink ?? undefined,
+      usageGuideText: body.usageGuideText ?? undefined,
+      deliveredAt: nextDeliveredAt,
       clientNotes: body.clientNotes ?? undefined,
       internalNotes: body.internalNotes ?? undefined,
       published:
@@ -105,6 +123,19 @@ export async function PATCH(
             : new Date(body.sentAt),
     },
   });
+
+  if (status === "DELIVERED" && existing?.studioProjectId && nextDeliveredAt) {
+    const followUpAt = new Date(nextDeliveredAt);
+    followUpAt.setDate(followUpAt.getDate() + 7);
+    await prisma.studioProject.updateMany({
+      where: { id: existing.studioProjectId },
+      data: {
+        status: "DELIVERED",
+        deliveryDate: nextDeliveredAt,
+        followUpAt,
+      },
+    });
+  }
 
   const gallery = await getAdminGalleryDetail(id);
 

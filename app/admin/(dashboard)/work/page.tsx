@@ -4,11 +4,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  PILLARS,
-  PILLAR_SLUGS,
-  SECTION_TO_PILLAR,
-} from "@/lib/portfolioPillars";
+import { PILLARS, PILLAR_SLUGS } from "@/lib/portfolioPillars";
 import type { WorkSection } from "@prisma/client";
 
 type MediaAsset = {
@@ -42,9 +38,31 @@ type WorkProject = {
 
 export default function AdminWorkPage() {
   const [projects, setProjects] = useState<WorkProject[]>([]);
+  const [sectionToPillar, setSectionToPillar] = useState<Record<string, string>>({});
+  const [pillarOptions, setPillarOptions] = useState<{ slug: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [pillarFilter, setPillarFilter] = useState<string>("");
   const [search, setSearch] = useState<string>("");
+
+  useEffect(() => {
+    async function loadPillars() {
+      try {
+        const res = await fetch("/api/admin/work-pillars", { credentials: "include" });
+        const d = (await res.json()) as {
+          ok?: boolean;
+          pillars?: { slug: string; label: string }[];
+        };
+        if (d.ok && d.pillars?.length) {
+          setPillarOptions(d.pillars.map((p) => ({ slug: p.slug, label: p.label })));
+        } else {
+          setPillarOptions(PILLAR_SLUGS.map((s) => ({ slug: s, label: PILLARS.find((p) => p.slug === s)?.label ?? s })));
+        }
+      } catch {
+        setPillarOptions(PILLAR_SLUGS.map((s) => ({ slug: s, label: PILLARS.find((p) => p.slug === s)?.label ?? s })));
+      }
+    }
+    void loadPillars();
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -55,9 +73,15 @@ export default function AdminWorkPage() {
         if (search) params.set("search", search);
         const url = `/api/admin/work-projects${params.toString() ? `?${params}` : ""}`;
         const res = await fetch(url, { credentials: "include" });
-        const data = (await res.json()) as { ok: boolean; projects?: WorkProject[]; error?: string };
+        const data = (await res.json()) as {
+          ok: boolean;
+          projects?: WorkProject[];
+          sectionToPillar?: Record<string, string>;
+          error?: string;
+        };
         if (!res.ok) throw new Error(data.error ?? "Failed to load");
         setProjects(data.projects ?? []);
+        setSectionToPillar(data.sectionToPillar ?? {});
       } catch (e) {
         console.error(e);
         setProjects([]);
@@ -74,7 +98,17 @@ export default function AdminWorkPage() {
         <p className="text-xs uppercase tracking-[0.35em] text-black/50">
           Public Work
         </p>
-        <h1 className="font-display text-3xl text-black">Work projects</h1>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h1 className="font-display text-3xl text-black">Work</h1>
+          <div className="flex items-center gap-2">
+            <Link href="/admin/work" className="btn btn-primary text-sm">
+              Projects
+            </Link>
+            <Link href="/admin/work-pillars" className="btn btn-ghost text-sm">
+              Pillars
+            </Link>
+          </div>
+        </div>
         <p className="text-sm text-black/70">
           Manage projects on /work (Architecture & Real Estate, Advertising & Campaign, Corporate &
           Executive). R2-backed media and hero images are edited here.
@@ -101,13 +135,16 @@ export default function AdminWorkPage() {
             className="rounded border border-black/20 bg-white px-2 py-1.5 text-sm"
           >
             <option value="">All pillars</option>
-            {PILLAR_SLUGS.map((slug) => (
-              <option key={slug} value={slug}>
-                {PILLARS.find((p) => p.slug === slug)?.label ?? slug}
+            {pillarOptions.map((opt) => (
+              <option key={opt.slug} value={opt.slug}>
+                {opt.label}
               </option>
             ))}
           </select>
         </label>
+        <Link href="/admin/work-pillars" className="btn btn-ghost">
+          Edit pillars
+        </Link>
         <Link href="/admin/work/new" className="btn btn-primary">
           New project
         </Link>
@@ -132,10 +169,14 @@ export default function AdminWorkPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs uppercase tracking-wide text-black/50">
-                    {PILLARS.find((p) => p.slug === SECTION_TO_PILLAR[project.section])?.label ?? project.section}
+                    {PILLARS.find((p) => p.slug === sectionToPillar[project.section])?.label ??
+                      sectionToPillar[project.section] ??
+                      project.section}
                   </p>
                   <h2 className="mt-1 font-semibold text-black truncate">{project.title}</h2>
-                  <p className="mt-0.5 text-xs text-black/60">/{SECTION_TO_PILLAR[project.section]}/{project.slug}</p>
+                  <p className="mt-0.5 text-xs text-black/60">
+                    /{sectionToPillar[project.section] ?? "?"}/{project.slug}
+                  </p>
                   <p className="mt-2 text-xs text-black/50">
                     {project.published ? "Published" : "Draft"} · {project.media?.length ?? 0} media
                   </p>

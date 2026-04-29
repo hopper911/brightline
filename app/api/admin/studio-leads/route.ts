@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
+import type { LeadStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
   const where: Prisma.StudioLeadWhereInput = {};
 
   if (status) {
-    where.status = status as Prisma.LeadStatus;
+    where.status = status as LeadStatus;
   }
 
   if (converted !== undefined) {

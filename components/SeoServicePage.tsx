@@ -3,7 +3,7 @@ import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import { getPublicR2Url } from "@/lib/r2";
 import {
-  getProjectHref,
+  getSeoServicePageBySlug,
   type SeoServicePageConfig,
 } from "@/lib/seoServicePages";
 import type { WorkSection } from "@prisma/client";
@@ -17,8 +17,10 @@ type Project = Awaited<
 
 function ProjectGrid({
   projects,
+  sectionToPillar,
 }: {
   projects: Project[];
+  sectionToPillar: Record<WorkSection, string>;
 }) {
   return (
     <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -30,7 +32,10 @@ function ProjectGrid({
             : null;
         const heroVideoId =
           hero?.kind === "VIDEO" && hero.providerId ? hero.providerId : null;
-        const href = getProjectHref(project.section as WorkSection, project.slug);
+        const pillarSeg = sectionToPillar[project.section as WorkSection];
+        const href = pillarSeg
+          ? `/work/${pillarSeg}/${encodeURIComponent(project.slug)}`
+          : `/work/${encodeURIComponent(project.slug)}`;
 
         return (
           <Reveal key={project.id}>
@@ -121,9 +126,14 @@ function ProjectGrid({
 type SeoServicePageProps = {
   config: SeoServicePageConfig;
   projects: Project[];
+  sectionToPillar: Record<WorkSection, string>;
 };
 
-export default function SeoServicePage({ config, projects }: SeoServicePageProps) {
+export default function SeoServicePage({
+  config,
+  projects,
+  sectionToPillar,
+}: SeoServicePageProps) {
   return (
     <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
       <Reveal>
@@ -154,7 +164,7 @@ export default function SeoServicePage({ config, projects }: SeoServicePageProps
               View all work
             </Link>
           </p>
-          <ProjectGrid projects={projects} />
+          <ProjectGrid projects={projects} sectionToPillar={sectionToPillar} />
         </Reveal>
       )}
 

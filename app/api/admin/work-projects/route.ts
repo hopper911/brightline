@@ -4,10 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import {
   getPillarBySlug,
-  isPillarSlug,
-  PILLAR_TO_SECTION,
-  WORK_SECTIONS,
-} from "@/lib/portfolioPillars";
+  getPrimaryWorkSection,
+  getSectionToPillarSlugMap,
+} from "@/lib/work-pillar-settings";
+import { WORK_SECTIONS } from "@/lib/portfolioPillars";
 
 export const runtime = "nodejs";
 
@@ -32,11 +32,10 @@ export async function GET(req: Request) {
     const searchParam = url.searchParams.get("search")?.trim() ?? "";
 
     let whereSection: { section: WorkSection } | { section: { in: WorkSection[] } } | undefined;
-    if (pillarParam && isPillarSlug(pillarParam)) {
-      const p = getPillarBySlug(pillarParam);
-      whereSection = p && p.sections.length > 0
-        ? { section: { in: p.sections } }
-        : undefined;
+    if (pillarParam?.trim()) {
+      const p = await getPillarBySlug(pillarParam.trim().toLowerCase());
+      whereSection =
+        p && p.sections.length > 0 ? { section: { in: p.sections } } : undefined;
     } else if (sectionParam && WORK_SECTIONS.includes(sectionParam as WorkSection)) {
       whereSection = { section: sectionParam as WorkSection };
     }
@@ -61,7 +60,11 @@ export async function GET(req: Request) {
         { createdAt: "desc" },
       ],
     });
-    return NextResponse.json({ ok: true, projects });
+    return NextResponse.json({
+      ok: true,
+      projects,
+      sectionToPillar: await getSectionToPillarSlugMap(),
+    });
   } catch (err: unknown) {
     console.error("WORK_PROJECTS_GET_ERROR", err);
     const message = err instanceof Error ? err.message : "Failed to load work projects.";
@@ -104,13 +107,20 @@ export async function POST(req: Request) {
     }
 
     let section: WorkSection;
-    if (body.pillar && isPillarSlug(body.pillar)) {
-      section = PILLAR_TO_SECTION[body.pillar];
+    if (body.pillar?.trim()) {
+      const pillar = await getPillarBySlug(body.pillar.trim().toLowerCase());
+      if (!pillar) {
+        return NextResponse.json(
+          { ok: false, error: "Unknown pillar slug. Configure it under Admin → Work pillars." },
+          { status: 400 }
+        );
+      }
+      section = getPrimaryWorkSection(pillar);
     } else if (body.section && WORK_SECTIONS.includes(body.section as WorkSection)) {
       section = body.section as WorkSection;
     } else {
       return NextResponse.json(
-        { ok: false, error: "pillar (architecture, advertising, corporate) or section is required." },
+        { ok: false, error: "pillar (any configured slug) or section is required." },
         { status: 400 }
       );
     }

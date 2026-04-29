@@ -110,6 +110,17 @@ enum ContentStatus {
   REUSABLE
 }
 
+enum StudioEmailProvider {
+  SMTP_IMAP
+  RESEND
+}
+
+enum StudioEmailDraftStatus {
+  DRAFT
+  SENT
+  FAILED
+}
+
 model ContactMessage {
   id        String   @id @default(cuid())
   name      String
@@ -276,6 +287,9 @@ model Gallery {
   description     String?
   coverUrl        String?
   clientNotes     String?
+  deliveryDriveLink String?
+  usageGuideText  String?
+  deliveredAt     DateTime?
   /// Operator-only notes (never exposed on client gallery API).
   internalNotes   String?
   published       Boolean              @default(false)
@@ -294,11 +308,13 @@ model Gallery {
   project         Project?             @relation(fields: [projectId], references: [id])
   studioProject   StudioProject?       @relation("ClientPortalGalleryToStudioProject", fields: [studioProjectId], references: [id], onDelete: SetNull)
   images          GalleryImage[]
+  videos          GalleryVideo[]
   accessTokens    GalleryAccessToken[]
 
   @@index([studioProjectId])
   @@index([status])
   @@index([galleryType])
+  @@index([deliveredAt])
 }
 
 model GalleryImage {
@@ -312,10 +328,33 @@ model GalleryImage {
   sortOrder  Int               @default(0)
   isHero     Boolean           @default(false)
   storageKey String?
+  lowResStorageKey String?
+  lowResWidth      Int?
+  lowResHeight     Int?
+  lowResBytes      Int?
+  highResWidth     Int?
+  highResHeight    Int?
+  highResBytes     Int?
   meta       Json? // optional: { title?, caption?, keywords? } from Lightroom/EXIF
   gallery    Gallery           @relation(fields: [galleryId], references: [id], onDelete: Cascade)
   tags       GalleryImageTag[]
   selections GalleryImageSelection[]
+}
+
+model GalleryVideo {
+  id         String   @id @default(cuid())
+  galleryId  String
+  title      String?
+  filename   String?
+  storageKey String
+  posterKey  String?
+  sortOrder  Int      @default(0)
+  allowDownload Boolean @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  gallery    Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+
+  @@index([galleryId])
 }
 
 model GalleryImageTag {
@@ -505,6 +544,7 @@ model StudioProject {
   projectType      String?
   shootDate        DateTime?
   deliveryDate     DateTime?
+  followUpAt       DateTime?
   publishingStatus String?
   summary          String?
   notes            String?
@@ -563,6 +603,7 @@ model StudioProject {
   clientPortalProjects  Project[]           @relation("ClientPortalProjectToStudioProject")
   clientPortalGalleries Gallery[]           @relation("ClientPortalGalleryToStudioProject")
   StudioLead            StudioLead[]
+  emailThreads          StudioEmailThread[]
 
   @@index([published])
   @@index([featured])
@@ -570,6 +611,7 @@ model StudioProject {
   @@index([status])
   @@index([paymentStatus])
   @@index([contentStatus])
+  @@index([followUpAt])
 }
 
 // Studio OS (internal) — normalized Client record.
@@ -596,6 +638,7 @@ model StudioClient {
 
   projects   StudioProject[]
   StudioLead StudioLead[]
+  emailThreads StudioEmailThread[]
 
   @@index([companyName])
   @@index([isActive])
@@ -668,11 +711,115 @@ model StudioLead {
   convertedClient  StudioClient?  @relation(fields: [convertedClientId], references: [id], onDelete: SetNull)
   convertedProject StudioProject? @relation(fields: [convertedProjectId], references: [id], onDelete: SetNull)
   legacyLead       Lead?          @relation("LegacyLeadToStudioLead")
+  emailThreads     StudioEmailThread[]
 
   @@index([status])
   @@index([followUpDate])
   @@index([convertedClientId])
   @@index([convertedProjectId])
+}
+
+model StudioEmailAccount {
+  id           String              @id @default(cuid())
+  provider     StudioEmailProvider @default(SMTP_IMAP)
+  emailAddress String
+  displayName  String?
+  smtpHost     String?
+  smtpPort     Int?
+  smtpSecure   Boolean             @default(false)
+  imapHost     String?
+  imapPort     Int?
+  imapSecure   Boolean             @default(true)
+  lastSyncedAt DateTime?
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  threads StudioEmailThread[]
+  drafts  StudioEmailDraft[]
+
+  @@index([emailAddress])
+  @@index([isActive])
+  @@index([lastSyncedAt])
+}
+
+model StudioEmailThread {
+  id               String    @id @default(cuid())
+  accountId        String
+  externalThreadId String?
+  subject          String
+  fromName         String?
+  fromEmail        String?
+  toEmails         String[]  @default([])
+  snippet          String?
+  lastMessageAt    DateTime
+  unread           Boolean   @default(false)
+  triagedAt        DateTime?
+  matchedClientId  String?
+  matchedLeadId    String?
+  matchedProjectId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  account        StudioEmailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  matchedClient  StudioClient?      @relation(fields: [matchedClientId], references: [id], onDelete: SetNull)
+  matchedLead    StudioLead?        @relation(fields: [matchedLeadId], references: [id], onDelete: SetNull)
+  matchedProject StudioProject?     @relation(fields: [matchedProjectId], references: [id], onDelete: SetNull)
+  messages       StudioEmailMessage[]
+
+  @@unique([accountId, externalThreadId])
+  @@index([accountId, lastMessageAt])
+  @@index([unread])
+  @@index([matchedClientId])
+  @@index([matchedLeadId])
+  @@index([matchedProjectId])
+}
+
+model StudioEmailMessage {
+  id                String    @id @default(cuid())
+  threadId          String
+  providerMessageId String?
+  fromName          String?
+  fromEmail         String?
+  toEmails          String[]  @default([])
+  ccEmails          String[]  @default([])
+  subject           String?
+  snippet           String?
+  textPreview       String?
+  direction         String    @default("inbound")
+  isUnread          Boolean   @default(false)
+  sentAt            DateTime?
+  receivedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  thread StudioEmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, providerMessageId])
+  @@index([threadId])
+  @@index([fromEmail])
+  @@index([receivedAt])
+}
+
+model StudioEmailDraft {
+  id        String                 @id @default(cuid())
+  accountId String
+  toEmail   String
+  subject   String
+  text      String
+  html      String?
+  entityType String?
+  entityId   String?
+  status    StudioEmailDraftStatus @default(DRAFT)
+  error     String?
+  sentAt    DateTime?
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  account StudioEmailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([status])
+  @@index([entityType, entityId])
 }
 
 // Studio OS (internal) — media records tied to canonical StudioProject and R2 keys.

@@ -2,10 +2,11 @@ import type { MetadataRoute } from "next";
 import { services } from "./services/data";
 import { BRAND } from "@/lib/config/brand";
 import { SEO_SERVICE_SLUGS } from "@/lib/seoServicePages";
-import { PILLAR_SLUGS, getPillarBySlug } from "@/lib/portfolioPillars";
 import { CASE_STUDIES } from "@/lib/caseStudies";
 import { getPublishedProjectsBySections } from "@/lib/queries/work";
 import { getPublishedGalleryCards } from "@/lib/queries/public-galleries";
+import { listPublishedStudioProjectSlugsForSitemap } from "@/lib/studio/studio-project-cms";
+import { getVisibleWorkPillars } from "@/lib/work-pillar-settings";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || BRAND.url;
@@ -36,21 +37,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  const workPillarRoutes = PILLAR_SLUGS.map((slug) => ({
-    url: `${baseUrl}/work/${slug}`,
+  let visiblePillars: Awaited<ReturnType<typeof getVisibleWorkPillars>> = [];
+  try {
+    visiblePillars = await getVisibleWorkPillars();
+  } catch {
+    visiblePillars = [];
+  }
+
+  const workPillarRoutes = visiblePillars.map((p) => ({
+    url: `${baseUrl}/work/${p.slug}`,
     lastModified: now,
     priority: 0.8,
   }));
 
   const workProjectRoutes: MetadataRoute.Sitemap = [];
-  for (const pillarSlug of PILLAR_SLUGS) {
-    const pillar = getPillarBySlug(pillarSlug);
-    if (!pillar || pillar.sections.length === 0) continue;
+  for (const pillar of visiblePillars) {
+    if (pillar.sections.length === 0) continue;
     try {
       const projects = await getPublishedProjectsBySections(pillar.sections);
-      for (const p of projects) {
+      for (const proj of projects) {
         workProjectRoutes.push({
-          url: `${baseUrl}/work/${pillarSlug}/${p.slug}`,
+          url: `${baseUrl}/work/${pillar.slug}/${proj.slug}`,
           lastModified: now,
           priority: 0.7,
         });
@@ -58,6 +65,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     } catch {
       // DB may not be available
     }
+  }
+
+  let studioProjectWorkRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const studioRows = await listPublishedStudioProjectSlugsForSitemap();
+    studioProjectWorkRoutes = studioRows.map((r) => ({
+      url: `${baseUrl}/work/${encodeURIComponent(r.slug)}`,
+      lastModified: r.updatedAt,
+      priority: 0.72,
+    }));
+  } catch {
+    // DB may not be available
   }
 
   const caseStudyRoutes = CASE_STUDIES.map((c) => ({
@@ -90,6 +109,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...serviceRoutes,
     ...workPillarRoutes,
     ...workProjectRoutes,
+    ...studioProjectWorkRoutes,
     ...galleryRoutes,
     ...caseStudyRoutes,
   ];

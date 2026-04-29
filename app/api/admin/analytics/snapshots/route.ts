@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 
@@ -29,6 +30,15 @@ type SnapshotInput = {
   notes?: string | null;
 };
 
+function hasSnapshots(input: unknown): input is { snapshots: SnapshotInput[] } {
+  return (
+    input !== null &&
+    typeof input === "object" &&
+    "snapshots" in input &&
+    Array.isArray((input as { snapshots?: unknown }).snapshots)
+  );
+}
+
 /** Ingests AnalyticsSnapshot rows. TODO: n8n / scheduled job POSTing rollups (Plausible, GA, Search Console). */
 export async function POST(req: Request) {
   const isAdmin = await authorizeAdminRequest(req);
@@ -36,17 +46,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
   }
 
-  let body: { snapshots?: SnapshotInput[] } | SnapshotInput[] | null = null;
+  let body: unknown;
   try {
-    body = (await req.json()) as typeof body;
+    body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON." }, { status: 400 });
   }
 
   const snapshots = Array.isArray(body)
-    ? body
-    : body && Array.isArray((body as any).snapshots)
-      ? ((body as any).snapshots as SnapshotInput[])
+    ? (body as SnapshotInput[])
+    : hasSnapshots(body)
+      ? body.snapshots
       : [];
 
   if (!snapshots.length) {
@@ -57,7 +67,7 @@ export async function POST(req: Request) {
   }
 
   const rows = snapshots
-    .map((s) => {
+    .map((s): Prisma.AnalyticsSnapshotCreateManyInput | null => {
       const dateBucket = new Date(String(s.dateBucket));
       if (Number.isNaN(dateBucket.getTime())) return null;
       const pagePath = String(s.pagePath ?? "").trim();
@@ -89,7 +99,9 @@ export async function POST(req: Request) {
         notes: s.notes ? String(s.notes).trim() : null,
       };
     })
-    .filter(Boolean) as Parameters<typeof prisma.analyticsSnapshot.createMany>[0]["data"];
+    .filter(
+      (row): row is Prisma.AnalyticsSnapshotCreateManyInput => row !== null
+    );
 
   if (rows.length === 0) {
     return NextResponse.json(

@@ -33,8 +33,11 @@ export async function PATCH(req: Request) {
 
   const updates = Array.isArray(body)
     ? (body as Array<{ key?: unknown; value?: unknown }>)
-    : (body as any)?.updates && Array.isArray((body as any).updates)
-      ? ((body as any).updates as Array<{ key?: unknown; value?: unknown }>)
+    : body &&
+        typeof body === "object" &&
+        "updates" in body &&
+        Array.isArray(body.updates)
+      ? (body.updates as Array<{ key?: unknown; value?: unknown }>)
       : [];
 
   if (updates.length === 0) {

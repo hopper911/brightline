@@ -21,9 +21,5 @@ export function isGalleryViewableByClient(gallery: {
 export function gallerySupportsSelectionWorkflow(gallery: {
   galleryType: GalleryType;
 }): boolean {
-  return (
-    gallery.galleryType === "PROOF" ||
-    gallery.galleryType === "SELECTION" ||
-    gallery.galleryType === "FINAL_DELIVERY"
-  );
+  return gallery.galleryType === "PROOF" || gallery.galleryType === "SELECTION";
 }

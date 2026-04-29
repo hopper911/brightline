@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { hasAdminAccess } from "@/lib/admin-auth";
+import { getEmailProviderStatus } from "@/lib/integrations/emailProvider";
 import SettingsClient from "./settings-client";
 
 export const metadata = {
@@ -22,6 +23,19 @@ export default async function AdminSettingsPage() {
     BL_INTERNAL_API_TOKEN: Boolean(process.env.BL_INTERNAL_API_TOKEN),
   };
 
-  return <SettingsClient env={env} />;
+  const emailStatus = getEmailProviderStatus();
+
+  return (
+    <SettingsClient
+      env={env}
+      emailStatus={{
+        provider: emailStatus.provider,
+        configured: emailStatus.configured,
+        emailAddress: emailStatus.emailAddress,
+        displayName: emailStatus.displayName,
+        missing: emailStatus.missing,
+      }}
+    />
+  );
 }
 

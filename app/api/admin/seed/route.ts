@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { hashAccessCode } from "@/lib/client-access";
-import { getPillarBySlug, PILLAR_SLUGS, PILLAR_TO_SECTION } from "@/lib/portfolioPillars";
+import { getPrimaryWorkSection, getWorkPillarList } from "@/lib/work-pillar-settings";
 
 export const runtime = "nodejs";
 
@@ -112,9 +112,10 @@ export async function POST(req: Request) {
       });
     }
 
-    for (const pillarSlug of PILLAR_SLUGS) {
-      const pillar = getPillarBySlug(pillarSlug);
-      const section = PILLAR_TO_SECTION[pillarSlug];
+    const pillars = await getWorkPillarList();
+    for (const pillar of pillars) {
+      const section = getPrimaryWorkSection(pillar);
+      const pillarSlug = pillar.slug;
       const slug = `demo-${pillarSlug}`;
       const existing = await prisma.workProject.findFirst({
         where: { section, slug },

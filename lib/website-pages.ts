@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 
 export type WebsitePageStatus = "PUBLISHED" | "DRAFT";
@@ -190,8 +191,8 @@ export const CORE_WEBSITE_PAGES: WebsitePage[] = [
     slug: "services",
     title: "Services",
     eyebrow: "Services",
-    description: "Photography built for performance - not just the shoot.",
-    body: "Premium capture plus structured delivery: organized assets, SEO-aware preparation, and guidance so your visuals work across web, search, and social.",
+    description: "Commercial photography services for architecture, real estate, hospitality, fashion, advertising, and brand campaigns.",
+    body: "BRIGHTLINE Photography provides full-service commercial image production for teams that need more than a quick gallery. Services include pre-production planning, shot-list development, on-site capture, editing, retouching direction, structured delivery, and publishing-ready files for web, search, social, decks, listings, press, and long-term brand libraries.",
     ctaLabel: "View service pages",
     ctaHref: "/services",
     status: "DRAFT",
@@ -202,8 +203,15 @@ export const CORE_WEBSITE_PAGES: WebsitePage[] = [
         type: "hero",
         label: "Hero",
         eyebrow: "Services",
-        title: "Photography built for performance - not just the shoot.",
-        body: "Premium capture plus structured delivery: organized assets, SEO-aware preparation, and guidance so your visuals work across web, search, and social.",
+        title: "Photography services built around how your images will be used.",
+        body: "From architecture and commercial real estate to fashion, advertising, hospitality, and brand campaigns, each service combines premium capture with planning, production discipline, and structured delivery. The result is a complete visual library your team can use across websites, listings, decks, social, paid campaigns, press, and internal marketing.",
+      }),
+      coreBlock("services_full_scope", {
+        type: "text",
+        label: "Full service explanation",
+        eyebrow: "Full-service production",
+        title: "Not just photographs. A complete visual asset system.",
+        body: "Every project starts with the intended use of the images: where they need to live, who needs to approve them, what audiences need to understand, and how quickly the assets need to move after delivery. We plan the shoot around those goals, then create a clear image library that includes hero images, supporting coverage, detail moments, practical crops, and organized final files.\n\nThis approach is especially useful for lean marketing teams, developers, architects, designers, hospitality brands, property teams, and creative teams that need polished imagery without a confusing handoff. The service does not stop at capture. It includes the thinking required to make the final assets easier to publish, repurpose, and manage.",
       }),
       coreBlock("services_stats", {
         type: "stats",
@@ -220,12 +228,36 @@ export const CORE_WEBSITE_PAGES: WebsitePage[] = [
         label: "Packages intro",
         eyebrow: "Packages",
         title: "Tailored to your industry",
-        body: "Each package includes pre-production, capture, post-production, and a structured handoff.",
+        body: "Each service package includes pre-production, capture, post-production, and a structured handoff. Scope is shaped around the project type, usage, timeline, location, and the channels where the images need to perform.",
         items: [
-          { title: "Architecture & Spaces Photography", body: "Interiors, exteriors, and built environments." },
-          { title: "Commercial Real Estate Photography", body: "Architectural clarity for leasing and investment decks." },
-          { title: "Fashion & Advertising Photography", body: "Editorial and campaign work with cinematic lighting." },
+          { title: "Architecture & Spaces Photography", body: "Interiors, exteriors, amenities, hospitality environments, and designed spaces photographed with attention to light, scale, material, circulation, and brand use." },
+          { title: "Commercial Real Estate Photography", body: "Property imagery for leasing, investment decks, development marketing, broker materials, amenity launches, and long-term ownership asset libraries." },
+          { title: "Fashion & Advertising Photography", body: "Campaign, editorial, lookbook, product, and launch imagery with polished lighting, clear creative direction, and delivery built for multiple marketing channels." },
         ],
+      }),
+    ],
+  },
+  {
+    id: "core_work",
+    slug: "work",
+    title: "Work",
+    eyebrow: "Work",
+    description: "Architecture, advertising, and corporate photography projects.",
+    body: "Case studies and project galleries showing how BRIGHTLINE creates visuals for architecture, advertising, corporate, and commercial teams.",
+    ctaLabel: "Start a project",
+    ctaHref: "/contact",
+    status: "DRAFT",
+    updatedAt: new Date(0).toISOString(),
+    managed: true,
+    blocks: [
+      coreBlock("work_hero", {
+        type: "hero",
+        label: "Hero background",
+        eyebrow: "Work",
+        title: "Case studies",
+        body: "Architecture, advertising, and corporate - visuals prepared for how teams actually use them.",
+        ctaLabel: "Start a project",
+        ctaHref: "/contact",
       }),
     ],
   },
@@ -250,6 +282,54 @@ export const CORE_WEBSITE_PAGES: WebsitePage[] = [
         body: "Notes, project stories, and production guidance. Keep this page in Draft until launch.",
         ctaLabel: "Contact",
         ctaHref: "/contact",
+      }),
+    ],
+  },
+  {
+    id: "core_galleries",
+    slug: "galleries",
+    title: "Client Galleries",
+    eyebrow: "Private delivery",
+    description: "Secure proofing and final delivery for BRIGHTLINE clients.",
+    body: "Enter your private access code to review proofs, make selections, download web-ready and high-resolution files, and view project video delivery.",
+    ctaLabel: "Enter gallery",
+    ctaHref: "/galleries",
+    status: "DRAFT",
+    updatedAt: new Date(0).toISOString(),
+    managed: true,
+    blocks: [
+      coreBlock("galleries_hero", {
+        type: "hero",
+        label: "Client gallery hero",
+        eyebrow: "Private delivery",
+        title: "Secure image and video delivery.",
+        body: "Client galleries are protected by access code. Once inside, your team can review proofs, favorite/select images, download low-res web files, download high-res originals, and access project video assets.",
+        ctaLabel: "Enter gallery",
+        ctaHref: "/galleries",
+      }),
+      coreBlock("galleries_process", {
+        type: "cards",
+        label: "Delivery promise",
+        eyebrow: "What to expect",
+        title: "A cleaner handoff after every shoot.",
+        body: "Every delivery is organized around how your team will use the assets.",
+        items: [
+          {
+            title: "Private access",
+            body: "Each gallery opens only with a unique access code.",
+            meta: "Secure client portal",
+          },
+          {
+            title: "Low + high-res",
+            body: "Download web-ready files for quick publishing and high-resolution files for print, press, and archive.",
+            meta: "Structured delivery",
+          },
+          {
+            title: "Video included",
+            body: "Project video files live alongside the gallery when included in the delivery.",
+            meta: "Image + motion",
+          },
+        ],
       }),
     ],
   },
@@ -423,13 +503,32 @@ export async function getWebsitePagesForAdmin(): Promise<WebsitePage[]> {
   return [...mergedCore, ...custom];
 }
 
-export async function getPublishedWebsitePageBySlug(slug: string) {
+/**
+ * Merges core defaults with DB (same as admin) so published core pages like `contact`
+ * resolve the full block list and media, not only a partial saved array.
+ */
+export const getPublishedWebsitePageBySlug = cache(async (slug: string) => {
   const normalizedSlug = slugify(slug);
-  const pages = await getWebsitePages();
+  const pages = await getWebsitePagesForAdmin();
   return (
     pages.find((page) => page.slug === normalizedSlug && page.status === "PUBLISHED") ??
     null
   );
+});
+
+/** First hero block (or any block) with page background media, for public routes. */
+export function getBackgroundMediaFromPage(page: WebsitePage | null) {
+  if (!page) return { media: null as string | null, poster: null as string | null };
+  const hero =
+    page.blocks.find(
+      (b) => b.type === "hero" && (b.mediaUrl?.trim() || b.posterUrl?.trim())
+    ) ||
+    page.blocks.find((b) => b.mediaUrl?.trim() || b.posterUrl?.trim());
+  if (!hero) return { media: null, poster: null };
+  return {
+    media: hero.mediaUrl?.trim() || null,
+    poster: hero.posterUrl?.trim() || null,
+  };
 }
 
 export async function saveWebsitePages(input: unknown): Promise<WebsitePage[]> {

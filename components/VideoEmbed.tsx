@@ -32,7 +32,7 @@ export default function VideoEmbed({
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
-          className="absolute inset-0 h-full w-full rounded-2xl border border-black/10 bg-black"
+          className="absolute inset-0 h-full w-full rounded-2xl border border-white/10 bg-black"
         />
       </div>
     );
@@ -42,7 +42,7 @@ export default function VideoEmbed({
     <button
       type="button"
       onClick={() => setLoaded(true)}
-      className="group relative block w-full cursor-pointer overflow-hidden rounded-2xl border border-black/10 bg-black"
+      className="group relative block w-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-black"
       style={{ aspectRatio: "16/9" }}
       aria-label={`Play video: ${title}`}
     >

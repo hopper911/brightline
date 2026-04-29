@@ -13,12 +13,12 @@ import {
   POSITIONING_STRIP,
   STRUCTURED_DELIVERY,
 } from "@/lib/config/strategicPositioning";
-import { PILLARS } from "@/lib/portfolioPillars";
 import { getFeaturedHeroForSection } from "@/lib/queries/work";
 import { getHomepageFeaturedMedia } from "@/lib/queries/site";
 import { getPublishedGalleryCards } from "@/lib/queries/public-galleries";
 import { getPublicR2Url } from "@/lib/r2";
 import { getPublishedWebsitePageBySlug } from "@/lib/website-pages";
+import { getVisibleWorkPillars, resolvePillarCoverUrl } from "@/lib/work-pillar-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +89,8 @@ export default async function Page() {
     return <WebsitePageView page={pageOverride} />;
   }
 
+  const visiblePillars = await getVisibleWorkPillars();
+
   let pillarData: {
     slug: string;
     label: string;
@@ -98,31 +100,40 @@ export default async function Page() {
   }[];
   try {
     pillarData = await Promise.all(
-      PILLARS.map(async (pillar) => {
+      visiblePillars.map(async (pillar) => {
         const firstSection = pillar.sections[0];
         const hero = firstSection
           ? await getFeaturedHeroForSection(firstSection)
           : null;
-        let coverUrl = "";
         const imageKey = hero?.kind === "IMAGE" ? hero.keyFull ?? hero.keyThumb : null;
-        if (imageKey) {
-          coverUrl = getPublicR2Url(imageKey);
-        } else {
-          coverUrl = "/images/hero.jpg";
-        }
+        const autoCover = imageKey ? getPublicR2Url(imageKey) : "/images/hero.jpg";
+        const coverUrl =
+          resolvePillarCoverUrl(pillar.coverImageKey, autoCover) ?? autoCover;
+        const coverAlt =
+          pillar.coverAlt.trim() ? pillar.coverAlt.trim() : (hero?.alt ?? pillar.label);
         return {
-          ...pillar,
+          slug: pillar.slug,
+          label: pillar.label,
+          homeMeta: pillar.homeMeta,
           coverUrl,
-          coverAlt: hero?.alt ?? pillar.label,
+          coverAlt,
         };
       })
     );
   } catch {
-    pillarData = PILLARS.map((p) => ({
-      ...p,
-      coverUrl: "/images/hero.jpg",
-      coverAlt: p.label,
-    }));
+    pillarData = visiblePillars.map((pillar) => {
+      const autoCover = "/images/hero.jpg";
+      const coverUrl =
+        resolvePillarCoverUrl(pillar.coverImageKey, autoCover) ?? autoCover;
+      const coverAlt = pillar.coverAlt.trim() ? pillar.coverAlt.trim() : pillar.label;
+      return {
+        slug: pillar.slug,
+        label: pillar.label,
+        homeMeta: pillar.homeMeta,
+        coverUrl,
+        coverAlt,
+      };
+    });
   }
 
   let featuredImage: { url: string; alt: string } | null = null;

@@ -1,5 +1,7 @@
 # Deploy to Vercel
 
+**CLI production deploys (migrations first, then Vercel):** use [`npm run deploy:prod`](docs/deployment.md) and read [docs/deployment.md](docs/deployment.md) for the full safe workflow, Neon `DATABASE_URL` / `DIRECT_URL`, and what to do if a migration fails.
+
 ## Prerequisites
 
 - GitHub repo connected to Vercel

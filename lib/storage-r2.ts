@@ -130,3 +130,15 @@ export async function putObjectBuffer(options: PutObjectBufferOptions): Promise<
   );
 }
 
+export async function getObjectBuffer(key: string): Promise<Buffer> {
+  const client = getR2Client();
+  const bucket = getBucket();
+  const response = await client.send(
+    new GetObjectCommand({ Bucket: bucket, Key: key.replace(/^\//, "") })
+  );
+  const body = response.Body;
+  if (!body) throw new Error("R2 object body was empty.");
+  const bytes = await body.transformToByteArray();
+  return Buffer.from(bytes);
+}
+

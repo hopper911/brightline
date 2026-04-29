@@ -7,9 +7,9 @@ import StudioProjectCaseStudy from "@/components/studio/StudioProjectCaseStudy";
 import { BRAND } from "@/lib/config/brand";
 import {
   getPillarBySlug,
-  isPillarSlug,
-  SECTION_TO_PILLAR,
-} from "@/lib/portfolioPillars";
+  getSectionToPillarSlugMap,
+  isKnownPillarSlug,
+} from "@/lib/work-pillar-settings";
 import { getPublishedProjectsBySections } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
 import { normalizeProjectSlug } from "@/lib/slugify";
@@ -17,6 +17,7 @@ import {
   getAdjacentPublishedStudioProjects,
   getPublishedStudioProjectForPublicBySlug,
   getPublishedStudioProjectMetaBySlug,
+  listPublishedStudioProjectsForWorkPillar,
 } from "@/lib/studio/studio-project-cms";
 import type { WorkSection } from "@prisma/client";
 
@@ -39,8 +40,8 @@ export async function generateMetadata({
   params: Promise<{ section: string }>;
 }): Promise<Metadata> {
   const { section } = await params;
-  if (isPillarSlug(section)) {
-    const pillar = getPillarBySlug(section);
+  if (await isKnownPillarSlug(section)) {
+    const pillar = await getPillarBySlug(section);
     if (!pillar) return { title: "Work · BRIGHTLINE Photography" };
     const title = `${pillar.label} · BRIGHTLINE Photography`;
     return {
@@ -91,15 +92,21 @@ export async function generateMetadata({
 }
 
 function ProjectGrid({
-  projects,
+  workProjects,
+  studioTiles,
   getProjectHref,
 }: {
-  projects: Awaited<ReturnType<typeof getPublishedProjectsBySections>>;
-  getProjectHref: (project: (typeof projects)[0]) => string;
+  workProjects: Awaited<ReturnType<typeof getPublishedProjectsBySections>>;
+  studioTiles?: Awaited<ReturnType<typeof listPublishedStudioProjectsForWorkPillar>>;
+  getProjectHref: (project: (typeof workProjects)[0]) => string;
 }) {
-  return (
-    <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {projects.map((project) => {
+  const studio = studioTiles ?? [];
+  const showStudio = studio.length > 0;
+  const showWork = workProjects.length > 0;
+
+  const grid = (
+    <>
+      {workProjects.map((project) => {
         const hero = project.heroMedia;
         const heroImageUrl =
           hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)
@@ -190,6 +197,68 @@ function ProjectGrid({
           </Reveal>
         );
       })}
+      {showStudio
+        ? studio.map((tile) => {
+            const hero = tile.heroImage;
+            const heroImageUrl =
+              hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)
+                ? getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? "")
+                : null;
+
+            return (
+              <Reveal key={`studio_${tile.id}`}>
+                <Link
+                  href={`/work/${encodeURIComponent(tile.slug)}`}
+                  className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
+                >
+                  <div className="relative h-[240px] w-full overflow-hidden">
+                    {heroImageUrl ? (
+                      <Image
+                        src={heroImageUrl}
+                        alt={hero?.alt ?? tile.title}
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        quality={85}
+                        placeholder="blur"
+                        blurDataURL={BLUR_DATA}
+                        className="object-cover image-zoom"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">
+                        <span className="text-xs uppercase tracking-[0.2em]">
+                          {tile.title}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <h2 className="text-base text-white group-hover:text-white">
+                      {tile.title}
+                    </h2>
+                    {tile.summary && (
+                      <p className="mt-2 line-clamp-2 text-sm text-white/70">
+                        {tile.summary}
+                      </p>
+                    )}
+                    {(tile.location || tile.year) && (
+                      <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/50">
+                        {[tile.location, tile.year].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              </Reveal>
+            );
+          })
+        : null}
+    </>
+  );
+
+  if (!showWork && !showStudio) return null;
+
+  return (
+    <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {grid}
     </div>
   );
 }
@@ -209,15 +278,28 @@ function WorkUpdatingFallback() {
 }
 
 async function PillarSectionContent({ section }: { section: string }) {
-  if (!isPillarSlug(section)) notFound();
-  const pillar = getPillarBySlug(section);
-  if (!pillar) notFound();
+  if (!(await isKnownPillarSlug(section))) notFound();
+  const pillar = await getPillarBySlug(section);
+  if (!pillar || pillar.visible === false) notFound();
+
+  let sectionMap: Awaited<ReturnType<typeof getSectionToPillarSlugMap>>;
+  try {
+    sectionMap = await getSectionToPillarSlugMap();
+  } catch {
+    notFound();
+  }
 
   let projects: Awaited<ReturnType<typeof getPublishedProjectsBySections>>;
+  let studioTiles: Awaited<ReturnType<typeof listPublishedStudioProjectsForWorkPillar>> = [];
   try {
     projects = await getPublishedProjectsBySections(pillar.sections);
   } catch {
     return <WorkUpdatingFallback />;
+  }
+  try {
+    studioTiles = await listPublishedStudioProjectsForWorkPillar(pillar.slug);
+  } catch {
+    studioTiles = [];
   }
 
   return (
@@ -234,14 +316,15 @@ async function PillarSectionContent({ section }: { section: string }) {
       </Reveal>
 
       <ProjectGrid
-        projects={projects}
+        workProjects={projects}
+        studioTiles={studioTiles}
         getProjectHref={(project) => {
-          const pillarSlug = SECTION_TO_PILLAR[project.section as WorkSection];
+          const pillarSlug = sectionMap[project.section as WorkSection];
           return `/work/${pillarSlug}/${project.slug}`;
         }}
       />
 
-      {projects.length === 0 && (
+      {projects.length === 0 && studioTiles.length === 0 && (
         <Reveal className="mt-12 rounded-2xl border border-white/10 bg-black/40 p-12 text-center">
           <p className="text-white/70">No published projects in this pillar yet.</p>
           <Link href="/work" className="btn btn-ghost mt-4">
@@ -268,7 +351,7 @@ export default async function WorkSectionOrStudioPage({
     permanentRedirect(`/work/${legacyPillar}`);
   }
 
-  if (isPillarSlug(section)) {
+  if (await isKnownPillarSlug(section)) {
     return <PillarSectionContent section={section} />;
   }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { SECTION_TO_PILLAR } from "@/lib/portfolioPillars";
+import { getSectionToPillarSlugMap } from "@/lib/work-pillar-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +34,8 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "filename is required." }, { status: 400 });
     }
 
-    const pillarSlug = SECTION_TO_PILLAR[project.section];
+    const sectionMap = await getSectionToPillarSlugMap();
+    const pillarSlug = sectionMap[project.section];
     const safeName = body.filename.replace(/[^\w.-]/g, "-");
     const ext = (safeName.split(".").pop() ?? "").toLowerCase();
     const isVideo = ext === "mp4" || ext === "webm" || ext === "mov";

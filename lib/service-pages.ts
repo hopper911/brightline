@@ -18,6 +18,14 @@ function blankService(slug = "new-service"): Service {
     title: "New Service Page",
     summary: "Short service summary.",
     description: "Describe this service page.",
+    overview: ["Describe how this service works, who it is for, and how the final assets are used."],
+    serviceDetails: [
+      {
+        title: "Service detail",
+        body: "Explain a specific part of the service in more depth.",
+      },
+    ],
+    bestFor: ["Ideal client or project type"],
     heroTagline: "Short positioning line.",
     portfolioLabel: "View portfolio",
     portfolioHref: "/work",
@@ -43,6 +51,20 @@ function blankService(slug = "new-service"): Service {
 function stringArray(value: unknown, fallback: string[]) {
   if (!Array.isArray(value)) return fallback;
   const normalized = value.map((item) => String(item).trim()).filter(Boolean);
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function serviceDetailArray(value: unknown, fallback: Service["serviceDetails"]) {
+  if (!Array.isArray(value)) return fallback;
+  const normalized = value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const title = typeof row.title === "string" ? row.title.trim() : "";
+      const body = typeof row.body === "string" ? row.body.trim() : "";
+      return title && body ? { title, body } : null;
+    })
+    .filter(Boolean) as Service["serviceDetails"];
   return normalized.length > 0 ? normalized : fallback;
 }
 
@@ -96,6 +118,9 @@ export function normalizeServicePage(input: unknown, fallback: Service): Service
       typeof row.description === "string" && row.description.trim()
         ? row.description.trim()
         : fallback.description,
+    overview: stringArray(row.overview, fallback.overview),
+    serviceDetails: serviceDetailArray(row.serviceDetails, fallback.serviceDetails),
+    bestFor: stringArray(row.bestFor, fallback.bestFor),
     heroTagline:
       typeof row.heroTagline === "string" && row.heroTagline.trim()
         ? row.heroTagline.trim()

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import SeoServicePage from "@/components/SeoServicePage";
 import { getSeoServicePageBySlug } from "@/lib/seoServicePages";
 import { getPublishedProjectsBySections } from "@/lib/queries/work";
+import { getSectionToPillarSlugMap } from "@/lib/work-pillar-settings";
 import { BRAND } from "@/lib/config/brand";
 
 export const dynamic = "force-dynamic";
@@ -33,5 +34,9 @@ export default async function CommercialPhotographerNYCPage() {
     projects = [];
   }
 
-  return <SeoServicePage config={config} projects={projects} />;
+  const sectionToPillar = await getSectionToPillarSlugMap();
+
+  return (
+    <SeoServicePage config={config} projects={projects} sectionToPillar={sectionToPillar} />
+  );
 }

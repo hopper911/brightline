@@ -1,15 +1,8 @@
 "use client";
 
+import type { EmailProviderStatus } from "@/lib/integrations/emailProvider";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-
-type EmailStatus = {
-  provider: string;
-  configured: boolean;
-  emailAddress?: string;
-  displayName?: string;
-  missing: string[];
-};
+import { useEffect, useState } from "react";
 
 type EmailThread = {
   id: string;
@@ -23,7 +16,7 @@ type EmailThread = {
 };
 
 type Props = {
-  status: EmailStatus;
+  status: EmailProviderStatus;
   account: {
     id: string;
     emailAddress: string;
@@ -33,6 +26,12 @@ type Props = {
   threads: EmailThread[];
   unreadCount: number;
 };
+
+function providerLabel(provider: EmailProviderStatus["provider"]) {
+  if (provider === "resend") return "Resend (transactional API)";
+  if (provider === "smtp_imap") return "SMTP / IMAP";
+  return "Not configured";
+}
 
 export function MissionControlEmailPanel({
   status,
@@ -44,9 +43,18 @@ export function MissionControlEmailPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);
+  const allowedFrom = status.allowedFromEmails ?? [];
+  const defaultFrom = status.defaultFromEmail ?? allowedFrom[0] ?? "";
+  const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [text, setText] = useState("");
+
+  useEffect(() => {
+    const list = status.allowedFromEmails ?? [];
+    const d = status.defaultFromEmail ?? list[0] ?? "";
+    setFrom((prev) => (list.includes(prev) ? prev : d));
+  }, [status.defaultFromEmail, status.allowedFromEmails]);
 
   async function syncInbox() {
     setBusy(true);
@@ -83,7 +91,7 @@ export function MissionControlEmailPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ to, subject, text }),
+        body: JSON.stringify({ fromEmail: from, to, subject, text }),
       });
       const data = (await res.json()) as {
         ok?: boolean;
@@ -131,8 +139,61 @@ export function MissionControlEmailPanel({
     }
   }
 
+  const inboxDisplay = status.inboxEmail?.trim() || null;
+
   return (
     <div className="space-y-5">
+      <div className="rounded-xl border border-white/10 bg-black/25 p-4 text-xs text-white/70">
+        <p className="text-[10px] uppercase tracking-[0.25em] text-white/45">
+          Email status
+        </p>
+        <dl className="mt-3 space-y-2">
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+            <dt className="shrink-0 text-white/45">Provider</dt>
+            <dd className="font-mono text-white/85">{providerLabel(status.provider)}</dd>
+          </div>
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+            <dt className="shrink-0 text-white/45">Inbox</dt>
+            <dd className="break-all font-mono text-white/85">
+              {inboxDisplay ?? "Set STUDIO_OS_INBOX_EMAIL or STUDIO_OS_IMAP_USER"}
+            </dd>
+          </div>
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+            <dt className="shrink-0 text-white/45">Default From</dt>
+            <dd className="break-all font-mono text-white/85">
+              {status.defaultFromEmail ?? "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-white/45">Allowed From</dt>
+            <dd className="mt-1">
+              <ul className="space-y-0.5 font-mono text-[11px] text-white/80">
+                {(status.allowedFromEmails ?? []).map((addr) => (
+                  <li key={addr}>{addr}</li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <div>
+              <span className="text-white/45">SMTP</span>
+              {status.provider === "resend" ? (
+                <span className="ml-2 text-white/55">(Resend API)</span>
+              ) : null}
+              <span className="ml-2 text-white/85">
+                {status.smtpConfigured ? "Configured" : "Not configured"}
+              </span>
+            </div>
+            <div>
+              <span className="text-white/45">IMAP</span>
+              <span className="ml-2 text-white/85">
+                {status.imapConfigured ? "Configured" : "Not configured"}
+              </span>
+            </div>
+          </div>
+        </dl>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="flex flex-wrap items-center gap-2 text-sm text-white/80">
@@ -234,6 +295,23 @@ export function MissionControlEmailPanel({
           Quick draft
         </p>
         <div className="mt-3 grid gap-3">
+          <label className="grid gap-1">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+              From
+            </span>
+            <select
+              className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
+              value={from}
+              disabled={!status.configured || allowedFrom.length === 0}
+              onChange={(event) => setFrom(event.target.value)}
+            >
+              {allowedFrom.map((addr) => (
+                <option key={addr} value={addr}>
+                  {addr}
+                </option>
+              ))}
+            </select>
+          </label>
           <input
             className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
             placeholder="To"

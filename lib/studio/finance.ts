@@ -176,6 +176,7 @@ export async function getFinanceOverview(monthParam?: string | null) {
           id: true,
           title: true,
           client: true,
+          clientId: true,
           slug: true,
           totalPrice: true,
           depositAmount: true,

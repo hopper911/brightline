@@ -94,6 +94,23 @@ enum PaymentType {
   OTHER
 }
 
+/// Reusable invoice line templates (Brightline service catalog).
+enum ServiceTemplateType {
+  PER_IMAGE
+  FLAT
+  HOURLY
+  CANCELLATION
+}
+
+enum StudioInvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
 enum ClientFollowUpStatus {
   NONE
   NEEDED
@@ -339,6 +356,7 @@ model GalleryImage {
   gallery    Gallery           @relation(fields: [galleryId], references: [id], onDelete: Cascade)
   tags       GalleryImageTag[]
   selections GalleryImageSelection[]
+  billedOnLineItems StudioInvoiceLineItemMedia[]
 }
 
 model GalleryVideo {
@@ -543,6 +561,11 @@ model StudioProject {
   pillar           String?
   projectType      String?
   shootDate        DateTime?
+  /// Billable retouch count (drives PER_IMAGE line generation).
+  totalImages      Int?
+  /// Travel time in hours (drives HOURLY travel line generation).
+  travelTimeHours  Decimal?  @db.Decimal(10, 2)
+  isCancelled      Boolean   @default(false)
   deliveryDate     DateTime?
   followUpAt       DateTime?
   publishingStatus String?
@@ -597,6 +620,7 @@ model StudioProject {
   galleries             StudioGallery[]
   payments              StudioPayment[]
   expenses              StudioExpense[]
+  invoices              StudioInvoice[]
   analytics             AnalyticsSnapshot[]
   workCaseStudy         WorkCaseStudy?
   portfolioProjects     PortfolioProject[]
@@ -637,6 +661,7 @@ model StudioClient {
   updatedAt          DateTime @updatedAt
 
   projects   StudioProject[]
+  invoices   StudioInvoice[]
   StudioLead StudioLead[]
   emailThreads StudioEmailThread[]
 
@@ -650,6 +675,8 @@ model StudioClient {
 model StudioPayment {
   id        String      @id @default(cuid())
   projectId String
+  /// When set, this payment is attributed to a specific invoice (in addition to project rollup).
+  invoiceId String?
   amount    Decimal     @db.Decimal(10, 2)
   date      DateTime    @default(now())
   type      PaymentType @default(OTHER)
@@ -657,11 +684,101 @@ model StudioPayment {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  project StudioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project StudioProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invoice StudioInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@index([date])
   @@index([projectId, date])
   @@index([type])
+  @@index([invoiceId])
+}
+
+model StudioServiceTemplate {
+  id           String              @id @default(cuid())
+  slug         String              @unique
+  name         String
+  type         ServiceTemplateType
+  defaultPrice Decimal             @db.Decimal(10, 2)
+  /// Optional ceiling (e.g. Photography & Creative Services up to $450).
+  maxPrice     Decimal?            @db.Decimal(10, 2)
+  unitLabel    String
+  isActive     Boolean             @default(true)
+  sortOrder    Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  lineItems StudioInvoiceLineItem[]
+}
+
+model StudioInvoice {
+  id               String              @id @default(cuid())
+  invoiceNumber    Int                 @unique
+  clientId         String
+  projectId        String?
+  status           StudioInvoiceStatus @default(DRAFT)
+  issuedAt         DateTime?
+  dueAt            DateTime?
+  sentAt           DateTime?
+  paidAt           DateTime?
+  subtotal         Decimal             @default(0) @db.Decimal(10, 2)
+  tax              Decimal             @default(0) @db.Decimal(10, 2)
+  discount         Decimal             @default(0) @db.Decimal(10, 2)
+  total            Decimal             @default(0) @db.Decimal(10, 2)
+  amountPaid       Decimal             @default(0) @db.Decimal(10, 2)
+  balanceRemaining Decimal             @default(0) @db.Decimal(10, 2)
+  notes            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  client    StudioClient      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project   StudioProject?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  lineItems StudioInvoiceLineItem[]
+  payments  StudioPayment[]
+
+  @@index([clientId])
+  @@index([projectId])
+  @@index([status])
+  @@index([issuedAt])
+  @@index([dueAt])
+}
+
+model StudioInvoiceLineItem {
+  id                String              @id @default(cuid())
+  invoiceId         String
+  serviceTemplateId String?
+  name              String
+  type              ServiceTemplateType
+  unitLabel         String
+  unitPrice         Decimal             @db.Decimal(10, 2)
+  quantity          Decimal             @db.Decimal(10, 2)
+  amount            Decimal             @db.Decimal(10, 2)
+  sortOrder         Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  invoice         StudioInvoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  serviceTemplate StudioServiceTemplate? @relation(fields: [serviceTemplateId], references: [id], onDelete: SetNull)
+  mediaLinks      StudioInvoiceLineItemMedia[]
+
+  @@index([invoiceId, sortOrder])
+}
+
+/// Links billed media assets to a specific invoice line (revenue-per-image).
+model StudioInvoiceLineItemMedia {
+  id             String   @id @default(cuid())
+  lineItemId     String
+  studioMediaId  String?
+  galleryImageId String?
+  quantity       Decimal  @default(1) @db.Decimal(10, 2)
+
+  lineItem     StudioInvoiceLineItem @relation(fields: [lineItemId], references: [id], onDelete: Cascade)
+  studioMedia  StudioMedia?          @relation(fields: [studioMediaId], references: [id], onDelete: SetNull)
+  galleryImage GalleryImage?         @relation(fields: [galleryImageId], references: [id], onDelete: SetNull)
+
+  @@unique([lineItemId, studioMediaId])
+  @@unique([lineItemId, galleryImageId])
+  @@index([studioMediaId])
+  @@index([galleryImageId])
 }
 
 // Studio OS (internal) — manual expense tracking with optional receipt link.
@@ -803,6 +920,7 @@ model StudioEmailMessage {
 model StudioEmailDraft {
   id        String                 @id @default(cuid())
   accountId String
+  fromEmail String?
   toEmail   String
   subject   String
   text      String
@@ -855,6 +973,7 @@ model StudioMedia {
   workLinks              WorkMedia[]
   heroForProjects        StudioProject[]      @relation("StudioProjectHeroStudioMedia")
   heroForWorkCaseStudies WorkCaseStudy[]      @relation("WorkCaseStudyHeroStudioMedia")
+  billedOnLineItems      StudioInvoiceLineItemMedia[]
 
   @@index([projectId])
   @@index([visibility])

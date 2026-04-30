@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { hasAdminAccess } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
+import { getClientFinancials } from "@/lib/studio/invoicing";
 import StudioClientDetail from "./client-detail";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +62,8 @@ export default async function AdminClientDetailPage({
     _sum: { amount: true },
   });
 
+  const financials = await getClientFinancials(id);
+
   const { projects, ...rest } = client;
   const initialClient = {
     ...rest,
@@ -85,11 +88,29 @@ export default async function AdminClientDetailPage({
     createdAt: l.createdAt.toISOString(),
   }));
 
+  const initialFinancials = {
+    totalBilled: financials.totalBilled.toString(),
+    totalPaid: financials.totalPaid.toString(),
+    lifetimeValue: financials.lifetimeValue.toString(),
+    outstandingOnInvoices: financials.outstandingOnInvoices.toString(),
+    invoices: financials.invoices.map((inv) => ({
+      id: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      status: inv.status,
+      total: inv.total.toString(),
+      amountPaid: inv.amountPaid.toString(),
+      balanceRemaining: inv.balanceRemaining.toString(),
+      projectTitle: inv.project?.title ?? null,
+      updatedAt: inv.updatedAt.toISOString(),
+    })),
+  };
+
   return (
     <StudioClientDetail
       initialClient={initialClient}
       initialProjects={initialProjects}
       initialLeads={initialLeads}
+      initialFinancials={initialFinancials}
     />
   );
 }

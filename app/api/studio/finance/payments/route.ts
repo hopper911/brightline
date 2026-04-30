@@ -9,6 +9,7 @@ import {
   parsePositiveMoney,
   recalculateProjectFinance,
 } from "@/lib/studio/finance";
+import { recalculateInvoiceFinance } from "@/lib/studio/invoicing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,11 +52,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "projectId is required." }, { status: 400 });
   }
 
+  const invoiceId = asNullableString(body.invoiceId);
+
   try {
     const result = await prisma.$transaction(async (tx) => {
+      if (invoiceId) {
+        const inv = await tx.studioInvoice.findFirst({
+          where: { id: invoiceId, projectId },
+          select: { id: true },
+        });
+        if (!inv) {
+          throw new Error("invoiceId does not match this project.");
+        }
+      }
       const payment = await tx.studioPayment.create({
         data: {
           projectId,
+          invoiceId: invoiceId ?? undefined,
           amount: parsePositiveMoney(body.amount),
           date: parseDate(body.date),
           type: normalizePaymentType(body.type),
@@ -64,7 +77,11 @@ export async function POST(req: Request) {
         include: { project: { select: { id: true, title: true, client: true, slug: true } } },
       });
       const project = await recalculateProjectFinance(tx, projectId);
-      return { payment, project };
+      let invoice = null;
+      if (invoiceId) {
+        invoice = await recalculateInvoiceFinance(tx, invoiceId);
+      }
+      return { payment, project, invoice };
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {

@@ -7,6 +7,7 @@ type ProjectOption = {
   id: string;
   title: string;
   client: string;
+  clientId?: string | null;
   paymentStatus: string;
 };
 
@@ -31,11 +32,47 @@ export function FinanceQuickActions({ projects }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paymentInvoiceOptions, setPaymentInvoiceOptions] = useState<
+    { id: string; label: string }[]
+  >([]);
+
+  async function loadInvoicesForProject(projectId: string) {
+    if (!projectId) {
+      setPaymentInvoiceOptions([]);
+      return;
+    }
+    const res = await fetch(`/api/studio/invoices?projectId=${encodeURIComponent(projectId)}`, {
+      credentials: "include",
+    });
+    const data = (await res.json()) as {
+      ok?: boolean;
+      invoices?: { id: string; invoiceNumber: number; balanceRemaining: unknown }[];
+    };
+    if (!res.ok || !data.invoices) {
+      setPaymentInvoiceOptions([]);
+      return;
+    }
+    setPaymentInvoiceOptions(
+      data.invoices.map((inv) => ({
+        id: inv.id,
+        label: `#${String(inv.invoiceNumber).padStart(3, "0")} · bal ${dec(inv.balanceRemaining)}`,
+      }))
+    );
+  }
+
+  function dec(v: unknown) {
+    if (typeof v === "string" || typeof v === "number") return v;
+    if (v && typeof (v as { toString(): string }).toString === "function") {
+      return (v as { toString(): string }).toString();
+    }
+    return "?";
+  }
 
   async function addPayment(form: HTMLFormElement) {
     const fd = new FormData(form);
     const payload = {
       projectId: fd.get("projectId")?.toString(),
+      invoiceId: fd.get("invoiceId")?.toString() || undefined,
       amount: fd.get("amount")?.toString(),
       date: fd.get("date")?.toString(),
       type: fd.get("type")?.toString(),
@@ -161,11 +198,29 @@ export function FinanceQuickActions({ projects }: Props) {
         <div className="mt-4 space-y-3">
           <label className={labelClass}>
             Project
-            <select name="projectId" required className={`${inputClass} mt-1`}>
+            <select
+              name="projectId"
+              required
+              className={`${inputClass} mt-1`}
+              onChange={(e) => {
+                void loadInvoicesForProject(e.target.value);
+              }}
+            >
               <option value="">Choose project</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.client} - {project.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={labelClass}>
+            Invoice optional
+            <select name="invoiceId" className={`${inputClass} mt-1`} defaultValue="">
+              <option value="">Project-level only</option>
+              {paymentInvoiceOptions.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
                 </option>
               ))}
             </select>

@@ -5,6 +5,11 @@ import {
   type EmailDraft,
   type SyncedEmailMessage,
 } from "@/lib/integrations/emailProvider";
+import {
+  getDefaultBrightlineSender,
+  normalizeBrightlineEmail,
+  requireAllowedBrightlineSender,
+} from "@/lib/studio/brightline-email-senders";
 
 function normalizeEmail(input?: string | null) {
   return input?.trim().toLowerCase() || "";
@@ -219,10 +224,14 @@ export async function createStudioEmailDraft(input: EmailDraft & {
   if (!toEmail) throw new Error("to is required.");
   if (!input.subject.trim()) throw new Error("subject is required.");
   if (!input.text.trim()) throw new Error("text is required.");
+  const fromEmail = requireAllowedBrightlineSender(
+    input.fromEmail ?? getDefaultBrightlineSender()
+  );
 
   return prisma.studioEmailDraft.create({
     data: {
       accountId: account.id,
+      fromEmail,
       toEmail,
       subject: input.subject.trim(),
       text: input.text.trim(),
@@ -243,11 +252,15 @@ export async function sendStudioEmailDraft(draftId: string) {
   if (!draft) throw new Error("Draft not found.");
 
   try {
+    const fromEmail = requireAllowedBrightlineSender(
+      draft.fromEmail ?? getDefaultBrightlineSender()
+    );
     const result = await provider.send({
       to: draft.toEmail,
       subject: draft.subject,
       text: draft.text,
       html: draft.html ?? undefined,
+      fromEmail,
     });
     await prisma.studioEmailDraft.update({
       where: { id: draft.id },

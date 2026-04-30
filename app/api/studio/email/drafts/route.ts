@@ -32,6 +32,7 @@ export async function POST(req: Request) {
     subject?: unknown;
     text?: unknown;
     html?: unknown;
+    fromEmail?: unknown;
     entityType?: unknown;
     entityId?: unknown;
   };
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       subject: typeof body.subject === "string" ? body.subject : "",
       text: typeof body.text === "string" ? body.text : "",
       html: typeof body.html === "string" ? body.html : undefined,
+      fromEmail: typeof body.fromEmail === "string" ? body.fromEmail : undefined,
       entityType: typeof body.entityType === "string" ? body.entityType : undefined,
       entityId: typeof body.entityId === "string" ? body.entityId : undefined,
     });

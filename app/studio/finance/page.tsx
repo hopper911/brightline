@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { hasAdminAccess } from "@/lib/admin-auth";
 import { getFinanceOverview } from "@/lib/studio/finance";
+import { getFinanceEngineAnalytics } from "@/lib/studio/invoicing";
 import { FinanceQuickActions } from "./FinanceQuickActions";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export default async function StudioFinancePage({
 
   const sp = await searchParams;
   const data = await getFinanceOverview(sp.month);
+  const engine = await getFinanceEngineAnalytics();
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-14">
@@ -41,7 +43,15 @@ export default async function StudioFinancePage({
           <Link href="/studio" className="text-xs uppercase tracking-[0.25em] text-white/45 hover:text-white/80">
             Studio OS
           </Link>
-          <h1 className="mt-3 font-display text-4xl text-white">Finance</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-4">
+            <h1 className="font-display text-4xl text-white">Finance</h1>
+            <Link
+              href="/studio/invoices"
+              className="text-xs uppercase tracking-[0.2em] text-white/45 hover:text-white/75"
+            >
+              Invoices
+            </Link>
+          </div>
           <p className="mt-2 max-w-2xl text-sm text-white/65">
             Manual revenue, expenses, receipts, and outstanding balances for the operator.
           </p>
@@ -76,12 +86,73 @@ export default async function StudioFinancePage({
         </div>
       </section>
 
+      <section className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 xl:col-span-4">
+          <p className="text-xs uppercase tracking-[0.25em] text-amber-200/60">Financial engine</p>
+          <p className="mt-1 text-sm text-white/55">Realized revenue, invoice economics, and exposure.</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <p className="text-xs uppercase tracking-[0.25em] text-white/50">Total revenue (cash)</p>
+          <p className="mt-2 text-2xl text-white">{money(engine.totalRevenue)}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <p className="text-xs uppercase tracking-[0.25em] text-white/50">Avg invoice value</p>
+          <p className="mt-2 text-2xl text-white">{money(engine.averageInvoiceValue)}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <p className="text-xs uppercase tracking-[0.25em] text-white/50">Revenue / billed image</p>
+          <p className="mt-2 text-2xl text-white">{money(engine.revenuePerImage)}</p>
+          <p className="mt-1 text-xs text-white/40">
+            {engine.billedImagesQty.toString()} billed units
+          </p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <p className="text-xs uppercase tracking-[0.25em] text-white/50">Top client</p>
+          <p className="mt-2 text-lg text-white">{engine.topClientName ?? "—"}</p>
+          <p className="text-sm text-white/55">{money(engine.topClientRevenue)}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <p className="text-xs uppercase tracking-[0.25em] text-white/50">Invoice outstanding</p>
+          <p className="mt-2 text-2xl text-white">{money(engine.outstandingBalance)}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <p className="text-xs uppercase tracking-[0.25em] text-white/50">Overdue invoices</p>
+          <p className="mt-2 text-2xl text-white">{engine.overdueCount}</p>
+        </div>
+      </section>
+
+      {engine.overdueInvoices.length > 0 ? (
+        <section className="mt-6 overflow-hidden rounded-2xl border border-red-500/20">
+          <div className="border-b border-red-500/20 bg-red-500/5 px-4 py-3">
+            <h2 className="font-display text-lg text-red-100/90">Overdue</h2>
+          </div>
+          <div className="divide-y divide-white/10">
+            {engine.overdueInvoices.slice(0, 20).map((row) => (
+              <Link
+                key={row.id}
+                href={`/studio/invoices/${row.id}`}
+                className="grid grid-cols-12 gap-3 px-4 py-3 text-sm hover:bg-white/[0.03]"
+              >
+                <div className="col-span-3 text-white">
+                  #{String(row.invoiceNumber).padStart(3, "0")}
+                </div>
+                <div className="col-span-5 text-white/50">
+                  Due {row.dueAt ? shortDate(row.dueAt) : "—"}
+                </div>
+                <div className="col-span-4 text-right text-white">{money(row.balanceRemaining)}</div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="mt-8">
         <FinanceQuickActions
           projects={data.projects.map((project) => ({
             id: project.id,
             title: project.title,
             client: project.client,
+            clientId: project.clientId,
             paymentStatus: project.paymentStatus,
           }))}
         />

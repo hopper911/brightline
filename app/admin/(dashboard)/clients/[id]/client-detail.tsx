@@ -48,14 +48,33 @@ type LeadRow = {
   convertedProjectId: string | null;
 };
 
+type InvoiceSummary = {
+  id: string;
+  invoiceNumber: number;
+  status: string;
+  total: string;
+  amountPaid: string;
+  balanceRemaining: string;
+  projectTitle: string | null;
+  updatedAt: string;
+};
+
 export default function StudioClientDetail({
   initialClient,
   initialProjects,
   initialLeads,
+  initialFinancials,
 }: {
   initialClient: ClientRow;
   initialProjects: ProjectRow[];
   initialLeads: LeadRow[];
+  initialFinancials: {
+    totalBilled: string;
+    totalPaid: string;
+    lifetimeValue: string;
+    outstandingOnInvoices: string;
+    invoices: InvoiceSummary[];
+  };
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -162,7 +181,7 @@ export default function StudioClientDetail({
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Total spend</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Cash received</p>
           <p className="mt-1 text-2xl text-white">
             {Number(client.totalSpend).toLocaleString("en-US", {
               style: "currency",
@@ -183,6 +202,108 @@ export default function StudioClientDetail({
           </p>
         </div>
       </div>
+
+      <section className="mt-10 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xs uppercase tracking-[0.3em] text-amber-200/60">Financial profile</h2>
+            <p className="mt-2 text-sm text-white/55">Invoice ledger + realized cash for this client.</p>
+          </div>
+          <Link
+            href="/studio/invoices"
+            className="text-xs uppercase tracking-[0.2em] text-white/50 hover:text-white/80"
+          >
+            All invoices →
+          </Link>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+            <p className="text-xs uppercase tracking-[0.15em] text-white/45">Total billed</p>
+            <p className="mt-1 text-xl text-white">
+              {Number(initialFinancials.totalBilled).toLocaleString("en-US", {
+                style: "currency",
+                currency: "USD",
+                maximumFractionDigits: 0,
+              })}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+            <p className="text-xs uppercase tracking-[0.15em] text-white/45">Paid on invoices</p>
+            <p className="mt-1 text-xl text-white">
+              {Number(initialFinancials.totalPaid).toLocaleString("en-US", {
+                style: "currency",
+                currency: "USD",
+                maximumFractionDigits: 0,
+              })}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+            <p className="text-xs uppercase tracking-[0.15em] text-white/45">Outstanding</p>
+            <p className="mt-1 text-xl text-white">
+              {Number(initialFinancials.outstandingOnInvoices).toLocaleString("en-US", {
+                style: "currency",
+                currency: "USD",
+                maximumFractionDigits: 0,
+              })}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+            <p className="text-xs uppercase tracking-[0.15em] text-white/45">Lifetime value</p>
+            <p className="mt-1 text-xl text-white">
+              {Number(initialFinancials.lifetimeValue).toLocaleString("en-US", {
+                style: "currency",
+                currency: "USD",
+                maximumFractionDigits: 0,
+              })}
+            </p>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/35">Cash received (projects)</p>
+          </div>
+        </div>
+        <div className="mt-6">
+          <h3 className="text-xs uppercase tracking-[0.25em] text-white/45">Invoices</h3>
+          {initialFinancials.invoices.length === 0 ? (
+            <p className="mt-2 text-sm text-white/45">No invoices for this client yet.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {initialFinancials.invoices.map((inv) => (
+                <li key={inv.id}>
+                  <Link
+                    href={`/studio/invoices/${inv.id}`}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm hover:bg-white/10"
+                  >
+                    <span>
+                      <span className="block text-white/90">
+                        #{String(inv.invoiceNumber).padStart(3, "0")}
+                        {inv.projectTitle ? ` · ${inv.projectTitle}` : ""}
+                      </span>
+                      <span className="text-xs text-white/40">
+                        {inv.status} · updated {new Date(inv.updatedAt).toLocaleDateString()}
+                      </span>
+                    </span>
+                    <span className="text-right">
+                      <span className="block text-white/80">
+                        {Number(inv.total).toLocaleString("en-US", {
+                          style: "currency",
+                          currency: "USD",
+                          maximumFractionDigits: 0,
+                        })}
+                      </span>
+                      <span className="text-xs text-white/45">
+                        due{" "}
+                        {Number(inv.balanceRemaining).toLocaleString("en-US", {
+                          style: "currency",
+                          currency: "USD",
+                          maximumFractionDigits: 0,
+                        })}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
 
       {error ? (
         <p className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">

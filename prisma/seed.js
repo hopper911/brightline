@@ -178,6 +178,79 @@ async function main() {
       },
     });
   }
+
+  const serviceTemplates = [
+    {
+      slug: "retouched-images",
+      name: "Retouched Images",
+      type: "PER_IMAGE",
+      defaultPrice: 50,
+      maxPrice: null,
+      unitLabel: "image",
+      sortOrder: 10,
+    },
+    {
+      slug: "creative-fee",
+      name: "Creative Fee",
+      type: "FLAT",
+      defaultPrice: 250,
+      maxPrice: null,
+      unitLabel: "service",
+      sortOrder: 20,
+    },
+    {
+      slug: "photography-creative-services",
+      name: "Photography & Creative Services",
+      type: "FLAT",
+      defaultPrice: 175,
+      maxPrice: 450,
+      unitLabel: "project",
+      sortOrder: 30,
+    },
+    {
+      slug: "travel",
+      name: "Travel",
+      type: "HOURLY",
+      defaultPrice: 100,
+      maxPrice: null,
+      unitLabel: "hour",
+      sortOrder: 40,
+    },
+    {
+      slug: "cancellation-fee",
+      name: "Cancellation Fee",
+      type: "CANCELLATION",
+      defaultPrice: 350,
+      maxPrice: null,
+      unitLabel: "service",
+      sortOrder: 50,
+    },
+  ];
+
+  for (const t of serviceTemplates) {
+    await prisma.studioServiceTemplate.upsert({
+      where: { slug: t.slug },
+      create: {
+        slug: t.slug,
+        name: t.name,
+        type: t.type,
+        defaultPrice: t.defaultPrice,
+        maxPrice: t.maxPrice,
+        unitLabel: t.unitLabel,
+        sortOrder: t.sortOrder,
+        isActive: true,
+      },
+      update: {
+        name: t.name,
+        type: t.type,
+        defaultPrice: t.defaultPrice,
+        maxPrice: t.maxPrice,
+        unitLabel: t.unitLabel,
+        sortOrder: t.sortOrder,
+        isActive: true,
+      },
+    });
+  }
 }
 
 main()

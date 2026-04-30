@@ -188,6 +188,7 @@ export default async function StudioMissionControlPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/studio/finance" className="btn btn-primary">Finance</Link>
+          <Link href="/studio/invoices" className="btn btn-ghost">Invoices</Link>
           <Link href="/admin/studio-leads" className="btn btn-ghost">Studio leads</Link>
           <Link href="/admin/projects" className="btn btn-ghost">Studio CMS</Link>
         </div>

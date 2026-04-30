@@ -1,12 +1,23 @@
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
+import {
+  formatBrightlineFromHeader,
+  getBrightlineAllowedSenders,
+  getBrightlineEmailDisplayName,
+  getDefaultBrightlineSender,
+  getStudioInboxDisplayEmail,
+  requireAllowedBrightlineSender,
+} from "@/lib/studio/brightline-email-senders";
 
 export type EmailDraft = {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  /** Must be in STUDIO_OS_EMAIL_ALLOWED_SENDERS (server-validated). */
+  fromEmail?: string;
 };
 
 export type SyncedEmailMessage = {
@@ -30,6 +41,12 @@ export type EmailProviderStatus = {
   emailAddress?: string;
   displayName?: string;
   missing: string[];
+  /** Gmail (etc.) that receives forwarded inbound mail — from env, not secrets. */
+  inboxEmail?: string;
+  defaultFromEmail?: string;
+  allowedFromEmails?: string[];
+  smtpConfigured?: boolean;
+  imapConfigured?: boolean;
 };
 
 export type EmailProvider = {
@@ -53,6 +70,34 @@ function envBool(name: string, fallback: boolean) {
 function envPort(name: string, fallback: number) {
   const raw = Number(envString(name));
   return Number.isFinite(raw) && raw > 0 ? Math.trunc(raw) : fallback;
+}
+
+function smtpVarsPresent(): boolean {
+  return [
+    "STUDIO_OS_EMAIL_ADDRESS",
+    "STUDIO_OS_SMTP_HOST",
+    "STUDIO_OS_SMTP_USER",
+    "STUDIO_OS_SMTP_PASS",
+  ].every((key) => envString(key));
+}
+
+function imapVarsPresent(): boolean {
+  return ["STUDIO_OS_IMAP_HOST", "STUDIO_OS_IMAP_USER", "STUDIO_OS_IMAP_PASS"].every(
+    (key) => envString(key)
+  );
+}
+
+function dashboardExtras(): Pick<
+  EmailProviderStatus,
+  "inboxEmail" | "defaultFromEmail" | "allowedFromEmails" | "smtpConfigured" | "imapConfigured"
+> {
+  return {
+    inboxEmail: getStudioInboxDisplayEmail(),
+    defaultFromEmail: getDefaultBrightlineSender(),
+    allowedFromEmails: getBrightlineAllowedSenders(),
+    smtpConfigured: smtpVarsPresent(),
+    imapConfigured: imapVarsPresent(),
+  };
 }
 
 function collectAddresses(value: unknown): string[] {
@@ -86,9 +131,87 @@ function firstAddress(value: unknown) {
   };
 }
 
-function snippet(input?: string | null, max = 240) {
+function textSnippet(input?: string | null, max = 240) {
   const text = (input || "").replace(/\s+/g, " ").trim();
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
+}
+
+async function fetchImapInboxMessages(options?: { since?: Date; limit?: number }) {
+  if (!imapVarsPresent()) {
+    throw new Error(
+      "IMAP is not configured (need STUDIO_OS_IMAP_HOST, STUDIO_OS_IMAP_USER, STUDIO_OS_IMAP_PASS)."
+    );
+  }
+
+  const since =
+    options?.since ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const limit = Math.max(1, Math.min(options?.limit ?? 50, 100));
+  const client = new ImapFlow({
+    host: envString("STUDIO_OS_IMAP_HOST"),
+    port: envPort("STUDIO_OS_IMAP_PORT", 993),
+    secure: envBool("STUDIO_OS_IMAP_SECURE", true),
+    auth: {
+      user: envString("STUDIO_OS_IMAP_USER"),
+      pass: envString("STUDIO_OS_IMAP_PASS"),
+    },
+    logger: false,
+  });
+
+  const messages: SyncedEmailMessage[] = [];
+  await client.connect();
+  const lock = await client.getMailboxLock("INBOX");
+  try {
+    for await (const message of client.fetch(
+      { since },
+      { uid: true, envelope: true, flags: true, internalDate: true, source: true }
+    )) {
+      if (messages.length >= limit) break;
+      if (!message.source) continue;
+      const parsed = await simpleParser(message.source as Buffer);
+      const from = firstAddress(parsed.from);
+      const htmlText =
+        typeof parsed.html === "string" ? parsed.html.replace(/<[^>]*>/g, " ") : "";
+      const text = parsed.text || htmlText;
+      const internalDate =
+        message.internalDate instanceof Date
+          ? message.internalDate
+          : message.internalDate
+            ? new Date(message.internalDate)
+            : new Date();
+      const providerMessageId =
+        parsed.messageId || `${message.uid}-${internalDate.getTime()}`;
+      const subject = parsed.subject || message.envelope?.subject || "(no subject)";
+      const references = Array.isArray(parsed.references)
+        ? parsed.references
+        : parsed.references
+          ? [parsed.references]
+          : [];
+
+      messages.push({
+        providerMessageId,
+        externalThreadId:
+          parsed.inReplyTo ||
+          references[0] ||
+          parsed.messageId ||
+          `${subject}-${from.email || "unknown"}`,
+        subject,
+        fromName: from.name,
+        fromEmail: from.email,
+        toEmails: collectAddresses(parsed.to),
+        ccEmails: collectAddresses(parsed.cc),
+        snippet: textSnippet(text),
+        textPreview: textSnippet(text, 1000),
+        receivedAt: internalDate ?? parsed.date ?? new Date(),
+        sentAt: parsed.date ?? null,
+        isUnread: message.flags ? !message.flags.has("\\Seen") : false,
+      });
+    }
+  } finally {
+    lock.release();
+    await client.logout().catch(() => undefined);
+  }
+
+  return messages.sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
 }
 
 function smtpImapStatus(): EmailProviderStatus {
@@ -102,12 +225,14 @@ function smtpImapStatus(): EmailProviderStatus {
     "STUDIO_OS_IMAP_PASS",
   ];
   const missing = required.filter((key) => !envString(key));
+  const dash = dashboardExtras();
   return {
     provider: "smtp_imap",
     configured: missing.length === 0,
     emailAddress: envString("STUDIO_OS_EMAIL_ADDRESS") || undefined,
-    displayName: envString("STUDIO_OS_EMAIL_FROM_NAME") || undefined,
+    displayName: getBrightlineEmailDisplayName(),
     missing,
+    ...dash,
   };
 }
 
@@ -128,6 +253,11 @@ const smtpImapProvider: EmailProvider = {
       throw new Error(`Email provider is missing: ${status.missing.join(", ")}`);
     }
 
+    const resolvedFrom = requireAllowedBrightlineSender(
+      input.fromEmail ?? getDefaultBrightlineSender()
+    );
+    const fromHeader = formatBrightlineFromHeader(resolvedFrom);
+
     const transporter = nodemailer.createTransport({
       host: envString("STUDIO_OS_SMTP_HOST"),
       port: envPort("STUDIO_OS_SMTP_PORT", 587),
@@ -138,10 +268,8 @@ const smtpImapProvider: EmailProvider = {
       },
     });
 
-    const fromName = envString("STUDIO_OS_EMAIL_FROM_NAME");
-    const fromEmail = envString("STUDIO_OS_EMAIL_ADDRESS");
     const result = await transporter.sendMail({
-      from: fromName ? `"${fromName}" <${fromEmail}>` : fromEmail,
+      from: fromHeader,
       to: input.to,
       subject: input.subject,
       text: input.text,
@@ -159,113 +287,88 @@ const smtpImapProvider: EmailProvider = {
     if (!status.configured) {
       throw new Error(`Email provider is missing: ${status.missing.join(", ")}`);
     }
-
-    const since =
-      options?.since ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const limit = Math.max(1, Math.min(options?.limit ?? 50, 100));
-    const client = new ImapFlow({
-      host: envString("STUDIO_OS_IMAP_HOST"),
-      port: envPort("STUDIO_OS_IMAP_PORT", 993),
-      secure: envBool("STUDIO_OS_IMAP_SECURE", true),
-      auth: {
-        user: envString("STUDIO_OS_IMAP_USER"),
-        pass: envString("STUDIO_OS_IMAP_PASS"),
-      },
-      logger: false,
-    });
-
-    const messages: SyncedEmailMessage[] = [];
-    await client.connect();
-    const lock = await client.getMailboxLock("INBOX");
-    try {
-      for await (const message of client.fetch(
-        { since },
-        { uid: true, envelope: true, flags: true, internalDate: true, source: true }
-      )) {
-        if (messages.length >= limit) break;
-        if (!message.source) continue;
-        const parsed = await simpleParser(message.source as Buffer);
-        const from = firstAddress(parsed.from);
-        const htmlText =
-          typeof parsed.html === "string" ? parsed.html.replace(/<[^>]*>/g, " ") : "";
-        const text = parsed.text || htmlText;
-        const internalDate =
-          message.internalDate instanceof Date
-            ? message.internalDate
-            : message.internalDate
-              ? new Date(message.internalDate)
-              : new Date();
-        const providerMessageId =
-          parsed.messageId || `${message.uid}-${internalDate.getTime()}`;
-        const subject = parsed.subject || message.envelope?.subject || "(no subject)";
-        const references = Array.isArray(parsed.references)
-          ? parsed.references
-          : parsed.references
-            ? [parsed.references]
-            : [];
-
-        messages.push({
-          providerMessageId,
-          externalThreadId:
-            parsed.inReplyTo ||
-            references[0] ||
-            parsed.messageId ||
-            `${subject}-${from.email || "unknown"}`,
-          subject,
-          fromName: from.name,
-          fromEmail: from.email,
-          toEmails: collectAddresses(parsed.to),
-          ccEmails: collectAddresses(parsed.cc),
-          snippet: snippet(text),
-          textPreview: snippet(text, 1000),
-          receivedAt: internalDate ?? parsed.date ?? new Date(),
-          sentAt: parsed.date ?? null,
-          isUnread: message.flags ? !message.flags.has("\\Seen") : false,
-        });
-      }
-    } finally {
-      lock.release();
-      await client.logout().catch(() => undefined);
-    }
-
-    return messages.sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
+    return fetchImapInboxMessages(options);
   },
 };
 
-const resendPlaceholderProvider: EmailProvider = {
-  name: "resend-placeholder",
+function resendStatus(): EmailProviderStatus {
+  const apiKey = envString("RESEND_API_KEY");
+  const configured = Boolean(apiKey);
+  const dash = dashboardExtras();
+  return {
+    provider: "resend",
+    configured,
+    emailAddress: configured ? getDefaultBrightlineSender() : undefined,
+    displayName: getBrightlineEmailDisplayName(),
+    missing: configured ? [] : ["RESEND_API_KEY"],
+    ...dash,
+    smtpConfigured: configured,
+    imapConfigured: dash.imapConfigured,
+  };
+}
+
+const resendStudioProvider: EmailProvider = {
+  name: "resend",
+
   status() {
-    return {
-      provider: "resend",
-      configured: Boolean(envString("RESEND_API_KEY")),
-      emailAddress: envString("RESEND_FROM") || undefined,
-      missing: envString("RESEND_API_KEY") ? [] : ["RESEND_API_KEY"],
-    };
+    return resendStatus();
   },
+
   async createDraft() {
     return { provider: this.name };
   },
-  async send() {
-    throw new Error("Resend sending is not wired into Mission Control yet.");
+
+  async send(input) {
+    const apiKey = envString("RESEND_API_KEY");
+    if (!apiKey) {
+      throw new Error("RESEND_API_KEY is not set.");
+    }
+    const resolvedFrom = requireAllowedBrightlineSender(
+      input.fromEmail ?? getDefaultBrightlineSender()
+    );
+    const resend = new Resend(apiKey);
+    const { data, error } = await resend.emails.send({
+      from: formatBrightlineFromHeader(resolvedFrom),
+      to: input.to,
+      subject: input.subject,
+      text: input.text,
+      html: input.html,
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    return {
+      provider: this.name,
+      messageId: data?.id,
+    };
   },
-  async syncInbox() {
-    return [];
+
+  async syncInbox(options) {
+    if (!imapVarsPresent()) {
+      return [];
+    }
+    return fetchImapInboxMessages(options);
   },
 };
 
 export function getEmailProvider(): EmailProvider | null {
   const provider = envString("STUDIO_OS_EMAIL_PROVIDER").toLowerCase();
   if (provider === "smtp_imap") return smtpImapProvider;
-  if (provider === "resend") return resendPlaceholderProvider;
+  if (provider === "resend") return resendStudioProvider;
   return null;
 }
 
 export function getEmailProviderStatus(): EmailProviderStatus {
-  return (
-    getEmailProvider()?.status() ?? {
+  const p = getEmailProvider();
+  if (!p) {
+    return {
       provider: "none",
       configured: false,
       missing: ["STUDIO_OS_EMAIL_PROVIDER"],
-    }
-  );
+      ...dashboardExtras(),
+      smtpConfigured: false,
+      imapConfigured: false,
+    };
+  }
+  return p.status();
 }

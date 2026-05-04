@@ -4,8 +4,21 @@ import { resolveAdminAccessCode } from "@/lib/resolve-admin-access-code";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function cookieSecure(): boolean {
-  return process.env.NODE_ENV === "production";
+/**
+ * `Secure` cookies are not stored over HTTP. Production on Vercel is always HTTPS;
+ * a local `next start` smoke test is often HTTP — use x-forwarded-proto / URL when present.
+ */
+function cookieSecure(req: Request): boolean {
+  if (process.env.NODE_ENV !== "production") return false;
+  const forwarded = req.headers.get("x-forwarded-proto");
+  if (forwarded) {
+    return forwarded.split(",")[0]?.trim() === "https";
+  }
+  try {
+    return new URL(req.url).protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(req: Request) {
@@ -47,7 +60,7 @@ export async function POST(req: Request) {
   res.cookies.set("admin_access", "true", {
     httpOnly: true,
     sameSite: "lax",
-    secure: cookieSecure(),
+    secure: cookieSecure(req),
     path: "/",
     maxAge: 60 * 60 * 8,
   });

@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { getAdminAccessCode } from "@/lib/admin-config";
 
 /**
  * Reads ADMIN_ACCESS_CODE from .env-style files when `process.env` is empty.
@@ -52,5 +53,6 @@ export function resolveAdminAccessCode(): string | undefined {
       }
     }
   }
-  return undefined;
+  // Match getAdminAccessCode(): local dev uses `dev-admin` when nothing is configured.
+  return getAdminAccessCode() ?? undefined;
 }

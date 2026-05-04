@@ -4,7 +4,10 @@
 # If your production branch is not `main`, either:
 #   REQUIRED_GIT_BRANCH=your-branch npm run deploy:prod
 #   npm run deploy:prod:studio-os   # studio-os-cms-production-20260425
-# Requires: git clean tree, correct branch, DATABASE_URL + DIRECT_URL, Vercel CLI.
+# Requires: clean working tree (or ALLOW_DIRTY_WORKTREE=1), correct branch,
+# DATABASE_URL + DIRECT_URL, Vercel CLI. A dirty tree fails so you do not run
+# production migrations thinking uncommitted local edits will ship—Vercel uses
+# committed files from the repo.
 
 set -euo pipefail
 
@@ -28,12 +31,23 @@ echo ""
 
 echo "→ Step 2/6: Check working tree is clean (no uncommitted or untracked changes)…"
 if [[ -n "$(git status --porcelain)" ]]; then
-  echo "   ERROR: Working tree is not clean."
-  echo "   Commit, stash, or remove local changes before production deploy."
-  echo "   Run: git status"
-  exit 1
+  if [[ "${ALLOW_DIRTY_WORKTREE:-}" == "1" ]]; then
+    echo "   WARN: ALLOW_DIRTY_WORKTREE=1 — skipping clean-tree check."
+    echo "   Migrations still use your local Prisma files; Vercel deploy still uses committed code from this branch."
+  else
+    echo "   ERROR: Working tree is not clean."
+    echo "   Commit, stash, or discard local changes, then retry."
+    echo "   (You often see this right after editing package.json or this script without committing.)"
+    echo ""
+    echo "   Changed files:"
+    git status --short | sed 's/^/      /' || true
+    echo ""
+    echo "   Override (know the risk): ALLOW_DIRTY_WORKTREE=1 npm run deploy:prod:studio-os"
+    exit 1
+  fi
+else
+  echo "   OK"
 fi
-echo "   OK"
 echo ""
 
 echo "→ Step 3/6: Check Git branch…"

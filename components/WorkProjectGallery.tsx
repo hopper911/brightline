@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Lightbox from "yet-another-react-lightbox";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import "yet-another-react-lightbox/styles.css";
 import Reveal from "@/components/Reveal";
 import VideoEmbed from "@/components/VideoEmbed";
@@ -210,11 +211,18 @@ export default function WorkProjectGallery({
 
       {slides.length > 0 && (
         <Lightbox
+          plugins={[Zoom]}
           open={lightboxOpen}
           close={() => setLightboxOpen(false)}
           index={lightboxIndex}
           slides={slides}
           carousel={{ imageFit: "contain" }}
+          zoom={{
+            maxZoomPixelRatio: 2,
+            zoomInMultiplier: 2,
+            doubleClickMaxStops: 2,
+            scrollToZoom: true,
+          }}
         />
       )}
     </>

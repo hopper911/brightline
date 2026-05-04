@@ -5,8 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { PillarConfig } from "@/lib/portfolioPillars";
 import type { WorkSection } from "@prisma/client";
-import { getPublicR2Url } from "@/lib/r2";
+import { getCropSafeMediaUrl, getPublicR2Url } from "@/lib/r2";
 import R2BrowserModal from "@/components/admin/R2BrowserModal";
+import ImageCropModal from "@/components/admin/ImageCropModal";
 import AiEditableField from "@/components/admin/AiEditableField";
 import type { ProjectCopyFieldKey, ProjectCopyTonePreset } from "@/lib/ai/generateProjectCopy";
 
@@ -364,6 +365,11 @@ export default function AdminWorkEditPage() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [r2BrowserTarget, setR2BrowserTarget] = useState<"gallery" | "backgroundMedia" | "backgroundPoster" | null>(null);
+  const [imageCropModal, setImageCropModal] = useState<{
+    mode: "hero" | "background";
+    src: string;
+    aspect?: number;
+  } | null>(null);
   const [homepageFeaturedMediaId, setHomepageFeaturedMediaId] = useState<string | null>(null);
   const [caseStudyExpanded, setCaseStudyExpanded] = useState(false);
   const [client, setClient] = useState("");
@@ -1169,6 +1175,85 @@ export default function AdminWorkEditPage() {
     }
   }
 
+  async function registerGalleryImageWithThumb(file: File, keyFull: string): Promise<string> {
+    const thumbBlob = await resizeToThumb(file);
+    const thumbFilename = file.name.replace(/\.[^.]+$/, "-thumb.jpg");
+
+    const thumbUploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: thumbFilename,
+        contentType: "image/jpeg",
+        subfolder: "thumb",
+      }),
+    });
+    const thumbUploadData = (await thumbUploadRes.json()) as {
+      ok: boolean;
+      url?: string;
+      headers?: Record<string, string>;
+      key?: string;
+      error?: string;
+    };
+    if (!thumbUploadRes.ok || !thumbUploadData.url || !thumbUploadData.key) {
+      throw new Error(thumbUploadData.error ?? "Failed to get thumb upload URL");
+    }
+    const thumbPutRes = await fetch(thumbUploadData.url, {
+      method: "PUT",
+      body: thumbBlob,
+      headers: { "Content-Type": "image/jpeg", ...(thumbUploadData.headers ?? {}) },
+    });
+    if (!thumbPutRes.ok) throw new Error("Thumb upload failed");
+    const keyThumb = thumbUploadData.key;
+
+    const img = await createImageBitmap(file);
+    const width = img.width;
+    const height = img.height;
+    img.close();
+
+    const mediaId = await addMedia({ keyFull, keyThumb, kind: "IMAGE", width, height });
+    if (!mediaId) throw new Error("Failed to register image.");
+    return mediaId;
+  }
+
+  /** Full upload pipeline for gallery images (used after cropping). */
+  async function uploadGalleryImageFromFile(file: File): Promise<string> {
+    const contentType = file.type || "image/jpeg";
+
+    const uploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType,
+        subfolder: "full",
+      }),
+    });
+    const uploadData = (await uploadRes.json()) as {
+      ok: boolean;
+      url?: string;
+      headers?: Record<string, string>;
+      key?: string;
+      error?: string;
+    };
+    if (!uploadRes.ok || !uploadData.url || !uploadData.key) {
+      const msg = uploadData.error ?? (uploadRes.status === 401 ? "Please log in again" : "Failed to get upload URL");
+      throw new Error(msg);
+    }
+
+    const putRes = await fetch(uploadData.url, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": contentType, ...(uploadData.headers ?? {}) },
+    });
+    if (!putRes.ok) {
+      const hint = putRes.status === 403 ? " (R2 CORS or bucket config)" : "";
+      throw new Error(`Upload to storage failed${hint}`);
+    }
+
+    return registerGalleryImageWithThumb(file, uploadData.key);
+  }
+
   async function uploadFile(file: File): Promise<void> {
     const label = file.name;
     setUploadProgress((p) => ({ ...p, [label]: "uploading" }));
@@ -1209,49 +1294,11 @@ export default function AdminWorkEditPage() {
       }
 
       const keyFull = uploadData.key;
-      let keyThumb: string | undefined;
-      let width: number | undefined;
-      let height: number | undefined;
 
       if (isVideo) {
         await addMedia({ keyFull, kind: "VIDEO" });
       } else {
-        const thumbBlob = await resizeToThumb(file);
-        const thumbFilename = file.name.replace(/\.[^.]+$/, "-thumb.jpg");
-
-        const thumbUploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            filename: thumbFilename,
-            contentType: "image/jpeg",
-            subfolder: "thumb",
-          }),
-        });
-        const thumbUploadData = (await thumbUploadRes.json()) as {
-          ok: boolean;
-          url?: string;
-          headers?: Record<string, string>;
-          key?: string;
-          error?: string;
-        };
-        if (!thumbUploadRes.ok || !thumbUploadData.url || !thumbUploadData.key) {
-          throw new Error(thumbUploadData.error ?? "Failed to get thumb upload URL");
-        }
-        const thumbPutRes = await fetch(thumbUploadData.url, {
-          method: "PUT",
-          body: thumbBlob,
-          headers: { "Content-Type": "image/jpeg", ...(thumbUploadData.headers ?? {}) },
-        });
-        if (!thumbPutRes.ok) throw new Error("Thumb upload failed");
-        keyThumb = thumbUploadData.key;
-
-        const img = await createImageBitmap(file);
-        width = img.width;
-        height = img.height;
-        img.close();
-
-        await addMedia({ keyFull, keyThumb, kind: "IMAGE", width, height });
+        await registerGalleryImageWithThumb(file, keyFull);
       }
 
       setUploadProgress((p) => {
@@ -1380,6 +1427,32 @@ export default function AdminWorkEditPage() {
       setUploadProgress((p) => ({ ...p, [file.name]: msg }));
       setSaveError(msg);
       setUploadStatus("error");
+      throw err;
+    }
+  }
+
+  async function applyHeroCrop(blob: Blob) {
+    if (id === "new") throw new Error("Save the project before cropping.");
+    const file = new File([blob], `hero-crop-${Date.now()}.jpg`, { type: "image/jpeg" });
+    setUploadStatus("uploading");
+    setSaveError("");
+    try {
+      const mediaId = await uploadGalleryImageFromFile(file);
+      const res = await fetch(`/api/admin/work-projects/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ heroMediaId: mediaId }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to set hero.");
+      setHeroMediaId(mediaId);
+      await loadProject();
+      setUploadStatus("idle");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Crop upload failed";
+      setSaveError(msg);
+      setUploadStatus("error");
+      throw e;
     }
   }
 
@@ -1389,15 +1462,21 @@ export default function AdminWorkEditPage() {
     kind: "IMAGE" | "VIDEO";
     width?: number;
     height?: number;
-  }) {
+  }): Promise<string | undefined> {
     const mediaRes = await fetch(`/api/admin/work-projects/${id}/media`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const mediaData = (await mediaRes.json()) as { ok: boolean; project?: WorkProject; error?: string };
+    const mediaData = (await mediaRes.json()) as {
+      ok: boolean;
+      project?: WorkProject;
+      media?: { id: string };
+      error?: string;
+    };
     if (!mediaRes.ok) throw new Error(mediaData.error ?? "Failed to add media");
     if (mediaData.project) setProject(mediaData.project);
+    return mediaData.media?.id;
   }
 
   async function handleFiles(files: FileList | File[]) {
@@ -2780,6 +2859,23 @@ export default function AdminWorkEditPage() {
                     }}
                   />
                 </label>
+                {backgroundMediaUrl && !isVideoKey(backgroundMediaUrl) ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost text-xs"
+                    disabled={id === "new" || uploadStatus === "uploading"}
+                    onClick={() => {
+                      const src = getCropSafeMediaUrl(backgroundMediaUrl);
+                      if (!src) {
+                        setSaveError("Could not resolve image URL for cropping.");
+                        return;
+                      }
+                      setImageCropModal({ mode: "background", src });
+                    }}
+                  >
+                    Crop background
+                  </button>
+                ) : null}
                 {backgroundMediaUrl ? (
                   <button
                     type="button"
@@ -3296,14 +3392,31 @@ export default function AdminWorkEditPage() {
                 ) : null}
               </div>
               {heroPm.media.kind === "IMAGE" ? (
-                <button
-                  type="button"
-                  onClick={() => void analyzePortfolioPlacement([heroPm.media.id])}
-                  className="btn btn-ghost text-xs"
-                  disabled={placementLoadingByMediaId[heroPm.media.id]}
-                >
-                  {placementLoadingByMediaId[heroPm.media.id] ? "Analyzing…" : "Analyze placement"}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void analyzePortfolioPlacement([heroPm.media.id])}
+                    className="btn btn-ghost text-xs"
+                    disabled={placementLoadingByMediaId[heroPm.media.id]}
+                  >
+                    {placementLoadingByMediaId[heroPm.media.id] ? "Analyzing…" : "Analyze placement"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost text-xs"
+                    disabled={id === "new" || uploadStatus === "uploading"}
+                    onClick={() => {
+                      const src = getCropSafeMediaUrl(heroPm.media.keyFull);
+                      if (!src) {
+                        setSaveError("Could not resolve image URL for cropping.");
+                        return;
+                      }
+                      setImageCropModal({ mode: "hero", src, aspect: 16 / 9 });
+                    }}
+                  >
+                    Crop / reframe
+                  </button>
+                </>
               ) : null}
               <button
                 type="button"
@@ -3386,6 +3499,28 @@ export default function AdminWorkEditPage() {
           pillarSlug={pillarSlug}
           projectSlug={project?.slug}
         />
+
+        {imageCropModal ? (
+          <ImageCropModal
+            key={`${imageCropModal.mode}-${imageCropModal.src}`}
+            title={
+              imageCropModal.mode === "background" ? "Crop background image" : "Crop hero image (16:9)"
+            }
+            imageSrc={imageCropModal.src}
+            aspect={imageCropModal.aspect}
+            onClose={() => setImageCropModal(null)}
+            onApply={async (blob) => {
+              if (imageCropModal.mode === "hero") {
+                await applyHeroCrop(blob);
+              } else {
+                const file = new File([blob], `background-crop-${Date.now()}.jpg`, {
+                  type: "image/jpeg",
+                });
+                await uploadBackgroundFile(file, "backgroundMedia");
+              }
+            }}
+          />
+        ) : null}
 
         {saveError && (
           <p className="mt-3 text-sm text-red-600" role="alert">
@@ -3530,7 +3665,7 @@ export default function AdminWorkEditPage() {
                   {!isHero && (
                     <button
                       type="button"
-                      onClick={() => setAsHero(pm.media.id)}
+                      onClick={() => void setAsHero(pm.media.id)}
                       className="btn btn-ghost text-xs"
                     >
                       Set hero

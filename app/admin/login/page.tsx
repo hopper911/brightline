@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import LoginForm from "./LoginForm";
 
 export const metadata = {
@@ -12,7 +13,15 @@ export default function AdminLoginPage() {
       <p className="mt-2 text-sm text-white/70">
         Enter your access code to continue.
       </p>
-      <LoginForm className="mt-6" />
+      <Suspense
+        fallback={
+          <p className="mt-6 text-sm text-white/50" role="status">
+            Loading…
+          </p>
+        }
+      >
+        <LoginForm className="mt-6" />
+      </Suspense>
     </div>
   );
 }

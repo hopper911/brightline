@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type LineItem = {
   id: string;
@@ -28,6 +28,8 @@ type Template = {
 type InvoiceShape = {
   id: string;
   invoiceNumber: number;
+  clientId: string;
+  projectId: string | null;
   status: string;
   subtotal: string;
   tax: string;
@@ -39,8 +41,15 @@ type InvoiceShape = {
   issuedAt: string | null;
   dueAt: string | null;
   sentAt: string | null;
+  paidAt: string | null;
+  paymentUrl: string | null;
+  currency: string;
+  stripeCheckoutSessionId: string | null;
+  stripePaymentIntentId: string | null;
+  stripeCustomerId: string | null;
+  updatedAt: string;
   lineItems: LineItem[];
-  client: { companyName: string };
+  client: { id: string; companyName: string };
   project: { id: string; title: string } | null;
 };
 
@@ -88,6 +97,8 @@ function mapLine(li: {
 function normalizeInvoice(inv: {
   id: string;
   invoiceNumber: number;
+  clientId: string;
+  projectId: string | null;
   status: string;
   subtotal: unknown;
   tax: unknown;
@@ -99,13 +110,22 @@ function normalizeInvoice(inv: {
   issuedAt?: string | Date | null;
   dueAt?: string | Date | null;
   sentAt?: string | Date | null;
+  paidAt?: string | Date | null;
+  paymentUrl?: string | null;
+  currency?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  stripePaymentIntentId?: string | null;
+  stripeCustomerId?: string | null;
+  updatedAt?: string | Date | null;
   lineItems: Parameters<typeof mapLine>[0][];
-  client: { companyName: string };
+  client: { id: string; companyName: string };
   project: { id: string; title: string } | null;
 }): InvoiceShape {
   return {
     id: inv.id,
     invoiceNumber: inv.invoiceNumber,
+    clientId: inv.clientId,
+    projectId: inv.projectId,
     status: inv.status,
     subtotal: dec(inv.subtotal),
     tax: dec(inv.tax),
@@ -117,6 +137,13 @@ function normalizeInvoice(inv: {
     issuedAt: iso(inv.issuedAt),
     dueAt: iso(inv.dueAt),
     sentAt: iso(inv.sentAt),
+    paidAt: iso(inv.paidAt),
+    paymentUrl: inv.paymentUrl ?? null,
+    currency: inv.currency ?? "usd",
+    stripeCheckoutSessionId: inv.stripeCheckoutSessionId ?? null,
+    stripePaymentIntentId: inv.stripePaymentIntentId ?? null,
+    stripeCustomerId: inv.stripeCustomerId ?? null,
+    updatedAt: iso(inv.updatedAt) ?? new Date().toISOString(),
     lineItems: inv.lineItems.map(mapLine),
     client: inv.client,
     project: inv.project,
@@ -127,24 +154,54 @@ function money(n: string) {
   return Number(n).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
 
+function paymentLabel(invoice: InvoiceShape) {
+  if (invoice.status === "PAID") return "paid";
+  if (invoice.status === "FAILED") return "failed";
+  if (invoice.paymentUrl || invoice.stripeCheckoutSessionId) return "pending";
+  return "unpaid";
+}
+
 async function readJson(res: Response) {
   const data = (await res.json()) as { ok?: boolean; error?: string };
-  if (!res.ok || data.ok === false) throw new Error(data.error ?? "Request failed.");
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.error ?? "Request failed.");
+  }
   return data;
 }
+
+type ClientOpt = { id: string; companyName: string };
+type ProjectOpt = { id: string; title: string; clientId: string | null };
 
 export function InvoiceDetailEditor({
   initialInvoice,
   templates,
+  studioClients,
+  studioProjects,
 }: {
   initialInvoice: InvoiceShape;
   templates: Template[];
+  studioClients: ClientOpt[];
+  studioProjects: ProjectOpt[];
 }) {
   const router = useRouter();
   const [invoice, setInvoice] = useState(initialInvoice);
+  const [billClientId, setBillClientId] = useState(initialInvoice.clientId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setBillClientId(invoice.clientId);
+  }, [invoice.clientId]);
+
+  const projectOptions = useMemo(
+    () => studioProjects.filter((p) => p.clientId === billClientId),
+    [billClientId, studioProjects]
+  );
+  const defaultProjectSelectValue =
+    invoice.projectId && projectOptions.some((p) => p.id === invoice.projectId)
+      ? invoice.projectId
+      : "";
 
   const inputs =
     "w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/35";
@@ -160,6 +217,62 @@ export function InvoiceDetailEditor({
     });
     const data = (await readJson(res)) as { invoice: Parameters<typeof normalizeInvoice>[0] };
     setInvoice(normalizeInvoice(data.invoice));
+  }
+
+  async function createCheckoutSession() {
+    setBusy(true);
+    setError(null);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/admin/invoices/${invoice.id}/create-checkout-session`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = (await readJson(res)) as {
+        paymentUrl: string | null;
+        invoice: Parameters<typeof normalizeInvoice>[0];
+      };
+      setInvoice(normalizeInvoice(data.invoice));
+      if (data.paymentUrl) {
+        await navigator.clipboard.writeText(data.paymentUrl);
+        setMsg("Payment link created and copied.");
+      } else {
+        setMsg("Payment link created.");
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Stripe checkout failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyPaymentLink() {
+    if (!invoice.paymentUrl) return;
+    await navigator.clipboard.writeText(invoice.paymentUrl);
+    setMsg("Payment link copied.");
+  }
+
+  async function onBillToSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setMsg(null);
+    const fd = new FormData(e.currentTarget);
+    const clientId = fd.get("clientId")?.toString();
+    const projectRaw = fd.get("projectId")?.toString();
+    try {
+      await patchInvoice({
+        clientId: clientId || undefined,
+        projectId: projectRaw === "" || projectRaw == null ? null : projectRaw,
+      });
+      setMsg("Bill-to updated.");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function onMetaSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -254,6 +367,36 @@ export function InvoiceDetailEditor({
     }
   }
 
+  async function addCustomLine() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/studio/invoices/${invoice.id}/line-items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          items: [
+            {
+              name: "Custom line",
+              type: "FLAT",
+              unitLabel: "service",
+              unitPrice: "0",
+              quantity: "1",
+            },
+          ],
+        }),
+      });
+      const data = (await readJson(res)) as { invoice: Parameters<typeof normalizeInvoice>[0] };
+      setInvoice(normalizeInvoice(data.invoice));
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function deleteLine(lineId: string) {
     if (!confirm("Remove this line?")) return;
     setBusy(true);
@@ -330,7 +473,98 @@ export function InvoiceDetailEditor({
         </dl>
       </div>
 
-      <form onSubmit={onMetaSubmit} className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-white/45">Stripe payment</p>
+            <h2 className="mt-2 font-display text-xl text-white">Payment link</h2>
+            <p className="mt-1 text-sm text-white/55">
+              Payment status:{" "}
+              <span className="font-medium text-white">{paymentLabel(invoice)}</span>
+              {invoice.paidAt ? ` · ${new Date(invoice.paidAt).toLocaleDateString()}` : ""}
+            </p>
+            <p className="mt-0.5 text-xs text-white/40">Invoice status: {invoice.status}</p>
+            {invoice.paymentUrl ? (
+              <p className="mt-2 max-w-2xl truncate text-xs text-white/40">{invoice.paymentUrl}</p>
+            ) : (
+              <p className="mt-2 text-sm text-white/45">Generate a Stripe Checkout link for this invoice balance.</p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-primary text-xs"
+              disabled={busy || invoice.status === "PAID"}
+              onClick={() => void createCheckoutSession()}
+            >
+              {invoice.paymentUrl ? "Refresh Stripe Checkout link" : "Create Stripe Checkout link"}
+            </button>
+            <button type="button" className="btn btn-ghost text-xs" disabled={!invoice.paymentUrl} onClick={() => void copyPaymentLink()}>
+              Copy Payment Link
+            </button>
+            {invoice.paymentUrl ? (
+              <a className="btn btn-ghost text-xs" href={invoice.paymentUrl} target="_blank" rel="noreferrer">
+                Preview Checkout
+              </a>
+            ) : null}
+          </div>
+        </div>
+        <p className="mt-4 text-xs leading-5 text-white/45">
+          Payment status is synced by Stripe webhooks. Client-side success pages are not trusted for reconciliation.
+        </p>
+      </div>
+
+      <form
+        onSubmit={onBillToSubmit}
+        className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4"
+      >
+        <h2 className="font-display text-xl text-white">Bill to</h2>
+        <p className="text-sm text-white/50">
+          Reassign the studio client and optional project. Projects are filtered to the selected client.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-xs uppercase tracking-[0.2em] text-white/50">Client</span>
+            <select
+              name="clientId"
+              className={`${inputs} mt-1`}
+              value={billClientId}
+              onChange={(e) => setBillClientId(e.target.value)}
+            >
+              {studioClients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.companyName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs uppercase tracking-[0.2em] text-white/50">Project</span>
+            <select
+              key={`${billClientId}-${invoice.updatedAt}`}
+              name="projectId"
+              className={`${inputs} mt-1`}
+              defaultValue={defaultProjectSelectValue}
+            >
+              <option value="">None</option>
+              {projectOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          {busy ? "Saving…" : "Update bill to"}
+        </button>
+      </form>
+
+      <form
+        key={`terms-${invoice.updatedAt}-${invoice.status}-${invoice.tax}-${invoice.discount}-${invoice.notes ?? ""}-${invoice.issuedAt ?? ""}-${invoice.dueAt ?? ""}-${invoice.sentAt ?? ""}`}
+        onSubmit={onMetaSubmit}
+        className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4"
+      >
         <h2 className="font-display text-xl text-white">Terms</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <label className="block">
@@ -340,6 +574,7 @@ export function InvoiceDetailEditor({
               <option value="SENT">Sent</option>
               <option value="PARTIALLY_PAID">Partially paid</option>
               <option value="PAID">Paid</option>
+              <option value="FAILED">Failed</option>
               <option value="OVERDUE">Overdue</option>
               <option value="VOID">Void</option>
             </select>
@@ -377,34 +612,42 @@ export function InvoiceDetailEditor({
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="font-display text-xl text-white">Line items</h2>
-          <label className="flex items-center gap-2 text-sm text-white/70">
-            <span className="text-xs uppercase tracking-[0.2em] text-white/45">Add template</span>
-            <select
-              className={inputs}
-              defaultValue=""
-              onChange={(e) => {
-                const v = e.target.value;
-                e.target.value = "";
-                void addFromTemplate(v);
-              }}
-            >
-              <option value="">Choose…</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="flex flex-wrap items-end gap-3">
+            <button type="button" className="btn btn-ghost text-xs" disabled={busy} onClick={() => void addCustomLine()}>
+              Add custom line
+            </button>
+            <label className="flex items-center gap-2 text-sm text-white/70">
+              <span className="text-xs uppercase tracking-[0.2em] text-white/45">Add template</span>
+              <select
+                className={inputs}
+                defaultValue=""
+                onChange={(e) => {
+                  const v = e.target.value;
+                  e.target.value = "";
+                  void addFromTemplate(v);
+                }}
+              >
+                <option value="">Choose…</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
 
         <div className="space-y-6">
           {invoice.lineItems.length === 0 ? (
-            <p className="text-sm text-white/50">No lines yet — add a template or generate from a project.</p>
+            <p className="text-sm text-white/50">
+              No lines yet — add a template, a custom line, or generate from a project.
+            </p>
           ) : (
             invoice.lineItems.map((line) => (
               <div key={line.id} className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-3">
                 <form
+                  key={`${line.id}-${invoice.updatedAt}-${line.amount}-${line.unitPrice}-${line.quantity}-${line.name}-${line.sortOrder}`}
                   className="grid gap-3 lg:grid-cols-12"
                   onSubmit={(e) => {
                     e.preventDefault();

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getSiteNav, saveSiteNav } from "@/lib/site-nav";
 
@@ -31,5 +32,6 @@ export async function PATCH(req: Request) {
   const nav = await saveSiteNav(
     body && typeof body === "object" && "nav" in body ? (body as { nav: unknown }).nav : body
   );
+  revalidatePath("/", "layout");
   return NextResponse.json({ ok: true, nav });
 }

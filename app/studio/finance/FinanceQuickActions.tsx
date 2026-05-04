@@ -167,14 +167,19 @@ export function FinanceQuickActions({ projects }: Props) {
     action: "payment" | "expense" | "project"
   ) {
     e.preventDefault();
+    const form = e.currentTarget;
     setBusy(action);
     setError(null);
     setMessage(null);
     try {
-      if (action === "payment") await addPayment(e.currentTarget);
-      if (action === "expense") await addExpense(e.currentTarget);
-      if (action === "project") await updateProjectFinance(e.currentTarget);
-      e.currentTarget.reset();
+      if (action === "payment") await addPayment(form);
+      if (action === "expense") await addExpense(form);
+      if (action === "project") await updateProjectFinance(form);
+      try {
+        form.reset();
+      } catch {
+        /* synthetic event / detachment */
+      }
       setMessage("Saved.");
       router.refresh();
     } catch (err) {

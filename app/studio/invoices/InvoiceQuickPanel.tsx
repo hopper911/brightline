@@ -44,9 +44,10 @@ export function InvoiceQuickPanel({ templates, projects }: Props) {
 
   async function generate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
     setBusy(true);
     setError(null);
-    const fd = new FormData(e.currentTarget);
+    const fd = new FormData(form);
     const projectId = fd.get("projectId")?.toString();
     if (!projectId) {
       setError("Choose a project.");
@@ -61,7 +62,11 @@ export function InvoiceQuickPanel({ templates, projects }: Props) {
         body: JSON.stringify({ projectId }),
       });
       const data = (await readJson(res)) as { invoice?: { id: string } };
-      e.currentTarget.reset();
+      try {
+        form.reset();
+      } catch {
+        /* ignore if detached */
+      }
       router.refresh();
       if (data.invoice?.id) router.push(`/studio/invoices/${data.invoice.id}`);
     } catch (err) {
@@ -73,9 +78,10 @@ export function InvoiceQuickPanel({ templates, projects }: Props) {
 
   async function createDraft(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
     setBusy(true);
     setError(null);
-    const fd = new FormData(e.currentTarget);
+    const fd = new FormData(form);
     const projectId = fd.get("projectId")?.toString();
     if (!projectId) {
       setError("Choose a project.");
@@ -90,7 +96,11 @@ export function InvoiceQuickPanel({ templates, projects }: Props) {
         body: JSON.stringify({ projectId }),
       });
       const data = (await readJson(res)) as { invoice?: { id: string } };
-      e.currentTarget.reset();
+      try {
+        form.reset();
+      } catch {
+        /* ignore if detached */
+      }
       router.refresh();
       if (data.invoice?.id) router.push(`/studio/invoices/${data.invoice.id}`);
     } catch (err) {

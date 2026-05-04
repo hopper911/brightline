@@ -1,15 +1,18 @@
 import { Prisma, ProjectStatus, type StudioInvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { parseMoney, parsePositiveMoney } from "@/lib/studio/finance";
+import { parsePositiveMoney } from "@/lib/studio/finance";
 
 export function normalizeStudioInvoiceStatus(value: unknown): StudioInvoiceStatus | undefined {
   const upper = typeof value === "string" ? value.trim().toUpperCase() : "";
   const allowed: StudioInvoiceStatus[] = [
     "DRAFT",
     "SENT",
+    "VIEWED",
     "PARTIALLY_PAID",
     "PAID",
+    "FAILED",
     "OVERDUE",
+    "CANCELED",
     "VOID",
   ];
   if (allowed.includes(upper as StudioInvoiceStatus)) {
@@ -256,6 +259,16 @@ export async function generateInvoiceFromProject(projectId: string) {
         if (!t) throw new Error("Creative Fee template missing; run seed.");
         lines.push({
           templateSlug: SERVICE_TEMPLATE_SLUGS.creativeFee,
+          quantity: new Prisma.Decimal(1),
+        });
+      }
+    }
+
+    if (lines.length === 0 && !project.isCancelled) {
+      const t = bySlug.get(SERVICE_TEMPLATE_SLUGS.photographyCreative);
+      if (t) {
+        lines.push({
+          templateSlug: SERVICE_TEMPLATE_SLUGS.photographyCreative,
           quantity: new Prisma.Decimal(1),
         });
       }

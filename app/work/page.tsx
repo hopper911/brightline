@@ -4,9 +4,43 @@ import PageBackground from "@/components/PageBackground";
 import Reveal from "@/components/Reveal";
 import { getFeaturedHeroForSection } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
-import { listFeaturedPublishedStudioProjectsForHub } from "@/lib/studio/studio-project-cms";
-import { getBackgroundMediaFromPage, getPublishedWebsitePageBySlug } from "@/lib/website-pages";
+import {
+  listFeaturedPublishedStudioProjectsForHub,
+  type PublishedStudioTileForWorkPillar,
+} from "@/lib/studio/studio-project-cms";
+import {
+  getBackgroundMediaFromPage,
+  getPublishedWebsitePageBySlug,
+  type WebsitePage,
+} from "@/lib/website-pages";
 import { getVisibleWorkPillars, resolvePillarCoverUrl } from "@/lib/work-pillar-settings";
+
+/** Full-bleed hero when the Work “Website pages” entry has no hero media (avoids an empty PageBackground). */
+function resolveWorkIndexBackground(
+  workPage: WebsitePage | null,
+  homePage: WebsitePage | null,
+  featured: PublishedStudioTileForWorkPillar[],
+  pillarCoverUrls: (string | null)[]
+): { media: string | null; poster: string | null } {
+  const fromWork = getBackgroundMediaFromPage(workPage);
+  if (fromWork.media?.trim()) return fromWork;
+
+  const fromHome = getBackgroundMediaFromPage(homePage);
+  if (fromHome.media?.trim()) return fromHome;
+
+  const hero = featured[0]?.heroImage;
+  if (hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)) {
+    return {
+      media: getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? ""),
+      poster: null,
+    };
+  }
+
+  const cover = pillarCoverUrls.find((u) => u?.trim());
+  if (cover) return { media: cover, poster: null };
+
+  return { media: null, poster: null };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -56,11 +90,11 @@ export const metadata: Metadata = {
 };
 
 export default async function WorkIndexPage() {
-  const [publishedPage, featuredStudioProjects] = await Promise.all([
+  const [publishedWorkPage, publishedHomePage, featuredStudioProjects] = await Promise.all([
     getPublishedWebsitePageBySlug("work"),
+    getPublishedWebsitePageBySlug("home"),
     listFeaturedPublishedStudioProjectsForHub(),
   ]);
-  const { media, poster } = getBackgroundMediaFromPage(publishedPage);
   let pillarData: Awaited<ReturnType<typeof fetchPillarData>>;
   try {
     pillarData = await fetchPillarData();
@@ -77,6 +111,13 @@ export default async function WorkIndexPage() {
     }));
   }
 
+  const { media, poster } = resolveWorkIndexBackground(
+    publishedWorkPage,
+    publishedHomePage,
+    featuredStudioProjects,
+    pillarData.map((p) => p.coverUrl)
+  );
+
   return (
     <>
       <PageBackground media={media} poster={poster} />
@@ -92,16 +133,11 @@ export default async function WorkIndexPage() {
         {featuredStudioProjects.length > 0 ? (
           <section className="mt-12">
             <Reveal>
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p className="section-kicker">Featured</p>
-                  <h2 className="font-display text-3xl text-white sm:text-4xl">
-                    Featured case studies
-                  </h2>
-                </div>
-                <p className="max-w-xl text-sm leading-relaxed text-white/60">
-                  Published Studio CMS projects marked as featured are promoted here and remain available at their direct `/work/project-slug` URL.
-                </p>
+              <div>
+                <p className="section-kicker">Featured</p>
+                <h2 className="font-display text-3xl text-white sm:text-4xl">
+                  Featured case studies
+                </h2>
               </div>
             </Reveal>
             <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

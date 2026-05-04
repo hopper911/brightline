@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import R2BrowserModal from "@/components/admin/R2BrowserModal";
 
 type Client = { id: string; name: string };
 type Project = { id: string; title: string };
@@ -32,6 +33,13 @@ type Gallery = {
     expiresAt?: string | null;
   }[];
 };
+
+type R2CoverTarget = "createCover" | "editCover" | null;
+
+/** Ensures session cookies are sent for same-origin admin API calls. */
+function adminFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return fetch(input, { ...init, credentials: "include" });
+}
 
 function slugify(input: string) {
   return input
@@ -79,6 +87,7 @@ export default function AdminGalleriesPage() {
   const [lastGeneratedTokenGalleryId, setLastGeneratedTokenGalleryId] = useState<string | null>(null);
   const [showRevokedAccessHistory, setShowRevokedAccessHistory] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
+  const [r2CoverTarget, setR2CoverTarget] = useState<R2CoverTarget>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
@@ -99,6 +108,38 @@ export default function AdminGalleriesPage() {
   });
 
   const slug = useMemo(() => slugify(title || "gallery"), [title]);
+
+  async function resolvePublicUrl(key: string) {
+    const res = await adminFetch("/api/admin/public-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+    });
+    const raw = await res.text();
+    let data: { url?: string; error?: string } | null = null;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      // The raw response is included in the thrown error below for debugging.
+    }
+    if (!res.ok || !data?.url) {
+      throw new Error(
+        data?.error ?? `Unable to resolve public URL (${res.status}): ${raw.slice(0, 200)}`
+      );
+    }
+    return data.url;
+  }
+
+  async function handleR2CoverKeys(keys: string[]) {
+    const key = keys[0]?.replace(/^\/+/, "");
+    if (!key) return;
+    const url = await resolvePublicUrl(key);
+    if (r2CoverTarget === "editCover") {
+      setEditForm((prev) => ({ ...prev, coverUrl: url }));
+    } else {
+      setCoverUrl(url);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -430,6 +471,14 @@ export default function AdminGalleriesPage() {
                   onChange={(e) => setEditForm((p) => ({ ...p, coverUrl: e.target.value }))}
                   disabled={editSaving}
                 />
+                <button
+                  type="button"
+                  className="mt-2 text-xs uppercase tracking-[0.2em] text-black/45 underline"
+                  onClick={() => setR2CoverTarget("editCover")}
+                  disabled={editSaving}
+                >
+                  Choose from R2
+                </button>
               </label>
               {editForm.galleryType === "FINAL_DELIVERY" ? (
                 <>
@@ -568,12 +617,21 @@ export default function AdminGalleriesPage() {
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
         />
-        <input
-          className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
-          placeholder="Cover image URL"
-          value={coverUrl}
-          onChange={(e) => setCoverUrl(e.target.value)}
-        />
+        <label className="block">
+          <input
+            className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
+            placeholder="Cover image URL"
+            value={coverUrl}
+            onChange={(e) => setCoverUrl(e.target.value)}
+          />
+          <button
+            type="button"
+            className="mt-2 text-xs uppercase tracking-[0.2em] text-black/45 underline"
+            onClick={() => setR2CoverTarget("createCover")}
+          >
+            Choose from R2
+          </button>
+        </label>
         <div className="grid gap-3 md:grid-cols-2">
           <select
             className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm"
@@ -806,6 +864,14 @@ export default function AdminGalleriesPage() {
           </div>
         ))}
       </div>
+
+      <R2BrowserModal
+        isOpen={Boolean(r2CoverTarget)}
+        onClose={() => setR2CoverTarget(null)}
+        mode="single"
+        initialCustomPrefix="client-galleries/"
+        onAddKeys={handleR2CoverKeys}
+      />
     </div>
   );
 }

@@ -125,10 +125,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const slug = (body.slug?.trim() || slugify(body.title)).replace(/^-+|-+$/g, "") || "project";
+    const slug =
+      slugify(body.slug?.trim() || body.title).replace(/^-+|-+$/g, "") || "project";
 
-    const existing = await prisma.workProject.findUnique({
-      where: { section_slug: { section, slug } },
+    const existing = await prisma.workProject.findFirst({
+      where: {
+        section,
+        slug: { equals: slug, mode: "insensitive" },
+      },
     });
     if (existing) {
       return NextResponse.json(

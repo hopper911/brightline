@@ -36,6 +36,20 @@ type WorkProject = {
   media: ProjectMedia[];
 };
 
+type ProjectTemplate = {
+  id: string;
+  name: string;
+  pillar: string;
+  defaultFields: Record<string, unknown>;
+  defaultTags: string[];
+  defaultDeliveryStructure: Record<string, unknown>;
+  defaultAISettings: Record<string, unknown>;
+};
+
+function safeJson(value: unknown) {
+  return JSON.stringify(value ?? {}, null, 2);
+}
+
 export default function AdminWorkPage() {
   const [projects, setProjects] = useState<WorkProject[]>([]);
   const [sectionToPillar, setSectionToPillar] = useState<Record<string, string>>({});
@@ -43,6 +57,17 @@ export default function AdminWorkPage() {
   const [loading, setLoading] = useState(true);
   const [pillarFilter, setPillarFilter] = useState<string>("");
   const [search, setSearch] = useState<string>("");
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [templateTitle, setTemplateTitle] = useState("");
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateError, setTemplateError] = useState("");
+  const [editingTemplate, setEditingTemplate] = useState<ProjectTemplate | null>(null);
+  const [templateFieldsJson, setTemplateFieldsJson] = useState("{}");
+  const [templateDeliveryJson, setTemplateDeliveryJson] = useState("{}");
+  const [templateAIJson, setTemplateAIJson] = useState("{}");
+  const [templateTagsRaw, setTemplateTagsRaw] = useState("");
 
   useEffect(() => {
     async function loadPillars() {
@@ -91,6 +116,87 @@ export default function AdminWorkPage() {
     }
     void load();
   }, [pillarFilter, search]);
+
+  async function loadTemplates() {
+    const res = await fetch("/api/admin/templates", { credentials: "include" });
+    const data = (await res.json()) as { ok?: boolean; templates?: ProjectTemplate[]; error?: string };
+    if (!res.ok) throw new Error(data.error ?? "Failed to load templates.");
+    setTemplates(data.templates ?? []);
+    const first = data.templates?.[0];
+    if (first && !selectedTemplateId) setSelectedTemplateId(first.id);
+  }
+
+  async function openTemplateModal() {
+    setTemplateError("");
+    setTemplateModalOpen(true);
+    try {
+      await loadTemplates();
+    } catch (err) {
+      setTemplateError(err instanceof Error ? err.message : "Failed to load templates.");
+    }
+  }
+
+  function startEditTemplate(template: ProjectTemplate) {
+    setEditingTemplate(template);
+    setTemplateFieldsJson(safeJson(template.defaultFields));
+    setTemplateDeliveryJson(safeJson(template.defaultDeliveryStructure));
+    setTemplateAIJson(safeJson(template.defaultAISettings));
+    setTemplateTagsRaw(template.defaultTags.join(", "));
+  }
+
+  async function saveTemplate() {
+    if (!editingTemplate) return;
+    setTemplateSaving(true);
+    setTemplateError("");
+    try {
+      const defaultFields = JSON.parse(templateFieldsJson) as Record<string, unknown>;
+      const defaultDeliveryStructure = JSON.parse(templateDeliveryJson) as Record<string, unknown>;
+      const defaultAISettings = JSON.parse(templateAIJson) as Record<string, unknown>;
+      const res = await fetch("/api/admin/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          id: editingTemplate.id,
+          name: editingTemplate.name,
+          pillar: editingTemplate.pillar,
+          defaultFields,
+          defaultTags: templateTagsRaw.split(/[,;]/).map((tag) => tag.trim()).filter(Boolean),
+          defaultDeliveryStructure,
+          defaultAISettings,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to save template.");
+      await loadTemplates();
+      setEditingTemplate(null);
+    } catch (err) {
+      setTemplateError(err instanceof Error ? err.message : "Template save failed.");
+    } finally {
+      setTemplateSaving(false);
+    }
+  }
+
+  async function createFromTemplate() {
+    if (!selectedTemplateId) return;
+    setTemplateSaving(true);
+    setTemplateError("");
+    try {
+      const res = await fetch("/api/admin/projects/create-from-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ templateId: selectedTemplateId, title: templateTitle.trim() || undefined }),
+      });
+      const data = (await res.json()) as { ok?: boolean; project?: { id: string }; error?: string };
+      if (!res.ok || !data.project?.id) throw new Error(data.error ?? "Failed to create project.");
+      window.location.href = `/admin/work/${data.project.id}`;
+    } catch (err) {
+      setTemplateError(err instanceof Error ? err.message : "Failed to create project.");
+    } finally {
+      setTemplateSaving(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -148,10 +254,102 @@ export default function AdminWorkPage() {
         <Link href="/admin/work/new" className="btn btn-primary">
           New project
         </Link>
+        <button type="button" className="btn btn-primary" onClick={() => void openTemplateModal()}>
+          Create Project from Template
+        </button>
         <Link href="/admin/projects" className="btn btn-ghost">
           Studio project pages
         </Link>
       </div>
+
+      {templateModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10">
+          <div className="w-full max-w-4xl rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-display text-2xl text-black">Create Project from Template</h2>
+                <p className="mt-1 text-sm text-black/60">
+                  Templates prefill project fields, tags, delivery structure, and AI defaults. Drafts remain editable.
+                </p>
+              </div>
+              <button type="button" className="btn btn-ghost text-sm" onClick={() => setTemplateModalOpen(false)}>
+                Close
+              </button>
+            </div>
+            {templateError ? <p className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{templateError}</p> : null}
+            <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+              <section className="rounded-xl border border-black/10 p-4">
+                <h3 className="text-sm font-semibold text-black">Create draft</h3>
+                <label className="mt-4 block text-xs uppercase tracking-wide text-black/55">Template</label>
+                <select
+                  value={selectedTemplateId}
+                  onChange={(event) => setSelectedTemplateId(event.target.value)}
+                  className="mt-1 w-full rounded border border-black/20 bg-white px-3 py-2 text-sm"
+                >
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name} · {template.pillar}
+                    </option>
+                  ))}
+                </select>
+                <label className="mt-4 block text-xs uppercase tracking-wide text-black/55">Project title override</label>
+                <input
+                  value={templateTitle}
+                  onChange={(event) => setTemplateTitle(event.target.value)}
+                  placeholder="Optional custom title"
+                  className="mt-1 w-full rounded border border-black/20 bg-white px-3 py-2 text-sm"
+                />
+                <button type="button" className="btn btn-primary mt-4" disabled={templateSaving || !selectedTemplateId} onClick={() => void createFromTemplate()}>
+                  {templateSaving ? "Creating..." : "Create draft"}
+                </button>
+                <div className="mt-5 space-y-2">
+                  {templates.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      className="block w-full rounded border border-black/10 p-3 text-left text-sm hover:bg-black/[0.03]"
+                      onClick={() => startEditTemplate(template)}
+                    >
+                      <span className="font-medium text-black">{template.name}</span>
+                      <span className="ml-2 text-xs text-black/45">{template.pillar}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+              <section className="rounded-xl border border-black/10 p-4">
+                <h3 className="text-sm font-semibold text-black">Edit/save template</h3>
+                {editingTemplate ? (
+                  <div className="mt-4 space-y-3">
+                    <p className="text-sm text-black/70">{editingTemplate.name} · {editingTemplate.pillar}</p>
+                    <label className="block text-xs uppercase tracking-wide text-black/55">Tags</label>
+                    <input
+                      value={templateTagsRaw}
+                      onChange={(event) => setTemplateTagsRaw(event.target.value)}
+                      className="w-full rounded border border-black/20 bg-white px-3 py-2 text-sm"
+                    />
+                    <label className="block text-xs uppercase tracking-wide text-black/55">Default fields JSON</label>
+                    <textarea value={templateFieldsJson} onChange={(event) => setTemplateFieldsJson(event.target.value)} rows={7} className="w-full rounded border border-black/20 bg-white p-3 font-mono text-xs" />
+                    <label className="block text-xs uppercase tracking-wide text-black/55">Delivery structure JSON</label>
+                    <textarea value={templateDeliveryJson} onChange={(event) => setTemplateDeliveryJson(event.target.value)} rows={5} className="w-full rounded border border-black/20 bg-white p-3 font-mono text-xs" />
+                    <label className="block text-xs uppercase tracking-wide text-black/55">AI settings JSON</label>
+                    <textarea value={templateAIJson} onChange={(event) => setTemplateAIJson(event.target.value)} rows={5} className="w-full rounded border border-black/20 bg-white p-3 font-mono text-xs" />
+                    <div className="flex gap-2">
+                      <button type="button" className="btn btn-primary" disabled={templateSaving} onClick={() => void saveTemplate()}>
+                        Save template
+                      </button>
+                      <button type="button" className="btn btn-ghost" onClick={() => setEditingTemplate(null)}>
+                        Cancel edit
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm text-black/50">Choose a template on the left to edit fields, delivery structure, tags, and AI defaults.</p>
+                )}
+              </section>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {loading ? (
         <p className="mt-8 text-sm text-black/50">Loading…</p>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { createProjectFromMedia } from "@/lib/automation/create-project-from-media";
 
 export const runtime = "nodejs";
 
@@ -140,10 +141,23 @@ export async function POST(req: Request) {
       }
     }
 
+    let autoProject: Awaited<ReturnType<typeof createProjectFromMedia>> | null = null;
+    if (!projectId && r2KeyFull) {
+      autoProject = await createProjectFromMedia({
+        keys: [r2KeyFull],
+        generateCopy: false,
+        source: "upload_pipeline",
+      }).catch((err) => {
+        console.error("MEDIA_UPSERT_AUTO_PROJECT_ERROR", err);
+        return null;
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       galleryId: gallery.id,
       imageId: image.id,
+      autoProject,
     });
   } catch (err: unknown) {
     console.error("MEDIA_UPSERT_ERROR", err);

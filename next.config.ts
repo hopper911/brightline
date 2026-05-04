@@ -55,6 +55,11 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
+    // Uploaded portfolio/media assets are already converted to right-sized WebP
+    // files and are served through `/api/media/public`, which redirects to a
+    // short-lived signed R2 URL. Next's optimizer rejects that proxy route in
+    // production, so render the browser-facing URL directly.
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",

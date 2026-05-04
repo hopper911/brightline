@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { getSectionToPillarSlugMap } from "@/lib/work-pillar-settings";
+import {
+  getPillarBySlug,
+  getPrimaryWorkSection,
+  getSectionToPillarSlugMap,
+} from "@/lib/work-pillar-settings";
 
 export const runtime = "nodejs";
 
@@ -20,6 +24,7 @@ export async function GET(
       include: {
         heroMedia: true,
         media: { include: { media: true }, orderBy: { sortOrder: "asc" } },
+        followUpSchedules: { orderBy: { scheduledAt: "asc" } },
       },
     });
     if (!project) {
@@ -44,6 +49,33 @@ function slugify(input: string) {
     .replace(/[^\w\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+const COPY_VERSION_FIELDS = [
+  ["client", "client"],
+  ["projectType", "projectTypeLegacy"],
+  ["scope", "scope"],
+  ["overviewExtended", "overviewExtended"],
+  ["whatWasPhotographed", "whatWasPhotographed"],
+  ["visualApproach", "visualApproachLegacy"],
+  ["locationContext", "locationContext"],
+  ["whoIsThisFor", "whoThisPhotographyServes"],
+  ["seoTitle", "seoTitle"],
+  ["metaDescription", "metaDescription"],
+  ["ctaCopy", "ctaCopy"],
+  ["opening", "opening"],
+  ["context", "context"],
+  ["approach", "approach"],
+  ["highlight", "highlightLine"],
+  ["execution", "execution"],
+  ["closing", "closing"],
+  ["credits", "credits"],
+] as const;
+
+function cleanCopyValue(value: unknown) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  if (value == null) return "";
+  return String(value).trim();
 }
 
 export async function PATCH(
@@ -88,6 +120,8 @@ export async function PATCH(
       closing?: string | null;
       credits?: string | null;
       tags?: string[];
+      /** Pillar slug from Admin → Work pillars; moves project to that pillar's primary work section. */
+      pillar?: string | null;
     };
 
     const existing = await prisma.workProject.findUnique({
@@ -98,31 +132,57 @@ export async function PATCH(
       return NextResponse.json({ ok: false, error: "Project not found." }, { status: 404 });
     }
 
-    if (body.slug !== undefined) {
-      const slugInput = body.slug == null ? "" : String(body.slug).trim();
-      const slug =
-        (slugInput || slugify(existing.title)).replace(/^-+|-+$/g, "") || "project";
-      const conflict = await prisma.workProject.findFirst({
-        where: { section: existing.section, slug, id: { not: id } },
-      });
-      if (conflict) {
+    let nextSection = existing.section;
+    if (body.pillar !== undefined) {
+      const raw = body.pillar == null ? "" : String(body.pillar).trim().toLowerCase();
+      if (!raw) {
         return NextResponse.json(
-          { ok: false, error: `Another project in this section already uses slug "${slug}".` },
-          { status: 409 }
+          { ok: false, error: "Choose a pillar (slug cannot be empty)." },
+          { status: 400 }
         );
       }
+      const pillarCfg = await getPillarBySlug(raw);
+      if (!pillarCfg?.sections.length) {
+        return NextResponse.json(
+          { ok: false, error: "Unknown pillar. Configure it under Admin → Work pillars." },
+          { status: 400 }
+        );
+      }
+      nextSection = getPrimaryWorkSection(pillarCfg);
+    }
+
+    const titleForSlug =
+      body.title !== undefined ? body.title.trim() : existing.title;
+    let finalSlug = existing.slug;
+    if (body.slug !== undefined) {
+      const slugInput = body.slug == null ? "" : String(body.slug).trim();
+      finalSlug =
+        slugify(slugInput || slugify(titleForSlug)).replace(/^-+|-+$/g, "") || "project";
+    }
+
+    const conflict = await prisma.workProject.findFirst({
+      where: {
+        section: nextSection,
+        slug: { equals: finalSlug, mode: "insensitive" },
+        id: { not: id },
+      },
+    });
+    if (conflict) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Another project in this pillar already uses slug "${finalSlug}".`,
+        },
+        { status: 409 }
+      );
     }
 
     const project = await prisma.workProject.update({
       where: { id },
       data: {
         title: body.title !== undefined ? body.title.trim() : undefined,
-        slug:
-          body.slug !== undefined
-            ? ((body.slug == null ? "" : String(body.slug).trim()) || slugify(existing.title))
-                .replace(/^-+|-+$/g, "")
-                || "project"
-            : undefined,
+        section: nextSection !== existing.section ? nextSection : undefined,
+        slug: body.slug !== undefined ? finalSlug : undefined,
         summary:
           body.summary !== undefined
             ? body.summary == null
@@ -226,10 +286,45 @@ export async function PATCH(
       include: {
         heroMedia: true,
         media: { include: { media: true }, orderBy: { sortOrder: "asc" } },
+        followUpSchedules: { orderBy: { scheduledAt: "asc" } },
       },
     });
 
-    return NextResponse.json({ ok: true, project });
+    const manualVersions: Array<{
+      projectId: string;
+      fieldKey: string;
+      oldValue: string | null;
+      newValue: string | null;
+      promptMode: string;
+    }> = COPY_VERSION_FIELDS.flatMap(([bodyKey, fieldKey]) => {
+      if (!(bodyKey in body)) return [];
+      const oldValue = cleanCopyValue(existing[bodyKey]);
+      const newValue = cleanCopyValue(body[bodyKey]);
+      if (oldValue === newValue) return [];
+      return [{ projectId: id, fieldKey, oldValue: oldValue || null, newValue: newValue || null, promptMode: "manual_save" }];
+    });
+    if ("tags" in body) {
+      const oldValue = cleanCopyValue(existing.tags);
+      const newValue = cleanCopyValue(body.tags);
+      if (oldValue !== newValue) {
+        manualVersions.push({
+          projectId: id,
+          fieldKey: "projectTags",
+          oldValue: oldValue || null,
+          newValue: newValue || null,
+          promptMode: "manual_save",
+        });
+      }
+    }
+    if (manualVersions.length) {
+      await prisma.projectCopyVersion.createMany({ data: manualVersions });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      project,
+      sectionToPillar: await getSectionToPillarSlugMap(),
+    });
   } catch (err: unknown) {
     console.error("WORK_PROJECT_PATCH_ERROR", err);
     const message = err instanceof Error ? err.message : "Failed to update project.";

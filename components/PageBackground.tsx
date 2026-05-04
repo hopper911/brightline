@@ -45,7 +45,17 @@ export default function PageBackground({
   const src = mediaUrl(media);
   const [ready, setReady] = useState(false);
 
-  if (!src) return null;
+  if (!src) {
+    return (
+      <div
+        className={`pointer-events-none fixed inset-0 z-[1] overflow-hidden ${className}`}
+        aria-hidden
+      >
+        <div className={`absolute inset-0 ${darkBaseClassName}`} />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,0.12),transparent_28%),linear-gradient(180deg,rgba(7,9,11,0.52),rgba(7,9,11,0.9))]" />
+      </div>
+    );
+  }
 
   const posterUrl = mediaUrl(poster) || undefined;
 

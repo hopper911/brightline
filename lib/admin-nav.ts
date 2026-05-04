@@ -79,6 +79,7 @@ export const DEFAULT_ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     id: "insight",
     label: "Insight",
     items: [
+      { id: "business", label: "Business", href: "/admin/business", visible: true },
       { id: "analytics", label: "Analytics", href: "/admin/analytics", visible: true },
       { id: "settings", label: "Settings", href: "/admin/settings", visible: true },
       { id: "sidebar", label: "Admin sidebar", href: "/admin/navigation", visible: true },

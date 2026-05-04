@@ -141,15 +141,19 @@ export function validatePillarList(pillars: PillarConfig[]): string | null {
 }
 
 async function readWorkPillarsFileFromDb(): Promise<WorkPillarsFileV2> {
-  const setting = await prisma.siteSetting.findUnique({
-    where: { key: WORK_PILLARS_SETTING_KEY },
-    select: { value: true },
-  });
-  if (!setting?.value?.trim()) {
-    return { version: 2, pillars: PILLARS.map((p) => ({ ...p })) };
-  }
   try {
-    return parseStoredJson(setting.value);
+    const setting = await prisma.siteSetting.findUnique({
+      where: { key: WORK_PILLARS_SETTING_KEY },
+      select: { value: true },
+    });
+    if (!setting?.value?.trim()) {
+      return { version: 2, pillars: PILLARS.map((p) => ({ ...p })) };
+    }
+    try {
+      return parseStoredJson(setting.value);
+    } catch {
+      return { version: 2, pillars: PILLARS.map((p) => ({ ...p })) };
+    }
   } catch {
     return { version: 2, pillars: PILLARS.map((p) => ({ ...p })) };
   }

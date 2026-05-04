@@ -41,7 +41,7 @@ function BlockHeader({ block }: { block: WebsiteBlock }) {
     <div>
       {block.eyebrow ? <p className="section-kicker">{block.eyebrow}</p> : null}
       {block.title ? <h2 className="section-title">{block.title}</h2> : null}
-      {block.body && block.type !== "hero" ? (
+      {block.body && block.type !== "hero" && block.type !== "gallery" ? (
         <p className="section-subtitle">{block.body}</p>
       ) : null}
     </div>
@@ -219,6 +219,35 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
           <div aria-label="Recent project samples">
             <RecentProjectsShowcase block={block} />
           </div>
+        </div>
+      </Reveal>
+    );
+  }
+
+  if (block.type === "gallery") {
+    return (
+      <Reveal className="relative isolate min-h-[72vh] overflow-hidden px-6 py-24 lg:px-10 lg:py-28">
+        <BackgroundMedia block={block} className="opacity-52" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(95deg,rgba(7,9,11,0.92),rgba(7,9,11,0.55)_52%,rgba(7,9,11,0.88))]" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 h-36 bg-gradient-to-t from-[var(--color-bg)] to-transparent" />
+
+        <div className="mx-auto max-w-3xl">
+          {block.eyebrow ? <p className="section-kicker">{block.eyebrow}</p> : null}
+          <h1 className="mt-5 font-display text-4xl font-semibold leading-[0.98] tracking-[-0.03em] text-white text-balance md:text-6xl">
+            {block.title}
+          </h1>
+          {block.body ? (
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/78 md:text-lg whitespace-pre-line">
+              {block.body}
+            </p>
+          ) : null}
+          {block.ctaHref && block.ctaLabel ? (
+            <div className="mt-8">
+              <Link href={block.ctaHref} className="btn btn-primary">
+                {block.ctaLabel}
+              </Link>
+            </div>
+          ) : null}
         </div>
       </Reveal>
     );

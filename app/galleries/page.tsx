@@ -1,7 +1,10 @@
 import ClientAccessLanding from "@/components/ClientAccessLanding";
 import PageBackground from "@/components/PageBackground";
 import { BRAND } from "@/lib/config/brand";
-import { getBackgroundMediaFromPage, getPublishedWebsitePageBySlug } from "@/lib/website-pages";
+import {
+  getBackgroundMediaFromPage,
+  getWebsitePagesForAdmin,
+} from "@/lib/website-pages";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +23,28 @@ export const metadata = {
 };
 
 export default async function GalleriesPage() {
-  const page = await getPublishedWebsitePageBySlug("galleries");
-  const { media, poster } = getBackgroundMediaFromPage(page);
+  const allPages = await getWebsitePagesForAdmin();
+  const publishedPage =
+    allPages.find((p) => p.slug === "galleries" && p.status === "PUBLISHED") ?? null;
+  const mergedGalleries = allPages.find((p) => p.slug === "galleries") ?? null;
+  const publishedHome = allPages.find((p) => p.slug === "home" && p.status === "PUBLISHED") ?? null;
+
+  let { media, poster } = getBackgroundMediaFromPage(publishedPage);
+  if (!media?.trim()) {
+    const fromMerged = getBackgroundMediaFromPage(mergedGalleries);
+    media = fromMerged.media;
+    poster = fromMerged.poster;
+  }
+  if (!media?.trim()) {
+    const fromHome = getBackgroundMediaFromPage(publishedHome);
+    media = fromHome.media;
+    poster = fromHome.poster;
+  }
 
   return (
     <>
       <PageBackground media={media} poster={poster} />
-      <ClientAccessLanding page={page} />
+      <ClientAccessLanding page={publishedPage} />
     </>
   );
 }

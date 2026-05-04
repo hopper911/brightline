@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound, permanentRedirect } from "next/navigation";
+import PageBackground from "@/components/PageBackground";
 import Reveal from "@/components/Reveal";
 import StudioProjectCaseStudy from "@/components/studio/StudioProjectCaseStudy";
 import { BRAND } from "@/lib/config/brand";
@@ -9,8 +10,9 @@ import {
   getPillarBySlug,
   getSectionToPillarSlugMap,
   isKnownPillarSlug,
+  resolvePillarCoverUrl,
 } from "@/lib/work-pillar-settings";
-import { getPublishedProjectsBySections } from "@/lib/queries/work";
+import { getFeaturedHeroForSection, getPublishedProjectsBySections } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
 import { normalizeProjectSlug } from "@/lib/slugify";
 import {
@@ -302,8 +304,25 @@ async function PillarSectionContent({ section }: { section: string }) {
     studioTiles = [];
   }
 
+  let coverMedia = resolvePillarCoverUrl(pillar.coverImageKey, null);
+  if (!coverMedia?.trim()) {
+    const firstSection = pillar.sections[0];
+    if (firstSection) {
+      try {
+        const hero = await getFeaturedHeroForSection(firstSection);
+        if (hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)) {
+          coverMedia = getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? "");
+        }
+      } catch {
+        /* keep null */
+      }
+    }
+  }
+
   return (
-    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+    <>
+      <PageBackground media={coverMedia} poster={null} />
+      <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
       <Reveal className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="section-kicker">Work</p>
@@ -333,6 +352,7 @@ async function PillarSectionContent({ section }: { section: string }) {
         </Reveal>
       )}
     </div>
+    </>
   );
 }
 

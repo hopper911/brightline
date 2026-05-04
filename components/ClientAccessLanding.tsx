@@ -9,7 +9,10 @@ const DEFAULT_COPY = {
 };
 
 export default function ClientAccessLanding({ page }: { page: WebsitePage | null }) {
-  const hero = page?.blocks.find((block) => block.type === "hero") ?? null;
+  const hero =
+    page?.blocks.find((block) => block.type === "gallery") ??
+    page?.blocks.find((block) => block.type === "hero") ??
+    null;
   const cards = page?.blocks.find((block) => block.type === "cards" && block.items.length) ?? null;
   const eyebrow = hero?.eyebrow || page?.eyebrow || DEFAULT_COPY.eyebrow;
   const title = hero?.title || page?.title || DEFAULT_COPY.title;

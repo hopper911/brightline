@@ -105,9 +105,12 @@ enum ServiceTemplateType {
 enum StudioInvoiceStatus {
   DRAFT
   SENT
+  VIEWED
   PARTIALLY_PAID
   PAID
+  FAILED
   OVERDUE
+  CANCELED
   VOID
 }
 
@@ -487,7 +490,15 @@ model WorkProject {
   heroMedia           MediaAsset?    @relation("HeroMedia", fields: [heroMediaId], references: [id])
   backgroundMediaUrl  String?
   backgroundPosterUrl String?
+  finalPackageToken   String?        @unique
+  attachedInvoiceId   String?
+  clientPdfGeneratedAt DateTime?
+  deliveryPreparedAt  DateTime?
   media               ProjectMedia[]
+  copyVersions        ProjectCopyVersion[]
+  aiGenerations       AiGeneration[]
+  deliveryPackages    DeliveryPackage[]
+  followUpSchedules   FollowUpSchedule[]
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
   // Case study / SEO fields
@@ -519,6 +530,22 @@ model WorkProject {
   @@index([section])
   @@index([published])
   @@index([studioProjectId])
+  @@index([attachedInvoiceId])
+}
+
+model ProjectCopyVersion {
+  id         String      @id @default(cuid())
+  projectId  String
+  fieldKey   String
+  oldValue   String?
+  newValue   String?
+  promptMode String
+  tonePreset String?
+  createdAt  DateTime    @default(now())
+  project    WorkProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, fieldKey, createdAt])
+  @@index([projectId, createdAt])
 }
 
 model MediaAsset {
@@ -535,6 +562,7 @@ model MediaAsset {
   createdAt     DateTime        @default(now())
   heroFor       WorkProject[]   @relation("HeroMedia")
   projectMedia  ProjectMedia[]
+  deliveryPackageItems DeliveryPackageItem[]
   studioHeroFor StudioProject[] @relation("StudioProjectHero")
 
   @@index([kind])
@@ -662,6 +690,8 @@ model StudioClient {
 
   projects   StudioProject[]
   invoices   StudioInvoice[]
+  deliveryPackages DeliveryPackage[]
+  followUpSchedules FollowUpSchedule[]
   StudioLead StudioLead[]
   emailThreads StudioEmailThread[]
 
@@ -720,6 +750,12 @@ model StudioInvoice {
   dueAt            DateTime?
   sentAt           DateTime?
   paidAt           DateTime?
+  deliveryPackageId String?
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId String?
+  stripeCustomerId String?
+  paymentUrl       String?
+  currency         String              @default("usd")
   subtotal         Decimal             @default(0) @db.Decimal(10, 2)
   tax              Decimal             @default(0) @db.Decimal(10, 2)
   discount         Decimal             @default(0) @db.Decimal(10, 2)
@@ -727,16 +763,23 @@ model StudioInvoice {
   amountPaid       Decimal             @default(0) @db.Decimal(10, 2)
   balanceRemaining Decimal             @default(0) @db.Decimal(10, 2)
   notes            String?
+  paymentInstructions String?
+  pdfStorageKey    String?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
   client    StudioClient      @relation(fields: [clientId], references: [id], onDelete: Cascade)
   project   StudioProject?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  deliveryPackage DeliveryPackage? @relation(fields: [deliveryPackageId], references: [id], onDelete: SetNull)
   lineItems StudioInvoiceLineItem[]
   payments  StudioPayment[]
 
   @@index([clientId])
   @@index([projectId])
+  @@index([deliveryPackageId])
+  @@index([stripeCheckoutSessionId])
+  @@index([stripePaymentIntentId])
+  @@index([stripeCustomerId])
   @@index([status])
   @@index([issuedAt])
   @@index([dueAt])
@@ -761,6 +804,155 @@ model StudioInvoiceLineItem {
   mediaLinks      StudioInvoiceLineItemMedia[]
 
   @@index([invoiceId, sortOrder])
+}
+
+model AiGeneration {
+  id             String      @id @default(cuid())
+  projectId      String
+  fieldKey       String?
+  generationType String
+  promptMode     String?
+  tonePreset     String?
+  inputBrief     Json?
+  outputText     String?
+  outputJSON     Json?
+  modelUsed      String?
+  createdBy      String?
+  createdAt      DateTime    @default(now())
+  project        WorkProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, generationType, createdAt])
+  @@index([fieldKey])
+}
+
+model DeliveryPackage {
+  id           String      @id @default(cuid())
+  projectId    String
+  clientId     String?
+  title        String
+  status       String      @default("draft")
+  accessToken  String      @unique
+  expiresAt    DateTime?
+  deliveryDate DateTime?
+  notes        String?
+  manifestJSON Json?
+  marketingExportJSON Json?
+  visualStrategyReportJSON Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  project WorkProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  client  StudioClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  items   DeliveryPackageItem[]
+  invoices StudioInvoice[]
+  accessLogs PackageAccessLog[]
+  feedback DeliveryPackageItemFeedback[]
+
+  @@index([projectId])
+  @@index([clientId])
+  @@index([status])
+  @@index([deliveryDate])
+}
+
+model DeliveryPackageItem {
+  id                  String          @id @default(cuid())
+  deliveryPackageId   String
+  mediaAssetId        String
+  deliveryGroup       String          @default("archive")
+  usageSuggestion     String?
+  clientFacingCaption String?
+  aiDescription       String?
+  altText             String?
+  imagePurpose        String?
+  sortOrder           Int             @default(0)
+  selectedForDelivery Boolean         @default(true)
+  downloadUrl         String?
+  storageKey          String?
+  downloadCount       Int             @default(0)
+  viewCount           Int             @default(0)
+  totalViewDurationMs Int             @default(0)
+  firstClickOrder     Int?
+  lastClickOrder      Int?
+  performanceScore    Int             @default(0)
+  usageLikelihood     String?
+  performanceRecommendedPlacement String?
+  aiBestUseCase       String?
+  aiUseCaseConfidence Int?
+  aiUseCaseReasoning  String?
+  licensedUsageTypes  String[]        @default([])
+  licensingNotes      String?
+  licenseExpiresAt    DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  deliveryPackage DeliveryPackage @relation(fields: [deliveryPackageId], references: [id], onDelete: Cascade)
+  mediaAsset      MediaAsset      @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  accessLogs      PackageAccessLog[]
+  feedback        DeliveryPackageItemFeedback[]
+
+  @@unique([deliveryPackageId, mediaAssetId])
+  @@index([deliveryPackageId, deliveryGroup])
+  @@index([mediaAssetId])
+  @@index([selectedForDelivery])
+  @@index([performanceScore])
+  @@index([downloadCount])
+  @@index([aiBestUseCase])
+}
+
+model DeliveryPackageItemFeedback {
+  id                    String              @id @default(cuid())
+  deliveryPackageId     String
+  deliveryPackageItemId String
+  eventType             String
+  comment               String?
+  createdAt             DateTime            @default(now())
+
+  deliveryPackage     DeliveryPackage     @relation(fields: [deliveryPackageId], references: [id], onDelete: Cascade)
+  deliveryPackageItem DeliveryPackageItem @relation(fields: [deliveryPackageItemId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryPackageId, createdAt])
+  @@index([deliveryPackageItemId])
+  @@index([eventType])
+}
+
+model FollowUpSchedule {
+  id          String    @id @default(cuid())
+  projectId   String
+  clientId    String
+  type        String
+  scheduledAt DateTime
+  sentAt      DateTime?
+  status      String    @default("pending")
+  error       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project WorkProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  client  StudioClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, type])
+  @@index([projectId, status])
+  @@index([clientId])
+  @@index([status, scheduledAt])
+  @@index([scheduledAt])
+}
+
+model PackageAccessLog {
+  id                String          @id @default(cuid())
+  deliveryPackageId String
+  deliveryPackageItemId String?
+  eventType         String
+  durationMs        Int?
+  clickOrder        Int?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime        @default(now())
+  deliveryPackage   DeliveryPackage @relation(fields: [deliveryPackageId], references: [id], onDelete: Cascade)
+  deliveryPackageItem DeliveryPackageItem? @relation(fields: [deliveryPackageItemId], references: [id], onDelete: SetNull)
+
+  @@index([deliveryPackageId, createdAt])
+  @@index([deliveryPackageItemId])
+  @@index([eventType])
 }
 
 /// Links billed media assets to a specific invoice line (revenue-per-image).
@@ -1122,15 +1314,43 @@ model AutomationRule {
   @@index([triggerEvent])
 }
 
+model ProjectTemplate {
+  id                       String   @id @default(cuid())
+  name                     String
+  pillar                   String
+  defaultFields            Json
+  defaultTags              String[] @default([])
+  defaultDeliveryStructure Json
+  defaultAISettings        Json
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([pillar])
+  @@index([name])
+}
+
 model ProjectMedia {
-  projectId String
-  mediaId   String
-  sortOrder Int         @default(0)
-  project   WorkProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  media     MediaAsset  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  projectId            String
+  mediaId              String
+  sortOrder            Int         @default(0)
+  recommendedPlacement String?
+  confidenceScore      Int?
+  reason               String?
+  deliveryGroup        String?
+  usageSuggestion      String?
+  clientFacingCaption  String?
+  aiDescription        String?
+  fileFormat           String?
+  imagePurpose         String?
+  selectedForDelivery  Boolean     @default(false)
+  project              WorkProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  media                MediaAsset  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([projectId, mediaId])
   @@index([projectId, sortOrder])
+  @@index([projectId, recommendedPlacement])
+  @@index([projectId, deliveryGroup])
+  @@index([projectId, selectedForDelivery])
 }
 
 model SiteSetting {

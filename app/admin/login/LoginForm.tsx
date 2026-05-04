@@ -24,6 +24,7 @@ export default function LoginForm({ className = "" }: LoginFormProps) {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ code }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };

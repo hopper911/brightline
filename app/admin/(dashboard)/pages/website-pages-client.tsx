@@ -10,7 +10,18 @@ import { mergeWorkPillarNavIntoSiteNav } from "@/lib/site-nav";
 import { getPublicR2Url } from "@/lib/r2";
 import R2BrowserModal from "../work/R2BrowserModal";
 
-const BLOCK_TYPES: WebsiteBlockType[] = ["hero", "stats", "text", "cards", "list", "cta", "contactForm"];
+const BLOCK_TYPES: WebsiteBlockType[] = ["hero", "gallery", "stats", "text", "cards", "list", "cta", "contactForm"];
+
+const BLOCK_TYPE_LABEL: Record<WebsiteBlockType, string> = {
+  hero: "hero",
+  gallery: "gallery (full-page background)",
+  stats: "stats",
+  text: "text",
+  cards: "cards",
+  list: "list",
+  cta: "cta",
+  contactForm: "contactForm",
+};
 const FONT_OPTIONS = [
   { value: "inter", label: "Inter" },
   { value: "montserrat", label: "Montserrat" },
@@ -58,8 +69,18 @@ function blankBlock(type: WebsiteBlockType): WebsiteBlock {
         : type === "cards" || type === "list"
           ? [{ title: "Item title", body: "Item copy.", meta: "" }]
           : [],
-    ctaLabel: type === "cta" || type === "hero" ? "Contact" : "",
-    ctaHref: type === "cta" || type === "hero" ? "/contact" : "",
+    ctaLabel:
+      type === "cta" || type === "hero"
+        ? "Contact"
+        : type === "gallery"
+          ? "Enter gallery"
+          : "",
+    ctaHref:
+      type === "cta" || type === "hero"
+        ? "/contact"
+        : type === "gallery"
+          ? "/galleries"
+          : "",
   };
 }
 
@@ -336,7 +357,18 @@ export default function WebsitePagesClient({
       });
       const json = (await res.json()) as { ok?: boolean; pages?: WebsitePage[]; error?: string };
       if (!res.ok || !json.ok) throw new Error(json.error ?? "Save failed.");
+
+      const navRes = await fetch("/api/admin/site-nav", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ nav }),
+      });
+      const navJson = (await navRes.json()) as { ok?: boolean; nav?: SiteNavItem[]; error?: string };
+      if (!navRes.ok || !navJson.ok) throw new Error(navJson.error ?? "Navigation save failed.");
+
       setPages(json.pages ?? payloadPages);
+      setNav(navJson.nav ?? nav);
       setStatus("saved");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
@@ -493,7 +525,7 @@ export default function WebsitePagesClient({
       {error ? (
         <p className="mt-5 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p>
       ) : status === "saved" ? (
-        <p className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">Website pages saved.</p>
+        <p className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">Website pages and navigation saved.</p>
       ) : null}
 
       <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -742,7 +774,11 @@ export default function WebsitePagesClient({
 
             <div className="mt-6 flex items-center gap-2">
               <select value={newBlockType} onChange={(event) => setNewBlockType(event.target.value as WebsiteBlockType)} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white">
-                {BLOCK_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                {BLOCK_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {BLOCK_TYPE_LABEL[type]}
+                  </option>
+                ))}
               </select>
               <button className="btn btn-ghost" type="button" onClick={addBlock}>Add block</button>
             </div>
@@ -775,7 +811,11 @@ export default function WebsitePagesClient({
               <label className="block text-sm text-white/70">
                 Block type
                 <select value={selectedBlock.type} onChange={(event) => updateBlock(selectedBlock.id, { type: event.target.value as WebsiteBlockType })} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white">
-                  {BLOCK_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                  {BLOCK_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {BLOCK_TYPE_LABEL[type]}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -793,7 +833,9 @@ export default function WebsitePagesClient({
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm text-white/70">
-                Background video or image URL
+                {selectedBlock.type === "gallery"
+                  ? "Full-page background (image or video URL)"
+                  : "Background video or image URL"}
                 <input value={selectedBlock.mediaUrl} onChange={(event) => updateBlock(selectedBlock.id, { mediaUrl: event.target.value })} placeholder="/hero-loop.mp4 or https://..." className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white" />
                 <button type="button" className="mt-2 text-xs uppercase tracking-[0.2em] text-white/55 underline" onClick={() => setR2Target({ kind: "blockMedia", blockId: selectedBlock.id })}>
                   Choose from R2
@@ -808,9 +850,14 @@ export default function WebsitePagesClient({
                     event.currentTarget.value = "";
                   }}
                 />
+                {selectedBlock.type === "gallery" ? (
+                  <p className="mt-2 text-xs leading-relaxed text-white/45">
+                    This media drives the backdrop on /galleries before visitors enter a code. Use poster for video first frame on slow connections.
+                  </p>
+                ) : null}
               </label>
               <label className="block text-sm text-white/70">
-                Poster image URL
+                {selectedBlock.type === "gallery" ? "Video poster (still image, optional)" : "Poster image URL"}
                 <input value={selectedBlock.posterUrl} onChange={(event) => updateBlock(selectedBlock.id, { posterUrl: event.target.value })} placeholder="/hero-poster.jpg" className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white" />
                 <button type="button" className="mt-2 text-xs uppercase tracking-[0.2em] text-white/55 underline" onClick={() => setR2Target({ kind: "blockPoster", blockId: selectedBlock.id })}>
                   Choose from R2
@@ -837,10 +884,12 @@ export default function WebsitePagesClient({
                 <input value={selectedBlock.ctaHref} onChange={(event) => updateBlock(selectedBlock.id, { ctaHref: event.target.value })} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white" />
               </label>
             </div>
-            <label className="block text-sm text-white/70">
-              Items, one per line as <code>title | body | meta | media URL</code>
-              <textarea value={itemsToLines(selectedBlock.items)} onChange={(event) => updateBlock(selectedBlock.id, { items: linesToItems(event.target.value) })} rows={8} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 font-mono text-xs text-white" />
-            </label>
+            {selectedBlock.type === "stats" || selectedBlock.type === "cards" || selectedBlock.type === "list" ? (
+              <label className="block text-sm text-white/70">
+                Items, one per line as <code>title | body | meta | media URL</code>
+                <textarea value={itemsToLines(selectedBlock.items)} onChange={(event) => updateBlock(selectedBlock.id, { items: linesToItems(event.target.value) })} rows={8} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 font-mono text-xs text-white" />
+              </label>
+            ) : null}
             {selectedBlock.type === "hero" || selectedBlock.type === "cards" || selectedBlock.type === "list" ? (
               <button
                 type="button"

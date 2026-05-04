@@ -1,6 +1,7 @@
 import type { WorkSection } from "@prisma/client";
 import { getPillarBySlug } from "@/lib/work-pillar-settings";
 import { prisma } from "@/lib/prisma";
+import { normalizeProjectSlug } from "@/lib/slugify";
 
 export async function getPublishedProjectsBySection(section: WorkSection) {
   return prisma.workProject.findMany({
@@ -20,10 +21,11 @@ export async function getPublishedProjectsBySection(section: WorkSection) {
 export async function getProjectByPillarAndSlug(pillarSlug: string, slug: string) {
   const pillar = await getPillarBySlug(pillarSlug);
   if (!pillar) return null;
+  const normalized = normalizeProjectSlug(slug);
   return prisma.workProject.findFirst({
     where: {
       section: { in: pillar.sections },
-      slug,
+      slug: { equals: normalized, mode: "insensitive" },
       published: true,
     },
     include: {
@@ -40,8 +42,13 @@ export async function getProjectBySectionAndSlug(
   section: WorkSection,
   slug: string
 ) {
+  const normalized = normalizeProjectSlug(slug);
   return prisma.workProject.findFirst({
-    where: { section, slug, published: true },
+    where: {
+      section,
+      slug: { equals: normalized, mode: "insensitive" },
+      published: true,
+    },
     include: {
       heroMedia: true,
       media: {

@@ -22,6 +22,17 @@ type AutomationRule = {
   createdAt: string;
   updatedAt: string;
 };
+type AutomationRun = {
+  id: string;
+  workflowName: string;
+  status: string;
+  triggerType: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  message: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+};
 
 export default function SettingsClient({
   env,
@@ -32,6 +43,8 @@ export default function SettingsClient({
 }) {
   const [settings, setSettings] = useState<SiteSetting[]>([]);
   const [rules, setRules] = useState<AutomationRule[]>([]);
+  const [autoProjectRule, setAutoProjectRule] = useState<AutomationRule | null>(null);
+  const [recentAutoDrafts, setRecentAutoDrafts] = useState<AutomationRun[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -44,16 +57,26 @@ export default function SettingsClient({
 
   async function load() {
     setError(null);
-    const [sRes, rRes] = await Promise.all([
+    const [sRes, rRes, autoRes] = await Promise.all([
       fetch("/api/admin/settings/site-settings", { credentials: "include" }),
       fetch("/api/admin/settings/automation-rules", { credentials: "include" }),
+      fetch("/api/admin/automation/create-project-from-media", { credentials: "include" }),
     ]);
     const sJson = (await sRes.json()) as { ok?: boolean; settings?: SiteSetting[]; error?: string };
     const rJson = (await rRes.json()) as { ok?: boolean; rules?: AutomationRule[]; error?: string };
+    const autoJson = (await autoRes.json()) as {
+      ok?: boolean;
+      rule?: AutomationRule;
+      recentDrafts?: AutomationRun[];
+      error?: string;
+    };
     if (!sRes.ok) throw new Error(sJson.error ?? "Failed to load settings.");
     if (!rRes.ok) throw new Error(rJson.error ?? "Failed to load rules.");
+    if (!autoRes.ok) throw new Error(autoJson.error ?? "Failed to load upload automation.");
     setSettings(sJson.settings ?? []);
     setRules(rJson.rules ?? []);
+    setAutoProjectRule(autoJson.rule ?? null);
+    setRecentAutoDrafts(autoJson.recentDrafts ?? []);
   }
 
   useEffect(() => {
@@ -102,6 +125,11 @@ export default function SettingsClient({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function toggleAutoProjectRule() {
+    if (!autoProjectRule) return;
+    await toggleRule(autoProjectRule.id, !autoProjectRule.isEnabled);
   }
 
   async function createRule() {
@@ -276,6 +304,47 @@ export default function SettingsClient({
           </div>
         </section>
       </div>
+
+      <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xs uppercase tracking-[0.3em] text-white/50">
+              Upload automation
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
+              Auto-create unpublished project drafts from new R2 uploads. Drafts are never published automatically;
+              they stay editable in Studio OS for review, copy, tagging, and curation.
+            </p>
+          </div>
+          <button className="btn btn-primary" disabled={busy || !autoProjectRule} onClick={() => void toggleAutoProjectRule()}>
+            {autoProjectRule?.isEnabled ? "Disable auto-create" : "Enable auto-create project from new uploads"}
+          </button>
+        </div>
+        <div className="mt-5 rounded-xl border border-white/10 bg-black/20 p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Recent auto-created drafts</p>
+          <div className="mt-3 space-y-2">
+            {recentAutoDrafts.length ? (
+              recentAutoDrafts.map((run) => (
+                <div key={run.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm">
+                  <div>
+                    <p className="text-white/80">{run.message ?? "Auto-created draft"}</p>
+                    <p className="mt-1 text-xs text-white/40">
+                      {run.status} · {new Date(run.startedAt).toLocaleString()}
+                    </p>
+                  </div>
+                  {run.entityId ? (
+                    <a className="text-xs text-white/50 underline hover:text-white" href={`/admin/work/${run.entityId}`}>
+                      Open draft
+                    </a>
+                  ) : null}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-white/50">No auto-created drafts yet.</p>
+            )}
+          </div>
+        </div>
+      </section>
 
       <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">

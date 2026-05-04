@@ -1,6 +1,7 @@
 import type { MediaAsset } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { publicWorkSurfaceCopy, sanitizePublishedStudioProjectForPublic } from "@/lib/studio/public-work-copy";
 import { getWorkPillarList } from "@/lib/work-pillar-settings";
 import { normalizeProjectSlug, slugify } from "@/lib/slugify";
 
@@ -556,13 +557,14 @@ export async function getPublishedStudioProjectForPublicBySlug(
     include: STUDIO_PROJECT_INCLUDE,
   });
   if (!row?.published) return null;
-  return enrichStudioProjectWithGalleryMedia(row);
+  const enriched = await enrichStudioProjectWithGalleryMedia(row);
+  return sanitizePublishedStudioProjectForPublic(enriched);
 }
 
 /** Metadata + OG — published only; no gallery enrichment. */
 export async function getPublishedStudioProjectMetaBySlug(slugParam: string) {
   const slug = normalizeProjectSlug(slugParam);
-  return prisma.studioProject.findFirst({
+  const row = await prisma.studioProject.findFirst({
     where: { slug: { equals: slug, mode: "insensitive" }, published: true },
     select: {
       title: true,
@@ -577,6 +579,12 @@ export async function getPublishedStudioProjectMetaBySlug(slugParam: string) {
       heroImage: true,
     },
   });
+  if (!row) return null;
+  return {
+    ...row,
+    seoDescription: publicWorkSurfaceCopy(row.seoDescription) ?? null,
+    opening: publicWorkSurfaceCopy(row.opening) ?? "",
+  };
 }
 
 /** Prev/next among published studio projects (order: publishedAt desc, title asc). */
@@ -651,7 +659,7 @@ export async function listFeaturedPublishedStudioProjectsForHub(
     id: r.id,
     title: r.title,
     slug: r.slug,
-    summary: r.summary?.trim() || null,
+    summary: publicWorkSurfaceCopy(r.summary?.trim() || null),
     location: r.location,
     year: r.year,
     heroImage: r.heroImage,
@@ -679,7 +687,7 @@ export async function listPublishedStudioProjectsForWorkPillar(
     id: r.id,
     title: r.title,
     slug: r.slug,
-    summary: r.summary?.trim() || null,
+    summary: publicWorkSurfaceCopy(r.summary?.trim() || null),
     location: r.location,
     year: r.year,
     heroImage: r.heroImage,

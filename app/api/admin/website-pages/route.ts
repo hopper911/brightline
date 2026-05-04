@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getWebsitePages, saveWebsitePages } from "@/lib/website-pages";
 
@@ -34,5 +35,6 @@ export async function PATCH(req: Request) {
       : body;
 
   const pages = await saveWebsitePages(input);
+  revalidatePath("/", "layout");
   return NextResponse.json({ ok: true, pages });
 }

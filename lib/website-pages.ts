@@ -2,7 +2,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 
 export type WebsitePageStatus = "PUBLISHED" | "DRAFT";
-export type WebsiteBlockType = "hero" | "stats" | "text" | "cards" | "list" | "cta" | "contactForm";
+export type WebsiteBlockType = "hero" | "gallery" | "stats" | "text" | "cards" | "list" | "cta" | "contactForm";
 
 export type WebsiteBlockItem = {
   title: string;
@@ -74,8 +74,22 @@ export function blankBlock(type: WebsiteBlockType = "text", label = "Content blo
         : type === "cards" || type === "list"
           ? [{ title: "Item title", body: "Item copy.", meta: "" }]
           : [],
-    ctaLabel: type === "cta" ? "Contact" : "",
-    ctaHref: type === "cta" ? "/contact" : "",
+    ctaLabel:
+      type === "cta"
+        ? "Contact"
+        : type === "hero"
+          ? "Contact"
+          : type === "gallery"
+            ? "Enter gallery"
+            : "",
+    ctaHref:
+      type === "cta"
+        ? "/contact"
+        : type === "hero"
+          ? "/contact"
+          : type === "gallery"
+            ? "/galleries"
+            : "",
   };
 }
 
@@ -299,8 +313,8 @@ export const CORE_WEBSITE_PAGES: WebsitePage[] = [
     managed: true,
     blocks: [
       coreBlock("galleries_hero", {
-        type: "hero",
-        label: "Client gallery hero",
+        type: "gallery",
+        label: "Gallery",
         eyebrow: "Private delivery",
         title: "Secure image and video delivery.",
         body: "Client galleries are protected by access code. Once inside, your team can review proofs, favorite/select images, download low-res web files, download high-res originals, and access project video assets.",
@@ -413,6 +427,7 @@ function normalizeBlock(input: unknown): WebsiteBlock | null {
   const row = input as Record<string, unknown>;
   const type: WebsiteBlockType =
     row.type === "hero" ||
+    row.type === "gallery" ||
     row.type === "stats" ||
     row.type === "text" ||
     row.type === "cards" ||
@@ -516,18 +531,21 @@ export const getPublishedWebsitePageBySlug = cache(async (slug: string) => {
   );
 });
 
-/** First hero block (or any block) with page background media, for public routes. */
+/** Page background for public routes (prefers dedicated gallery block, then hero, then any block with media). */
 export function getBackgroundMediaFromPage(page: WebsitePage | null) {
   if (!page) return { media: null as string | null, poster: null as string | null };
-  const hero =
+  const withMedia =
+    page.blocks.find(
+      (b) => b.type === "gallery" && (b.mediaUrl?.trim() || b.posterUrl?.trim())
+    ) ||
     page.blocks.find(
       (b) => b.type === "hero" && (b.mediaUrl?.trim() || b.posterUrl?.trim())
     ) ||
     page.blocks.find((b) => b.mediaUrl?.trim() || b.posterUrl?.trim());
-  if (!hero) return { media: null, poster: null };
+  if (!withMedia) return { media: null, poster: null };
   return {
-    media: hero.mediaUrl?.trim() || null,
-    poster: hero.posterUrl?.trim() || null,
+    media: withMedia.mediaUrl?.trim() || null,
+    poster: withMedia.posterUrl?.trim() || null,
   };
 }
 

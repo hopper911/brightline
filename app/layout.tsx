@@ -68,9 +68,14 @@ export const metadata: Metadata = {
 
 async function withTimeout<T>(promise: Promise<T>, fallback: T, timeoutMs = 1500): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  /** Rejections must not crash the tree (e.g. DB errors in getVisibleWorkPillarNavItems). */
+  const settled = promise.then(
+    (v) => v,
+    () => fallback
+  );
   try {
     return await Promise.race([
-      promise,
+      settled,
       new Promise<T>((resolve) => {
         timer = setTimeout(() => resolve(fallback), timeoutMs);
       }),

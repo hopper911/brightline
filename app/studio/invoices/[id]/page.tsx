@@ -16,18 +16,28 @@ export default async function StudioInvoiceDetailPage({
 
   const { id } = await params;
 
-  const [invoice, templates] = await Promise.all([
+  const [invoice, templates, studioClients, studioProjects] = await Promise.all([
     prisma.studioInvoice.findUnique({
       where: { id },
       include: {
         lineItems: { orderBy: { sortOrder: "asc" }, include: { mediaLinks: true } },
-        client: { select: { companyName: true } },
+        client: { select: { id: true, companyName: true } },
         project: { select: { id: true, title: true } },
       },
     }),
     prisma.studioServiceTemplate.findMany({
       where: { isActive: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
+    prisma.studioClient.findMany({
+      orderBy: { companyName: "asc" },
+      select: { id: true, companyName: true },
+      take: 300,
+    }),
+    prisma.studioProject.findMany({
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, title: true, clientId: true },
+      take: 400,
     }),
   ]);
 
@@ -36,6 +46,8 @@ export default async function StudioInvoiceDetailPage({
   const initialInvoice = {
     id: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
+    clientId: invoice.clientId,
+    projectId: invoice.projectId,
     status: invoice.status,
     subtotal: invoice.subtotal.toString(),
     tax: invoice.tax.toString(),
@@ -47,6 +59,13 @@ export default async function StudioInvoiceDetailPage({
     issuedAt: invoice.issuedAt?.toISOString() ?? null,
     dueAt: invoice.dueAt?.toISOString() ?? null,
     sentAt: invoice.sentAt?.toISOString() ?? null,
+    paidAt: invoice.paidAt?.toISOString() ?? null,
+    paymentUrl: invoice.paymentUrl,
+    currency: invoice.currency,
+    stripeCheckoutSessionId: invoice.stripeCheckoutSessionId,
+    stripePaymentIntentId: invoice.stripePaymentIntentId,
+    stripeCustomerId: invoice.stripeCustomerId,
+    updatedAt: invoice.updatedAt.toISOString(),
     lineItems: invoice.lineItems.map((li) => ({
       id: li.id,
       name: li.name,
@@ -81,7 +100,12 @@ export default async function StudioInvoiceDetailPage({
       <Link href="/studio/invoices" className="text-xs uppercase tracking-[0.25em] text-white/45 hover:text-white/80">
         ← Invoices
       </Link>
-      <InvoiceDetailEditor initialInvoice={initialInvoice} templates={templateRows} />
+      <InvoiceDetailEditor
+        initialInvoice={initialInvoice}
+        templates={templateRows}
+        studioClients={studioClients}
+        studioProjects={studioProjects}
+      />
     </main>
   );
 }

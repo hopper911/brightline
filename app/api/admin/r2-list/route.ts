@@ -4,10 +4,17 @@ import { listPublicR2Objects } from "@/lib/storage-r2-public";
 
 const ALLOWED_PREFIXES = [
   "portfolio/",
+  "portfolio-public/",
   "work/",
   "studio/",
   "site/",
   "client-galleries/",
+  "acd/",
+  "rea/",
+  "cul/",
+  "biz/",
+  "tri/",
+  "thumb/",
 ];
 
 function isPrefixAllowed(prefix: string): boolean {
@@ -39,7 +46,7 @@ export async function POST(req: Request) {
 
     if (!isPrefixAllowed(prefix)) {
       return NextResponse.json(
-        { ok: false, error: "Prefix must start with portfolio/, work/, studio/, site/, or client-galleries/." },
+        { ok: false, error: "Prefix must start with an allowed R2 folder (see /api/media/public)." },
         { status: 400 }
       );
     }

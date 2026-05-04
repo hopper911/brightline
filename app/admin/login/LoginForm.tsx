@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { safeClientRedirectPath } from "@/lib/safe-redirect";
 
 type LoginFormProps = {
   className?: string;
@@ -9,7 +10,7 @@ type LoginFormProps = {
 
 export default function LoginForm({ className = "" }: LoginFormProps) {
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/admin";
+  const next = safeClientRedirectPath(searchParams.get("next"), "/admin");
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "error">("idle");
   const [error, setError] = useState("");
@@ -27,13 +28,18 @@ export default function LoginForm({ className = "" }: LoginFormProps) {
         credentials: "include",
         body: JSON.stringify({ code }),
       });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
+      let data: { ok?: boolean; error?: string };
+      try {
+        data = (await res.json()) as typeof data;
+      } catch {
+        throw new Error(`Login failed (${res.status}). Check ADMIN_ACCESS_CODE on the server.`);
+      }
 
       if (!res.ok || !data.ok) {
         throw new Error(data.error ?? "Invalid code.");
       }
 
-      window.location.href = next;
+      window.location.assign(next);
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Something went wrong.");

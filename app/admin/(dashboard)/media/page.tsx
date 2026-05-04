@@ -173,8 +173,9 @@ export default function AdminMediaPage() {
       ) : (
         <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
           {items.map((item) => {
-            const thumbKey = item.keyThumb ?? item.keyFull;
-            const thumbUrl = thumbKey ? getPublicR2Url(thumbKey) : "";
+            /** Prefer web_full like WorkProjectGallery — bad/missing thumb keys are common on legacy rows. */
+            const previewKey = item.keyFull ?? item.keyThumb;
+            const thumbUrl = previewKey ? getPublicR2Url(previewKey) : "";
             const isVideo = item.kind === "VIDEO";
             return (
               <div

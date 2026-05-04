@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Safe production deploy: migrate production DB first, then Vercel production.
 # Run from repo root: npm run deploy:prod
+# If your production branch is not `main`, either:
+#   REQUIRED_GIT_BRANCH=your-branch npm run deploy:prod
+#   npm run deploy:prod:studio-os   # studio-os-cms-production-20260425
 # Requires: git clean tree, correct branch, DATABASE_URL + DIRECT_URL, Vercel CLI.
 
 set -euo pipefail

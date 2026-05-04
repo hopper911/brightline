@@ -28,6 +28,7 @@
     "sheet:verify": "node ../tools/verify-sheet-api.mjs",
     "studio-os:verify": "node scripts/verify-studio-os-api.mjs",
     "deploy:prod": "bash scripts/deploy-prod.sh",
+    "deploy:prod:studio-os": "REQUIRED_GIT_BRANCH=studio-os-cms-production-20260425 bash scripts/deploy-prod.sh",
     "deploy:check": "node scripts/check-prod-deploy-ready.mjs"
   },
   "dependencies": {

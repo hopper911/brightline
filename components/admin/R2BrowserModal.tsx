@@ -11,6 +11,26 @@ function getImageUrl(key: string): string {
 const MEDIA_EXT = /\.(jpg|jpeg|png|webp|gif|avif|mp4|webm|mov|m4v)$/i;
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
 
+/** T9 pipeline folders under each portfolio pillar code */
+const T9_PILLAR_CODES = ["arc", "cam", "cor"] as const;
+
+type PortfolioFolderFilter = "all" | "web_full" | "web_thumb";
+
+function portfolioListPrefixes(
+  pillar: string,
+  r2Folder: string,
+  folderFilter: PortfolioFolderFilter
+): string[] {
+  if (folderFilter === "all") {
+    if (pillar === "all") return ["portfolio"];
+    return [`portfolio/${r2Folder}`];
+  }
+  if (pillar === "all") {
+    return T9_PILLAR_CODES.map((code) => `portfolio/${code}/${folderFilter}`);
+  }
+  return [`portfolio/${r2Folder}/${folderFilter}`];
+}
+
 /** Maps portfolio pillar slugs to the 3-letter R2 folder names */
 const PILLAR_TO_R2_FOLDER: Record<string, string> = {
   architecture: "arc",
@@ -52,6 +72,8 @@ export default function R2BrowserModal({
     projectId ? "portfolio" : "portfolio"
   );
   const [customPrefix, setCustomPrefix] = useState("");
+  /** T9 layout: portfolio/{arc|cam|cor}/web_full|web_thumb — filter hi-res vs thumbnails */
+  const [portfolioFolder, setPortfolioFolder] = useState<PortfolioFolderFilter>("all");
   const [keys, setKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -158,12 +180,25 @@ export default function R2BrowserModal({
     if (source === "custom" && !customPrefix.trim()) return;
     async function load() {
       setLoading(true);
-      const prefix = effectivePrefix.endsWith("/") ? effectivePrefix : `${effectivePrefix}/`;
       const env =
         typeof window !== "undefined" && window.location?.hostname === "localhost"
           ? "local"
           : "deployed";
       const timestamp = new Date().toISOString();
+
+      const normalizeListPrefix = (p: string) => {
+        const t = p.trim().replace(/^\//, "");
+        return t.endsWith("/") ? t : `${t}/`;
+      };
+
+      let prefixes: string[];
+      if (source === "portfolio") {
+        prefixes = portfolioListPrefixes(pillar, r2Folder, portfolioFolder).map(normalizeListPrefix);
+      } else {
+        prefixes = [normalizeListPrefix(effectivePrefix)];
+      }
+      const prefixLabel = prefixes.join(" | ");
+
       try {
         const verifyRes = await fetch("/api/admin/r2-verify", {
           credentials: "include",
@@ -181,48 +216,58 @@ export default function R2BrowserModal({
           setLoading(false);
           return;
         }
-        const res = await fetch("/api/admin/r2-list", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prefix }),
-        });
-        let data: {
-          ok?: boolean;
-          keys?: string[];
-          error?: string;
-          code?: string;
-          details?: Record<string, unknown>;
-        };
-        try {
-          data = (await res.json()) as typeof data;
-        } catch {
-          data = { error: "Invalid response from server." };
-        }
-        if (!res.ok) {
-          const errorMessage = data.error ?? "Failed to list";
-          const detailsPayload = {
-            timestamp,
-            status: res.status,
-            error: errorMessage,
-            ...(data.code && { code: data.code }),
-            ...(data.details && Object.keys(data.details).length > 0 && { details: data.details }),
-          };
-          setErrorDetails(detailsPayload);
-          setLastFailureDetails({
-            error: errorMessage,
-            timestamp,
-            prefix,
-            environment: env,
-            status: res.status,
-            ...(data.code && { code: data.code }),
-            ...(data.details && { details: data.details }),
+
+        const merged = new Set<string>();
+        for (const prefix of prefixes) {
+          const res = await fetch("/api/admin/r2-list", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prefix, maxKeys: 1000 }),
           });
-          setError(errorMessage);
-          setKeys([]);
-          return;
+          let data: {
+            ok?: boolean;
+            keys?: string[];
+            error?: string;
+            code?: string;
+            details?: Record<string, unknown>;
+          };
+          try {
+            data = (await res.json()) as typeof data;
+          } catch {
+            data = { error: "Invalid response from server." };
+          }
+          if (!res.ok) {
+            const errorMessage = data.error ?? "Failed to list";
+            const detailsPayload = {
+              timestamp,
+              status: res.status,
+              error: errorMessage,
+              ...(data.code && { code: data.code }),
+              ...(data.details && Object.keys(data.details).length > 0 && { details: data.details }),
+            };
+            setErrorDetails(detailsPayload);
+            setLastFailureDetails({
+              error: errorMessage,
+              timestamp,
+              prefix: prefixLabel,
+              environment: env,
+              status: res.status,
+              ...(data.code && { code: data.code }),
+              ...(data.details && { details: data.details }),
+            });
+            setError(errorMessage);
+            setKeys([]);
+            setLoading(false);
+            return;
+          }
+          for (const k of data.keys ?? []) {
+            merged.add(k);
+          }
         }
-        const raw = data.keys ?? [];
+
+        const raw = Array.from(merged);
+        raw.sort((a, b) => a.localeCompare(b));
         const mediaKeys = raw.filter((k) => MEDIA_EXT.test(k));
         setKeys(mediaKeys);
       } catch (e) {
@@ -236,7 +281,7 @@ export default function R2BrowserModal({
         setLastFailureDetails({
           error: message,
           timestamp,
-          prefix,
+          prefix: prefixLabel,
           environment: env,
           status: 0,
           details: { exception: e instanceof Error ? e.name : String(e) },
@@ -248,7 +293,18 @@ export default function R2BrowserModal({
       }
     }
     void load();
-  }, [isOpen, pillar, source, customPrefix, effectivePrefix, pillarSlug, projectId]);
+  }, [
+    isOpen,
+    pillar,
+    source,
+    customPrefix,
+    effectivePrefix,
+    pillarSlug,
+    projectId,
+    projectSlug,
+    portfolioFolder,
+    r2Folder,
+  ]);
 
   function toggleSelection(key: string) {
     setSelected((prev) => {
@@ -341,18 +397,33 @@ export default function R2BrowserModal({
               </>
             )}
             {source === "portfolio" && (
-              <select
-                value={pillar}
-                onChange={(e) => setPillar(e.target.value)}
-                className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
-              >
-                <option value="all">All portfolio</option>
-                {PILLAR_SLUGS.map((slug) => (
-                  <option key={slug} value={slug}>
-                    {PILLARS.find((p) => p.slug === slug)?.label ?? slug}
-                  </option>
-                ))}
-              </select>
+              <>
+                <select
+                  value={pillar}
+                  onChange={(e) => setPillar(e.target.value)}
+                  className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
+                  aria-label="Portfolio section"
+                >
+                  <option value="all">All portfolio</option>
+                  {PILLAR_SLUGS.map((slug) => (
+                    <option key={slug} value={slug}>
+                      {PILLARS.find((p) => p.slug === slug)?.label ?? slug}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs text-white/50">Folder:</span>
+                <select
+                  value={portfolioFolder}
+                  onChange={(e) => setPortfolioFolder(e.target.value as PortfolioFolderFilter)}
+                  className="max-w-[11rem] rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white sm:max-w-none"
+                  aria-label="T9 R2 subfolder"
+                  title="T9 uploads use web_full (full) and web_thumb (thumbnails) under each pillar"
+                >
+                  <option value="all">All (mixed)</option>
+                  <option value="web_full">web_full — full size</option>
+                  <option value="web_thumb">web_thumb — thumbnails</option>
+                </select>
+              </>
             )}
             {source === "custom" && (
               <input
@@ -416,8 +487,11 @@ export default function R2BrowserModal({
           ) : keys.length === 0 && !error ? (
             <p className="text-sm text-white/50">
               No media found in this folder.
-              {source === "portfolio" && pillar !== "all" ? (
-                <> Try &quot;All portfolio&quot; to browse all media.</>
+              {source === "portfolio" && portfolioFolder !== "all" ? (
+                <> Try &quot;All (mixed)&quot; if files use a different path.</>
+              ) : null}
+              {source === "portfolio" && pillar !== "all" && portfolioFolder === "all" ? (
+                <> Use Folder → web_full or web_thumb to filter T9 exports.</>
               ) : null}
               {source === "custom" ? (
                 <> Try prefixes like <code>site/</code>, <code>studio/</code>, <code>portfolio/</code>, <code>work/</code>, or <code>client-galleries/…</code> for gallery delivery.</>

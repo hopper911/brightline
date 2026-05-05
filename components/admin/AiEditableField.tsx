@@ -57,70 +57,13 @@ export default function AiEditableField({
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <label className="block text-xs uppercase tracking-wide text-black/60">
-            {label}
-          </label>
-          {description ? (
-            <p className="mt-1 text-xs text-black/45">{description}</p>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          {tonePresets.length > 0 && tonePreset && onTonePresetChange ? (
-            <select
-              value={tonePreset}
-              onChange={(event) => onTonePresetChange(event.target.value)}
-              className="rounded border border-black/15 bg-white px-2 py-1 text-xs text-black/65"
-              disabled={loading}
-              aria-label={`${label} AI tone preset`}
-            >
-              {tonePresets.map((preset) => (
-                <option key={preset} value={preset}>
-                  {preset}
-                </option>
-              ))}
-            </select>
-          ) : null}
-          {hasPendingAi ? (
-            <button
-              type="button"
-              className="btn btn-ghost text-xs"
-              onClick={onAccept}
-              disabled={loading}
-            >
-              Accept
-            </button>
-          ) : null}
-          {hasUndo ? (
-            <button
-              type="button"
-              className="btn btn-ghost text-xs"
-              onClick={onUndo}
-              disabled={loading}
-            >
-              Undo
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="btn btn-ghost text-xs"
-            onClick={onGenerate}
-            disabled={loading}
-          >
-            {loading ? "Generating…" : generateLabel}
-          </button>
-          {onRewrite ? (
-            <button
-              type="button"
-              className="btn btn-ghost text-xs"
-              onClick={onRewrite}
-              disabled={loading || !value.trim()}
-            >
-              Rewrite with tone
-            </button>
-          ) : null}
-        </div>
+      <div>
+        <label className="block text-xs uppercase tracking-wide text-black/60">
+          {label}
+        </label>
+        {description ? (
+          <p className="mt-1 text-xs text-black/45">{description}</p>
+        ) : null}
       </div>
       {multiline ? (
         <textarea
@@ -138,6 +81,61 @@ export default function AiEditableField({
           placeholder={placeholder}
         />
       )}
+      <div className="mt-2 flex w-full max-w-full flex-wrap items-center gap-x-2 gap-y-2">
+        {tonePresets.length > 0 && tonePreset && onTonePresetChange ? (
+          <select
+            value={tonePreset}
+            onChange={(event) => onTonePresetChange(event.target.value)}
+            className="min-h-10 min-w-0 flex-1 rounded border border-black/15 bg-white px-2 py-2 text-xs text-black/65 sm:min-h-9 sm:flex-none sm:min-w-[10rem]"
+            disabled={loading}
+            aria-label={`${label} AI tone preset`}
+          >
+            {tonePresets.map((preset) => (
+              <option key={preset} value={preset}>
+                {preset}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        {hasPendingAi ? (
+          <button
+            type="button"
+            className="btn btn-ghost min-h-10 touch-manipulation px-3 py-2 text-xs sm:min-h-9"
+            onClick={onAccept}
+            disabled={loading}
+          >
+            Accept
+          </button>
+        ) : null}
+        {hasUndo ? (
+          <button
+            type="button"
+            className="btn btn-ghost min-h-10 touch-manipulation px-3 py-2 text-xs sm:min-h-9"
+            onClick={onUndo}
+            disabled={loading}
+          >
+            Undo
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="btn btn-ghost min-h-10 touch-manipulation px-3 py-2 text-xs sm:min-h-9"
+          onClick={onGenerate}
+          disabled={loading}
+        >
+          {loading ? "Generating…" : generateLabel}
+        </button>
+        {onRewrite ? (
+          <button
+            type="button"
+            className="btn btn-ghost min-h-10 touch-manipulation px-3 py-2 text-xs sm:min-h-9"
+            onClick={onRewrite}
+            disabled={loading || !value.trim()}
+          >
+            Rewrite with tone
+          </button>
+        ) : null}
+      </div>
       {aiDraft ? (
         <div className="mt-2 rounded-lg border border-black/10 bg-black/[0.03] p-3">
           <p className="text-xs uppercase tracking-wide text-black/45">AI rewrite draft</p>
@@ -145,7 +143,7 @@ export default function AiEditableField({
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
-              className="btn btn-ghost text-xs"
+              className="btn btn-ghost min-h-10 touch-manipulation px-3 py-2 text-xs sm:min-h-9"
               onClick={onAcceptDraft}
               disabled={loading}
             >
@@ -153,7 +151,7 @@ export default function AiEditableField({
             </button>
             <button
               type="button"
-              className="btn btn-ghost text-xs"
+              className="btn btn-ghost min-h-10 touch-manipulation px-3 py-2 text-xs sm:min-h-9"
               onClick={onDiscardDraft}
               disabled={loading}
             >

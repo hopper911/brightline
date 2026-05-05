@@ -9,7 +9,12 @@ import { getCropSafeMediaUrl, getPublicR2Url } from "@/lib/r2";
 import R2BrowserModal from "@/components/admin/R2BrowserModal";
 import ImageCropModal from "@/components/admin/ImageCropModal";
 import AiEditableField from "@/components/admin/AiEditableField";
-import type { ProjectCopyFieldKey, ProjectCopyTonePreset } from "@/lib/ai/generateProjectCopy";
+import {
+  GENERATE_ALL_BRIEF_KEYS,
+  type GenerateAllBriefKey,
+  type ProjectCopyFieldKey,
+  type ProjectCopyTonePreset,
+} from "@/lib/ai/generateProjectCopy";
 
 function mediaUrl(key: string | null): string {
   if (!key) return "";
@@ -583,6 +588,8 @@ export default function AdminWorkEditPage() {
     seoTitle: { value: seoTitle, setValue: setSeoTitle },
     metaDescription: { value: metaDescription, setValue: setMetaDescription },
     ctaCopy: { value: ctaCopy, setValue: setCtaCopy },
+    summary: { value: summary, setValue: setSummary },
+    description: { value: description, setValue: setDescription },
   };
 
   function existingCopyValues() {
@@ -798,6 +805,7 @@ export default function AdminWorkEditPage() {
     setGenerateAllError("");
     setGenerateAllLoading(true);
     const before = existingCopyValues();
+    const briefBefore = aiBrief;
     try {
       const res = await fetch("/api/admin/projects/generate-copy", {
         method: "POST",
@@ -813,6 +821,7 @@ export default function AdminWorkEditPage() {
       });
       const data = (await res.json()) as {
         values?: Partial<Record<ProjectCopyFieldKey, string>>;
+        brief?: Partial<Record<GenerateAllBriefKey, string>>;
         error?: string;
       };
       if (!res.ok || !data.values) throw new Error(data.error ?? "AI generation failed.");
@@ -827,7 +836,7 @@ export default function AdminWorkEditPage() {
       }> = [];
       for (const [fieldKey, generatedValue] of Object.entries(data.values) as Array<[ProjectCopyFieldKey, string]>) {
         if (choice === "empty_only" && before[fieldKey]?.trim()) continue;
-        if (generatedValue === undefined) continue;
+        if (generatedValue === undefined || !String(generatedValue).trim()) continue;
         undoUpdates[fieldKey] = before[fieldKey] ?? "";
         pendingUpdates[fieldKey] = true;
         copyFieldState[fieldKey].setValue(generatedValue);
@@ -839,6 +848,16 @@ export default function AdminWorkEditPage() {
           tonePreset: aiTonePreset,
         });
       }
+      setAiBrief((prev) => {
+        const next = { ...prev };
+        for (const key of GENERATE_ALL_BRIEF_KEYS) {
+          const generatedValue = data.brief?.[key];
+          if (generatedValue === undefined || !String(generatedValue).trim()) continue;
+          if (choice === "empty_only" && briefBefore[key]?.trim()) continue;
+          next[key] = String(generatedValue).trim();
+        }
+        return next;
+      });
       setAiUndoByField((prev) => ({ ...prev, ...undoUpdates }));
       setAiPendingByField((prev) => ({ ...prev, ...pendingUpdates }));
       void saveCopyVersions(versionUpdates);
@@ -1175,36 +1194,43 @@ export default function AdminWorkEditPage() {
     }
   }
 
+  /** Same-origin multipart upload → server writes R2 (avoids browser PUT “Failed to fetch” without R2 CORS). */
+  async function uploadWorkProjectFileViaApi(
+    projectId: string,
+    blob: Blob,
+    filename: string,
+    contentType: string,
+    subfolder: "full" | "thumb" | "video" | "background" | "poster"
+  ): Promise<string> {
+    const file =
+      blob instanceof File && blob.name === filename
+        ? blob
+        : new File([blob], filename, { type: contentType });
+    const form = new FormData();
+    form.append("file", file);
+    form.append("subfolder", subfolder);
+    const res = await fetch(`/api/admin/work-projects/${projectId}/upload`, {
+      method: "POST",
+      body: form,
+    });
+    const data = (await res.json()) as { ok?: boolean; key?: string; error?: string };
+    if (!res.ok || !data.ok || !data.key) {
+      throw new Error(data.error ?? `Upload failed (${res.status}).`);
+    }
+    return data.key;
+  }
+
   async function registerGalleryImageWithThumb(file: File, keyFull: string): Promise<string> {
     const thumbBlob = await resizeToThumb(file);
     const thumbFilename = file.name.replace(/\.[^.]+$/, "-thumb.jpg");
 
-    const thumbUploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filename: thumbFilename,
-        contentType: "image/jpeg",
-        subfolder: "thumb",
-      }),
-    });
-    const thumbUploadData = (await thumbUploadRes.json()) as {
-      ok: boolean;
-      url?: string;
-      headers?: Record<string, string>;
-      key?: string;
-      error?: string;
-    };
-    if (!thumbUploadRes.ok || !thumbUploadData.url || !thumbUploadData.key) {
-      throw new Error(thumbUploadData.error ?? "Failed to get thumb upload URL");
-    }
-    const thumbPutRes = await fetch(thumbUploadData.url, {
-      method: "PUT",
-      body: thumbBlob,
-      headers: { "Content-Type": "image/jpeg", ...(thumbUploadData.headers ?? {}) },
-    });
-    if (!thumbPutRes.ok) throw new Error("Thumb upload failed");
-    const keyThumb = thumbUploadData.key;
+    const keyThumb = await uploadWorkProjectFileViaApi(
+      id,
+      thumbBlob,
+      thumbFilename,
+      "image/jpeg",
+      "thumb"
+    );
 
     const img = await createImageBitmap(file);
     const width = img.width;
@@ -1220,38 +1246,15 @@ export default function AdminWorkEditPage() {
   async function uploadGalleryImageFromFile(file: File): Promise<string> {
     const contentType = file.type || "image/jpeg";
 
-    const uploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filename: file.name,
-        contentType,
-        subfolder: "full",
-      }),
-    });
-    const uploadData = (await uploadRes.json()) as {
-      ok: boolean;
-      url?: string;
-      headers?: Record<string, string>;
-      key?: string;
-      error?: string;
-    };
-    if (!uploadRes.ok || !uploadData.url || !uploadData.key) {
-      const msg = uploadData.error ?? (uploadRes.status === 401 ? "Please log in again" : "Failed to get upload URL");
-      throw new Error(msg);
-    }
+    const keyFullResolved = await uploadWorkProjectFileViaApi(
+      id,
+      file,
+      file.name,
+      contentType,
+      "full"
+    );
 
-    const putRes = await fetch(uploadData.url, {
-      method: "PUT",
-      body: file,
-      headers: { "Content-Type": contentType, ...(uploadData.headers ?? {}) },
-    });
-    if (!putRes.ok) {
-      const hint = putRes.status === 403 ? " (R2 CORS or bucket config)" : "";
-      throw new Error(`Upload to storage failed${hint}`);
-    }
-
-    return registerGalleryImageWithThumb(file, uploadData.key);
+    return registerGalleryImageWithThumb(file, keyFullResolved);
   }
 
   async function uploadFile(file: File): Promise<void> {
@@ -1262,38 +1265,13 @@ export default function AdminWorkEditPage() {
       const subfolder = isVideo ? "video" : "full";
       const contentType = file.type || (isVideo ? "video/mp4" : "image/jpeg");
 
-      const uploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType,
-          subfolder,
-        }),
-      });
-      const uploadData = (await uploadRes.json()) as {
-        ok: boolean;
-        url?: string;
-        headers?: Record<string, string>;
-        key?: string;
-        error?: string;
-      };
-      if (!uploadRes.ok || !uploadData.url || !uploadData.key) {
-        const msg = uploadData.error ?? (uploadRes.status === 401 ? "Please log in again" : "Failed to get upload URL");
-        throw new Error(msg);
-      }
-
-      const putRes = await fetch(uploadData.url, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": contentType, ...(uploadData.headers ?? {}) },
-      });
-      if (!putRes.ok) {
-        const hint = putRes.status === 403 ? " (R2 CORS or bucket config)" : "";
-        throw new Error(`Upload to storage failed${hint}`);
-      }
-
-      const keyFull = uploadData.key;
+      const keyFull = await uploadWorkProjectFileViaApi(
+        id,
+        file,
+        file.name,
+        contentType,
+        subfolder
+      );
 
       if (isVideo) {
         await addMedia({ keyFull, kind: "VIDEO" });
@@ -1384,37 +1362,20 @@ export default function AdminWorkEditPage() {
       if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
         throw new Error("Only image and video uploads are supported.");
       }
-      const uploadRes = await fetch(`/api/admin/work-projects/${id}/upload-url`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType,
-          subfolder: target === "backgroundMedia" ? "background" : "poster",
-        }),
-      });
-      const uploadData = (await uploadRes.json()) as {
-        ok?: boolean;
-        url?: string;
-        headers?: Record<string, string>;
-        key?: string;
-        error?: string;
-      };
-      if (!uploadRes.ok || !uploadData.url || !uploadData.key) {
-        throw new Error(uploadData.error ?? "Failed to prepare background upload.");
-      }
-      const putRes = await fetch(uploadData.url, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": contentType, ...(uploadData.headers ?? {}) },
-      });
-      if (!putRes.ok) throw new Error(`Background upload failed (${putRes.status}).`);
+      const uploadKey = await uploadWorkProjectFileViaApi(
+        id,
+        file,
+        file.name,
+        contentType,
+        target === "backgroundMedia" ? "background" : "poster"
+      );
+
       if (target === "backgroundMedia") {
-        setBackgroundMediaUrl(uploadData.key);
-        await saveBackgroundSettings(uploadData.key, backgroundPosterUrl);
+        setBackgroundMediaUrl(uploadKey);
+        await saveBackgroundSettings(uploadKey, backgroundPosterUrl);
       } else {
-        setBackgroundPosterUrl(uploadData.key);
-        await saveBackgroundSettings(backgroundMediaUrl, uploadData.key);
+        setBackgroundPosterUrl(uploadKey);
+        await saveBackgroundSettings(backgroundMediaUrl, uploadKey);
       }
       setUploadProgress((p) => {
         const next = { ...p };
@@ -2209,24 +2170,20 @@ export default function AdminWorkEditPage() {
               </p>
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs uppercase tracking-wide text-black/60">Summary</label>
-              <textarea
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
-                rows={2}
-              />
+              {renderAiField({
+                label: "Summary",
+                fieldKey: "summary",
+                placeholder: "Short teaser for work index and section grids",
+                rows: 2,
+              })}
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs uppercase tracking-wide text-black/60">
-                Description (optional)
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm"
-                rows={3}
-              />
+              {renderAiField({
+                label: "Description (optional)",
+                fieldKey: "description",
+                placeholder: "Longer project description when you need more than the summary",
+                rows: 4,
+              })}
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wide text-black/60">Location</label>
@@ -2449,6 +2406,9 @@ export default function AdminWorkEditPage() {
               <p className="mt-1 max-w-2xl text-xs text-black/50">
                 Add project context once, then generate individual fields or the full project copy set.
                 Generated text stays editable and does not publish until you save.
+              </p>
+              <p className="mt-2 max-w-2xl text-xs text-black/45">
+                Generate All fills every AI Brief field below (plus all project copy and case study fields in Details and Editorial) when you confirm Replace all, or only empty ones if you choose Fill empty fields only.
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -3320,111 +3280,121 @@ export default function AdminWorkEditPage() {
           const heroSrc = mediaUrl(heroPm.media.keyThumb ?? heroPm.media.keyFull);
           const isVideo = heroPm.media.kind === "VIDEO";
           return (
-            <div className="mt-4 flex items-start gap-4 rounded-lg border border-black/10 bg-black/[0.02] p-3">
-              <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded bg-black/10">
-                {heroSrc ? (
-                  isVideo ? (
-                    <video
-                      src={mediaUrl(heroPm.media.keyFull)}
-                      className="h-full w-full object-cover"
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={heroSrc}
-                      alt={heroPm.media.alt ?? ""}
-                      className="h-full w-full object-cover"
-                    />
-                  )
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-black/50">
-                    No preview
+            <div className="mt-4 flex flex-col gap-4 rounded-lg border border-black/10 bg-black/[0.02] p-3">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex min-w-0 flex-1 items-start gap-4">
+                  <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded bg-black/10">
+                    {heroSrc ? (
+                      isVideo ? (
+                        <video
+                          src={mediaUrl(heroPm.media.keyFull)}
+                          className="h-full w-full object-cover"
+                          muted
+                          playsInline
+                          preload="metadata"
+                        />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={heroSrc}
+                          alt={heroPm.media.alt ?? ""}
+                          className="h-full w-full object-cover"
+                        />
+                      )
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs text-black/50">
+                        No preview
+                      </div>
+                    )}
                   </div>
-                )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-black/60">Hero image</p>
+                    <p className="truncate text-sm font-mono text-black/70">
+                      {heroPm.media.keyFull || "—"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {heroPm.media.kind === "IMAGE" ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void analyzePortfolioPlacement([heroPm.media.id])}
+                        className="btn btn-ghost text-xs"
+                        disabled={placementLoadingByMediaId[heroPm.media.id]}
+                      >
+                        {placementLoadingByMediaId[heroPm.media.id] ? "Analyzing…" : "Analyze placement"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost text-xs"
+                        disabled={id === "new" || uploadStatus === "uploading"}
+                        onClick={() => {
+                          const src = getCropSafeMediaUrl(heroPm.media.keyFull);
+                          if (!src) {
+                            setSaveError("Could not resolve image URL for cropping.");
+                            return;
+                          }
+                          setImageCropModal({ mode: "hero", src, aspect: 16 / 9 });
+                        }}
+                      >
+                        Crop / reframe
+                      </button>
+                    </>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setAsHero(null)}
+                    className="btn btn-ghost text-xs"
+                  >
+                    Clear hero
+                  </button>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-black/60">Hero image</p>
-                <p className="truncate text-sm font-mono text-black/70">
-                  {heroPm.media.keyFull || "—"}
-                </p>
-                {heroPm.media.kind === "IMAGE" ? (
-                  <div className="mt-2">
-                    <label className="text-xs text-black/50">Alt text</label>
+              {heroPm.media.kind === "IMAGE" ? (
+                <div className="w-full space-y-3 border-t border-black/10 pt-4">
+                  <div>
+                    <label className="text-xs font-medium text-black/55">Alt text</label>
                     <input
                       type="text"
                       value={heroPm.media.alt ?? ""}
                       onChange={(e) => setMediaAltLocal(heroPm.media.id, e.target.value)}
                       onBlur={(e) => updateMediaAlt(heroPm.media.id, e.target.value)}
-                      className="mt-0.5 w-full rounded border border-black/20 px-2 py-1 text-xs"
+                      className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm text-black"
                       placeholder="Describe image for SEO and accessibility"
                     />
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => generateAltTextForMedia(heroPm)}
-                        className="btn btn-ghost text-xs"
-                        disabled={altLoadingByMediaId[heroPm.media.id]}
-                      >
-                        {altLoadingByMediaId[heroPm.media.id]
-                          ? "Generating…"
-                          : heroPm.media.alt?.trim()
-                            ? "Regenerate"
-                            : "AI Generate Alt Text"}
-                      </button>
-                      {altErrorByMediaId[heroPm.media.id] ? (
-                        <span className="text-xs text-red-600">{altErrorByMediaId[heroPm.media.id]}</span>
-                      ) : null}
-                    </div>
-                    {heroPm.recommendedPlacement ? (
-                      <div className="mt-3 rounded-lg border border-black/10 bg-white p-3">
-                        <p className="text-[10px] uppercase tracking-wide text-black/40">AI portfolio placement</p>
-                        <p className="mt-1 text-xs font-medium text-black/75">
-                          {heroPm.recommendedPlacement}
-                          {heroPm.confidenceScore !== null ? ` · ${heroPm.confidenceScore}% confidence` : ""}
-                        </p>
-                        {heroPm.reason ? <p className="mt-1 text-xs text-black/55">{heroPm.reason}</p> : null}
-                      </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => generateAltTextForMedia(heroPm)}
+                      className="btn btn-ghost text-xs"
+                      disabled={altLoadingByMediaId[heroPm.media.id]}
+                    >
+                      {altLoadingByMediaId[heroPm.media.id]
+                        ? "Generating…"
+                        : heroPm.media.alt?.trim()
+                          ? "Regenerate"
+                          : "AI Generate Alt Text"}
+                    </button>
+                    {altErrorByMediaId[heroPm.media.id] ? (
+                      <span className="text-xs text-red-600">{altErrorByMediaId[heroPm.media.id]}</span>
                     ) : null}
                   </div>
-                ) : null}
-              </div>
-              {heroPm.media.kind === "IMAGE" ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => void analyzePortfolioPlacement([heroPm.media.id])}
-                    className="btn btn-ghost text-xs"
-                    disabled={placementLoadingByMediaId[heroPm.media.id]}
-                  >
-                    {placementLoadingByMediaId[heroPm.media.id] ? "Analyzing…" : "Analyze placement"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost text-xs"
-                    disabled={id === "new" || uploadStatus === "uploading"}
-                    onClick={() => {
-                      const src = getCropSafeMediaUrl(heroPm.media.keyFull);
-                      if (!src) {
-                        setSaveError("Could not resolve image URL for cropping.");
-                        return;
-                      }
-                      setImageCropModal({ mode: "hero", src, aspect: 16 / 9 });
-                    }}
-                  >
-                    Crop / reframe
-                  </button>
-                </>
+                  {heroPm.recommendedPlacement ? (
+                    <div className="rounded-lg border border-black/10 bg-white p-3">
+                      <p className="text-[10px] uppercase tracking-wide text-black/40">AI portfolio placement</p>
+                      <p className="mt-1 break-words text-xs font-medium text-black/75">
+                        {heroPm.recommendedPlacement}
+                        {heroPm.confidenceScore !== null ? ` · ${heroPm.confidenceScore}% confidence` : ""}
+                      </p>
+                      {heroPm.reason ? (
+                        <p className="mt-1 break-words text-xs text-black/55">{heroPm.reason}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
-              <button
-                type="button"
-                onClick={() => setAsHero(null)}
-                className="btn btn-ghost text-xs"
-              >
-                Clear hero
-              </button>
             </div>
           );
         })()}
@@ -3561,143 +3531,151 @@ export default function AdminWorkEditPage() {
                 onDragOver={(e) => handleMediaDragOver(e, pm.media.id)}
                 onDragLeave={handleMediaDragLeave}
                 onDrop={(e) => handleMediaDrop(e, pm.media.id)}
-                className={`flex cursor-grab items-center gap-4 rounded-lg border border-black/10 p-3 transition-all active:cursor-grabbing ${
+                className={`flex cursor-grab flex-col gap-3 rounded-lg border border-black/10 p-3 transition-all active:cursor-grabbing ${
                   isDropTarget ? "border-black/30 bg-black/5 ring-1 ring-black/10" : ""
                 }`}
               >
-                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded bg-black/10">
-                  {src ? (
-                    isVideo ? (
-                      <>
-                        <video
-                          src={mediaUrl(pm.media.keyFull)}
-                          className="h-full w-full object-cover"
-                          muted
-                          playsInline
-                          preload="metadata"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                          <svg
-                            className="h-6 w-6 text-white"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden
-                          >
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex min-w-0 flex-1 items-start gap-4">
+                    <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded bg-black/10">
+                      {src ? (
+                        isVideo ? (
+                          <>
+                            <video
+                              src={mediaUrl(pm.media.keyFull)}
+                              className="h-full w-full object-cover"
+                              muted
+                              playsInline
+                              preload="metadata"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                              <svg
+                                className="h-6 w-6 text-white"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden
+                              >
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </div>
+                          </>
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={src}
+                            alt={pm.media.alt ?? ""}
+                            className="h-full w-full object-cover"
+                          />
+                        )
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-xs text-black/50">
+                          No preview
                         </div>
-                      </>
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={src}
-                        alt={pm.media.alt ?? ""}
-                        className="h-full w-full object-cover"
-                      />
-                    )
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-black/50">
-                      No preview
+                      )}
                     </div>
-                  )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-mono text-black/70">
+                        {pm.media.keyFull || "—"}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        {isHero && (
+                          <span className="text-xs text-black/50">Hero</span>
+                        )}
+                        {homepageFeaturedMediaId === pm.media.id && (
+                          <span className="rounded bg-black/10 px-1.5 py-0.5 text-xs text-black/60">
+                            Featured
+                          </span>
+                        )}
+                        {isVideo && (
+                          <span className="rounded bg-black/10 px-1.5 py-0.5 text-xs text-black/60">
+                            Video
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {!isHero && (
+                      <button
+                        type="button"
+                        onClick={() => void setAsHero(pm.media.id)}
+                        className="btn btn-ghost text-xs"
+                      >
+                        Set hero
+                      </button>
+                    )}
+                    {!isVideo && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => void analyzePortfolioPlacement([pm.media.id])}
+                          className="btn btn-ghost text-xs"
+                          disabled={placementLoadingByMediaId[pm.media.id]}
+                        >
+                          {placementLoadingByMediaId[pm.media.id] ? "Analyzing…" : "Analyze placement"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAsHomepageFeatured(pm.media.id)}
+                          className="btn btn-ghost text-xs"
+                        >
+                          {homepageFeaturedMediaId === pm.media.id ? "Featured" : "Set as homepage featured"}
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeMedia(pm.media.id)}
+                      className="btn btn-ghost text-xs text-red-600"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-mono text-black/70">
-                    {pm.media.keyFull || "—"}
-                  </p>
-                  {pm.media.kind === "IMAGE" && (
-                    <div className="mt-1">
-                      <label className="text-xs text-black/50">Alt text</label>
+                {pm.media.kind === "IMAGE" ? (
+                  <div className="w-full space-y-3 border-t border-black/10 pt-3">
+                    <div>
+                      <label className="text-xs font-medium text-black/55">Alt text</label>
                       <input
                         type="text"
                         value={pm.media.alt ?? ""}
                         onChange={(e) => setMediaAltLocal(pm.media.id, e.target.value)}
                         onBlur={(e) => updateMediaAlt(pm.media.id, e.target.value)}
-                        className="mt-0.5 w-full rounded border border-black/20 px-2 py-1 text-xs"
+                        className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm text-black"
                         placeholder="Describe image for SEO and accessibility"
                       />
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => generateAltTextForMedia(pm)}
-                          className="btn btn-ghost text-xs"
-                          disabled={altLoadingByMediaId[pm.media.id]}
-                        >
-                          {altLoadingByMediaId[pm.media.id]
-                            ? "Generating…"
-                            : pm.media.alt?.trim()
-                              ? "Regenerate"
-                              : "AI Generate Alt Text"}
-                        </button>
-                        {altErrorByMediaId[pm.media.id] ? (
-                          <span className="text-xs text-red-600">{altErrorByMediaId[pm.media.id]}</span>
-                        ) : null}
-                      </div>
-                      {pm.recommendedPlacement ? (
-                        <div className="mt-3 rounded-lg border border-black/10 bg-black/[0.02] p-3">
-                          <p className="text-[10px] uppercase tracking-wide text-black/40">AI portfolio placement</p>
-                          <p className="mt-1 text-xs font-medium text-black/75">
-                            {pm.recommendedPlacement}
-                            {pm.confidenceScore !== null ? ` · ${pm.confidenceScore}% confidence` : ""}
-                          </p>
-                          {pm.reason ? <p className="mt-1 text-xs text-black/55">{pm.reason}</p> : null}
-                        </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => generateAltTextForMedia(pm)}
+                        className="btn btn-ghost text-xs"
+                        disabled={altLoadingByMediaId[pm.media.id]}
+                      >
+                        {altLoadingByMediaId[pm.media.id]
+                          ? "Generating…"
+                          : pm.media.alt?.trim()
+                            ? "Regenerate"
+                            : "AI Generate Alt Text"}
+                      </button>
+                      {altErrorByMediaId[pm.media.id] ? (
+                        <span className="text-xs text-red-600">{altErrorByMediaId[pm.media.id]}</span>
                       ) : null}
                     </div>
-                  )}
-                  <div className="mt-1 flex items-center gap-2">
-                    {isHero && (
-                      <span className="text-xs text-black/50">Hero</span>
-                    )}
-                    {homepageFeaturedMediaId === pm.media.id && (
-                      <span className="rounded bg-black/10 px-1.5 py-0.5 text-xs text-black/60">
-                        Featured
-                      </span>
-                    )}
-                    {isVideo && (
-                      <span className="rounded bg-black/10 px-1.5 py-0.5 text-xs text-black/60">
-                        Video
-                      </span>
-                    )}
+                    {pm.recommendedPlacement ? (
+                      <div className="rounded-lg border border-black/10 bg-black/[0.02] p-3">
+                        <p className="text-[10px] uppercase tracking-wide text-black/40">AI portfolio placement</p>
+                        <p className="mt-1 break-words text-xs font-medium text-black/75">
+                          {pm.recommendedPlacement}
+                          {pm.confidenceScore !== null ? ` · ${pm.confidenceScore}% confidence` : ""}
+                        </p>
+                        {pm.reason ? (
+                          <p className="mt-1 break-words text-xs text-black/55">{pm.reason}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  {!isHero && (
-                    <button
-                      type="button"
-                      onClick={() => void setAsHero(pm.media.id)}
-                      className="btn btn-ghost text-xs"
-                    >
-                      Set hero
-                    </button>
-                  )}
-                  {!isVideo && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => void analyzePortfolioPlacement([pm.media.id])}
-                        className="btn btn-ghost text-xs"
-                        disabled={placementLoadingByMediaId[pm.media.id]}
-                      >
-                        {placementLoadingByMediaId[pm.media.id] ? "Analyzing…" : "Analyze placement"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAsHomepageFeatured(pm.media.id)}
-                        className="btn btn-ghost text-xs"
-                      >
-                        {homepageFeaturedMediaId === pm.media.id ? "Featured" : "Set as homepage featured"}
-                      </button>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => removeMedia(pm.media.id)}
-                    className="btn btn-ghost text-xs text-red-600"
-                  >
-                    Remove
-                  </button>
-                </div>
+                ) : null}
               </li>
             );
           })}

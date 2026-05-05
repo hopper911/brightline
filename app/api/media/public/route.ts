@@ -49,6 +49,35 @@ export async function GET(req: Request) {
     );
   }
 
+  // Same-origin bytes so `<img crossOrigin="anonymous">` + canvas export works (302 to R2/CDN breaks CORS).
+  if (url.searchParams.get("proxy") === "1") {
+    let upstream: Response;
+    try {
+      upstream = await fetch(signed.url, { redirect: "follow" });
+    } catch (err) {
+      console.error("MEDIA_PUBLIC_PROXY_FETCH_ERROR", err);
+      return NextResponse.json(
+        { ok: false, error: "Media temporarily unavailable." },
+        { status: 502 }
+      );
+    }
+    if (!upstream.ok || !upstream.body) {
+      return NextResponse.json(
+        { ok: false, error: "Media temporarily unavailable." },
+        { status: upstream.status >= 400 ? upstream.status : 502 }
+      );
+    }
+    const contentType =
+      upstream.headers.get("content-type") ?? "application/octet-stream";
+    return new NextResponse(upstream.body, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "private, max-age=120",
+      },
+    });
+  }
+
   const res = NextResponse.redirect(signed.url, { status: 302 });
   res.headers.set("Cache-Control", "public, max-age=300, stale-while-revalidate=300");
   return res;

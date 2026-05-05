@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { getSectionToPillarSlugMap } from "@/lib/work-pillar-settings";
+import { resolveWorkProjectUploadTarget } from "@/lib/admin/work-project-upload";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,14 +16,11 @@ export async function POST(
     }
     const { id: projectId } = await context.params;
 
-    const project = await prisma.workProject.findUnique({
-      where: { id: projectId },
-    });
-    if (!project) {
-      return NextResponse.json({ ok: false, error: "Project not found." }, { status: 404 });
-    }
-
-    let body: { filename?: string; contentType?: string; subfolder?: "full" | "thumb" | "video" | "background" | "poster" };
+    let body: {
+      filename?: string;
+      contentType?: string;
+      subfolder?: "full" | "thumb" | "video" | "background" | "poster";
+    };
     try {
       body = (await req.json()) as typeof body;
     } catch {
@@ -34,25 +30,25 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "filename is required." }, { status: 400 });
     }
 
-    const sectionMap = await getSectionToPillarSlugMap();
-    const pillarSlug = sectionMap[project.section];
-    const safeName = body.filename.replace(/[^\w.-]/g, "-");
-    const ext = (safeName.split(".").pop() ?? "").toLowerCase();
-    const isVideo = ext === "mp4" || ext === "webm" || ext === "mov";
-    const subfolder =
-      body.subfolder ??
-      (isVideo ? "video" : "full");
-    const key = `portfolio/${pillarSlug}/${project.slug}/${subfolder}/${safeName}`;
-    const defaultContentType = isVideo
-      ? (ext === "webm" ? "video/webm" : "video/mp4")
-      : "image/jpeg";
-    const { getMarketingUploadUrl } = await import("@/lib/image-strategy");
-    const signed = await getMarketingUploadUrl({
-      key,
-      contentType: body.contentType || defaultContentType,
+    const resolved = await resolveWorkProjectUploadTarget({
+      projectId,
+      filename: body.filename,
+      contentType: body.contentType,
+      subfolder: body.subfolder,
     });
 
-    return NextResponse.json({ ok: true, url: signed.url, headers: signed.headers, key });
+    if (!resolved.ok) {
+      const status = resolved.error === "Project not found." ? 404 : 400;
+      return NextResponse.json({ ok: false, error: resolved.error }, { status });
+    }
+
+    const { getMarketingUploadUrl } = await import("@/lib/image-strategy");
+    const signed = await getMarketingUploadUrl({
+      key: resolved.key,
+      contentType: resolved.contentType,
+    });
+
+    return NextResponse.json({ ok: true, url: signed.url, headers: signed.headers, key: resolved.key });
   } catch (err: unknown) {
     console.error("WORK_PROJECT_UPLOAD_URL_ERROR", err);
     const message = err instanceof Error ? err.message : "Failed to get upload URL.";

@@ -1,5 +1,5 @@
 
-- CreateTable
+-- CreateTable
 CREATE TABLE "StudioProject" (
     "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
     "title" TEXT NOT NULL,

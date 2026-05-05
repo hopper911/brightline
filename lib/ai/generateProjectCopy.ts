@@ -20,9 +20,29 @@ export const PROJECT_COPY_FIELD_KEYS = [
   "seoTitle",
   "metaDescription",
   "ctaCopy",
+  /** Listing / card teaser on /work index; distinct from long-form case study opening. */
+  "summary",
+  /** Optional longer body for project page / cards. */
+  "description",
 ] as const;
 
 export type ProjectCopyFieldKey = (typeof PROJECT_COPY_FIELD_KEYS)[number];
+
+/** Brief form keys populated by `all_fields` Generate All (text fields only; pillar/desiredStyle stay user-selected). */
+export const GENERATE_ALL_BRIEF_KEYS = [
+  "clientName",
+  "projectTitle",
+  "projectType",
+  "shootType",
+  "location",
+  "whatWasPhotographed",
+  "visualApproach",
+  "targetAudience",
+  "projectGoal",
+  "notes",
+] as const;
+
+export type GenerateAllBriefKey = (typeof GENERATE_ALL_BRIEF_KEYS)[number];
 
 export type ProjectCopyBrief = {
   clientName?: string;
@@ -134,6 +154,8 @@ function enforceLength(fieldKey: ProjectCopyFieldKey, value: string) {
     client: 120,
     projectTypeLegacy: 120,
     scope: 180,
+    summary: 420,
+    description: 4000,
   };
   const max = maxByField[fieldKey];
   if (!max || value.length <= max) return value;
@@ -246,9 +268,10 @@ const FIELD_INSTRUCTIONS: Record<ProjectCopyFieldKey, string> = {
     "Short paragraph or bullet-style copy about lighting, composition, direction, styling, sequencing, mood, or production approach.",
   highlightLine: "One strong sentence that can work as a pull quote or project summary.",
   execution:
-    "Optional. Mention technique, retouching, production, image selection, lighting, or delivery only if it adds value.",
+    "One or two sentences on technique, color, retouching, production rhythm, deliverables, or how selects support client use.",
   closing: "One clean closing line connecting the project to the client's brand, space, campaign, or audience.",
-  credits: "Only generate if relevant. Otherwise return an empty string.",
+  credits:
+    "Short honest credit line. If specifics unknown: Photography by Bright Line or Photography and creative direction by Bright Line.",
   projectTags: "Comma-separated tags: include pillar, shoot type, subject, location if available, and use-case.",
   client: "Use the provided client name.",
   projectTypeLegacy:
@@ -263,6 +286,24 @@ const FIELD_INSTRUCTIONS: Record<ProjectCopyFieldKey, string> = {
   seoTitle: "SEO-friendly title under 60 characters when possible.",
   metaDescription: "SEO meta description around 140-160 characters. Clear, professional, not keyword-stuffed.",
   ctaCopy: "Short call-to-action for the project page.",
+  summary:
+    "Short listing summary for /work grids and section pages: 1–3 crisp sentences. Tease the project; avoid repeating the full case study. No markdown.",
+  description:
+    "Optional longer intro or body copy for the project (detail page / expanded card). 2–4 tight paragraphs when useful; editorial and specific. Do not duplicate the summary verbatim—add context, subjects, or use-case.",
+};
+
+const BRIEF_PATCH_INSTRUCTIONS: Record<GenerateAllBriefKey, string> = {
+  clientName: "Client or brand name; concise.",
+  projectTitle: "Project title as used internally / on the page.",
+  projectType: "e.g. Editorial campaign, Brand refresh, Launch assets.",
+  shootType: "e.g. Lifestyle, studio product, workplace, portraits, location editorial.",
+  location: "City, region, or studio as appropriate.",
+  whatWasPhotographed: "Concrete list or paragraph of subjects, scenes, and hero subjects.",
+  visualApproach: "Tone, lighting, palette, pacing, styling direction.",
+  targetAudience: "Who uses the images: roles, teams, channels.",
+  projectGoal: "Why the work exists: launch, library, pitch, social, OOH, etc.",
+  notes:
+    "Short synthesized brief recap (goals, constraints, standout directions); not duplicate of other brief keys.",
 };
 
 const SYSTEM_PROMPT = `You are the senior editorial strategist for BRIGHTLINE Photography, a high-end commercial photography studio in New Jersey and the New York metro.
@@ -273,7 +314,9 @@ Avoid generic AI language and these phrases: elevate your brand, capture the ess
 
 Use confident, clean photography language. Do not invent fake awards, fake locations, fake collaborators, or fake client claims. Do not claim "industry-leading" unless provided.
 
-Return JSON only. No markdown. No explanations. Respect the field-specific length and format rules.`;
+Return JSON only. No markdown. No explanations. Respect the field-specific length and format rules.
+
+When the task requests mandatory non-empty output: every listed string field MUST contain substantive text—never empty strings, placeholders, or "N/A".`;
 
 const TONE_INSTRUCTIONS: Record<ProjectCopyTonePreset, string> = {
   "Quiet luxury": "Restrained, premium, calm, precise, and elegant. Avoid hype and over-selling.",
@@ -304,7 +347,7 @@ function buildPrompt(input: ProjectCopyRequest) {
           ? "Rewrite existing copy for one editable project field."
           : input.mode === "single_field"
           ? "Generate copy for one editable project field."
-          : "Generate copy for all editable project fields.",
+          : "Generate complete copy for every CMS project field AND complete AI Brief helper fields (brief object). Both objects must be fully populated.",
       responseShape:
         input.mode === "single_field" || input.mode === "rewrite_field"
           ? { fieldKey: input.fieldKey, value: "Generated text here" }
@@ -314,7 +357,18 @@ function buildPrompt(input: ProjectCopyRequest) {
                 imageDirectionNotes: "",
                 suggestedPlacement: "",
               }
-          : { values: Object.fromEntries(PROJECT_COPY_FIELD_KEYS.map((key) => [key, ""])) },
+            : {
+                values: Object.fromEntries(PROJECT_COPY_FIELD_KEYS.map((key) => [key, ""])),
+                brief: Object.fromEntries(GENERATE_ALL_BRIEF_KEYS.map((key) => [key, ""])),
+              },
+      ...(input.mode === "all_fields"
+        ? {
+            mandatoryNonEmptyAllFields: true,
+            briefFieldInstructions: Object.fromEntries(
+              GENERATE_ALL_BRIEF_KEYS.map((key) => [key, BRIEF_PATCH_INSTRUCTIONS[key]])
+            ),
+          }
+        : {}),
       brief: input.brief,
       existingValues: input.existingValues,
       sourceText: input.mode === "rewrite_field" || input.mode === "brief_case_study" ? input.sourceText : undefined,
@@ -327,10 +381,19 @@ function buildPrompt(input: ProjectCopyRequest) {
       styleRules: {
         serviceArea: "New Jersey and the New York metro when geography is useful.",
         ifMissingInfo: "Make a tasteful professional assumption, but do not invent specific facts.",
-        credits: "Return empty string if no real credit information is provided.",
+        credits:
+          input.mode === "all_fields"
+            ? "Always output a short honest credits line (see credits field instruction). Never leave credits empty."
+            : "Return empty string if no real credit information is provided.",
         rewrite: "For rewrite_field mode, preserve the meaning and facts of sourceText. Improve clarity and Bright Line brand voice.",
         briefCaseStudy:
           "For brief_case_study mode, use sourceText as the rough notes. Produce a complete, specific, premium editorial case study draft. Do not invent specific facts beyond tasteful general framing.",
+        ...(input.mode === "all_fields"
+          ? {
+              allFieldsMandatory:
+                "Return JSON with top-level keys values and brief. Every key listed under values in responseShape MUST be non-empty substantive copy. Every key listed under brief in responseShape MUST be non-empty. Pillar and desired copy style are chosen separately in the CMS—omit them from brief output.",
+            }
+          : {}),
       },
     },
     null,
@@ -367,6 +430,114 @@ function normalizeAllResponse(raw: Record<string, unknown>) {
   return { values };
 }
 
+function normalizeBriefPatch(raw: Record<string, unknown>): Record<GenerateAllBriefKey, string> {
+  const briefRaw =
+    raw.brief && typeof raw.brief === "object" && !Array.isArray(raw.brief)
+      ? (raw.brief as Record<string, unknown>)
+      : {};
+  const out = {} as Record<GenerateAllBriefKey, string>;
+  for (const key of GENERATE_ALL_BRIEF_KEYS) {
+    out[key] = normalizeGeneratedValue(briefRaw[key]).trim();
+  }
+  return out;
+}
+
+function normalizeAllFieldsBundle(raw: Record<string, unknown>) {
+  const { values } = normalizeAllResponse(raw);
+  const brief = normalizeBriefPatch(raw);
+  return { values, brief };
+}
+
+function buildRepairPrompt(
+  input: Extract<ProjectCopyRequest, { mode: "all_fields" }>,
+  missingCopy: ProjectCopyFieldKey[],
+  missingBrief: GenerateAllBriefKey[],
+  values: ProjectCopyValues,
+  brief: Record<GenerateAllBriefKey, string>
+) {
+  return JSON.stringify(
+    {
+      task: "Repair pass: fill ONLY the listed missing keys. Every filled key MUST be non-empty substantive text.",
+      missingValuesKeys: missingCopy,
+      missingBriefKeys: missingBrief,
+      briefContext: input.brief,
+      existingValuesSnapshot: values,
+      briefOutputsSnapshot: brief,
+      tonePreset: input.tonePreset,
+      toneInstruction: input.tonePreset ? TONE_INSTRUCTIONS[input.tonePreset] : undefined,
+      responseShape: {
+        values: Object.fromEntries(missingCopy.map((key) => [key, ""])),
+        brief: Object.fromEntries(missingBrief.map((key) => [key, ""])),
+      },
+      fieldInstructions: Object.fromEntries(missingCopy.map((key) => [key, FIELD_INSTRUCTIONS[key]])),
+      briefFieldInstructions: Object.fromEntries(
+        missingBrief.map((key) => [key, BRIEF_PATCH_INSTRUCTIONS[key]])
+      ),
+      styleRules: {
+        ifMissingInfo: "Make a tasteful professional assumption, but do not invent specific facts.",
+        mandatoryNonEmpty: "Do not return empty strings for any key listed in missingValuesKeys or missingBriefKeys.",
+      },
+    },
+    null,
+    2
+  );
+}
+
+function mergeRepairPatch(
+  values: ProjectCopyValues,
+  brief: Record<GenerateAllBriefKey, string>,
+  missingCopy: ProjectCopyFieldKey[],
+  missingBrief: GenerateAllBriefKey[],
+  patchRaw: Record<string, unknown>
+): { values: ProjectCopyValues; brief: Record<GenerateAllBriefKey, string> } {
+  const vObj =
+    patchRaw.values && typeof patchRaw.values === "object" && !Array.isArray(patchRaw.values)
+      ? (patchRaw.values as Record<string, unknown>)
+      : {};
+  const bObj =
+    patchRaw.brief && typeof patchRaw.brief === "object" && !Array.isArray(patchRaw.brief)
+      ? (patchRaw.brief as Record<string, unknown>)
+      : {};
+  const nextValues = { ...values };
+  const nextBrief = { ...brief };
+  for (const k of missingCopy) {
+    const v = normalizeGeneratedValue(vObj[k]).trim();
+    if (v) nextValues[k] = enforceLength(k, v);
+  }
+  for (const k of missingBrief) {
+    const v = normalizeGeneratedValue(bObj[k]).trim();
+    if (v) nextBrief[k] = v;
+  }
+  return { values: nextValues, brief: nextBrief };
+}
+
+async function repairAllFieldsIfNeeded(
+  openai: OpenAI,
+  model: string,
+  input: Extract<ProjectCopyRequest, { mode: "all_fields" }>,
+  values: ProjectCopyValues,
+  brief: Record<GenerateAllBriefKey, string>
+): Promise<{ values: ProjectCopyValues; brief: Record<GenerateAllBriefKey, string> }> {
+  const missingCopy = PROJECT_COPY_FIELD_KEYS.filter((k) => !(values[k] ?? "").trim());
+  const missingBrief = GENERATE_ALL_BRIEF_KEYS.filter((k) => !(brief[k] ?? "").trim());
+  if (missingCopy.length === 0 && missingBrief.length === 0) return { values, brief };
+
+  const completion = await openai.chat.completions.create({
+    model,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: buildRepairPrompt(input, missingCopy, missingBrief, values, brief),
+      },
+    ],
+  });
+  const content = completion.choices[0]?.message?.content ?? "{}";
+  const patchRaw = parseJsonObject(content);
+  return mergeRepairPatch(values, brief, missingCopy, missingBrief, patchRaw);
+}
+
 function normalizeBriefCaseStudyResponse(raw: Record<string, unknown>) {
   return {
     ...normalizeAllResponse(raw),
@@ -398,7 +569,13 @@ export async function generateProjectCopy(input: ProjectCopyRequest) {
     if (input.mode === "single_field") return normalizeSingleResponse(raw, input.fieldKey);
     if (input.mode === "rewrite_field") return normalizeSingleResponse(raw, input.fieldKey);
     if (input.mode === "brief_case_study") return normalizeBriefCaseStudyResponse(raw);
-    return normalizeAllResponse(raw);
+    if (input.mode === "all_fields") {
+      let bundle = normalizeAllFieldsBundle(raw);
+      bundle = await repairAllFieldsIfNeeded(openai, model, input, bundle.values, bundle.brief);
+      return bundle;
+    }
+    const exhaustive: never = input;
+    throw new Error(`Unsupported mode: ${String(exhaustive)}`);
   } catch (err: unknown) {
     if (err instanceof APIError) {
       const status = err.status === 429 ? 429 : err.status === 408 ? 504 : 502;

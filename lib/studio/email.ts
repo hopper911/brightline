@@ -7,7 +7,6 @@ import {
 } from "@/lib/integrations/emailProvider";
 import {
   getDefaultBrightlineSender,
-  normalizeBrightlineEmail,
   requireAllowedBrightlineSender,
 } from "@/lib/studio/brightline-email-senders";
 

@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
-import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { prisma } from "@/lib/prisma";
+import { guardAdminJson } from "@/lib/api/guards";
+import { jsonErr, jsonOk } from "@/lib/api/http";
+import { getStudioInvoiceDetailForAdmin } from "@/lib/data/studio-invoices";
 import { asNullableString, parseDate, parseMoney } from "@/lib/studio/finance";
 import {
   normalizeStudioInvoiceStatus,
   recalculateInvoiceFinance,
 } from "@/lib/studio/invoicing";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,34 +15,26 @@ export async function GET(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  if (!(await authorizeAdminRequest(req))) {
-    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
-  }
+  const denied = await guardAdminJson(req);
+  if (denied) return denied;
+
   const { id } = await context.params;
 
-  const invoice = await prisma.studioInvoice.findUnique({
-    where: { id },
-    include: {
-      lineItems: { orderBy: { sortOrder: "asc" }, include: { mediaLinks: true } },
-      client: { select: { id: true, companyName: true, email: true } },
-      project: { select: { id: true, title: true, slug: true } },
-    },
-  });
+  const invoice = await getStudioInvoiceDetailForAdmin(id);
 
   if (!invoice) {
-    return NextResponse.json({ ok: false, error: "Not found." }, { status: 404 });
+    return jsonErr("Not found.", 404);
   }
 
-  return NextResponse.json({ ok: true, invoice });
+  return jsonOk({ invoice });
 }
 
 export async function PATCH(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  if (!(await authorizeAdminRequest(req))) {
-    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
-  }
+  const denied = await guardAdminJson(req);
+  if (denied) return denied;
 
   const { id } = await context.params;
 
@@ -49,7 +42,7 @@ export async function PATCH(
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON." }, { status: 400 });
+    return jsonErr("Invalid JSON.", 400);
   }
 
   const clientIdRaw =
@@ -158,9 +151,9 @@ export async function PATCH(
       });
       return recalculateInvoiceFinance(tx, id, explicitStatus);
     });
-    return NextResponse.json({ ok: true, invoice });
+    return jsonOk({ invoice });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed.";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return jsonErr(message, 400);
   }
 }

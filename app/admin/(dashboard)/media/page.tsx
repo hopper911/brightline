@@ -206,6 +206,7 @@ export default function AdminMediaPage() {
                           </div>
                         </>
                       ) : (
+                        // eslint-disable-next-line @next/next/no-img-element -- admin grid thumbs from R2
                         <img
                           src={thumbUrl}
                           alt={item.alt ?? ""}

@@ -1,7 +1,13 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import {
+  clientGallerySessionErrorResponse,
+  guardImageInClientGallery,
+} from "@/lib/client-api/gallery-scope";
 import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
+import { jsonErr, jsonOk } from "@/lib/api/http";
+import { loadClientGallerySession } from "@/lib/client-gallery-session";
+import { recordEngagementEvent } from "@/lib/engagement/recordEvent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,57 +15,29 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
-      token?: string;
       imageId?: string;
       action?: "add" | "remove";
       note?: string;
     };
 
+    const loaded = await loadClientGallerySession();
+    if (!loaded.ok) {
+      return clientGallerySessionErrorResponse(loaded);
+    }
+
+    const badImage = guardImageInClientGallery(loaded, body.imageId);
+    if (badImage) return badImage;
+
+    const imageId = body.imageId!.trim();
+    const action = body.action === "remove" ? "remove" : "add";
+    const { note } = body;
+    const access = loaded.access;
+
+    if (!isGalleryViewableByClient(access.gallery)) {
+      return jsonErr("Gallery is not available.", 403);
+    }
+
     const jar = await cookies();
-    const { imageId, action = "add", note } = body;
-    const accessId = jar.get("client_access_id")?.value;
-
-    if (!accessId || !imageId) {
-      return NextResponse.json(
-        { ok: false, error: "Access session and imageId are required." },
-        { status: 400 }
-      );
-    }
-
-    // Validate token
-    const access = await prisma.galleryAccessToken.findUnique({
-      where: { id: accessId },
-      include: { gallery: true },
-    });
-
-    if (!access) {
-      return NextResponse.json(
-        { ok: false, error: "Invalid access token." },
-        { status: 401 }
-      );
-    }
-
-    if (access.expiresAt && access.expiresAt.getTime() < Date.now()) {
-      return NextResponse.json(
-        { ok: false, error: "Access token has expired." },
-        { status: 410 }
-      );
-    }
-
-    if (!access.isActive) {
-      return NextResponse.json(
-        { ok: false, error: "Access code is no longer active." },
-        { status: 403 }
-      );
-    }
-
-    if (!access.gallery || !isGalleryViewableByClient(access.gallery)) {
-      return NextResponse.json(
-        { ok: false, error: "Gallery is not available." },
-        { status: 403 }
-      );
-    }
-
     jar.set("client_access", "true", {
       httpOnly: true,
       path: "/",
@@ -77,7 +55,6 @@ export async function POST(req: Request) {
     });
 
     if (action === "add") {
-      // Add favorite
       await prisma.galleryFavorite.upsert({
         where: {
           tokenId_imageId: {
@@ -95,7 +72,6 @@ export async function POST(req: Request) {
         },
       });
 
-      // Log action
       await prisma.galleryAccessLog.create({
         data: {
           tokenId: access.id,
@@ -103,8 +79,16 @@ export async function POST(req: Request) {
           imageId,
         },
       });
+      recordEngagementEvent({
+        surface: "client_gallery",
+        eventType: "gallery.favorite",
+        studioProjectId: access.gallery.studioProjectId,
+        galleryId: access.gallery.id,
+        galleryAccessTokenId: access.id,
+        imageId,
+        meta: note ? { hasNote: true } : undefined,
+      });
     } else {
-      // Remove favorite
       await prisma.galleryFavorite.deleteMany({
         where: {
           tokenId: access.id,
@@ -112,7 +96,6 @@ export async function POST(req: Request) {
         },
       });
 
-      // Log action
       await prisma.galleryAccessLog.create({
         data: {
           tokenId: access.id,
@@ -120,13 +103,18 @@ export async function POST(req: Request) {
           imageId,
         },
       });
+      recordEngagementEvent({
+        surface: "client_gallery",
+        eventType: "gallery.unfavorite",
+        studioProjectId: access.gallery.studioProjectId,
+        galleryId: access.gallery.id,
+        galleryAccessTokenId: access.id,
+        imageId,
+      });
     }
 
-    return NextResponse.json({ ok: true, action });
+    return jsonOk({ action });
   } catch {
-    return NextResponse.json(
-      { ok: false, error: "Failed to update favorite." },
-      { status: 500 }
-    );
+    return jsonErr("Failed to update favorite.", 500);
   }
 }

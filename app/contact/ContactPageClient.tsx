@@ -22,13 +22,19 @@ export default function ContactPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (searchParams.get("intent") === "portfolio-pdf") {
+    if (searchParams.get("intent") !== "portfolio-pdf") return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
       setForm((prev) => ({
         ...prev,
         projectType: "portfolio-pdf",
         message: prev.message || "I would like to receive a copy of the portfolio PDF.",
       }));
-    }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

@@ -1,17 +1,38 @@
 import { randomBytes } from "crypto";
 import { Prisma, type StudioInvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { PACKAGE_STATUSES, type PackageStatus } from "@/lib/delivery/package-status";
 import { DELIVERY_GROUPS, cleanText, normalizeDeliveryGroup } from "@/lib/delivery/package";
 
 export function createPackageAccessToken() {
   return randomBytes(32).toString("base64url");
 }
 
-export function normalizePackageStatus(value: unknown) {
-  const status = cleanText(value)?.toLowerCase();
-  return ["draft", "prepared", "sent", "viewed", "approved", "archived"].includes(status ?? "")
-    ? status
-    : undefined;
+export function normalizePackageStatus(value: unknown): string | undefined {
+  const status = cleanText(value)?.toLowerCase().replace(/\s+/g, "_");
+  if (!status) return undefined;
+  const synonyms: Record<string, PackageStatus> = {
+    preparing: "preparing",
+    preparation: "preparing",
+    ready_for_review: "ready_for_review",
+    review: "ready_for_review",
+    delivered: "delivered",
+    draft: "draft",
+    prepared: "prepared",
+    sent: "sent",
+    viewed: "viewed",
+    approved: "approved",
+    archived: "archived",
+  };
+  const mapped = synonyms[status];
+  if (mapped) return mapped;
+  return PACKAGE_STATUSES.includes(status as PackageStatus) ? status : undefined;
+}
+
+/** Client package page: treat as "fresh delivery" open state (was `sent`). */
+export function packageStatusIsLiveForClient(status: string | null | undefined): boolean {
+  const s = (status ?? "").toLowerCase();
+  return s === "sent" || s === "delivered";
 }
 
 export function normalizeInvoiceStatus(value: unknown) {
@@ -119,7 +140,13 @@ export async function createDefaultPackageItems(deliveryPackageId: string, proje
 
   for (const item of media) {
     await prisma.deliveryPackageItem.upsert({
-      where: { deliveryPackageId_mediaAssetId: { deliveryPackageId, mediaAssetId: item.mediaId } },
+      where: {
+        deliveryPackageId_mediaAssetId_variantKey: {
+          deliveryPackageId,
+          mediaAssetId: item.mediaId,
+          variantKey: "",
+        },
+      },
       update: {},
       create: {
         deliveryPackageId,
@@ -156,6 +183,7 @@ export function serializePackageManifest(pkg: Awaited<ReturnType<typeof prisma.d
       sortOrder: number;
       selectedForDelivery: boolean;
       storageKey: string | null;
+      variantKey: string;
       mediaAsset: { id: string; keyFull: string | null; keyThumb: string | null; alt: string | null };
     }>;
   };
@@ -166,6 +194,8 @@ export function serializePackageManifest(pkg: Awaited<ReturnType<typeof prisma.d
       status: withItems.status,
       deliveryDate: withItems.deliveryDate,
       notes: withItems.notes,
+      usageRights: (withItems as { usageRights?: string | null }).usageRights ?? null,
+      deliveryMessage: (withItems as { deliveryMessage?: string | null }).deliveryMessage ?? null,
     },
     project: {
       title: withItems.project?.title,
@@ -180,6 +210,7 @@ export function serializePackageManifest(pkg: Awaited<ReturnType<typeof prisma.d
         .filter((item) => item.selectedForDelivery && item.deliveryGroup === group)
         .map((item) => ({
           id: item.id,
+          variantKey: item.variantKey ?? "",
           mediaAssetId: item.mediaAsset.id,
           storageKey: item.storageKey ?? item.mediaAsset.keyFull,
           thumbKey: item.mediaAsset.keyThumb,

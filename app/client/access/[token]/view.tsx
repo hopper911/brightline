@@ -109,6 +109,19 @@ export default function ClientGalleryView({ token }: { token: string }) {
   const [downloadQuality, setDownloadQuality] = useState<"low" | "high">("high");
   const [lightboxImage, setLightboxImage] = useState<GalleryImage | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [clientNow, setClientNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setClientNow(Date.now());
+    });
+    const t = setInterval(() => setClientNow(Date.now()), 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -481,7 +494,11 @@ export default function ClientGalleryView({ token }: { token: string }) {
     gallery.selectedCount ?? gallery.images.filter((i) => i.isSelected).length;
   const expiresAt = gallery.expiresAt ? new Date(gallery.expiresAt) : null;
   const isExpiringSoon =
-    expiresAt && expiresAt.getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
+    Boolean(
+      expiresAt &&
+        clientNow !== null &&
+        expiresAt.getTime() - clientNow < 7 * 24 * 60 * 60 * 1000
+    );
 
   const submitted = Boolean(gallery.selectionsSubmittedAt || gallery.selectionsLocked);
   const isFinalDelivery = gallery.galleryType === "FINAL_DELIVERY";

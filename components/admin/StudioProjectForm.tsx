@@ -217,7 +217,14 @@ export default function StudioProjectForm({ projectId }: Props) {
   }, [projectId]);
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void load();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   function yearNumber(): number {

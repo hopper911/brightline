@@ -44,6 +44,12 @@ export const DEFAULT_ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: "Deliver",
     items: [
       {
+        id: "client_deliveries",
+        label: "Client deliveries",
+        href: "/admin/delivery",
+        visible: true,
+      },
+      {
         id: "gallery_delivery",
         label: "Gallery delivery",
         href: "/admin/galleries",

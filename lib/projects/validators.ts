@@ -1,5 +1,6 @@
 /**
- * Lightweight runtime checks for automation payloads (zod is not a project dependency).
+ * Lightweight runtime checks for automation payloads.
+ * Heavier validation uses **zod** in route handlers where appropriate; see `package.json`.
  * Authoritative validation still happens in `lib/studio/studio-project-cms.ts` on write.
  */
 

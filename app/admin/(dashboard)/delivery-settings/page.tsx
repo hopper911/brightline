@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import DeliveryImageGuide from "@/components/admin/DeliveryImageGuide";
 import { hasAdminAccess } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,20 @@ export default async function DeliverySettingsPage() {
       <h1 className="mt-2 font-display text-4xl">Delivery settings</h1>
 
       <div className="mt-10 space-y-8 rounded-2xl border border-white/10 bg-white/5 p-8 text-sm leading-7 text-white/70">
+        <section>
+          <h2 className="text-xs uppercase tracking-[0.2em] text-white/50">Client delivery packages</h2>
+          <p className="mt-2">
+            Manage work-linked packages, preset exports, and delivery email from the{" "}
+            <Link href="/admin/delivery" className="text-emerald-300 underline">
+              Client deliveries
+            </Link>{" "}
+            hub.
+          </p>
+          <div className="mt-6">
+            <DeliveryImageGuide compact />
+          </div>
+        </section>
+
         <section>
           <h2 className="text-xs uppercase tracking-[0.2em] text-white/50">Client portal</h2>
           <p className="mt-2">
@@ -54,8 +69,8 @@ export default async function DeliverySettingsPage() {
           <h2 className="text-xs uppercase tracking-[0.2em] text-white/50">Shortcuts</h2>
           <ul className="mt-2 list-inside list-disc space-y-2">
             <li>
-              <Link href="/admin/galleries" className="text-emerald-300 underline">
-                Gallery delivery
+              <Link href="/admin/delivery" className="text-emerald-300 underline">
+                Client deliveries (work packages)
               </Link>
             </li>
             <li>

@@ -28,8 +28,12 @@
     "sheet:verify": "node ../tools/verify-sheet-api.mjs",
     "studio-os:verify": "node scripts/verify-studio-os-api.mjs",
     "deploy:prod": "bash scripts/deploy-prod.sh",
+    "deploy:prod:go": "BRIGHTLINE_PROD_DEPLOY=DEPLOY bash scripts/deploy-prod.sh",
     "deploy:prod:studio-os": "REQUIRED_GIT_BRANCH=studio-os-cms-production-20260425 bash scripts/deploy-prod.sh",
-    "deploy:check": "node scripts/check-prod-deploy-ready.mjs"
+    "deploy:prod:go:studio-os": "BRIGHTLINE_PROD_DEPLOY=DEPLOY REQUIRED_GIT_BRANCH=studio-os-cms-production-20260425 bash scripts/deploy-prod.sh",
+    "deploy:prod:go:studio-os:nogit": "SKIP_GIT_CHECKS=1 BRIGHTLINE_PROD_DEPLOY=DEPLOY REQUIRED_GIT_BRANCH=studio-os-cms-production-20260425 bash scripts/deploy-prod.sh",
+    "deploy:check": "node scripts/check-prod-deploy-ready.mjs",
+    "deploy:check:env": "DEPLOY_CHECK_LOAD_DOTENV=1 node scripts/check-prod-deploy-ready.mjs"
   },
   "dependencies": {
     "@aws-crypto/crc32c": "^5.2.0",
@@ -63,7 +67,8 @@
     "tslib": "^2.8.1",
     "vercel": "^52.2.0",
     "web-vitals": "^4.2.4",
-    "yet-another-react-lightbox": "^3.28.0"
+    "yet-another-react-lightbox": "^3.28.0",
+    "zod": "^3.24.4"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "16.1.5",

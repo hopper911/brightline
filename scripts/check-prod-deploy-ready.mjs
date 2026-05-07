@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 /**
  * Pre-flight checklist for production deploy (read-only; no migrations run).
- * Does not load .env — use explicit exports if you need to verify against a specific database.
  *
- * Usage: npm run deploy:check
+ * By default does **not** load `.env` (avoids hitting the wrong DB by accident).
+ * Set `DEPLOY_CHECK_LOAD_DOTENV=1` to merge `.env` → `.env.local` → `.env.production.local`
+ * (same order as `scripts/deploy-prod.sh`) and verify vars + migrate status.
+ *
+ * Usage:
+ *   npm run deploy:check
+ *   npm run deploy:check:env
+ *
  * Optional: REQUIRED_GIT_BRANCH=my-branch (default: main, must match deploy-prod.sh)
  */
+import dotenv from "dotenv";
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "path";
@@ -14,6 +21,17 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 const requiredBranch = process.env.REQUIRED_GIT_BRANCH?.trim() || "main";
+
+if (
+  process.env.DEPLOY_CHECK_LOAD_DOTENV === "1" ||
+  process.env.DEPLOY_CHECK_LOAD_DOTENV === "true"
+) {
+  dotenv.config({ path: path.join(root, ".env") });
+  dotenv.config({ path: path.join(root, ".env.local"), override: true });
+  dotenv.config({ path: path.join(root, ".env.production.local"), override: true });
+  console.log("(Loaded .env / .env.local / .env.production.local for this check — same merge as deploy-prod.sh.)");
+  console.log("");
+}
 
 function line(symbol, message) {
   console.log(`${symbol} ${message}`);
@@ -165,7 +183,7 @@ const migrateHint = prismaMigrateStatusHint();
 if (migrateHint === "skipped") {
   line(
     "⚠️ ",
-    "Prisma migrate status: skipped (set DATABASE_URL + DIRECT_URL in this shell to check). This script does not load .env — avoids checking the wrong database by accident."
+    "Prisma migrate status: skipped (set DATABASE_URL + DIRECT_URL — export in shell or run with DEPLOY_CHECK_LOAD_DOTENV=1 / npm run deploy:check:env)."
   );
   warnings.push("migrate-status-skipped");
 } else if (migrateHint === "synced") {

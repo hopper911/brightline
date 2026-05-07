@@ -31,8 +31,9 @@ function ServicePreviewMedia({ src, title }: { src: string; title: string }) {
     );
   }
 
-  // eslint-disable-next-line @next/next/no-img-element
   return (
+    // Admin-style preview: R2/external URLs; next/image domains would require config churn.
+    // eslint-disable-next-line @next/next/no-img-element -- dynamic R2/CMS URLs
     <img src={resolved} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
   );
 }

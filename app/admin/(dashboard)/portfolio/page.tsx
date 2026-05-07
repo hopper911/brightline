@@ -113,13 +113,25 @@ export default function AdminPortfolioPage() {
   );
 
   useEffect(() => {
-    if (!isEditing) {
-      setSlug(safeSlug);
-    }
+    if (isEditing) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setSlug(safeSlug);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [safeSlug, isEditing]);
 
   useEffect(() => {
-    void loadProjects();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void loadProjects();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function loadProjects() {
@@ -835,6 +847,7 @@ export default function AdminPortfolioPage() {
                   key={img.id}
                   className="grid gap-3 rounded-xl border border-black/10 bg-white p-3 md:grid-cols-[96px_1fr_auto]"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- admin form: existing gallery URLs */}
                   <img
                     src={img.url}
                     alt={img.alt ?? ""}

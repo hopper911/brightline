@@ -1,7 +1,10 @@
 import path from "path";
+import { createRequire } from "module";
 import { loadEnvConfig } from "@next/env";
 import type { NextConfig } from "next";
 import { mergeParentDotenvIntoProcess } from "./lib/merge-parent-dotenv";
+
+const require = createRequire(import.meta.url);
 
 // Repo-root `.env.local` (parent of this app): `next dev` cwd is `brightline/brightline`, so default
 // Next env loading misses variables only defined one level up. Vercel injects env — skip there.
@@ -44,6 +47,14 @@ const nextConfig: NextConfig = {
       ...(config.ignoreWarnings ?? []),
       { module: /@opentelemetry[\\/].*instrumentation/ },
     ];
+    // Align `@opentelemetry/api` with Next's compiled tracer fallback. A broken or mismatched
+    // hoisted copy can make `require('@opentelemetry/api')` "succeed" but omit
+    // `createContextKey` → `TypeError: api.createContextKey is not a function` during build/runtime.
+    const nextRoot = path.dirname(require.resolve("next/package.json"));
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@opentelemetry/api": path.join(nextRoot, "dist/compiled/@opentelemetry/api"),
+    };
     return config;
   },
   env: {

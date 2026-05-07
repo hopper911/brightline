@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { recomputeDeliveryItemPerformance } from "@/lib/delivery/db";
+import { recordEngagementEvent } from "@/lib/engagement/recordEvent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +57,17 @@ export async function POST(
       ipAddress: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
       userAgent: h.get("user-agent"),
     },
+  });
+
+  recordEngagementEvent({
+    surface: "delivery_package",
+    eventType: eventType === "image_viewed" ? "delivery.image_viewed" : "delivery.image_clicked",
+    studioProjectId: pkg.projectId,
+    deliveryPackageId: pkg.id,
+    deliveryPackageItemId: item.id,
+    durationMs: durationMs ?? undefined,
+    clickOrder: clickOrder ?? undefined,
+    meta: { accessToken },
   });
 
   await prisma.deliveryPackageItem.update({

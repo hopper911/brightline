@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireProjectsApiAuth } from "@/lib/api/automation-auth";
+import { guardProjectsApiJson } from "@/lib/api/guards";
 import { listStudioProjectsForAdmin } from "@/lib/studio/studio-project-cms";
+import { apiLog } from "@/lib/observability/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,13 +15,11 @@ function jsonNoStore(body: unknown, init?: { status?: number }) {
 
 /**
  * List Studio CMS projects (admin / automation).
- * Query: `category` (substring match), `published` (`true` | `false` | omit for all)
+ * Query: `category` (substring match), `published` (`true` | `false` | omit for all), `limit`, `offset`
  */
 export async function GET(req: Request) {
-  const auth = await requireProjectsApiAuth(req);
-  if (!auth.ok) {
-    return jsonNoStore({ ok: false, error: auth.error }, { status: auth.status });
-  }
+  const denied = await guardProjectsApiJson(req);
+  if (denied) return denied;
 
   try {
     const url = new URL(req.url);
@@ -30,10 +29,25 @@ export async function GET(req: Request) {
     if (pub === "true") published = true;
     else if (pub === "false") published = false;
 
-    const projects = await listStudioProjectsForAdmin({ category, published });
-    return jsonNoStore({ ok: true, projects });
+    const limitRaw = url.searchParams.get("limit");
+    const offsetRaw = url.searchParams.get("offset");
+    const limit = limitRaw != null ? Number(limitRaw) : undefined;
+    const offset = offsetRaw != null ? Number(offsetRaw) : undefined;
+
+    const { rows, hasMore } = await listStudioProjectsForAdmin({
+      category,
+      published,
+      limit: Number.isFinite(limit) ? limit : undefined,
+      offset: Number.isFinite(offset) ? offset : undefined,
+    });
+    apiLog("api.projects.list", "info", "ok", {
+      count: rows.length,
+      hasMore,
+    });
+    return jsonNoStore({ ok: true, projects: rows, hasMore });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to list projects.";
+    apiLog("api.projects.list", "error", "failed", { message: msg });
     return jsonNoStore({ ok: false, error: msg }, { status: 500 });
   }
 }

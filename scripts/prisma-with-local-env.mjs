@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
- * Runs Prisma CLI with the same env merge order Next uses: `.env`, then `.env.local`
- * (later overrides earlier). Prisma's default CLI only loads `.env`, which breaks when
- * `DATABASE_URL` lives only in `.env.local` or overrides the base file.
+ * Runs Prisma CLI with the same env merge order as `scripts/deploy-prod.sh`: `.env`,
+ * then `.env.local`, then `.env.production.local` (later overrides earlier).
  */
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -15,6 +14,7 @@ const brightlineRoot = join(__dirname, "..");
 
 dotenv.config({ path: join(brightlineRoot, ".env") });
 dotenv.config({ path: join(brightlineRoot, ".env.local"), override: true });
+dotenv.config({ path: join(brightlineRoot, ".env.production.local"), override: true });
 
 const prismaArgs = process.argv.slice(2);
 if (prismaArgs.length === 0) {

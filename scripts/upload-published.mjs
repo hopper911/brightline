@@ -262,7 +262,7 @@ async function main() {
     try {
       fs.renameSync(full, dest);
       archived++;
-    } catch (e) {
+    } catch {
       try {
         fs.copyFileSync(full, dest);
         fs.unlinkSync(full);
@@ -278,7 +278,7 @@ async function main() {
     try {
       fs.renameSync(full, dest);
       archived++;
-    } catch (e) {
+    } catch {
       try {
         fs.copyFileSync(full, dest);
         fs.unlinkSync(full);

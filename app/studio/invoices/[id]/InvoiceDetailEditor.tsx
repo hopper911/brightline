@@ -191,7 +191,14 @@ export function InvoiceDetailEditor({
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    setBillClientId(invoice.clientId);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setBillClientId(invoice.clientId);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [invoice.clientId]);
 
   const projectOptions = useMemo(

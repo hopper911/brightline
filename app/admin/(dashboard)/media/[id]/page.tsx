@@ -64,6 +64,7 @@ export default async function AdminMediaDetailPage({
                   preload="metadata"
                 />
               ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- admin media preview URL from R2
                 <img
                   src={previewUrl}
                   alt={media.alt ?? ""}

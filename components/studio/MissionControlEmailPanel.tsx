@@ -51,9 +51,16 @@ export function MissionControlEmailPanel({
   const [text, setText] = useState("");
 
   useEffect(() => {
-    const list = status.allowedFromEmails ?? [];
-    const d = status.defaultFromEmail ?? list[0] ?? "";
-    setFrom((prev) => (list.includes(prev) ? prev : d));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const list = status.allowedFromEmails ?? [];
+      const d = status.defaultFromEmail ?? list[0] ?? "";
+      setFrom((prev) => (list.includes(prev) ? prev : d));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [status.defaultFromEmail, status.allowedFromEmails]);
 
   async function syncInbox() {

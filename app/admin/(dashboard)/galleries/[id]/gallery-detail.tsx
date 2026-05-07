@@ -192,31 +192,34 @@ export default function GalleryDetail({ initialGallery }: { initialGallery: Gall
 
   useEffect(() => {
     if (tab !== "activity") return;
-    let active = true;
-    setActivityLoading(true);
-    void (async () => {
-      try {
-        const res = await fetch(`/api/admin/galleries/${gallery.id}/activity`, {
-          credentials: "include",
-        });
-        const data = (await res.json()) as {
-          ok?: boolean;
-          logs?: typeof activityLogs;
-          downloads?: typeof activityDownloads;
-        };
-        if (!active) return;
-        if (data.ok) {
-          setActivityLogs(data.logs ?? []);
-          setActivityDownloads(data.downloads ?? []);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setActivityLoading(true);
+      void (async () => {
+        try {
+          const res = await fetch(`/api/admin/galleries/${gallery.id}/activity`, {
+            credentials: "include",
+          });
+          const data = (await res.json()) as {
+            ok?: boolean;
+            logs?: typeof activityLogs;
+            downloads?: typeof activityDownloads;
+          };
+          if (cancelled) return;
+          if (data.ok) {
+            setActivityLogs(data.logs ?? []);
+            setActivityDownloads(data.downloads ?? []);
+          }
+        } catch {
+          if (!cancelled) setError("Could not load activity.");
+        } finally {
+          if (!cancelled) setActivityLoading(false);
         }
-      } catch {
-        if (active) setError("Could not load activity.");
-      } finally {
-        if (active) setActivityLoading(false);
-      }
-    })();
+      })();
+    });
     return () => {
-      active = false;
+      cancelled = true;
     };
   }, [gallery.id, tab]);
 
@@ -1168,6 +1171,7 @@ export default function GalleryDetail({ initialGallery }: { initialGallery: Gall
                   >
                     <div className="flex min-w-[260px] items-center gap-3">
                       <div className="h-14 w-14 overflow-hidden rounded-lg bg-black/40">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- admin gallery: arbitrary R2 URLs */}
                         <img
                           src={(img.thumbUrl || img.fullUrl || img.url) as string}
                           alt={img.alt ?? ""}

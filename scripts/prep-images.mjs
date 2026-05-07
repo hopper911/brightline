@@ -127,13 +127,11 @@ if (fullFiles.length !== thumbFiles.length) {
 
 const count = fullFiles.length;
 let yyyymmdd = dateOverride;
-let usedToday = false;
 
 if (!yyyymmdd && count > 0) {
   yyyymmdd = readExifDate(path.join(INCOMING_FULL, fullFiles[0]));
   if (!yyyymmdd) {
     yyyymmdd = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    usedToday = true;
     console.warn(
       "⚠️ No EXIF date and --date not provided. Using today: " + yyyymmdd
     );

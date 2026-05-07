@@ -43,6 +43,9 @@ export type PriorityProject = {
   contentPosted: boolean;
   reusableLater: boolean;
   isPublicReady: boolean;
+  /** For profitability / health scoring (optional for backward compat). */
+  totalPrice?: { toString(): string };
+  amountPaid?: { toString(): string };
 };
 
 export type PriorityClient = {
@@ -78,6 +81,23 @@ export type PriorityEngineOutput = {
   risks: PriorityItem[];
   opportunities: PriorityItem[];
   suggestions: PriorityItem[];
+  /** Deterministic 0–100 scores per Studio project id (operational intelligence). */
+  projectHealth: Record<string, ProjectHealthScores>;
+};
+
+/** Higher is better for health, deliveryReadiness, profitability. Higher productionRisk means more risk. */
+export type ProjectHealthScores = {
+  health: number;
+  productionRisk: number;
+  deliveryReadiness: number;
+  profitability: number | null;
+  factors: {
+    editingStallDays: number;
+    hasUnpaidBalance: boolean;
+    paymentOverdue: boolean;
+    nearDelivery: boolean;
+    status: ProjectStatus;
+  };
 };
 
 const ACTIVE_PROJECT_STATUSES: ProjectStatus[] = [
@@ -102,9 +122,126 @@ function moneyGtZero(value: { toString(): string }): boolean {
   return Number(value.toString()) > 0;
 }
 
-function pushCapped(list: PriorityItem[], item: PriorityItem, cap = 8) {
-  if (list.length < cap) list.push(item);
+function clampScore(n: number): number {
+  return Math.max(0, Math.min(100, Math.round(n)));
 }
+
+function moneyNumber(value: { toString(): string } | undefined): number {
+  if (!value) return 0;
+  return Number(value.toString());
+}
+
+/**
+ * Rule-based scores derived from Studio OS project state (no LLM).
+ */
+export function computeProjectHealthScores(
+  project: PriorityProject,
+  now: Date
+): ProjectHealthScores {
+  const updatedAge = daysBetween(now, project.updatedAt);
+  const deliverySoon =
+    project.deliveryDate != null &&
+    project.deliveryDate >= now &&
+    daysBetween(project.deliveryDate, now) <= 7;
+  const editingStallDays = project.status === "EDITING" ? updatedAge : 0;
+
+  let productionRisk = 0;
+  if (project.status === "EDITING") {
+    productionRisk += Math.min(40, editingStallDays * 3);
+  }
+  if (project.status === "CLIENT_REVIEWING" && updatedAge >= 10) {
+    productionRisk += 20;
+  }
+  if (project.status === "INQUIRY" && updatedAge >= 21) {
+    productionRisk += 25;
+  }
+  if (project.status === "PLANNED" && updatedAge >= 30) {
+    productionRisk += 15;
+  }
+  productionRisk = clampScore(productionRisk);
+
+  let deliveryReadiness = 40;
+  switch (project.status) {
+    case "DELIVERED":
+    case "PUBLISHED":
+      deliveryReadiness = 100;
+      break;
+    case "CASE_STUDY_DRAFT":
+      deliveryReadiness = 92;
+      break;
+    case "FINAL_APPROVED":
+      deliveryReadiness = 88;
+      break;
+    case "CLIENT_REVIEWING":
+      deliveryReadiness = 72;
+      break;
+    case "PROOF_READY":
+      deliveryReadiness = 64;
+      break;
+    case "EDITING":
+    case "INGESTING":
+      deliveryReadiness = 48;
+      break;
+    case "SHOT":
+    case "SCHEDULED":
+      deliveryReadiness = 36;
+      break;
+    case "PLANNED":
+    case "INQUIRY":
+      deliveryReadiness = 28;
+      break;
+    case "ARCHIVED":
+      deliveryReadiness = 20;
+      break;
+    default:
+      deliveryReadiness = 40;
+  }
+  if (deliverySoon && project.status !== "DELIVERED" && project.status !== "PUBLISHED") {
+    deliveryReadiness = clampScore(deliveryReadiness + 12);
+  }
+  deliveryReadiness = clampScore(deliveryReadiness);
+
+  const hasUnpaidBalance = moneyGtZero(project.balanceRemaining);
+  const paymentOverdue = project.paymentStatus === "OVERDUE";
+
+  let profitability: number | null = null;
+  const total = moneyNumber(project.totalPrice);
+  const paid = moneyNumber(project.amountPaid);
+  if (total > 0) {
+    profitability = clampScore((paid / total) * 100);
+    if (paymentOverdue) profitability = clampScore((profitability ?? 0) - 25);
+    else if (hasUnpaidBalance && project.status === "DELIVERED") {
+      profitability = clampScore((profitability ?? 0) - 12);
+    }
+  }
+
+  let health = 100;
+  health -= productionRisk * 0.45;
+  if (paymentOverdue) health -= 22;
+  else if (hasUnpaidBalance && (project.status === "DELIVERED" || project.status === "FINAL_APPROVED")) {
+    health -= 12;
+  }
+  health += (deliveryReadiness - 50) * 0.12;
+  if (profitability != null) {
+    health += (profitability - 70) * 0.08;
+  }
+  health = clampScore(health);
+
+  return {
+    health,
+    productionRisk,
+    deliveryReadiness,
+    profitability,
+    factors: {
+      editingStallDays,
+      hasUnpaidBalance,
+      paymentOverdue,
+      nearDelivery: deliverySoon,
+      status: project.status,
+    },
+  };
+}
+
 
 export function computeStudioPriorities(input: PriorityEngineInput): PriorityEngineOutput {
   const now = input.now ?? new Date();
@@ -112,6 +249,7 @@ export function computeStudioPriorities(input: PriorityEngineInput): PriorityEng
   const risks: PriorityItem[] = [];
   const opportunities: PriorityItem[] = [];
   const suggestions: PriorityItem[] = [];
+  const projectHealth: Record<string, ProjectHealthScores> = {};
   const emailThreads = input.emailThreads ?? [];
 
   for (const thread of emailThreads) {
@@ -164,6 +302,7 @@ export function computeStudioPriorities(input: PriorityEngineInput): PriorityEng
   }
 
   for (const project of input.projects) {
+    projectHealth[project.id] = computeProjectHealthScores(project, now);
     const projectHref = `/admin/projects/${project.id}/edit`;
     const updatedAge = daysBetween(now, project.updatedAt);
     const deliverySoon =
@@ -287,5 +426,6 @@ export function computeStudioPriorities(input: PriorityEngineInput): PriorityEng
     risks: risks.slice(0, 8),
     opportunities: opportunities.slice(0, 8),
     suggestions: suggestions.slice(0, 8),
+    projectHealth,
   };
 }

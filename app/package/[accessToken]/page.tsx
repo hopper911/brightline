@@ -49,7 +49,7 @@ export default async function PackagePage({
   const showPayNow =
     invoice != null && !invoiceIsPaid && invoiceBalanceDue > 0 && Boolean(invoice.paymentUrl);
   const interactiveItems = pkg.items
-    .filter((item) => item.selectedForDelivery)
+    .filter((item) => item.selectedForDelivery && item.variantKey === "")
     .map((item) => {
       const key = item.mediaAsset.keyThumb ?? item.storageKey ?? item.mediaAsset.keyFull;
       return {
@@ -74,10 +74,20 @@ export default async function PackagePage({
       <div className="mx-auto max-w-5xl">
         <p className="text-xs uppercase tracking-[0.35em] text-white/45">BRIGHTLINE PHOTOGRAPHY</p>
         <h1 className="mt-4 font-display text-4xl">{pkg.title}</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">
-          Bright Line delivers a ready-to-use visual system, not just a folder of images.
-        </p>
+        {pkg.deliveryMessage?.trim() ? (
+          <p className="mt-4 max-w-2xl text-base leading-7 text-white/75">{pkg.deliveryMessage.trim()}</p>
+        ) : (
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">
+            Bright Line delivers a ready-to-use visual system, not just a folder of images.
+          </p>
+        )}
         <p className="mt-2 text-sm text-white/45">{pkg.client?.companyName ?? pkg.project.client ?? "Client package"}</p>
+        {pkg.usageRights?.trim() ? (
+          <section className="mt-8 max-w-2xl rounded-xl border border-white/10 bg-white/[0.04] p-5 text-sm leading-6 text-white/70">
+            <h2 className="text-xs uppercase tracking-[0.2em] text-white/45">Usage &amp; rights</h2>
+            <p className="mt-3 whitespace-pre-wrap">{pkg.usageRights.trim()}</p>
+          </section>
+        ) : null}
         <div className="mt-6 flex flex-wrap gap-3">
           <a className="rounded border border-white/20 px-4 py-2 text-sm hover:bg-white hover:text-black" href={`/api/package/${accessToken}/manifest`}>
             Download manifest JSON

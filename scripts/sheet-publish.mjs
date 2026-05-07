@@ -21,19 +21,15 @@ const projectRoot = path.resolve(__dirname, "..");
 // Location, Year, Project_N, Sequence, Filename_Final, R2_Key, R2_Key_Full, R2_Key_Thumb, R2_WEBP,
 // Ready, Alt_Text, Caption, Description, Hero_Image, Orientation, Usage_Type, Year_N, Seq_N, Status, Upload, Error
 const COL_PILLAR = 3;
-const COL_SECTION = 4;
+// Section_Slug=4, Upload=25, Year_N=22, Seq_N=23 (indices documented; unused in script)
 const COL_READY = 15;
 const COL_R2_JPG = 12; // R2_Key_Full
 const COL_R2_WEBP = 14;
 const COL_STATUS = 24;
-const COL_UPLOADED = 25;
-const COL_WIDTH = 22;  // Year_N or computed
-const COL_HEIGHT = 23; // Seq_N or computed
 const COL_ORIENTATION = 20;
 const COL_ALT_TEXT = 16;
 const COL_CAPTION = 17;
 const COL_HERO_IMAGE = 19;
-const COL_ORIENTATION = 20;
 const COL_USAGE_TYPE = 21;
 const COL_TAGS = 27;
 
@@ -241,7 +237,7 @@ async function main() {
   const galleriesBySlug = new Map();
 
   for (let idx = 0; idx < readyRows.length; idx++) {
-    const { sheetRowIndex, row, r2jpg, r2webp, parsed } = readyRows[idx];
+    const { sheetRowIndex, row, r2jpg, parsed } = readyRows[idx];
     const { section, client, seq } = parsed; // section may be derived from pillar
     const localFile = localFiles[idx];
     const localPath = localFile.path;

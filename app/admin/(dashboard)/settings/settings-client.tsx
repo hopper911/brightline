@@ -80,7 +80,16 @@ export default function SettingsClient({
   }
 
   useEffect(() => {
-    void load().catch((e) => setError(e instanceof Error ? e.message : "Load failed"));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void load().catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Load failed");
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function upsertSetting() {

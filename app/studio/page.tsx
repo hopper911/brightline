@@ -4,6 +4,7 @@ import { hasAdminAccess } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { getFinanceOverview } from "@/lib/studio/finance";
 import { computeStudioPriorities } from "@/lib/studio/priorityEngine";
+import { loadStudioProjectsForIntelligence } from "@/lib/studio/intelligence-loader";
 import { getEmailProviderStatus } from "@/lib/integrations/emailProvider";
 import { MissionControlEmailPanel } from "@/components/studio/MissionControlEmailPanel";
 
@@ -70,27 +71,7 @@ export default async function StudioMissionControlPage() {
         convertedProjectId: true,
       },
     }),
-    prisma.studioProject.findMany({
-      orderBy: { updatedAt: "desc" },
-      take: 100,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        client: true,
-        status: true,
-        deliveryDate: true,
-        updatedAt: true,
-        totalPrice: true,
-        amountPaid: true,
-        balanceRemaining: true,
-        paymentStatus: true,
-        contentStatus: true,
-        contentPosted: true,
-        reusableLater: true,
-        isPublicReady: true,
-      },
-    }),
+    loadStudioProjectsForIntelligence(100),
     prisma.studioClient.findMany({
       where: { isActive: true },
       orderBy: { updatedAt: "desc" },

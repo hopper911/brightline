@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
+import { jsonErr, jsonOk, parseJsonBody } from "@/lib/api/http";
 import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
 import { createInquiry, notifyInquiry } from "@/lib/services/contact";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 
@@ -20,25 +20,23 @@ const contactSchema = z.object({
 export async function POST(req: Request) {
   try {
     if (isRateLimited(getClientIp(req))) {
-      return NextResponse.json(
-        { ok: false, error: "Too many requests." },
-        { status: 429 }
-      );
+      return jsonErr("Too many requests.", 429);
     }
 
-    const body = await req.json();
-    const parsed = contactSchema.safeParse(body);
+    const parsedBody = await parseJsonBody(req);
+    if (!parsedBody.ok) return parsedBody.response;
+
+    const parsed = contactSchema.safeParse(parsedBody.value);
     if (!parsed.success) {
-      return NextResponse.json(
-        { ok: false, error: parsed.error.issues[0]?.message || "Invalid input." },
-        { status: 400 }
-      );
+      return jsonErr(parsed.error.issues[0]?.message || "Invalid input.", 400, {
+        code: "validation_error",
+      });
     }
 
     const { companyWebsite, ...data } = parsed.data;
 
     if (companyWebsite) {
-      return NextResponse.json({ ok: true });
+      return jsonOk({});
     }
 
     await createInquiry({
@@ -67,11 +65,8 @@ export async function POST(req: Request) {
       console.error("Contact email failed", emailError);
     }
 
-    return NextResponse.json({ ok: true });
+    return jsonOk({});
   } catch {
-    return NextResponse.json(
-      { ok: false, error: "Something went wrong." },
-      { status: 500 }
-    );
+    return jsonErr("Something went wrong.", 500);
   }
 }

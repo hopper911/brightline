@@ -11,14 +11,39 @@ cd /path/to/brightline   # directory with package.json
 
 export DATABASE_URL="…"   # production database (see Neon below)
 export DIRECT_URL="…"    # required by prisma/schema.prisma (direct connection)
+```
 
+Or put both in **`.env`**, **`.env.local`**, or **`.env.production.local`** (gitignored). The deploy script loads those files in that order (later wins) if the variables are not already set in your shell—so **`npm run deploy:prod:go*`** often works without manually `export`ing.
+
+```bash
 # Optional: if production is not `main`
 # export REQUIRED_GIT_BRANCH=your-branch
 
 npm run deploy:prod
 ```
 
-You will be asked to type **`DEPLOY`** exactly to continue.
+You will be asked to type **`DEPLOY`** exactly to continue — unless you set **`BRIGHTLINE_PROD_DEPLOY=DEPLOY`** (see [Non-interactive / one-shot](#non-interactive--one-shot) below).
+
+---
+
+## Non-interactive / one-shot
+
+From the same app root, ensure **`DATABASE_URL`** and **`DIRECT_URL`** are available (shell **or** `.env` / `.env.local` / `.env.production.local` as above).
+
+```bash
+# main branch, clean tree
+npm run deploy:prod:go
+```
+
+If production tracks **`studio-os-cms-production-20260425`**:
+
+```bash
+npm run deploy:prod:go:studio-os
+```
+
+If **`git status`** fails with **mmap / timed out** (often iCloud Desktop), use **`npm run deploy:prod:go:studio-os:nogit`** instead — see [Git mmap on iCloud or network drives](#git-mmap-on-icloud-or-network-drives).
+
+These set `BRIGHTLINE_PROD_DEPLOY=DEPLOY` so the script does not prompt. For a **dirty** tree (not recommended), combine with `ALLOW_DIRTY_WORKTREE=1` as before.
 
 ---
 
@@ -85,7 +110,7 @@ Never paste production secrets into tickets, chat, or Git.
 2. **Working tree is clean** (including no untracked files).
 3. Current branch matches **`main`**, or **`REQUIRED_GIT_BRANCH`** if you set it.
 4. **`DATABASE_URL`** and **`DIRECT_URL`** are set in the environment.
-5. After you type **`DEPLOY`**: runs `npx prisma migrate deploy`, then `vercel deploy --prod`.
+5. Interactive: you type **`DEPLOY`**, or non-interactive: **`BRIGHTLINE_PROD_DEPLOY=DEPLOY`**. Then: runs `npx prisma migrate deploy`, then `vercel deploy --prod --yes`.
 
 If any check fails, the script exits and does not deploy.
 
@@ -117,6 +142,26 @@ If migrations **succeeded** but **Vercel deploy** failed, your production databa
 - **Git** with a clean tree on the allowed branch.
 - **Vercel CLI** installed and logged in (`vercel login`) for the team/project you deploy to.
 - Production **DATABASE_URL** and **DIRECT_URL** available in your environment for the migrate step.
+
+Quick check (loads `.env` files like `deploy-prod.sh`): **`npm run deploy:check:env`**. Fix any blocking lines before **`npm run deploy:prod:go:studio-os`** or **`…:nogit`**.
+
+---
+
+## Git mmap on iCloud or network drives
+
+Common when the repo lives under **iCloud Desktop/Documents**, **Dropbox**, or another sync/network path. `git status` can fail even though `git rev-parse` works.
+
+**Best fix:** move or re-clone the project to a normal local folder (e.g. `~/Developer/brightline`), then deploy as usual.
+
+**Workaround:** skip Git safety checks (you will **not** verify a clean tree or branch):
+
+```bash
+SKIP_GIT_CHECKS=1 npm run deploy:prod:go:studio-os
+# or
+npm run deploy:prod:go:studio-os:nogit
+```
+
+Use only if you accept the risk of migrating/deploying from the wrong branch or with uncommitted changes.
 
 ---
 

@@ -53,7 +53,14 @@ export default function AdminProjectsListPage() {
   }, [statusFilter, categoryFilter]);
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void load();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   async function togglePublish(id: string, next: boolean) {

@@ -78,7 +78,7 @@ function watchFile(file) {
   if (!fs.existsSync(full)) return;
   try {
     fs.watch(full, () => scheduleDeploy());
-  } catch (_) { /* ignore */ }
+  } catch { /* ignore */ }
 }
 
 try {

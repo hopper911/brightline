@@ -41,7 +41,10 @@ export type StudioProjectListRow = {
 export async function listStudioProjectsForAdmin(filters: {
   category?: string;
   published?: boolean | null;
-}): Promise<StudioProjectListRow[]> {
+  /** Default 50; max 100 */
+  limit?: number;
+  offset?: number;
+}): Promise<{ rows: StudioProjectListRow[]; hasMore: boolean }> {
   const where: Prisma.StudioProjectWhereInput = {};
   const cat = filters.category?.trim();
   if (cat) {
@@ -49,9 +52,15 @@ export async function listStudioProjectsForAdmin(filters: {
   }
   if (filters.published === true) where.published = true;
   if (filters.published === false) where.published = false;
-  return prisma.studioProject.findMany({
+
+  const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
+  const offset = Math.max(filters.offset ?? 0, 0);
+
+  const rows = await prisma.studioProject.findMany({
     where,
     orderBy: { updatedAt: "desc" },
+    skip: offset,
+    take: limit + 1,
     select: {
       id: true,
       title: true,
@@ -66,6 +75,12 @@ export async function listStudioProjectsForAdmin(filters: {
       updatedAt: true,
     },
   });
+
+  const hasMore = rows.length > limit;
+  return {
+    rows: hasMore ? rows.slice(0, limit) : rows,
+    hasMore,
+  };
 }
 
 /** Resolve `gallery` JSON into ordered `MediaAsset` rows for admin UI. */

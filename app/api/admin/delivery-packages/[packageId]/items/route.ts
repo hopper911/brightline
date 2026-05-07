@@ -29,12 +29,21 @@ export async function POST(
     orderBy: { sortOrder: "desc" },
     select: { sortOrder: true },
   });
+  const variantKey = cleanText(body.variantKey) ?? "";
+
   const item = await prisma.deliveryPackageItem.upsert({
-    where: { deliveryPackageId_mediaAssetId: { deliveryPackageId: packageId, mediaAssetId } },
+    where: {
+      deliveryPackageId_mediaAssetId_variantKey: {
+        deliveryPackageId: packageId,
+        mediaAssetId,
+        variantKey,
+      },
+    },
     update: { selectedForDelivery: true },
     create: {
       deliveryPackageId: packageId,
       mediaAssetId,
+      variantKey,
       deliveryGroup: normalizeDeliveryGroup(body.deliveryGroup) ?? "archive",
       altText: media.alt,
       storageKey: media.keyFull,

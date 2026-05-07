@@ -1,4 +1,6 @@
-import OpenAI, { APIError } from "openai";
+import { ALT_TEXT_SINGLE_IMAGE } from "@/lib/ai/prompts";
+import { runAiChatCompletion } from "@/lib/ai/ops";
+import { createOpenAiClient, resolveOpenAiChatModel } from "@/lib/ai/runtime";
 
 export type AltTextProjectContext = {
   clientName?: string;
@@ -92,24 +94,23 @@ function normalizeAltText(raw: string) {
   );
 }
 
-export async function generateAltText(input: GenerateAltTextInput, origin: string) {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    throw Object.assign(new Error("AI generation is not configured."), { status: 500 });
-  }
-
+export async function generateAltText(
+  input: GenerateAltTextInput,
+  origin: string,
+  opsContext?: { projectId?: string; createdBy?: string }
+) {
   const dataUrl = await imageUrlToDataUrl(input.imageUrl, origin);
-  const openai = new OpenAI({ apiKey });
-  const model = process.env.OPENAI_VISION_MODEL?.trim() || process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
+  const openai = createOpenAiClient();
+  const model = resolveOpenAiChatModel();
 
-  try {
-    const completion = await openai.chat.completions.create({
+  const completion = await runAiChatCompletion(
+    openai,
+    {
       model,
       messages: [
         {
           role: "system",
-          content:
-            "Write concise alt text for a commercial photography project image. Describe what is visible. Keep it natural, specific, and under 125 characters when possible. Do not keyword stuff. Mention client or location only if useful. Do not start with 'image of' or 'photo of'. Return only the alt text.",
+          content: ALT_TEXT_SINGLE_IMAGE.systemPrompt,
         },
         {
           role: "user",
@@ -128,25 +129,25 @@ export async function generateAltText(input: GenerateAltTextInput, origin: strin
           ],
         },
       ],
-    });
+    },
+    {
+      taskType: "alt_text.single_image",
+      promptId: ALT_TEXT_SINGLE_IMAGE.id,
+      promptVersion: ALT_TEXT_SINGLE_IMAGE.version,
+      projectId: opsContext?.projectId ?? null,
+      createdBy: opsContext?.createdBy ?? "admin",
+      inputSummary: {
+        hasImageUrl: true,
+        hasClient: !!input.projectContext.clientName,
+        hasTitle: !!input.projectContext.projectTitle,
+      },
+    }
+  );
 
-    const altText = normalizeAltText(completion.choices[0]?.message?.content ?? "");
-    if (!altText) {
-      throw new Error("AI did not return alt text.");
-    }
-    return { altText };
-  } catch (err: unknown) {
-    if (err instanceof APIError) {
-      const status = err.status === 429 ? 429 : err.status === 408 ? 504 : 502;
-      const message =
-        err.status === 429
-          ? "Rate limited by the model provider. Try again shortly."
-          : err.status === 401 || err.status === 403
-            ? "Model provider rejected credentials."
-            : "AI alt text generation failed.";
-      throw Object.assign(new Error(message), { status });
-    }
-    throw err;
+  const altText = normalizeAltText(completion.choices[0]?.message?.content ?? "");
+  if (!altText) {
+    throw new Error("AI did not return alt text.");
   }
+  return { altText };
 }
 

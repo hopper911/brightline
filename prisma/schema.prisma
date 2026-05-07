@@ -456,6 +456,29 @@ model GalleryDownload {
   token   GalleryAccessToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
 }
 
+/// Cross-surface client engagement (delivery package + proof gallery) for analytics and future AI summaries.
+model EngagementEvent {
+  id                    String   @id @default(cuid())
+  surface               String
+  eventType             String
+  studioProjectId       String?
+  deliveryPackageId     String?
+  deliveryPackageItemId String?
+  galleryId             String?
+  galleryAccessTokenId  String?
+  imageId               String?
+  durationMs            Int?
+  clickOrder            Int?
+  meta                  Json?
+  createdAt             DateTime @default(now())
+
+  @@index([surface, createdAt])
+  @@index([eventType, createdAt])
+  @@index([studioProjectId, createdAt])
+  @@index([deliveryPackageId, createdAt])
+  @@index([galleryId, createdAt])
+}
+
 // Work system (5-section taxonomy)
 enum WorkSection {
   ACD
@@ -497,6 +520,7 @@ model WorkProject {
   media               ProjectMedia[]
   copyVersions        ProjectCopyVersion[]
   aiGenerations       AiGeneration[]
+  aiInvocations       AiInvocation[]
   deliveryPackages    DeliveryPackage[]
   followUpSchedules   FollowUpSchedule[]
   createdAt           DateTime       @default(now())
@@ -656,6 +680,7 @@ model StudioProject {
   clientPortalGalleries Gallery[]           @relation("ClientPortalGalleryToStudioProject")
   StudioLead            StudioLead[]
   emailThreads          StudioEmailThread[]
+  projectHealthSnapshots ProjectHealthSnapshot[]
 
   @@index([published])
   @@index([featured])
@@ -664,6 +689,24 @@ model StudioProject {
   @@index([paymentStatus])
   @@index([contentStatus])
   @@index([followUpAt])
+}
+
+/// Daily rollup of deterministic Studio project health scores (Mission Control intelligence).
+model ProjectHealthSnapshot {
+  id                     String   @id @default(cuid())
+  studioProjectId        String
+  dateBucket             DateTime
+  healthScore            Int
+  productionRiskScore  Int
+  deliveryReadinessScore Int
+  profitabilityScore     Int?
+  factors                Json
+  createdAt              DateTime @default(now())
+
+  project StudioProject @relation(fields: [studioProjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studioProjectId, dateBucket])
+  @@index([dateBucket])
 }
 
 // Studio OS (internal) — normalized Client record.
@@ -825,6 +868,34 @@ model AiGeneration {
   @@index([fieldKey])
 }
 
+/// Structured audit log for AI chat calls (ops layer). Opt out with AI_OPS_UNIFIED=0.
+model AiInvocation {
+  id               String    @id @default(cuid())
+  taskType         String
+  promptId         String
+  promptVersion    Int
+  modelUsed        String?
+  entityType       String?
+  entityId         String?
+  projectId        String?
+  workspaceId      String?
+  status           String
+  errorCode        String?
+  latencyMs        Int
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  inputHash        String?
+  createdBy        String?
+  createdAt        DateTime  @default(now())
+
+  project WorkProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([taskType, createdAt])
+  @@index([projectId, createdAt])
+  @@index([promptId, promptVersion])
+}
+
 model DeliveryPackage {
   id           String      @id @default(cuid())
   projectId    String
@@ -835,6 +906,12 @@ model DeliveryPackage {
   expiresAt    DateTime?
   deliveryDate DateTime?
   notes        String?
+  /// Client-facing license / usage summary (HTML or plain text).
+  usageRights     String?
+  /// Hero copy on the client delivery page.
+  deliveryMessage String?
+  /// Optional vanity path segment; keep unguessable. Client can use `/delivery/[publicSlug]` → redirects to token URL.
+  publicSlug      String?     @unique
   manifestJSON Json?
   marketingExportJSON Json?
   visualStrategyReportJSON Json?
@@ -858,6 +935,8 @@ model DeliveryPackageItem {
   id                  String          @id @default(cuid())
   deliveryPackageId   String
   mediaAssetId        String
+  /// Empty string = primary row per media; export presets use preset id (e.g. `hero_desktop`).
+  variantKey          String          @default("")
   deliveryGroup       String          @default("archive")
   usageSuggestion     String?
   clientFacingCaption String?
@@ -890,7 +969,7 @@ model DeliveryPackageItem {
   accessLogs      PackageAccessLog[]
   feedback        DeliveryPackageItemFeedback[]
 
-  @@unique([deliveryPackageId, mediaAssetId])
+  @@unique([deliveryPackageId, mediaAssetId, variantKey])
   @@index([deliveryPackageId, deliveryGroup])
   @@index([mediaAssetId])
   @@index([selectedForDelivery])

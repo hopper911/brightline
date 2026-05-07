@@ -101,9 +101,16 @@ export default function R2BrowserModal({
 
   useEffect(() => {
     if (!isOpen || !initialCustomPrefix?.trim()) return;
-    setSource("custom");
-    const p = initialCustomPrefix.trim().replace(/^\//, "");
-    setCustomPrefix(p.endsWith("/") ? p : `${p}/`);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSource("custom");
+      const p = initialCustomPrefix.trim().replace(/^\//, "");
+      setCustomPrefix(p.endsWith("/") ? p : `${p}/`);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, initialCustomPrefix]);
 
   useEffect(() => {
@@ -172,13 +179,16 @@ export default function R2BrowserModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    setError("");
-    setErrorDetails(null);
-    setKeys([]);
-    setSelected(new Set());
-    setLastFailureDetails(null);
-    if (source === "custom" && !customPrefix.trim()) return;
-    async function load() {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setError("");
+      setErrorDetails(null);
+      setKeys([]);
+      setSelected(new Set());
+      setLastFailureDetails(null);
+      if (source === "custom" && !customPrefix.trim()) return;
+      async function load() {
       setLoading(true);
       const env =
         typeof window !== "undefined" && window.location?.hostname === "localhost"
@@ -291,8 +301,12 @@ export default function R2BrowserModal({
       } finally {
         setLoading(false);
       }
-    }
-    void load();
+      }
+      void load();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [
     isOpen,
     pillar,

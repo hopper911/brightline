@@ -1,28 +1,34 @@
-import { NextResponse } from "next/server";
+import { jsonErr, jsonOk } from "@/lib/api/http";
+import { guardCronBearer } from "@/lib/api/guards";
 import { sendDueFollowUps } from "@/lib/followups";
+import { apiLog } from "@/lib/observability/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function authorized(req: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return process.env.NODE_ENV !== "production";
-  return req.headers.get("authorization") === `Bearer ${secret}`;
-}
-
 export async function GET(req: Request) {
-  if (!authorized(req)) {
-    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
-  }
+  const denied = guardCronBearer(req);
+  if (denied) return denied;
+
   try {
     const result = await sendDueFollowUps();
-    return NextResponse.json({ ok: true, ...result });
+    apiLog("cron.followups", "info", "completed", {
+      checked: result.checked,
+      sent: result.sent,
+      failed: result.failed,
+    });
+    return jsonOk({
+      checked: result.checked,
+      sent: result.sent,
+      failed: result.failed,
+    });
   } catch (err) {
-    console.error("FOLLOWUP_CRON_ERROR", err);
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Follow-up cron failed." },
-      { status: 500 }
+    apiLog("cron.followups", "error", "failed", {
+      message: err instanceof Error ? err.message : "unknown",
+    });
+    return jsonErr(
+      err instanceof Error ? err.message : "Follow-up cron failed.",
+      500
     );
   }
 }
-

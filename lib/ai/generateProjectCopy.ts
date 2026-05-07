@@ -1,4 +1,7 @@
 import OpenAI, { APIError } from "openai";
+import { PROJECT_COPY_EDITORIAL, PROJECT_COPY_REPAIR_ALL_FIELDS } from "@/lib/ai/prompts";
+import { runAiChatCompletion } from "@/lib/ai/ops";
+import { createOpenAiClient } from "@/lib/ai/runtime";
 
 export const PROJECT_COPY_FIELD_KEYS = [
   "opening",
@@ -306,18 +309,6 @@ const BRIEF_PATCH_INSTRUCTIONS: Record<GenerateAllBriefKey, string> = {
     "Short synthesized brief recap (goals, constraints, standout directions); not duplicate of other brief keys.",
 };
 
-const SYSTEM_PROMPT = `You are the senior editorial strategist for BRIGHTLINE Photography, a high-end commercial photography studio in New Jersey and the New York metro.
-
-Write polished project copy that is editorial, strategic, modern, clear, high-end, and commercially useful.
-
-Avoid generic AI language and these phrases: elevate your brand, capture the essence, stunning visuals, unforgettable moments, cutting-edge, game-changing, leverage, seamless experience, bespoke unless it truly fits.
-
-Use confident, clean photography language. Do not invent fake awards, fake locations, fake collaborators, or fake client claims. Do not claim "industry-leading" unless provided.
-
-Return JSON only. No markdown. No explanations. Respect the field-specific length and format rules.
-
-When the task requests mandatory non-empty output: every listed string field MUST contain substantive text—never empty strings, placeholders, or "N/A".`;
-
 const TONE_INSTRUCTIONS: Record<ProjectCopyTonePreset, string> = {
   "Quiet luxury": "Restrained, premium, calm, precise, and elegant. Avoid hype and over-selling.",
   Minimal: "Sparse, clean, and direct. Use fewer words while keeping the meaning intact.",
@@ -522,17 +513,28 @@ async function repairAllFieldsIfNeeded(
   const missingBrief = GENERATE_ALL_BRIEF_KEYS.filter((k) => !(brief[k] ?? "").trim());
   if (missingCopy.length === 0 && missingBrief.length === 0) return { values, brief };
 
-  const completion = await openai.chat.completions.create({
-    model,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: buildRepairPrompt(input, missingCopy, missingBrief, values, brief),
-      },
-    ],
-  });
+  const completion = await runAiChatCompletion(
+    openai,
+    {
+      model,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: PROJECT_COPY_REPAIR_ALL_FIELDS.systemPrompt },
+        {
+          role: "user",
+          content: buildRepairPrompt(input, missingCopy, missingBrief, values, brief),
+        },
+      ],
+    },
+    {
+      taskType: "project_copy.repair_all_fields",
+      promptId: PROJECT_COPY_REPAIR_ALL_FIELDS.id,
+      promptVersion: PROJECT_COPY_REPAIR_ALL_FIELDS.version,
+      projectId: input.projectId ?? null,
+      createdBy: "admin",
+      inputSummary: { mode: "all_fields", repair: true, missingCopy: missingCopy.length, missingBrief: missingBrief.length },
+    }
+  );
   const content = completion.choices[0]?.message?.content ?? "{}";
   const patchRaw = parseJsonObject(content);
   return mergeRepairPatch(values, brief, missingCopy, missingBrief, patchRaw);
@@ -547,23 +549,34 @@ function normalizeBriefCaseStudyResponse(raw: Record<string, unknown>) {
 }
 
 export async function generateProjectCopy(input: ProjectCopyRequest) {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    throw Object.assign(new Error("AI generation is not configured."), { status: 500 });
-  }
-
+  const openai = createOpenAiClient();
   const model = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
-  const openai = new OpenAI({ apiKey });
+
+  const copyMeta = {
+    taskType: `project_copy.${input.mode}`,
+    promptId: PROJECT_COPY_EDITORIAL.id,
+    promptVersion: PROJECT_COPY_EDITORIAL.version,
+    projectId: input.projectId ?? null,
+    createdBy: "admin",
+    inputSummary: {
+      mode: input.mode,
+      ...("fieldKey" in input ? { fieldKey: input.fieldKey } : {}),
+    },
+  };
 
   try {
-    const completion = await openai.chat.completions.create({
-      model,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: buildPrompt(input) },
-      ],
-    });
+    const completion = await runAiChatCompletion(
+      openai,
+      {
+        model,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: PROJECT_COPY_EDITORIAL.systemPrompt },
+          { role: "user", content: buildPrompt(input) },
+        ],
+      },
+      copyMeta
+    );
     const content = completion.choices[0]?.message?.content ?? "{}";
     const raw = parseJsonObject(content);
     if (input.mode === "single_field") return normalizeSingleResponse(raw, input.fieldKey);

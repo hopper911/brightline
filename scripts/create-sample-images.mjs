@@ -6,10 +6,7 @@
 import fs from "fs";
 import path from "path";
 import process from "process";
-import { fileURLToPath } from "url";
 import sharp from "sharp";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function getArg(name) {
   const args = process.argv.slice(2);

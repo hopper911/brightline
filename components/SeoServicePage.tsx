@@ -2,10 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import { getPublicR2Url } from "@/lib/r2";
-import {
-  getSeoServicePageBySlug,
-  type SeoServicePageConfig,
-} from "@/lib/seoServicePages";
+import { type SeoServicePageConfig } from "@/lib/seoServicePages";
 import type { WorkSection } from "@prisma/client";
 
 const BLUR_DATA =

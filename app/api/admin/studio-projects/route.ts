@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { jsonErr, jsonOk } from "@/lib/api/http";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,12 +8,23 @@ export const dynamic = "force-dynamic";
 /** Lightweight list for Studio OS project pickers (e.g. gallery ↔ CMS link). */
 export async function GET(req: Request) {
   if (!(await authorizeAdminRequest(req))) {
-    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+    return jsonErr("Unauthorized.", 401);
   }
 
-  const projects = await prisma.studioProject.findMany({
+  const url = new URL(req.url);
+  const limitRaw = url.searchParams.get("limit");
+  const offsetRaw = url.searchParams.get("offset");
+  const defaultLimit = 400;
+  const limit = Math.min(
+    Math.max(Number(limitRaw ?? defaultLimit) || defaultLimit, 1),
+    500
+  );
+  const offset = Math.max(Number(offsetRaw ?? 0) || 0, 0);
+
+  const rows = await prisma.studioProject.findMany({
     orderBy: { updatedAt: "desc" },
-    take: 400,
+    skip: offset,
+    take: limit + 1,
     select: {
       id: true,
       title: true,
@@ -22,5 +33,8 @@ export async function GET(req: Request) {
     },
   });
 
-  return NextResponse.json({ ok: true, projects });
+  const hasMore = rows.length > limit;
+  const projects = hasMore ? rows.slice(0, limit) : rows;
+
+  return jsonOk({ projects, hasMore });
 }

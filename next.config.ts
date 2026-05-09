@@ -84,6 +84,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      { source: "/client_access", destination: "/client", permanent: true },
+      { source: "/client-access", destination: "/client", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

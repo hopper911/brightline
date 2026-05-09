@@ -6,7 +6,7 @@ import { putObjectBuffer } from "@/lib/storage-r2";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED_FOLDERS = new Set(["pages", "services", "blocks", "theme"]);
+const ALLOWED_FOLDERS = new Set(["pages", "services", "blocks", "theme", "projects"]);
 const MAX_BYTES = 50 * 1024 * 1024;
 
 function safeFilename(name: string) {

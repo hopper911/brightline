@@ -561,31 +561,22 @@ export default function StudioProjectForm({ projectId }: Props) {
       if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
         throw new Error("Only image and video uploads are supported.");
       }
-      const res = await adminFetch("/api/admin/site-media/upload-url", {
+      /** Same-origin multipart upload — avoids browser PUT → R2 "Failed to fetch" when bucket CORS blocks the admin origin. */
+      const form = new FormData();
+      form.set("file", file);
+      form.set("folder", "projects");
+      const res = await adminFetch("/api/admin/site-media/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType,
-          folder: "projects",
-        }),
+        body: form,
       });
       const data = (await res.json()) as {
         ok?: boolean;
-        url?: string;
         key?: string;
-        headers?: Record<string, string>;
         error?: string;
       };
-      if (!res.ok || !data.url || !data.key) {
-        throw new Error(data.error ?? "Could not prepare background upload.");
+      if (!res.ok || !data.ok || !data.key) {
+        throw new Error(data.error ?? "Background upload failed.");
       }
-      const put = await fetch(data.url, {
-        method: "PUT",
-        headers: { "Content-Type": contentType, ...(data.headers ?? {}) },
-        body: file,
-      });
-      if (!put.ok) throw new Error(`Background upload failed (${put.status}).`);
       if (target === "backgroundMedia") {
         setBackgroundMediaUrl(data.key);
         await saveBackgroundSettings(data.key, backgroundPosterUrl);

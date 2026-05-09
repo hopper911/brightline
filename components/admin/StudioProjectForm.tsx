@@ -9,8 +9,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { MediaAsset } from "@prisma/client";
 import type { PillarConfig } from "@/lib/portfolioPillars";
-import { getPublicR2Url } from "@/lib/r2";
+import { getCropSafeMediaUrl, getPublicR2Url } from "@/lib/r2";
 import { slugify } from "@/lib/slugify";
+import ImageCropModal from "@/components/admin/ImageCropModal";
 import R2BrowserModal from "@/components/admin/R2BrowserModal";
 import { ProjectStatusBadge } from "@/components/admin/studio-os/ProjectStatusBadge";
 import { PublishProjectButton } from "@/components/admin/studio-os/PublishProjectButton";
@@ -36,6 +37,19 @@ function isVideoUrl(input?: string | null) {
     const parsed = new URL(decoded, "https://brightline.local");
     const key = parsed.searchParams.get("key") ?? "";
     return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(key || parsed.pathname);
+  } catch {
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(decoded);
+  }
+}
+
+/** Raw stored key or URL — matches Work project editor so crop hides only for real video assets. */
+function isVideoKey(key: string | null | undefined): boolean {
+  if (!key?.trim()) return false;
+  const decoded = decodeURIComponent(key.trim());
+  try {
+    const parsed = new URL(decoded, "https://brightline.local");
+    const storageKey = parsed.searchParams.get("key") ?? "";
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(storageKey || parsed.pathname);
   } catch {
     return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(decoded);
   }
@@ -138,6 +152,7 @@ export default function StudioProjectForm({ projectId }: Props) {
   const [r2GalleryOpen, setR2GalleryOpen] = useState(false);
   const [r2GeneratorOpen, setR2GeneratorOpen] = useState(false);
   const [r2BackgroundTarget, setR2BackgroundTarget] = useState<"backgroundMedia" | "backgroundPoster" | null>(null);
+  const [backgroundCropSrc, setBackgroundCropSrc] = useState<string | null>(null);
 
   const computedSlug = slug.trim() || slugify(title) || "project";
 
@@ -582,6 +597,7 @@ export default function StudioProjectForm({ projectId }: Props) {
     } catch (e) {
       setStatus("error");
       setError(e instanceof Error ? e.message : "Background upload failed");
+      throw e;
     }
   }
 
@@ -952,11 +968,32 @@ export default function StudioProjectForm({ projectId }: Props) {
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) void uploadBackgroundMedia(file, "backgroundMedia");
+                          if (file) {
+                            void uploadBackgroundMedia(file, "backgroundMedia").catch(() => {
+                              /* error set in uploadBackgroundMedia */
+                            });
+                          }
                           e.currentTarget.value = "";
                         }}
                       />
                     </label>
+                    {backgroundMediaUrl && !isVideoKey(backgroundMediaUrl) ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost text-xs"
+                        disabled={status === "saving" || !projectId}
+                        onClick={() => {
+                          const src = getCropSafeMediaUrl(backgroundMediaUrl);
+                          if (!src) {
+                            setError("Could not resolve image URL for cropping.");
+                            return;
+                          }
+                          setBackgroundCropSrc(src);
+                        }}
+                      >
+                        Crop background
+                      </button>
+                    ) : null}
                     {backgroundMediaUrl ? (
                       <button type="button" className="btn btn-ghost text-xs" onClick={() => setBackgroundMediaUrl("")}>
                         Clear
@@ -988,7 +1025,11 @@ export default function StudioProjectForm({ projectId }: Props) {
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) void uploadBackgroundMedia(file, "backgroundPoster");
+                          if (file) {
+                            void uploadBackgroundMedia(file, "backgroundPoster").catch(() => {
+                              /* error set in uploadBackgroundMedia */
+                            });
+                          }
                           e.currentTarget.value = "";
                         }}
                       />
@@ -1166,6 +1207,20 @@ export default function StudioProjectForm({ projectId }: Props) {
           setR2BackgroundTarget(null);
         }}
       />
+      {backgroundCropSrc ? (
+        <ImageCropModal
+          key={backgroundCropSrc}
+          title="Crop background image"
+          imageSrc={backgroundCropSrc}
+          onClose={() => setBackgroundCropSrc(null)}
+          onApply={async (blob) => {
+            const file = new File([blob], `background-crop-${Date.now()}.jpg`, {
+              type: "image/jpeg",
+            });
+            await uploadBackgroundMedia(file, "backgroundMedia");
+          }}
+        />
+      ) : null}
       <R2BrowserModal
         isOpen={r2GeneratorOpen}
         onClose={() => setR2GeneratorOpen(false)}

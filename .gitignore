@@ -1,6 +1,9 @@
 node_modules
 .next
 
+# Cursor
+.cursor/
+
 # TypeScript incremental build cache
 *.tsbuildinfo
 .DS_Store

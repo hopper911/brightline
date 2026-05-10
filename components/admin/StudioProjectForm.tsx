@@ -7,7 +7,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import type { MediaAsset } from "@prisma/client";
+import type { MediaAsset, ProjectStatus } from "@prisma/client";
 import type { PillarConfig } from "@/lib/portfolioPillars";
 import { getCropSafeMediaUrl, getPublicR2Url } from "@/lib/r2";
 import { slugify } from "@/lib/slugify";
@@ -15,6 +15,7 @@ import ImageCropModal from "@/components/admin/ImageCropModal";
 import R2BrowserModal from "@/components/admin/R2BrowserModal";
 import { ProjectStatusBadge } from "@/components/admin/studio-os/ProjectStatusBadge";
 import { PublishProjectButton } from "@/components/admin/studio-os/PublishProjectButton";
+import { ProductionPipelineStrip } from "@/components/admin/studio-os/ProductionPipelineStrip";
 
 const DRAFT_PLACEHOLDER = "—";
 
@@ -94,6 +95,8 @@ type StudioProjectPayload = {
   websiteCopyDrafted: boolean;
   contentPosted: boolean;
   reusableLater: boolean;
+  /** Operational `StudioProject.status` (production pipeline). */
+  status?: ProjectStatus;
 };
 
 type Props = {
@@ -110,6 +113,7 @@ function parseTags(raw: string): string[] {
 export default function StudioProjectForm({ projectId }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(!!projectId);
+  const [projectOperationalStatus, setProjectOperationalStatus] = useState<ProjectStatus>("INQUIRY");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [client, setClient] = useState("");
@@ -188,6 +192,7 @@ export default function StudioProjectForm({ projectId }: Props) {
       if (!res.ok) throw new Error(data.error ?? "Failed to load");
       const p = data.project;
       if (!p) throw new Error("No project");
+      if (p.status) setProjectOperationalStatus(p.status);
       setTitle(p.title);
       setSlug(p.slug);
       setClient(p.client);
@@ -706,6 +711,14 @@ export default function StudioProjectForm({ projectId }: Props) {
         <p className="text-sm text-red-600" role="alert">
           {error}
         </p>
+      ) : null}
+
+      {projectId ? (
+        <ProductionPipelineStrip
+          projectId={projectId}
+          currentStatus={projectOperationalStatus}
+          onStatusUpdated={(s) => setProjectOperationalStatus(s)}
+        />
       ) : null}
 
       <section className="space-y-4 rounded-2xl border border-black/10 bg-white/70 p-6">

@@ -89,6 +89,12 @@ export default async function PackagePage({
           </section>
         ) : null}
         <div className="mt-6 flex flex-wrap gap-3">
+          <a
+            className="rounded border border-white/20 px-4 py-2 text-sm hover:bg-white hover:text-black"
+            href={`/api/package/${accessToken}/download-zip`}
+          >
+            Download all images (ZIP)
+          </a>
           <a className="rounded border border-white/20 px-4 py-2 text-sm hover:bg-white hover:text-black" href={`/api/package/${accessToken}/manifest`}>
             Download manifest JSON
           </a>

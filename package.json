@@ -6,7 +6,7 @@
     "node": "20.x"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "prisma generate && next build --webpack",
     "db:migrate": "node scripts/prisma-with-local-env.mjs migrate deploy",
     "start": "next start",
@@ -33,7 +33,10 @@
     "deploy:prod:go:studio-os": "BRIGHTLINE_PROD_DEPLOY=DEPLOY REQUIRED_GIT_BRANCH=studio-os-cms-production-20260425 bash scripts/deploy-prod.sh",
     "deploy:prod:go:studio-os:nogit": "SKIP_GIT_CHECKS=1 BRIGHTLINE_PROD_DEPLOY=DEPLOY REQUIRED_GIT_BRANCH=studio-os-cms-production-20260425 bash scripts/deploy-prod.sh",
     "deploy:check": "node scripts/check-prod-deploy-ready.mjs",
-    "deploy:check:env": "DEPLOY_CHECK_LOAD_DOTENV=1 node scripts/check-prod-deploy-ready.mjs"
+    "deploy:check:env": "DEPLOY_CHECK_LOAD_DOTENV=1 node scripts/check-prod-deploy-ready.mjs",
+    "seed:delivery-smoke": "npx tsx scripts/seed-delivery-smoke.ts",
+    "seed:delivery-smoke:empty": "DELIVERY_SMOKE_BOOTSTRAP_EMPTY=1 npx tsx scripts/seed-delivery-smoke.ts",
+    "test:client-delivery": "npx tsx scripts/client-delivery-test.ts"
   },
   "dependencies": {
     "@aws-crypto/crc32c": "^5.2.0",
@@ -45,7 +48,9 @@
     "@fontsource/inter": "^5.0.0",
     "@fontsource/montserrat": "^5.0.0",
     "@prisma/client": "^5.22.0",
+    "@types/archiver": "^7.0.0",
     "@types/pdfkit": "^0.17.6",
+    "archiver": "^8.0.0",
     "aws4fetch": "^1.0.20",
     "framer-motion": "11.11.17",
     "googleapis": "^144.0.0",

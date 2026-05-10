@@ -1,5 +1,5 @@
 import type { MediaAsset } from "@prisma/client";
-import { Prisma } from "@prisma/client";
+import { Prisma, ProjectStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { publicWorkSurfaceCopy, sanitizePublishedStudioProjectForPublic } from "@/lib/studio/public-work-copy";
 import { getWorkPillarList } from "@/lib/work-pillar-settings";
@@ -341,6 +341,8 @@ export type UpdateStudioProjectRecordBody = {
   backgroundMediaUrl?: string | null;
   backgroundPosterUrl?: string | null;
   gallery?: unknown;
+  /** Operational production status (`ProjectStatus`). Logged in `StudioProjectStageHistory` when changed. */
+  projectStatus?: string | null;
 };
 
 export async function updateStudioProjectRecord(
@@ -485,6 +487,19 @@ export async function updateStudioProjectRecord(
     data.gallery = toGalleryJson(b.gallery);
   }
 
+  let pendingProjectStatus: ProjectStatus | undefined;
+  if (b.projectStatus !== undefined) {
+    const raw = typeof b.projectStatus === "string" ? b.projectStatus.trim() : "";
+    if (!raw) {
+      throw new Error("projectStatus cannot be empty.");
+    }
+    if (!Object.values(ProjectStatus).includes(raw as ProjectStatus)) {
+      throw new Error("Invalid projectStatus.");
+    }
+    pendingProjectStatus = raw as ProjectStatus;
+    data.status = pendingProjectStatus;
+  }
+
   if (Object.keys(data).length === 0) {
     const row = await prisma.studioProject.findUnique({
       where: { id },
@@ -494,10 +509,25 @@ export async function updateStudioProjectRecord(
     return row;
   }
 
-  return prisma.studioProject.update({
-    where: { id },
-    data,
-    include: STUDIO_PROJECT_INCLUDE,
+  const shouldRecordStage =
+    pendingProjectStatus !== undefined && pendingProjectStatus !== existing.status;
+
+  return prisma.$transaction(async (tx) => {
+    if (shouldRecordStage) {
+      await tx.studioProjectStageHistory.create({
+        data: {
+          studioProjectId: id,
+          fromStatus: existing.status,
+          toStatus: pendingProjectStatus!,
+          source: "manual",
+        },
+      });
+    }
+    return tx.studioProject.update({
+      where: { id },
+      data,
+      include: STUDIO_PROJECT_INCLUDE,
+    });
   });
 }
 

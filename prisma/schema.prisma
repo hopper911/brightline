@@ -36,6 +36,35 @@ enum LeadStatus {
   ARCHIVED
 }
 
+/// Mission Control — lightweight task workflow.
+enum StudioTaskStatus {
+  TODO
+  IN_PROGRESS
+  WAITING
+  DONE
+  CANCELLED
+}
+
+enum StudioTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum StudioScheduleEventKind {
+  SHOOT
+  DEADLINE
+  REMINDER
+  TRAVEL
+  MEETING
+  REVIEW
+  EDITING
+  INTERNAL
+  DELIVERY
+  OTHER
+}
+
 enum GalleryStatus {
   DRAFT
   READY_TO_SEND
@@ -681,6 +710,10 @@ model StudioProject {
   StudioLead            StudioLead[]
   emailThreads          StudioEmailThread[]
   projectHealthSnapshots ProjectHealthSnapshot[]
+  studioTasks             StudioTask[]
+  studioScheduleEvents    StudioScheduleEvent[]
+  stageHistory            StudioProjectStageHistory[]
+  studioNotifications    StudioNotification[]
 
   @@index([published])
   @@index([featured])
@@ -707,6 +740,105 @@ model ProjectHealthSnapshot {
 
   @@unique([studioProjectId, dateBucket])
   @@index([dateBucket])
+}
+
+model StudioTask {
+  id                    String             @id @default(cuid())
+  title                 String
+  description           String?
+  status                StudioTaskStatus   @default(TODO)
+  priority              StudioTaskPriority @default(MEDIUM)
+  dueAt                 DateTime?
+  assigneeNote          String?
+  labels                String[]           @default([])
+  sortOrder             Int                @default(0)
+  studioProjectId       String?
+  studioClientId        String?
+  parentTaskId          String?
+  studioScheduleEventId String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  project       StudioProject?        @relation(fields: [studioProjectId], references: [id], onDelete: Cascade)
+  client        StudioClient?       @relation(fields: [studioClientId], references: [id], onDelete: SetNull)
+  parent        StudioTask?         @relation("StudioTaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks      StudioTask[]        @relation("StudioTaskSubtasks")
+  scheduleEvent StudioScheduleEvent? @relation(fields: [studioScheduleEventId], references: [id], onDelete: SetNull)
+  studioNotifications StudioNotification[]
+
+  @@index([studioProjectId])
+  @@index([studioClientId])
+  @@index([status])
+  @@index([dueAt])
+  @@index([parentTaskId])
+  @@index([studioScheduleEventId])
+}
+
+model StudioScheduleEvent {
+  id                    String                  @id @default(cuid())
+  title                 String
+  description           String?
+  startsAt              DateTime
+  endsAt                DateTime?
+  allDay                Boolean                 @default(false)
+  kind                  StudioScheduleEventKind @default(OTHER)
+  location              String?
+  studioProjectId       String?
+  studioClientId        String?
+  remindAt              DateTime?
+  calendarStatus        String?
+  colorToken            String?
+  googleCalendarEventId String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  project     StudioProject?    @relation(fields: [studioProjectId], references: [id], onDelete: Cascade)
+  client      StudioClient?     @relation(fields: [studioClientId], references: [id], onDelete: SetNull)
+  linkedTasks StudioTask[]
+  notifications StudioNotification[]
+
+  @@index([startsAt])
+  @@index([studioProjectId])
+  @@index([studioClientId])
+}
+
+/// Append-only production stage transitions (StudioProject.status remains source of truth).
+model StudioProjectStageHistory {
+  id                String         @id @default(cuid())
+  studioProjectId   String
+  fromStatus        ProjectStatus?
+  toStatus          ProjectStatus
+  changedAt         DateTime       @default(now())
+  source            String         @default("manual")
+  actorNote         String?
+  metadata          Json?
+
+  project StudioProject @relation(fields: [studioProjectId], references: [id], onDelete: Cascade)
+
+  @@index([studioProjectId, changedAt])
+}
+
+/// In-app Mission Control notifications (email/SMS/automation later).
+model StudioNotification {
+  id                    String    @id @default(cuid())
+  kind                  String
+  title                 String
+  body                  String?
+  readAt                DateTime?
+  createdAt             DateTime  @default(now())
+  studioProjectId       String?
+  studioTaskId          String?
+  studioScheduleEventId String?
+  payload               Json?
+
+  project StudioProject? @relation(fields: [studioProjectId], references: [id], onDelete: Cascade)
+  task    StudioTask?    @relation(fields: [studioTaskId], references: [id], onDelete: Cascade)
+  event   StudioScheduleEvent? @relation(fields: [studioScheduleEventId], references: [id], onDelete: Cascade)
+
+  @@index([readAt])
+  @@index([createdAt])
+  @@index([studioProjectId])
+  @@index([kind])
 }
 
 // Studio OS (internal) — normalized Client record.
@@ -737,6 +869,8 @@ model StudioClient {
   followUpSchedules FollowUpSchedule[]
   StudioLead StudioLead[]
   emailThreads StudioEmailThread[]
+  studioTasks  StudioTask[]
+  studioScheduleEvents StudioScheduleEvent[]
 
   @@index([companyName])
   @@index([isActive])

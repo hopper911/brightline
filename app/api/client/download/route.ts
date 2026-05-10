@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
+import { createR2KeysZipResponse, MAX_ZIP_FILES } from "@/lib/zip/r2KeysZipResponse";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 type DeliveryGroup = "full-res" | "web-ready" | "social" | "heroes";
 
@@ -12,6 +14,33 @@ function metaString(meta: unknown, key: string): string {
   if (!meta || typeof meta !== "object" || !(key in meta)) return "";
   const value = (meta as Record<string, unknown>)[key];
   return typeof value === "string" ? value.toLowerCase() : "";
+}
+
+type GalleryImageRow = {
+  id: string;
+  sortOrder: number;
+  filename: string | null;
+  storageKey: string | null;
+  lowResStorageKey: string | null;
+  meta?: unknown;
+  isHero?: boolean | null;
+};
+
+function resolveGalleryImageKey(image: GalleryImageRow, quality: "low" | "high"): string | null {
+  if (quality === "low") {
+    return image.lowResStorageKey ?? image.storageKey ?? null;
+  }
+  return image.storageKey ?? null;
+}
+
+function zipEntryName(image: GalleryImageRow, quality: "low" | "high", index: number): string {
+  const key = resolveGalleryImageKey(image, quality);
+  const base = image.filename?.trim() || key?.split("/").pop() || "";
+  const m = /\.(jpe?g|png|gif|webp|tiff?|heic|avif)$/i.exec(base);
+  const ext = m ? m[0].toLowerCase() : ".jpg";
+  const q = quality === "low" ? "web-ready" : "full-res";
+  const ord = String(image.sortOrder ?? index).padStart(4, "0");
+  return `${ord}-${image.id.slice(-8)}-${q}${ext}`;
 }
 
 function imageMatchesDeliveryGroup(
@@ -41,13 +70,14 @@ export async function POST(req: Request) {
       token?: string;
       imageId?: string;
       videoId?: string;
-      type?: "single" | "favorites" | "deliveryGroup";
+      type?: "single" | "favorites" | "deliveryGroup" | "zip";
       deliveryGroup?: DeliveryGroup;
+      zipScope?: "all" | "favorites" | "deliveryGroup";
       quality?: "low" | "high";
     };
 
     const jar = await cookies();
-    const { imageId, videoId, type = "single", deliveryGroup, quality = "high" } = body;
+    const { imageId, videoId, type = "single", deliveryGroup, zipScope, quality = "high" } = body;
     const accessId = jar.get("client_access_id")?.value;
 
     if (!accessId) {
@@ -132,6 +162,117 @@ export async function POST(req: Request) {
           { ok: false, error: "Download limit reached." },
           { status: 429 }
         );
+      }
+    }
+
+    if (type === "zip") {
+      if (zipScope !== "all" && zipScope !== "favorites" && zipScope !== "deliveryGroup") {
+        return NextResponse.json({ ok: false, error: "Invalid or missing zipScope." }, { status: 400 });
+      }
+      if (zipScope === "deliveryGroup" && !deliveryGroup) {
+        return NextResponse.json(
+          { ok: false, error: "deliveryGroup is required for section ZIP downloads." },
+          { status: 400 }
+        );
+      }
+
+      const images: GalleryImageRow[] =
+        zipScope === "all"
+          ? (access.gallery?.images ?? []).filter((img) => resolveGalleryImageKey(img, quality))
+          : zipScope === "favorites"
+            ? (() => {
+                const favoriteImageIds = new Set(access.favorites.map((f) => f.imageId));
+                return (access.gallery?.images ?? []).filter(
+                  (img) => favoriteImageIds.has(img.id) && resolveGalleryImageKey(img, quality)
+                );
+              })()
+            : (() => {
+                const dg = deliveryGroup!;
+                const downloadableImages = (access.gallery?.images || []).filter((img) =>
+                  resolveGalleryImageKey(img, quality)
+                );
+                const explicitMatches = downloadableImages.filter((img) =>
+                  imageMatchesDeliveryGroup(img, dg)
+                );
+                return explicitMatches.length > 0 || dg === "social" || dg === "heroes"
+                  ? explicitMatches
+                  : downloadableImages;
+              })();
+
+      if (images.length === 0) {
+        return NextResponse.json({ ok: false, error: "No images available for this ZIP." }, { status: 400 });
+      }
+
+      if (images.length > MAX_ZIP_FILES) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: `Too many files for one ZIP (${images.length}; max ${MAX_ZIP_FILES}). Contact the studio for split delivery.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      const sorted = [...images].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id)
+      );
+
+      const seen = new Set<string>();
+      const entries = sorted.map((img, i) => {
+        const key = resolveGalleryImageKey(img, quality)!;
+        let name = zipEntryName(img, quality, i);
+        if (seen.has(name)) {
+          let k = 2;
+          const dot = name.lastIndexOf(".");
+          const stem = dot === -1 ? name : name.slice(0, dot);
+          const ext = dot === -1 ? "" : name.slice(dot);
+          while (seen.has(`${stem}-${k}${ext}`)) k++;
+          name = `${stem}-${k}${ext}`;
+        }
+        seen.add(name);
+        return { key, name };
+      });
+
+      const zipTypeLabel =
+        zipScope === "deliveryGroup" && deliveryGroup
+          ? `zip:${deliveryGroup}:${quality}`
+          : `zip:${zipScope}:${quality}`;
+
+      await prisma.galleryDownload.create({
+        data: {
+          tokenId: access.id,
+          type: zipTypeLabel,
+        },
+      });
+
+      const logAction =
+        zipScope === "deliveryGroup" && deliveryGroup
+          ? `download:zip:${deliveryGroup}:${quality}`
+          : `download:zip:${zipScope}:${quality}`;
+
+      await prisma.galleryAccessLog.create({
+        data: {
+          tokenId: access.id,
+          action: logAction,
+        },
+      });
+
+      const rawTitle = access.gallery?.title?.trim() || access.gallery?.slug?.trim() || "gallery";
+      const slug = rawTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 60);
+      const scopePart =
+        zipScope === "deliveryGroup" && deliveryGroup ? `${zipScope}-${deliveryGroup}` : zipScope;
+      const zipFilename = `brightline-gallery-${slug}-${scopePart}-${quality === "low" ? "web" : "full"}.zip`;
+
+      try {
+        return createR2KeysZipResponse(entries, zipFilename);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "ZIP failed.";
+        return NextResponse.json({ ok: false, error: msg }, { status: 500 });
       }
     }
 

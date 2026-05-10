@@ -7,6 +7,7 @@ import { computeStudioPriorities } from "@/lib/studio/priorityEngine";
 import { loadStudioProjectsForIntelligence } from "@/lib/studio/intelligence-loader";
 import { getEmailProviderStatus } from "@/lib/integrations/emailProvider";
 import { MissionControlEmailPanel } from "@/components/studio/MissionControlEmailPanel";
+import { MissionControlAlertsPanel } from "@/components/studio/MissionControlAlertsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,39 @@ export default async function StudioMissionControlPage() {
     }),
   ]);
 
+  const now = new Date();
+  const in7 = new Date(now);
+  in7.setDate(in7.getDate() + 7);
+
+  const [dueTasksWindowCount, upcomingEventsWeekCount, unreadNotifications] = await Promise.all([
+    prisma.studioTask.count({
+      where: {
+        parentTaskId: null,
+        status: { in: ["TODO", "IN_PROGRESS", "WAITING"] },
+        dueAt: { gte: now, lte: in7 },
+      },
+    }),
+    prisma.studioScheduleEvent.count({
+      where: { startsAt: { gte: now, lte: in7 } },
+    }),
+    prisma.studioNotification.findMany({
+      where: { readAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      select: {
+        id: true,
+        kind: true,
+        title: true,
+        body: true,
+        readAt: true,
+        createdAt: true,
+        studioProjectId: true,
+        studioTaskId: true,
+        studioScheduleEventId: true,
+      },
+    }),
+  ]);
+
   const priorities = computeStudioPriorities({
     leads,
     projects,
@@ -169,6 +203,8 @@ export default async function StudioMissionControlPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/studio/finance" className="btn btn-primary">Finance</Link>
+          <Link href="/studio/tasks" className="btn btn-ghost text-xs">Tasks</Link>
+          <Link href="/studio/calendar" className="btn btn-ghost text-xs">Calendar</Link>
           <Link href="/studio/invoices" className="btn btn-ghost">Invoices</Link>
           <Link href="/admin/studio-leads" className="btn btn-ghost">Studio leads</Link>
           <Link href="/admin/projects" className="btn btn-ghost">Studio CMS</Link>
@@ -193,6 +229,20 @@ export default async function StudioMissionControlPage() {
           <p className="mt-2 text-3xl text-white">{money(finance.summary.outstandingBalance)}</p>
         </div>
       </section>
+
+      <div className="mt-8">
+        <Panel title="Ops alerts">
+          <MissionControlAlertsPanel
+            tasksDueCount={dueTasksWindowCount}
+            eventsWeekCount={upcomingEventsWeekCount}
+            initialNotifications={unreadNotifications.map((n) => ({
+              ...n,
+              createdAt: n.createdAt.toISOString(),
+              readAt: n.readAt?.toISOString() ?? null,
+            }))}
+          />
+        </Panel>
+      </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <Panel title="Today's Focus">

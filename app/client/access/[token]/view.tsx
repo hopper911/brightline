@@ -106,6 +106,7 @@ export default function ClientGalleryView({ token }: { token: string }) {
   const [httpStatus, setHttpStatus] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [zipError, setZipError] = useState<string | null>(null);
   const [downloadQuality, setDownloadQuality] = useState<"low" | "high">("high");
   const [lightboxImage, setLightboxImage] = useState<GalleryImage | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -425,6 +426,51 @@ export default function ClientGalleryView({ token }: { token: string }) {
     [gallery, token, downloadQuality]
   );
 
+  const downloadZip = useCallback(
+    async (zipScope: "all" | "favorites" | "deliveryGroup", group?: DeliveryGroup) => {
+      if (!gallery) return;
+      const loadingKey =
+        zipScope === "deliveryGroup" && group ? `zip:dg:${group}` : `zip:${zipScope}`;
+      setZipError(null);
+      setDownloading(loadingKey);
+      try {
+        const res = await fetch("/api/client/download", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            token,
+            type: "zip",
+            zipScope,
+            ...(zipScope === "deliveryGroup" && group ? { deliveryGroup: group } : {}),
+            quality: downloadQuality,
+          }),
+        });
+        const ct = res.headers.get("Content-Type") ?? "";
+        if (!res.ok || !ct.includes("application/zip")) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(data.error || "ZIP download failed.");
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const disp = res.headers.get("Content-Disposition") ?? "";
+        const m = /filename="([^"]+)"/.exec(disp);
+        a.download = m?.[1] ?? `gallery-${zipScope}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        setZipError(e instanceof Error ? e.message : "ZIP download failed.");
+      } finally {
+        setDownloading(null);
+      }
+    },
+    [gallery, token, downloadQuality]
+  );
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setLightboxImage(null);
@@ -580,33 +626,65 @@ export default function ClientGalleryView({ token }: { token: string }) {
         )}
 
         {gallery.allowDownload ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-            <span className="text-xs uppercase tracking-widest text-white/50">Package downloads</span>
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs uppercase tracking-widest text-white/50">Package downloads</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDownloadQuality("low")}
+                  className={`rounded-full px-4 py-2 text-xs uppercase tracking-widest transition-colors ${
+                    downloadQuality === "low"
+                      ? "bg-white text-black"
+                      : "bg-white/10 text-white/70 hover:bg-white/15"
+                  }`}
+                >
+                  Web-ready
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDownloadQuality("high")}
+                  className={`rounded-full px-4 py-2 text-xs uppercase tracking-widest transition-colors ${
+                    downloadQuality === "high"
+                      ? "bg-white text-black"
+                      : "bg-white/10 text-white/70 hover:bg-white/15"
+                  }`}
+                >
+                  Full resolution
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-white/45">
+              Applies to favorites, batches, delivery sections, and ZIP downloads. Large galleries may take a minute
+              to package.
+            </p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setDownloadQuality("low")}
-                className={`rounded-full px-4 py-2 text-xs uppercase tracking-widest transition-colors ${
-                  downloadQuality === "low"
-                    ? "bg-white text-black"
-                    : "bg-white/10 text-white/70 hover:bg-white/15"
-                }`}
+                className="btn btn-ghost text-xs"
+                disabled={gallery.images.length === 0 || downloading === "zip:all"}
+                onClick={() => void downloadZip("all")}
               >
-                Web-ready
+                {downloading === "zip:all" ? "Preparing ZIP…" : "Download all images (ZIP)"}
               </button>
-              <button
-                type="button"
-                onClick={() => setDownloadQuality("high")}
-                className={`rounded-full px-4 py-2 text-xs uppercase tracking-widest transition-colors ${
-                  downloadQuality === "high"
-                    ? "bg-white text-black"
-                    : "bg-white/10 text-white/70 hover:bg-white/15"
-                }`}
-              >
-                Full resolution
-              </button>
+              {favoriteCount > 0 ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost text-xs"
+                  disabled={downloading === "zip:favorites"}
+                  onClick={() => void downloadZip("favorites")}
+                >
+                  {downloading === "zip:favorites"
+                    ? "Preparing ZIP…"
+                    : `Download favorites (ZIP · ${favoriteCount})`}
+                </button>
+              ) : null}
             </div>
-            <span className="text-xs text-white/45">Applies to favorites, batches, and delivery sections.</span>
+            {zipError ? (
+              <p className="text-xs text-amber-200/90" role="alert">
+                {zipError}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </header>
@@ -669,8 +747,9 @@ export default function ClientGalleryView({ token }: { token: string }) {
           <div className="grid gap-3 md:grid-cols-2">
             {deliveryGroups.map((group) => {
               const count = countDeliveryGroup(gallery.images, group.id);
-              const disabled =
-                !gallery.allowDownload || count === 0 || downloading === group.id;
+              const zipKey = `zip:dg:${group.id}`;
+              const busy = downloading === group.id || downloading === zipKey;
+              const disabled = !gallery.allowDownload || count === 0 || busy;
               const qualityLabel = downloadQuality === "low" ? "web-ready" : "full-res";
               return (
                 <div
@@ -680,16 +759,26 @@ export default function ClientGalleryView({ token }: { token: string }) {
                   <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">{group.label}</p>
                   <h3 className="mt-2 text-lg font-medium text-white">{group.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-white/60">{group.description}</p>
-                  <button
-                    type="button"
-                    onClick={() => void downloadDeliveryGroup(group.id)}
-                    disabled={disabled}
-                    className="btn btn-primary mt-4 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {downloading === group.id
-                      ? "Preparing..."
-                      : `Download ${count} (${qualityLabel})`}
-                  </button>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void downloadDeliveryGroup(group.id)}
+                      disabled={disabled}
+                      className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {downloading === group.id
+                        ? "Preparing..."
+                        : `Download ${count} (${qualityLabel})`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void downloadZip("deliveryGroup", group.id)}
+                      disabled={disabled}
+                      className="btn btn-ghost text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {downloading === zipKey ? "Zipping…" : `ZIP ${count} (${qualityLabel})`}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -770,16 +859,26 @@ export default function ClientGalleryView({ token }: { token: string }) {
         </div>
 
         {gallery.allowDownload && favoriteCount > 0 ? (
-          <button
-            type="button"
-            onClick={() => void downloadFavorites()}
-            disabled={downloading === "favorites"}
-            className="btn btn-ghost text-xs"
-          >
-            {downloading === "favorites"
-              ? "Downloading..."
-              : `Download favorites (${favoriteCount}) — ${downloadQuality === "low" ? "web-ready" : "full-res"}`}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void downloadFavorites()}
+              disabled={downloading === "favorites" || downloading === "zip:favorites"}
+              className="btn btn-ghost text-xs"
+            >
+              {downloading === "favorites"
+                ? "Downloading..."
+                : `Download favorites (${favoriteCount}) — ${downloadQuality === "low" ? "web-ready" : "full-res"}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => void downloadZip("favorites")}
+              disabled={downloading === "favorites" || downloading === "zip:favorites"}
+              className="btn btn-ghost text-xs"
+            >
+              {downloading === "zip:favorites" ? "Zipping…" : "ZIP favorites"}
+            </button>
+          </div>
         ) : null}
       </div>
       ) : null}

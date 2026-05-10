@@ -2,7 +2,40 @@
 
 This documents **machine-facing** JSON endpoints used from n8n, local scripts, and Lightroom tooling. URLs stay stable; do **not** mass-rename to `/api/internal` without updating automation clients.
 
-For human admin traffic, `/api/admin/*` and `/api/studio/*` are gated by [`proxy.ts`](../proxy.ts) + [`authorizeAdminRequest`](../lib/admin-auth.ts).
+For human admin traffic, `/api/admin/*` and `/api/studio/*` are gated by [`proxy.ts`](../proxy.ts) + [`authorizeAdminRequest`](../lib/admin-auth.ts). Some studio routes also accept automation bearer tokens via [`requireProjectsApiAuth`](../lib/api/automation-auth.ts) (see table below).
+
+## Studio Mission Control (tasks, calendar, notifications)
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/api/studio/schedule` | Admin session | List `StudioScheduleEvent` in `from` / `to` range |
+| POST | `/api/studio/schedule` | Admin session | Create event |
+| PATCH / DELETE | `/api/studio/schedule/[id]` | Admin session | Update / delete |
+| GET | `/api/studio/tasks` | Admin session | List tasks; optional `projectId`, `status` |
+| POST | `/api/studio/tasks` | Admin session | Create task |
+| PATCH / DELETE | `/api/studio/tasks/[id]` | Admin session | Update / delete |
+| GET | `/api/studio/notifications` | Admin session | List notifications; `unreadOnly`, `limit` |
+| POST | `/api/studio/notifications/digest` | Admin session | Regenerate unread digest rows from due tasks + upcoming events |
+| PATCH | `/api/studio/notifications/[id]` | Admin session | `{ "read": true \| false }` |
+| POST | `/api/studio/automation/events` | Admin session **or** automation bearer | Accepts structured events for logging / future hooks (see payload below) |
+
+### `POST /api/studio/automation/events`
+
+Auth: [`requireProjectsApiAuth`](../lib/api/automation-auth.ts) — same bearer tokens as Studio CMS (`AUTOMATION_API_SECRET` / `BL_INTERNAL_API_TOKEN`).
+
+Request body (JSON):
+
+```json
+{
+  "event": "studio.project.status_changed",
+  "idempotencyKey": "optional-string",
+  "occurredAt": "2026-05-09T12:00:00.000Z",
+  "entity": { "type": "project", "id": "clxxx" },
+  "payload": {}
+}
+```
+
+Response: `{ "ok": true, "received": true, "event": "..." }`. Today this **records a structured log line** only; persist to your own store or extend with durable idempotency when you add automation consumers.
 
 ## Bearer + admin hybrid (Studio CMS / media pipeline)
 

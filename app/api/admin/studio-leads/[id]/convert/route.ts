@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { slugify } from "@/lib/slugify";
 import { ensureUniqueStudioSlug } from "@/lib/studio/studio-project-cms";
@@ -92,6 +93,18 @@ export async function POST(
           gallery: [],
         },
       }));
+
+    if (!lead.convertedProjectId) {
+      await tx.studioProjectStageHistory.create({
+        data: {
+          studioProjectId: project.id,
+          fromStatus: null,
+          toStatus: "INQUIRY",
+          source: "automation",
+          metadata: { leadId: lead.id } as Prisma.InputJsonValue,
+        },
+      });
+    }
 
     const updatedLead = await tx.studioLead.update({
       where: { id: lead.id },

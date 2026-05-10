@@ -1,3 +1,4 @@
+import type { Readable } from "node:stream";
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3Client } from "@aws-sdk/client-s3";
@@ -140,5 +141,18 @@ export async function getObjectBuffer(key: string): Promise<Buffer> {
   if (!body) throw new Error("R2 object body was empty.");
   const bytes = await body.transformToByteArray();
   return Buffer.from(bytes);
+}
+
+/** Stream bytes from R2 (Node readable) for piping into ZIP, etc. */
+export async function getObjectReadable(key: string): Promise<Readable> {
+  const client = getR2Client();
+  const bucket = getBucket();
+  const normalized = key.replace(/^\//, "");
+  const response = await client.send(
+    new GetObjectCommand({ Bucket: bucket, Key: normalized })
+  );
+  const body = response.Body;
+  if (!body) throw new Error("R2 object body was empty.");
+  return body as Readable;
 }
 

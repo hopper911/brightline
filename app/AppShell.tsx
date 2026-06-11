@@ -5,6 +5,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PageTransition from "../components/PageTransition";
 import SiteBackground from "../components/SiteBackground";
+import ImageProtection from "../components/ImageProtection";
 import type { SiteTheme } from "@/lib/site-theme";
 import type { SiteNavItem } from "@/lib/site-nav";
 
@@ -19,7 +20,7 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
   const isOperatorRoute =
-    pathname?.startsWith("/admin") || pathname?.startsWith("/studio");
+    pathname?.startsWith("/admin") || pathname?.startsWith("/studio") || pathname?.startsWith("/accountant");
 
   if (isOperatorRoute) {
     return <>{children}</>;
@@ -27,6 +28,7 @@ export default function AppShell({
 
   return (
     <>
+      <ImageProtection />
       <SiteBackground theme={siteTheme} />
       <div className="relative z-10">
         <Navbar links={siteNav} />

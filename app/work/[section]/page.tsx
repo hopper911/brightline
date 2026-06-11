@@ -123,13 +123,14 @@ function ProjectGrid({
               href={getProjectHref(project)}
               className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
             >
-              <div className="relative h-[240px] w-full overflow-hidden">
+              <div className="relative h-[240px] w-full overflow-hidden image-guard-overlay">
                 {hero?.kind === "VIDEO" && hero.posterKey ? (
                   <>
                     <Image
                       src={getPublicR2Url(hero.posterKey ?? "")}
                       alt={project.title}
                       fill
+                      draggable={false}
                       sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                       quality={85}
                       placeholder="blur"
@@ -166,6 +167,7 @@ function ProjectGrid({
                     src={heroImageUrl}
                     alt={hero?.alt ?? project.title}
                     fill
+                    draggable={false}
                     sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                     quality={85}
                     placeholder="blur"
@@ -213,12 +215,13 @@ function ProjectGrid({
                   href={`/work/${encodeURIComponent(tile.slug)}`}
                   className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
                 >
-                  <div className="relative h-[240px] w-full overflow-hidden">
+                  <div className="relative h-[240px] w-full overflow-hidden image-guard-overlay">
                     {heroImageUrl ? (
                       <Image
                         src={heroImageUrl}
                         alt={hero?.alt ?? tile.title}
                         fill
+                        draggable={false}
                         sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                         quality={85}
                         placeholder="blur"

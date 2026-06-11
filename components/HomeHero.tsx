@@ -100,7 +100,7 @@ export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: "easeOut", delay: 0.2 }}
         >
-          <div className="relative h-[420px] w-full max-w-xl overflow-hidden rounded-[32px] border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+          <div className="relative h-[420px] w-full max-w-xl overflow-hidden rounded-[32px] border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)] image-guard-overlay">
           {videoUrl ? (
             <>
               <video
@@ -117,13 +117,14 @@ export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
               {featuredImage ? (
                 <Link
                   href="/work"
-                  className="absolute bottom-6 left-6 block h-20 w-20 overflow-hidden rounded-xl border border-white/40 shadow-lg ring-1 ring-black/5 transition-transform hover:scale-[1.02]"
+                  className="absolute bottom-6 left-6 block h-20 w-20 overflow-hidden rounded-xl border border-white/40 shadow-lg ring-1 ring-black/5 transition-transform hover:scale-[1.02] image-guard-overlay"
                   aria-label="Featured work"
                 >
                   <Image
                     src={featuredImage.url}
                     alt={featuredImage.alt}
                     fill
+                    draggable={false}
                     sizes="80px"
                     className="object-cover"
                   />
@@ -133,13 +134,14 @@ export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
           ) : featuredImage ? (
             <Link
               href="/work"
-              className="absolute inset-0 block"
+              className="absolute inset-0 block image-guard-overlay"
               aria-label="Featured work"
             >
               <Image
                 src={featuredImage.url}
                 alt={featuredImage.alt}
                 fill
+                draggable={false}
                 priority
                 sizes="(min-width: 1024px) 520px, 100vw"
                 className="object-cover image-fade"
@@ -152,6 +154,7 @@ export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
                 src="/images/hero.jpg"
                 alt="BRIGHTLINE signature imagery"
                 fill
+                draggable={false}
                 priority
                 sizes="(min-width: 1024px) 520px, 100vw"
                 placeholder="blur"

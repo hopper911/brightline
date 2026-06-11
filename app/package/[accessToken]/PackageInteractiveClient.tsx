@@ -116,8 +116,10 @@ export default function PackageInteractiveClient({
           return (
             <article key={item.id} data-package-item-id={item.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
               {item.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.imageUrl} alt={item.altText} className="h-52 w-full object-cover" />
+                <div className="relative image-guard-overlay">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.imageUrl} alt={item.altText} draggable={false} className="h-52 w-full object-cover" />
+                </div>
               ) : null}
               <div className="space-y-3 p-4">
                 <div>

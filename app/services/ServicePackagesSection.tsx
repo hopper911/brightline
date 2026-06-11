@@ -34,7 +34,7 @@ function ServicePreviewMedia({ src, title }: { src: string; title: string }) {
   return (
     // Admin-style preview: R2/external URLs; next/image domains would require config churn.
     // eslint-disable-next-line @next/next/no-img-element -- dynamic R2/CMS URLs
-    <img src={resolved} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+    <img src={resolved} alt={title} draggable={false} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
   );
 }
 
@@ -68,7 +68,7 @@ export default function ServicePackagesSection({ services, variant = "default" }
             href={`/services/${service.slug}`}
             className="group overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.05] shadow-sm transition-all hover:border-white/25 hover:bg-white/[0.07]"
           >
-            <div className="h-44 overflow-hidden bg-black/30">
+            <div className="relative h-44 overflow-hidden bg-black/30 image-guard-overlay">
               <ServicePreviewMedia src={service.heroVideo || service.heroImage} title={service.title} />
             </div>
             <div className="p-6">

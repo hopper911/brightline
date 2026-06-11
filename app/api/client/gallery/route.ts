@@ -91,7 +91,8 @@ export async function POST(req: Request) {
             url: image.url,
             thumbUrl: image.thumbUrl ?? image.url,
             fullUrl: image.fullUrl ?? image.url,
-            storageKey: null,
+            hasFullRes: false,
+            hasLowRes: false,
           };
         }
 
@@ -108,8 +109,8 @@ export async function POST(req: Request) {
           url: resolvedUrl,
           thumbUrl: image.thumbUrl ?? resolvedUrl,
           fullUrl: highSigned?.url ?? image.fullUrl ?? resolvedUrl,
-          storageKey: image.storageKey,
-          lowResStorageKey: image.lowResStorageKey,
+          hasFullRes: Boolean(image.storageKey),
+          hasLowRes: Boolean(image.lowResStorageKey),
           highResWidth: image.highResWidth,
           highResHeight: image.highResHeight,
           lowResWidth: image.lowResWidth,

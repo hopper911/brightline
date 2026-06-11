@@ -55,6 +55,7 @@ export default function SiteBackground({ theme }: { theme: SiteTheme }) {
           key={src}
           src={src}
           alt=""
+          draggable={false}
           loading="eager"
           decoding="async"
           fetchPriority="high"

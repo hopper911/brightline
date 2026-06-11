@@ -85,6 +85,7 @@ export default function PageBackground({
           key={src}
           src={src}
           alt=""
+          draggable={false}
           loading="eager"
           decoding="async"
           fetchPriority="high"

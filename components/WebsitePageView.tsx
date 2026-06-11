@@ -66,7 +66,7 @@ function MediaFrame({ url, alt, className = "" }: { url: string; alt: string; cl
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={alt} className={className} />;
+  return <img src={src} alt={alt} draggable={false} className={className} />;
 }
 
 function BackgroundMedia({ block, className = "" }: { block: WebsiteBlock; className?: string }) {

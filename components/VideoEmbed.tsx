@@ -42,7 +42,7 @@ export default function VideoEmbed({
     <button
       type="button"
       onClick={() => setLoaded(true)}
-      className="group relative block w-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-black"
+      className="group relative block w-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-black image-guard-overlay"
       style={{ aspectRatio: "16/9" }}
       aria-label={`Play video: ${title}`}
     >
@@ -51,6 +51,7 @@ export default function VideoEmbed({
           src={posterSrc}
           alt={title}
           fill
+          draggable={false}
           sizes="(min-width: 1024px) 960px, 100vw"
           className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         />

@@ -73,7 +73,7 @@ function R2VideoBlock({
   if (!src || (!src.startsWith("http") && !src.startsWith("/"))) return null;
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black"
+      className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black image-guard-overlay"
       style={style}
     >
       <video
@@ -81,6 +81,7 @@ function R2VideoBlock({
         poster={poster}
         controls
         playsInline
+        draggable={false}
         className="h-full w-full object-cover"
         aria-label={alt}
       />
@@ -187,13 +188,14 @@ export default function WorkProjectGallery({
                     aria-label={`View ${altText} in lightbox`}
                   >
                     <div
-                      className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black"
+                      className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black image-guard-overlay"
                       style={getAspectRatioStyle(m.width, m.height)}
                     >
                       <Image
                         src={imgSrc}
                         alt={altText}
                         fill
+                        draggable={false}
                         sizes="(min-width: 1280px) 576px, (min-width: 640px) calc(50vw - 40px), 100vw"
                         quality={90}
                         placeholder="blur"

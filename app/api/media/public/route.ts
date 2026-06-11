@@ -1,39 +1,14 @@
 import { NextResponse } from "next/server";
+import { isAllowedPublicMediaKey } from "@/lib/media-key-access";
 import { signPublicR2Get } from "@/lib/storage-r2-public";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Prefixes allowed for anonymous redirects to signed R2 GET URLs.
- * - Marketing/work CMS: portfolio/, work/, studio/, site/, …
- * - Lightroom pipeline (blupload): section folders acd|rea|cul|biz|tri
- * - Legacy / tools: thumb/
- */
-const ALLOWED_PREFIXES = [
-  "portfolio/",
-  "portfolio-public/",
-  "work/",
-  "studio/",
-  "site/",
-  "client-galleries/",
-  "acd/",
-  "rea/",
-  "cul/",
-  "biz/",
-  "tri/",
-  "thumb/",
-];
-
-function isAllowedKey(key: string) {
-  const clean = key.replace(/^\/+/, "").toLowerCase();
-  return ALLOWED_PREFIXES.some((prefix) => clean.startsWith(prefix));
-}
-
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const key = url.searchParams.get("key")?.trim().replace(/^\/+/, "") || "";
-  if (!key || !isAllowedKey(key)) {
+  if (!key || !isAllowedPublicMediaKey(key)) {
     return NextResponse.json({ ok: false, error: "Invalid media key." }, { status: 400 });
   }
 

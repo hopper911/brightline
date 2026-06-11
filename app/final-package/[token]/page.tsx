@@ -2,9 +2,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DELIVERY_GROUP_DEFINITIONS, DELIVERY_GROUPS } from "@/lib/delivery/package";
-import { getPublicR2Url } from "@/lib/r2";
+import { isPublicMediaKey } from "@/lib/media-key-access";
+import { signGet } from "@/lib/storage-r2";
+import { signPublicR2Get } from "@/lib/storage-r2-public";
 
 export const dynamic = "force-dynamic";
+
+async function signPreviewUrl(key: string): Promise<string | null> {
+  try {
+    const signed = isPublicMediaKey(key)
+      ? await signPublicR2Get({ key, expiresIn: 3600 })
+      : await signGet({ key, expiresIn: 3600 });
+    return signed.url;
+  } catch {
+    return null;
+  }
+}
 
 export default async function FinalPackagePage({
   params,
@@ -30,6 +43,16 @@ export default async function FinalPackagePage({
 
   const selected = project.media.filter((item) => item.selectedForDelivery);
   const finalImages = selected.length ? selected : project.media.filter((item) => item.media.kind === "IMAGE");
+
+  const imagePreviewUrls = new Map<string, string>();
+  await Promise.all(
+    finalImages.map(async (item) => {
+      const key = item.media.keyThumb ?? item.media.keyFull;
+      if (!key) return;
+      const url = await signPreviewUrl(key);
+      if (url) imagePreviewUrls.set(item.mediaId, url);
+    })
+  );
 
   return (
     <main className="min-h-screen bg-[#111] px-4 py-12 text-white">
@@ -68,12 +91,12 @@ export default async function FinalPackagePage({
                 </div>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {images.map((item) => {
-                    const key = item.media.keyThumb ?? item.media.keyFull;
+                    const previewUrl = imagePreviewUrls.get(item.mediaId);
                     return (
-                      <article key={item.mediaId} className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
-                        {key ? (
+                      <article key={item.mediaId} className="overflow-hidden rounded-xl border border-white/10 bg-black/30 image-guard-overlay">
+                        {previewUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={getPublicR2Url(key)} alt={item.media.alt ?? ""} className="h-44 w-full object-cover" />
+                          <img src={previewUrl} alt={item.media.alt ?? ""} draggable={false} className="h-44 w-full object-cover" />
                         ) : null}
                         <div className="p-3">
                           <p className="text-sm text-white/80">{item.clientFacingCaption || item.media.alt || "Final delivery image"}</p>

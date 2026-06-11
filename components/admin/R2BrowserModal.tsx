@@ -5,7 +5,11 @@ import { PILLAR_SLUGS, PILLARS } from "@/lib/portfolioPillars";
 
 function getImageUrl(key: string): string {
   if (!key) return "";
-  return `/api/media/public?key=${encodeURIComponent(key.replace(/^\//, ""))}`;
+  const clean = key.replace(/^\/+/, "");
+  if (clean.startsWith("client-galleries/")) {
+    return `/api/admin/media/sign?key=${encodeURIComponent(clean)}`;
+  }
+  return `/api/media/public?key=${encodeURIComponent(clean)}`;
 }
 
 const MEDIA_EXT = /\.(jpg|jpeg|png|webp|gif|avif|mp4|webm|mov|m4v)$/i;

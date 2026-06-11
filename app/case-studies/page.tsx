@@ -39,11 +39,12 @@ export default function CaseStudiesPage() {
               href={`/case-studies/${study.slug}`}
               className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
             >
-              <div className="relative aspect-[4/3] w-full">
+              <div className="relative aspect-[4/3] w-full image-guard-overlay">
                 <Image
                   src={imageUrl(study.heroKey ?? study.imageKeys[0] ?? "")}
                   alt={study.title}
                   fill
+                  draggable={false}
                   sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                   className="object-cover image-zoom"
                 />

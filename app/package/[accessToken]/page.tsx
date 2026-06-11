@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getPublicR2Url } from "@/lib/r2";
+import { clientFacingPackageMilestone, clientFacingProductionBlock } from "@/lib/studio/client-facing-status";
 import PackageInteractiveClient from "./PackageInteractiveClient";
 import PackagePerformanceTracker from "./PackagePerformanceTracker";
 
@@ -28,6 +28,17 @@ export default async function PackagePage({
     },
   });
   if (!pkg) notFound();
+
+  const studioProject =
+    pkg.project.studioProjectId != null
+      ? await prisma.studioProject.findUnique({
+          where: { id: pkg.project.studioProjectId },
+          select: { status: true },
+        })
+      : null;
+
+  const productionClient = studioProject ? clientFacingProductionBlock(studioProject.status) : null;
+  const packageMilestone = clientFacingPackageMilestone(pkg.status);
 
   const h = await headers();
   await prisma.packageAccessLog.create({
@@ -55,7 +66,7 @@ export default async function PackagePage({
       return {
         id: item.id,
         group: item.deliveryGroup,
-        imageUrl: key ? getPublicR2Url(key) : null,
+        imageUrl: key ? `/api/package/${accessToken}/items/${item.id}/preview` : null,
         altText: item.altText ?? item.mediaAsset.alt ?? "",
         caption: item.clientFacingCaption ?? item.altText ?? "",
         description: item.aiDescription ?? "",
@@ -82,6 +93,25 @@ export default async function PackagePage({
           </p>
         )}
         <p className="mt-2 text-sm text-white/45">{pkg.client?.companyName ?? pkg.project.client ?? "Client package"}</p>
+
+        {(productionClient || packageMilestone) && (
+          <section className="mt-8 max-w-2xl rounded-xl border border-white/10 bg-white/[0.04] p-5 text-sm leading-6 text-white/75">
+            <h2 className="text-xs uppercase tracking-[0.2em] text-white/45">Where things stand</h2>
+            {productionClient ? (
+              <div className="mt-3">
+                <p className="font-medium text-white/90">{productionClient.headline}</p>
+                <p className="mt-2 text-white/70">{productionClient.detail}</p>
+              </div>
+            ) : null}
+            {packageMilestone ? (
+              <div className={productionClient ? "mt-5 border-t border-white/10 pt-5" : "mt-3"}>
+                <p className="font-medium text-white/90">{packageMilestone.headline}</p>
+                <p className="mt-2 text-white/70">{packageMilestone.detail}</p>
+              </div>
+            ) : null}
+          </section>
+        )}
+
         {pkg.usageRights?.trim() ? (
           <section className="mt-8 max-w-2xl rounded-xl border border-white/10 bg-white/[0.04] p-5 text-sm leading-6 text-white/70">
             <h2 className="text-xs uppercase tracking-[0.2em] text-white/45">Usage &amp; rights</h2>

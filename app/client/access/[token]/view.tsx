@@ -17,8 +17,8 @@ type GalleryImage = {
   filename?: string | null;
   sortOrder: number;
   isHero?: boolean;
-  storageKey?: string | null;
-  lowResStorageKey?: string | null;
+  hasFullRes?: boolean;
+  hasLowRes?: boolean;
   highResWidth?: number | null;
   highResHeight?: number | null;
   lowResWidth?: number | null;
@@ -903,13 +903,14 @@ export default function ClientGalleryView({ token }: { token: string }) {
               <button
                 type="button"
                 onClick={() => setLightboxImage(image)}
-                className="block w-full cursor-zoom-in"
+                className="relative block w-full cursor-zoom-in image-guard-overlay"
               >
                 <Image
                   src={image.thumbUrl ?? image.url}
                   alt={image.alt || gallery.title}
                   width={800}
                   height={600}
+                  draggable={false}
                   data-image-mode={getImageModeForUrl(image.thumbUrl ?? image.url)}
                   sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
                   placeholder="blur"
@@ -969,7 +970,7 @@ export default function ClientGalleryView({ token }: { token: string }) {
                     <button
                       type="button"
                       onClick={() => void downloadImage(image.id, "high")}
-                      disabled={!image.storageKey || downloading === `${image.id}:high`}
+                      disabled={!image.hasFullRes || downloading === `${image.id}:high`}
                       className="rounded-full bg-white/20 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wide text-white transition-colors hover:bg-white/30 disabled:opacity-50"
                       aria-label="Download full resolution"
                     >
@@ -1034,6 +1035,7 @@ export default function ClientGalleryView({ token }: { token: string }) {
               alt={lightboxImage.alt || gallery.title}
               width={1920}
               height={1280}
+              draggable={false}
               className="max-h-[90vh] w-auto object-contain"
               priority
             />
@@ -1097,7 +1099,7 @@ export default function ClientGalleryView({ token }: { token: string }) {
                     type="button"
                     onClick={() => void downloadImage(lightboxImage.id, "high")}
                     disabled={
-                      !lightboxImage.storageKey ||
+                      !lightboxImage.hasFullRes ||
                       downloading === `${lightboxImage.id}:high`
                     }
                     className="rounded-full bg-white/20 px-4 py-2 text-sm text-white hover:bg-white/30 disabled:opacity-50"

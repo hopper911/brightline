@@ -48,7 +48,7 @@ function ServiceMedia({
 
   if (src.startsWith("http")) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} className={className} />;
+    return <img src={src} alt={alt} draggable={false} className={className} />;
   }
 
   return (
@@ -56,6 +56,7 @@ function ServiceMedia({
       src={src}
       alt={alt}
       fill
+      draggable={false}
       className={className}
       priority={priority}
       sizes="(min-width: 1024px) 420px, 100vw"

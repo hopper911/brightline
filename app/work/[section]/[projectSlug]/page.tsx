@@ -231,7 +231,7 @@ export default async function WorkProjectPage({
       ) : null}
 
       <Reveal className="mt-10">
-        <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black">
+        <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black image-guard-overlay">
           {heroVideoId ? (
             <VideoEmbed
               providerId={heroVideoId}
@@ -243,6 +243,7 @@ export default async function WorkProjectPage({
               src={heroImageUrl}
               alt={hero?.alt ?? project.title}
               fill
+              draggable={false}
               sizes="(min-width: 1280px) 1152px, (min-width: 1024px) calc(100vw - 80px), 100vw"
               quality={90}
               placeholder="blur"

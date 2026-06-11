@@ -93,12 +93,13 @@ export default async function CaseStudyPage({
           {study.imageKeys.map((key, i) => (
             <div
               key={i}
-              className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/10"
+              className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/10 image-guard-overlay"
             >
               <Image
                 src={imageUrl(key)}
                 alt={`${study.title} image ${i + 1}`}
                 fill
+                draggable={false}
                 sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                 className="object-cover"
               />

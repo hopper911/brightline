@@ -26,11 +26,12 @@ export default function WorkCard({
       href={href}
       className="group block overflow-hidden rounded-2xl border border-white/10 bg-[var(--card)] shadow-sm backdrop-blur-md transition-[border-color,transform] duration-[var(--motion-fast)] ease-out hover:border-white/25 hover:-translate-y-px"
     >
-      <div className="relative aspect-[4/3] w-full">
+      <div className="relative aspect-[4/3] w-full image-guard-overlay">
         <Image
           src={cover}
           alt={alt}
           fill
+          draggable={false}
           sizes="(min-width: 1024px) 50vw, 100vw"
           quality={85}
           placeholder="blur"

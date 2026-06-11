@@ -8,6 +8,16 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function readRequestMeta(body: unknown) {
+  const record =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+  const projectId = typeof record.projectId === "string" ? record.projectId.trim() : "";
+  const mediaId = typeof record.mediaId === "string" ? record.mediaId.trim() : "";
+  return { projectId, mediaId };
+}
+
 export async function POST(req: Request) {
   const denied = await guardAdminJson(req);
   if (denied) return denied;
@@ -25,23 +35,20 @@ export async function POST(req: Request) {
     return jsonErr(parsed.error, parsed.status);
   }
 
+  const { projectId, mediaId } = readRequestMeta(raw.value);
+
   try {
     const origin = new URL(req.url).origin;
     const result = await generateAltText(parsed.data, origin, {
       projectId: projectId || undefined,
       createdBy: "admin",
     });
-    const body =
-      raw.value && typeof raw.value === "object" && !Array.isArray(raw.value)
-        ? (raw.value as Record<string, unknown>)
-        : {};
-    const projectId = typeof body.projectId === "string" ? body.projectId.trim() : "";
     if (projectId) {
       await prisma.aiGeneration
         .create({
           data: {
             projectId,
-            fieldKey: typeof body.mediaId === "string" ? body.mediaId : "altText",
+            fieldKey: mediaId || "altText",
             generationType: "alt_text",
             promptMode: "single_image",
             inputBrief: parsed.data,

@@ -153,7 +153,10 @@ npx prisma migrate deploy
 echo "   OK"
 echo ""
 
-echo "→ Step 6/6: Deploy to Vercel production…"
+echo "→ Step 6/6: Deploy to Vercel production (hopper911s-projects/brightline only)…"
+# Pin to the brightline project — do not deploy to brightline-marketing / brightline-portal.
+export VERCEL_ORG_ID="${VERCEL_ORG_ID:-team_JsTP2jq77stixfXKhNHylNy1}"
+export VERCEL_PROJECT_ID="${VERCEL_PROJECT_ID:-prj_0enO0mw7g3Sec9vniRQ0POVajPQU}"
 vercel deploy --prod --yes
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

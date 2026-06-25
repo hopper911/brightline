@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import type { WebsiteBlock, WebsiteBlockItem, WebsitePage } from "@/lib/website-pages";
+import { resolveStoredMediaUrl } from "@/lib/r2";
 
 function isVideoUrl(url: string) {
   const decoded = decodeURIComponent(url);
@@ -14,10 +15,7 @@ function isVideoUrl(url: string) {
 }
 
 function mediaUrl(input?: string | null) {
-  const value = input?.trim();
-  if (!value) return "";
-  if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith("/")) return value;
-  return `/api/media/public?key=${encodeURIComponent(value.replace(/^\/+/, ""))}`;
+  return resolveStoredMediaUrl(input);
 }
 
 function Paragraphs({ body }: { body: string }) {

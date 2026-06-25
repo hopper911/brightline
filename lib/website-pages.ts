@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import { resolveStoredMediaUrl } from "@/lib/r2";
 
 export type WebsitePageStatus = "PUBLISHED" | "DRAFT";
 export type WebsiteBlockType = "hero" | "gallery" | "stats" | "text" | "cards" | "list" | "cta" | "contactForm";
@@ -419,7 +420,7 @@ function normalizeItems(raw: unknown): WebsiteBlockItem[] {
       const title = typeof row.title === "string" ? row.title.trim() : "";
       const body = typeof row.body === "string" ? row.body.trim() : "";
       const meta = typeof row.meta === "string" ? row.meta.trim() : "";
-      const mediaUrl = typeof row.mediaUrl === "string" ? row.mediaUrl.trim() : "";
+      const mediaUrl = typeof row.mediaUrl === "string" ? resolveStoredMediaUrl(row.mediaUrl) : "";
       return title || body || meta || mediaUrl ? { title, body, ...(meta ? { meta } : {}), ...(mediaUrl ? { mediaUrl } : {}) } : null;
     })
     .filter(Boolean) as WebsiteBlockItem[];
@@ -447,8 +448,8 @@ function normalizeBlock(input: unknown): WebsiteBlock | null {
     eyebrow: typeof row.eyebrow === "string" ? row.eyebrow.trim() : "",
     title: typeof row.title === "string" ? row.title.trim() : "",
     body: typeof row.body === "string" ? row.body.trim() : "",
-    mediaUrl: typeof row.mediaUrl === "string" ? row.mediaUrl.trim() : "",
-    posterUrl: typeof row.posterUrl === "string" ? row.posterUrl.trim() : "",
+    mediaUrl: typeof row.mediaUrl === "string" ? resolveStoredMediaUrl(row.mediaUrl) : "",
+    posterUrl: typeof row.posterUrl === "string" ? resolveStoredMediaUrl(row.posterUrl) : "",
     items: normalizeItems(row.items),
     ctaLabel: typeof row.ctaLabel === "string" ? row.ctaLabel.trim() : "",
     ctaHref: typeof row.ctaHref === "string" ? row.ctaHref.trim() : "",

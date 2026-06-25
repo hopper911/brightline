@@ -89,7 +89,7 @@ export async function saveSiteNav(input: unknown): Promise<SiteNavItem[]> {
   return nav;
 }
 
-/** Inserts pillar links immediately after the first visible Work hub item (`/work`). */
+/** Inserts pillar links immediately after the first Work hub item (`/work`), even when that hub is hidden. */
 export function mergeWorkPillarNavIntoSiteNav(
   nav: SiteNavItem[],
   pillarLinks: WorkPillarNavItem[]
@@ -99,7 +99,7 @@ export function mergeWorkPillarNavIntoSiteNav(
   let inserted = false;
   for (const link of nav) {
     out.push(link);
-    if (!inserted && link.visible && isWorkHubNavItem(link)) {
+    if (!inserted && isWorkHubNavItem(link)) {
       for (const p of pillarLinks) {
         out.push({
           id: `work_pillar_${p.slug}`,
@@ -110,6 +110,17 @@ export function mergeWorkPillarNavIntoSiteNav(
         });
       }
       inserted = true;
+    }
+  }
+  if (!inserted) {
+    for (const p of pillarLinks) {
+      out.push({
+        id: `work_pillar_${p.slug}`,
+        label: p.label,
+        href: p.href,
+        visible: true,
+        cta: false,
+      });
     }
   }
   return out;

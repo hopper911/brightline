@@ -211,10 +211,6 @@ export default function WebsitePagesClient({
     [nav, pillarNav]
   );
 
-  const workHubVisible = useMemo(() => {
-    return navWithPillarsPreview.some((i) => (i.id === "work" || i.id === "projects") && i.visible);
-  }, [navWithPillarsPreview]);
-
   const autoPillarLinks = useMemo(
     () => navWithPillarsPreview.filter((i) => i.id.startsWith("work_pillar_") && i.visible),
     [navWithPillarsPreview]
@@ -658,7 +654,8 @@ export default function WebsitePagesClient({
                 Auto Work pillar links (preview)
               </p>
               <p className="mt-1 text-xs text-white/60">
-                These links appear in the site header after your Work link. Toggle them under{" "}
+                These links appear in the site header after your Work hub position. You can hide Work
+                and keep pillar links visible. Toggle each pillar under{" "}
                 <Link href="/admin/work-pillars" className="underline text-white/80 hover:text-white">
                   Work pillars
                 </Link>
@@ -667,11 +664,7 @@ export default function WebsitePagesClient({
             </div>
           </div>
 
-          {!workHubVisible ? (
-            <p className="mt-3 text-xs text-amber-200/80">
-              Work is hidden in navigation, so pillar links will not be injected.
-            </p>
-          ) : autoPillarLinks.length === 0 ? (
+          {autoPillarLinks.length === 0 ? (
             <p className="mt-3 text-xs text-white/55">
               No visible pillars (or pillars not loaded yet). If this is unexpected, check Work pillars.
             </p>

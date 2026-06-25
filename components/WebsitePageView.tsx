@@ -96,6 +96,13 @@ function BackgroundMedia({ block, className = "" }: { block: WebsiteBlock; class
   );
 }
 
+function showcaseCardBody(title: string, body?: string | null) {
+  const trimmed = body?.trim() ?? "";
+  if (!trimmed || trimmed === "Update this caption.") return "";
+  if (trimmed.toLowerCase() === title.toLowerCase()) return "";
+  return trimmed;
+}
+
 function RecentProjectCard({
   item,
   index,
@@ -105,17 +112,25 @@ function RecentProjectCard({
   index: number;
   featured?: boolean;
 }) {
-  const title = item.title || `Recent project ${index + 1}`;
-  const body = item.body || "Update this caption.";
+  const title = item.title?.trim() || `Recent project ${index + 1}`;
+  const body = showcaseCardBody(title, item.body);
+  const label = item.meta?.trim() || `Recent ${String(index + 1).padStart(2, "0")}`;
+  const motionBadge =
+    item.mediaUrl && isVideoUrl(mediaUrl(item.mediaUrl)) ? (
+      <span className="inline-flex rounded-full border border-white/20 bg-black/35 px-3 py-1 text-[0.58rem] uppercase tracking-[0.22em] text-white/72">
+        Motion
+      </span>
+    ) : null;
+
   return (
     <article
-      className={`group relative overflow-hidden border border-white/12 bg-white/[0.06] shadow-2xl shadow-black/35 backdrop-blur-xl transition duration-500 hover:-translate-y-1 hover:bg-white/[0.09] ${
-        featured
-          ? "rounded-[34px] md:col-span-7"
-          : "rounded-[26px] md:col-span-5"
+      className={`group flex h-full flex-col overflow-hidden border border-white/12 bg-white/[0.06] shadow-2xl shadow-black/35 backdrop-blur-xl transition duration-500 hover:-translate-y-1 hover:bg-white/[0.09] ${
+        featured ? "rounded-[34px] md:col-span-7" : "rounded-[26px]"
       }`}
     >
-      <div className={featured ? "aspect-[16/11]" : "aspect-[4/3]"}>
+      <div
+        className={`relative overflow-hidden ${featured ? "aspect-[16/11]" : "aspect-[4/3] shrink-0"}`}
+      >
         {item.mediaUrl ? (
           <MediaFrame
             url={item.mediaUrl}
@@ -125,24 +140,41 @@ function RecentProjectCard({
         ) : (
           <div className="h-full w-full bg-[radial-gradient(circle_at_28%_22%,rgba(255,255,255,0.42),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.18),rgba(255,255,255,0.04))]" />
         )}
+
+        {!featured ? (
+          <>
+            <div
+              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/88 via-black/30 to-transparent"
+              aria-hidden
+            />
+            <div className="absolute inset-x-0 bottom-0 px-4 pb-4 pt-14">
+              <p className="text-[0.58rem] uppercase tracking-[0.28em] text-white/55">{label}</p>
+              <p className="mt-1 font-display text-[0.95rem] font-semibold leading-snug text-white">
+                {title}
+              </p>
+              {body ? (
+                <p className="mt-1 line-clamp-2 text-[0.72rem] leading-relaxed text-white/75">
+                  {body}
+                </p>
+              ) : null}
+              {motionBadge ? <div className="mt-2">{motionBadge}</div> : null}
+            </div>
+          </>
+        ) : null}
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/78 via-black/8 to-transparent" aria-hidden />
-      <div className="absolute inset-x-0 bottom-0 p-5 md:p-6">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="text-[0.62rem] uppercase tracking-[0.3em] text-white/52">
-              {item.meta || `Recent ${String(index + 1).padStart(2, "0")}`}
-            </p>
-            <h3 className="mt-2 font-display text-xl text-white md:text-2xl">{title}</h3>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/76">{body}</p>
-          </div>
-          {item.mediaUrl && isVideoUrl(mediaUrl(item.mediaUrl)) ? (
-            <span className="hidden rounded-full border border-white/20 bg-black/35 px-3 py-1 text-[0.58rem] uppercase tracking-[0.22em] text-white/72 md:inline-flex">
-              Motion
-            </span>
+
+      {featured ? (
+        <div className="border-t border-white/10 bg-black/45 px-5 py-5 md:px-6 md:py-6">
+          <p className="text-[0.62rem] uppercase tracking-[0.3em] text-white/52">{label}</p>
+          <p className="mt-2 font-display text-lg font-semibold leading-tight text-white md:text-xl">
+            {title}
+          </p>
+          {body ? (
+            <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-white/72">{body}</p>
           ) : null}
+          {motionBadge ? <div className="mt-3">{motionBadge}</div> : null}
         </div>
-      </div>
+      ) : null}
     </article>
   );
 }

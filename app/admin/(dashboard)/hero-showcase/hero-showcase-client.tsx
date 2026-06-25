@@ -435,6 +435,9 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
                   </label>
                   <label className="block text-sm text-white/70">
                     Title
+                    <span className="mt-0.5 block text-xs text-white/45">
+                      Short headline — keep to a few words.
+                    </span>
                     <input
                       value={item.title}
                       onChange={(event) =>
@@ -446,6 +449,7 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
                   <label className="block text-sm text-white/70 sm:col-span-2">
                     <span className="flex flex-wrap items-center justify-between gap-2">
                       Caption
+                      <span className="text-xs text-white/45">1–2 short sentences for the card body.</span>
                       <button
                         type="button"
                         className="text-xs uppercase tracking-[0.18em] text-white/55 underline hover:text-white disabled:opacity-40"

@@ -65,10 +65,9 @@ export default function SiteBackground({ theme }: { theme: SiteTheme }) {
         />
       )}
       <div
-        className="page-bg-vignette transition-opacity duration-700"
+        className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,9,11,0.55),rgba(7,9,11,0.88))] transition-opacity duration-700"
         style={{ opacity: ready ? 1 : 0.82 }}
       />
-      <div className="page-bg-blend-bottom" />
     </div>
   );
 }

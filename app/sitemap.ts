@@ -7,6 +7,7 @@ import { getPublishedProjectsBySections } from "@/lib/queries/work";
 import { getPublishedGalleryCards } from "@/lib/queries/public-galleries";
 import { listPublishedStudioProjectSlugsForSitemap } from "@/lib/studio/studio-project-cms";
 import { getVisibleWorkPillars } from "@/lib/work-pillar-settings";
+import { getPublishedBlogPosts } from "@/lib/blog-posts";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || BRAND.url;
@@ -103,6 +104,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.85,
   }));
 
+  let blogRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const blogPosts = await getPublishedBlogPosts();
+    if (blogPosts.length > 0) {
+      blogRoutes.push({
+        url: `${baseUrl}/blog`,
+        lastModified: now,
+        priority: 0.75,
+      });
+      blogRoutes = [
+        ...blogRoutes,
+        ...blogPosts.map((post) => ({
+          url: `${baseUrl}/blog/${post.slug}`,
+          lastModified: new Date(post.updatedAt),
+          priority: 0.7,
+        })),
+      ];
+    }
+  } catch {
+    // DB may not be available
+  }
+
   return [
     ...routes,
     ...seoServiceRoutes,
@@ -112,5 +135,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...studioProjectWorkRoutes,
     ...galleryRoutes,
     ...caseStudyRoutes,
+    ...blogRoutes,
   ];
 }

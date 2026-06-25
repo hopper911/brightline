@@ -13,6 +13,7 @@ import { getPublicR2Url } from "@/lib/r2";
 import { BRAND } from "@/lib/config/brand";
 import { getPillarCaseStudyDefaults } from "@/lib/pillarCaseStudyDefaults";
 import { getPillarSeoLinkPhrase, getPillarSeoServiceUrl } from "@/lib/pillarToSeoServiceUrl";
+import { parseRelatedServiceLinks } from "@/lib/work-project-related-services";
 import { getServiceSlugsForPillar } from "@/lib/pillarToServices";
 import { services } from "@/app/services/data";
 
@@ -146,9 +147,19 @@ export default async function WorkProjectPage({
     project.backgroundPosterUrl || hero?.posterKey || hero?.keyThumb || null;
 
   const serviceSlugs = getServiceSlugsForPillar(pillar.slug);
-  const relatedServices = serviceSlugs
+  const defaultRelatedServices = serviceSlugs
     .map((s) => services.find((svc) => svc.slug === s))
     .filter(Boolean) as typeof services;
+  const customRelatedLinks = parseRelatedServiceLinks(project.relatedServicesLinks);
+  const relatedServices =
+    customRelatedLinks.length > 0
+      ? customRelatedLinks.map((link) => {
+          const match = services.find((svc) => svc.slug === link.slug);
+          return { slug: link.slug, title: link.title || match?.title || link.slug };
+        })
+      : defaultRelatedServices.map((svc) => ({ slug: svc.slug, title: svc.title }));
+  const relatedServicesEnabled = project.relatedServicesEnabled !== false;
+  const showRelatedContactButton = project.showRelatedContactButton !== false;
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -431,38 +442,46 @@ export default async function WorkProjectPage({
         </Reveal>
       )}
 
-      <Reveal className="mt-12">
-        <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
-          <p className="section-kicker">Related services</p>
-          <p className="mt-2 text-sm text-white/70">
-            This project is part of our{" "}
-            <Link
-              href={getPillarSeoServiceUrl(pillar.slug)}
-              className="text-white underline hover:no-underline"
-            >
-              {getPillarSeoLinkPhrase(pillar.slug)}
-            </Link>
-            .{" "}
-            {relatedServices.length > 0
-              ? "Looking for similar photography in your area?"
-              : null}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {relatedServices.map((svc) => (
-              <Link
-                key={svc.slug}
-                href={`/services/${svc.slug}`}
-                className="btn btn-ghost text-white/80 hover:text-white"
-              >
-                {svc.title}
-              </Link>
-            ))}
-            <Link href="/contact" className="btn btn-ghost text-white/80 hover:text-white">
-              Contact
-            </Link>
+      {relatedServicesEnabled ? (
+        <Reveal className="mt-12">
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
+            <p className="section-kicker">Related services</p>
+            {project.relatedServicesIntro?.trim() ? (
+              <p className="mt-2 text-sm text-white/70">{project.relatedServicesIntro.trim()}</p>
+            ) : (
+              <p className="mt-2 text-sm text-white/70">
+                This project is part of our{" "}
+                <Link
+                  href={getPillarSeoServiceUrl(pillar.slug)}
+                  className="text-white underline hover:no-underline"
+                >
+                  {getPillarSeoLinkPhrase(pillar.slug)}
+                </Link>
+                .{" "}
+                {relatedServices.length > 0
+                  ? "Looking for similar photography in your area?"
+                  : null}
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-3">
+              {relatedServices.map((svc) => (
+                <Link
+                  key={svc.slug}
+                  href={`/services/${svc.slug}`}
+                  className="btn btn-ghost text-white/80 hover:text-white"
+                >
+                  {svc.title}
+                </Link>
+              ))}
+              {showRelatedContactButton ? (
+                <Link href="/contact" className="btn btn-ghost text-white/80 hover:text-white">
+                  Contact
+                </Link>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </Reveal>
+        </Reveal>
+      ) : null}
 
       <Reveal className="mt-12">
         <div className="rounded-2xl border border-white/10 bg-black/60 p-6">

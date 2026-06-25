@@ -576,6 +576,11 @@ model WorkProject {
   publishedAt         DateTime?
   tags                String[]       @default([])
   credits             String?
+  /// Related services block at bottom of case study page
+  relatedServicesEnabled      Boolean  @default(true)
+  relatedServicesIntro        String?
+  relatedServicesLinks        Json?
+  showRelatedContactButton    Boolean  @default(true)
   /// Optional link to canonical Studio OS project record (`StudioProject.id`).
   studioProjectId     String?
 

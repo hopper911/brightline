@@ -183,6 +183,9 @@ export default async function AdminPage() {
         <Link href="/admin/service-sections" className="btn btn-primary">
           Service sections
         </Link>
+        <Link href="/admin/work-sections" className="btn btn-primary">
+          Work sections
+        </Link>
         <Link href="/admin/media" className="btn btn-primary">
           Media
         </Link>

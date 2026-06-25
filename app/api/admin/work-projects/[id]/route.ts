@@ -119,6 +119,10 @@ export async function PATCH(
       execution?: string | null;
       closing?: string | null;
       credits?: string | null;
+      relatedServicesEnabled?: boolean;
+      relatedServicesIntro?: string | null;
+      relatedServicesLinks?: { slug: string; title: string }[] | null;
+      showRelatedContactButton?: boolean;
       tags?: string[];
       /** Pillar slug from Admin → Work pillars; moves project to that pillar's primary work section. */
       pillar?: string | null;
@@ -275,6 +279,33 @@ export async function PATCH(
             ? body.credits == null
               ? null
               : String(body.credits).trim() || null
+            : undefined,
+        relatedServicesEnabled:
+          body.relatedServicesEnabled !== undefined
+            ? Boolean(body.relatedServicesEnabled)
+            : undefined,
+        relatedServicesIntro:
+          body.relatedServicesIntro !== undefined
+            ? body.relatedServicesIntro == null
+              ? null
+              : String(body.relatedServicesIntro).trim() || null
+            : undefined,
+        relatedServicesLinks:
+          body.relatedServicesLinks !== undefined
+            ? body.relatedServicesLinks == null
+              ? null
+              : Array.isArray(body.relatedServicesLinks)
+                ? body.relatedServicesLinks
+                    .map((link) => ({
+                      slug: String(link?.slug ?? "").trim(),
+                      title: String(link?.title ?? "").trim(),
+                    }))
+                    .filter((link) => link.slug && link.title)
+                : undefined
+            : undefined,
+        showRelatedContactButton:
+          body.showRelatedContactButton !== undefined
+            ? Boolean(body.showRelatedContactButton)
             : undefined,
         tags:
           body.tags !== undefined

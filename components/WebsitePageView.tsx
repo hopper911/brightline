@@ -173,13 +173,18 @@ function RecentProjectsShowcase({ block }: { block: WebsiteBlock }) {
 
 function RenderBlock({ block }: { block: WebsiteBlock }) {
   if (block.type === "hero") {
+    const showcaseOn = block.showcaseEnabled !== false;
     return (
       <Reveal className="relative isolate min-h-[78vh] overflow-hidden px-6 py-24 lg:px-10 lg:py-32">
         <BackgroundMedia block={block} className="opacity-48" />
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.16),transparent_30%),linear-gradient(90deg,rgba(7,9,11,0.95),rgba(7,9,11,0.70)_48%,rgba(7,9,11,0.92))]" />
         <div className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-t from-[var(--color-bg)] to-transparent" />
 
-        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+        <div
+          className={`mx-auto grid max-w-6xl items-center gap-12 ${
+            showcaseOn ? "lg:grid-cols-[1.05fr_0.95fr]" : ""
+          }`}
+        >
           <div>
             {block.eyebrow ? (
               <p className="section-kicker">{block.eyebrow}</p>
@@ -216,9 +221,11 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
             </div>
           </div>
 
-          <div aria-label="Recent project samples">
-            <RecentProjectsShowcase block={block} />
-          </div>
+          {showcaseOn ? (
+            <div aria-label="Recent project samples">
+              <RecentProjectsShowcase block={block} />
+            </div>
+          ) : null}
         </div>
       </Reveal>
     );

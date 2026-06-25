@@ -81,6 +81,7 @@ function blankBlock(type: WebsiteBlockType): WebsiteBlock {
         : type === "gallery"
           ? "/galleries"
           : "",
+    ...(type === "hero" ? { showcaseEnabled: true } : {}),
   };
 }
 
@@ -884,6 +885,18 @@ export default function WebsitePagesClient({
                 <input value={selectedBlock.ctaHref} onChange={(event) => updateBlock(selectedBlock.id, { ctaHref: event.target.value })} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white" />
               </label>
             </div>
+            {selectedBlock.type === "hero" ? (
+              <div className="rounded-xl border border-white/15 bg-black/25 p-4">
+                <p className="text-xs uppercase tracking-[0.25em] text-white/55">Recent project cards</p>
+                <p className="mt-2 text-sm text-white/65">
+                  Edit showcase images, captions, and the on/off toggle in{" "}
+                  <Link href="/admin/hero-showcase" className="underline text-white/85 hover:text-white">
+                    Hero showcase
+                  </Link>
+                  .
+                </p>
+              </div>
+            ) : null}
             {selectedBlock.type === "stats" || selectedBlock.type === "cards" || selectedBlock.type === "list" ? (
               <label className="block text-sm text-white/70">
                 Items, one per line as <code>title | body | meta | media URL</code>

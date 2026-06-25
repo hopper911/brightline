@@ -23,6 +23,8 @@ export type WebsiteBlock = {
   items: WebsiteBlockItem[];
   ctaLabel: string;
   ctaHref: string;
+  /** Hero only — show the recent-project card grid beside the headline (default on). */
+  showcaseEnabled?: boolean;
 };
 
 export type WebsitePage = {
@@ -90,6 +92,7 @@ export function blankBlock(type: WebsiteBlockType = "text", label = "Content blo
           : type === "gallery"
             ? "/galleries"
             : "",
+    ...(type === "hero" ? { showcaseEnabled: true } : {}),
   };
 }
 
@@ -449,6 +452,7 @@ function normalizeBlock(input: unknown): WebsiteBlock | null {
     items: normalizeItems(row.items),
     ctaLabel: typeof row.ctaLabel === "string" ? row.ctaLabel.trim() : "",
     ctaHref: typeof row.ctaHref === "string" ? row.ctaHref.trim() : "",
+    ...(type === "hero" ? { showcaseEnabled: row.showcaseEnabled !== false } : {}),
   };
 }
 

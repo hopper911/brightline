@@ -69,6 +69,14 @@ function blankShowcaseItem(index: number): WebsiteBlockItem {
   };
 }
 
+function isVideoUrl(url: string) {
+  return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
+}
+
+function cardKey(blockId: string, index: number) {
+  return `${blockId}:${index}`;
+}
+
 export default function HeroShowcaseClient({ initialPages }: { initialPages: WebsitePage[] }) {
   const heroPages = useMemo(
     () => initialPages.filter((page) => getHeroBlock(page)),
@@ -80,6 +88,8 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
   const [r2Target, setR2Target] = useState<R2Target>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
+  const [captionLoadingByCard, setCaptionLoadingByCard] = useState<Record<string, boolean>>({});
+  const [captionErrorByCard, setCaptionErrorByCard] = useState<Record<string, string>>({});
 
   const selectedPage = useMemo(
     () => pages.find((page) => page.slug === selectedSlug) ?? heroPages[0],
@@ -152,6 +162,66 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
       setStatus("error");
+    }
+  }
+
+  async function generateCaption(itemIndex: number, options: { replace?: boolean } = {}) {
+    if (!heroBlock || !selectedPage) return;
+    const item = heroBlock.items[itemIndex];
+    if (!item) return;
+
+    const mediaUrl = item.mediaUrl?.trim();
+    if (!mediaUrl) {
+      setCaptionErrorByCard((current) => ({
+        ...current,
+        [cardKey(heroBlock.id, itemIndex)]: "Add an image before generating a caption.",
+      }));
+      return;
+    }
+    if (isVideoUrl(mediaUrl)) {
+      setCaptionErrorByCard((current) => ({
+        ...current,
+        [cardKey(heroBlock.id, itemIndex)]: "AI captions work for images only.",
+      }));
+      return;
+    }
+    if (item.body.trim() && item.body !== "Update this caption." && !options.replace) {
+      const ok = window.confirm("Replace the existing caption with AI-generated text?");
+      if (!ok) return;
+    }
+
+    const key = cardKey(heroBlock.id, itemIndex);
+    setCaptionLoadingByCard((current) => ({ ...current, [key]: true }));
+    setCaptionErrorByCard((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+
+    try {
+      const res = await fetch("/api/admin/hero-showcase/generate-caption", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: mediaUrl,
+          context: {
+            pageTitle: selectedPage.title,
+            cardTitle: item.title,
+            cardLabel: item.meta,
+          },
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; caption?: string; error?: string };
+      if (!res.ok || !data.caption) {
+        throw new Error(data.error ?? "Failed to generate caption.");
+      }
+      updateItem(heroBlock.id, itemIndex, { body: data.caption });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to generate caption.";
+      setCaptionErrorByCard((current) => ({ ...current, [key]: message }));
+    } finally {
+      setCaptionLoadingByCard((current) => ({ ...current, [key]: false }));
     }
   }
 
@@ -374,7 +444,23 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
                     />
                   </label>
                   <label className="block text-sm text-white/70 sm:col-span-2">
-                    Caption
+                    <span className="flex flex-wrap items-center justify-between gap-2">
+                      Caption
+                      <button
+                        type="button"
+                        className="text-xs uppercase tracking-[0.18em] text-white/55 underline hover:text-white disabled:opacity-40"
+                        disabled={
+                          !item.mediaUrl ||
+                          isVideoUrl(item.mediaUrl) ||
+                          captionLoadingByCard[cardKey(heroBlock.id, index)]
+                        }
+                        onClick={() => void generateCaption(index)}
+                      >
+                        {captionLoadingByCard[cardKey(heroBlock.id, index)]
+                          ? "Generating…"
+                          : "Generate with AI"}
+                      </button>
+                    </span>
                     <textarea
                       value={item.body}
                       onChange={(event) =>
@@ -383,6 +469,11 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
                       rows={2}
                       className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
                     />
+                    {captionErrorByCard[cardKey(heroBlock.id, index)] ? (
+                      <p className="mt-2 text-xs text-red-300">
+                        {captionErrorByCard[cardKey(heroBlock.id, index)]}
+                      </p>
+                    ) : null}
                   </label>
                   <label className="block text-sm text-white/70 sm:col-span-2">
                     Media URL

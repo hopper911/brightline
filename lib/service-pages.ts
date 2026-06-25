@@ -45,6 +45,12 @@ function blankService(slug = "new-service"): Service {
     },
     faqs: [{ q: "Question?", a: "Answer." }],
     caseStudies: [],
+    caseStudiesEnabled: true,
+    caseStudiesIntro: "Explore related projects and outcomes.",
+    relatedServicesEnabled: true,
+    relatedServicesIntro: "",
+    relatedServicesLinks: [],
+    showRelatedContactButton: true,
   };
 }
 
@@ -97,10 +103,25 @@ function caseStudyArray(value: unknown, fallback: Service["caseStudies"]) {
         category: typeof row.category === "string" ? row.category.trim() : "",
         image: typeof row.image === "string" ? row.image.trim() : "",
         meta: typeof row.meta === "string" ? row.meta.trim() : "",
+        ...(typeof row.href === "string" && row.href.trim() ? { href: row.href.trim() } : {}),
       };
     })
     .filter(Boolean) as Service["caseStudies"];
   return normalized.length > 0 ? normalized : fallback;
+}
+
+function relatedLinkArray(value: unknown, fallback: Service["relatedServicesLinks"]) {
+  if (!Array.isArray(value)) return fallback ?? [];
+  const normalized = value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const slug = typeof row.slug === "string" ? slugify(row.slug) : "";
+      const title = typeof row.title === "string" ? row.title.trim() : "";
+      return slug && title ? { slug, title } : null;
+    })
+    .filter(Boolean) as NonNullable<Service["relatedServicesLinks"]>;
+  return normalized.length > 0 ? normalized : fallback ?? [];
 }
 
 export function normalizeServicePage(input: unknown, fallback: Service): Service {
@@ -170,6 +191,18 @@ export function normalizeServicePage(input: unknown, fallback: Service): Service
     },
     faqs: faqArray(row.faqs, fallback.faqs),
     caseStudies: caseStudyArray(row.caseStudies, fallback.caseStudies),
+    caseStudiesEnabled: row.caseStudiesEnabled !== false,
+    caseStudiesIntro:
+      typeof row.caseStudiesIntro === "string" && row.caseStudiesIntro.trim()
+        ? row.caseStudiesIntro.trim()
+        : fallback.caseStudiesIntro ?? "Explore related projects and outcomes.",
+    relatedServicesEnabled: row.relatedServicesEnabled !== false,
+    relatedServicesIntro:
+      typeof row.relatedServicesIntro === "string"
+        ? row.relatedServicesIntro.trim()
+        : fallback.relatedServicesIntro ?? "",
+    relatedServicesLinks: relatedLinkArray(row.relatedServicesLinks, fallback.relatedServicesLinks),
+    showRelatedContactButton: row.showRelatedContactButton !== false,
   };
 }
 

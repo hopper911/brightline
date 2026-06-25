@@ -24,7 +24,22 @@ export type Service = {
     licensing: string;
   };
   faqs: { q: string; a: string }[];
-  caseStudies: { slug: string; title: string; category: string; image: string; meta: string }[];
+  caseStudies: {
+    slug: string;
+    title: string;
+    category: string;
+    image: string;
+    meta: string;
+    href?: string;
+  }[];
+  /** Show the case study cards near the bottom of the service page (default on). */
+  caseStudiesEnabled?: boolean;
+  caseStudiesIntro?: string;
+  /** Cross-link block before FAQs (default on). */
+  relatedServicesEnabled?: boolean;
+  relatedServicesIntro?: string;
+  relatedServicesLinks?: { slug: string; title: string }[];
+  showRelatedContactButton?: boolean;
 };
 
 export const services: Service[] = [
@@ -116,6 +131,16 @@ export const services: Service[] = [
         meta: "Nashville, TN · 2025",
       },
     ],
+    caseStudiesEnabled: true,
+    caseStudiesIntro: "Explore related projects and outcomes.",
+    relatedServicesEnabled: true,
+    relatedServicesIntro:
+      "Architecture and spaces work often pairs with commercial real estate and campaign photography for full property launches.",
+    relatedServicesLinks: [
+      { slug: "commercial-real-estate-photography", title: "Commercial Real Estate Photography" },
+      { slug: "fashion-campaign-photography", title: "Fashion & Advertising Photography" },
+    ],
+    showRelatedContactButton: true,
   },
   {
     slug: "commercial-real-estate-photography",
@@ -205,6 +230,16 @@ export const services: Service[] = [
         meta: "Austin, TX · 2025",
       },
     ],
+    caseStudiesEnabled: true,
+    caseStudiesIntro: "Explore related projects and outcomes.",
+    relatedServicesEnabled: true,
+    relatedServicesIntro:
+      "Leasing and investment teams often combine property photography with architecture coverage and campaign assets.",
+    relatedServicesLinks: [
+      { slug: "architecture-photography", title: "Architecture & Spaces Photography" },
+      { slug: "fashion-campaign-photography", title: "Fashion & Advertising Photography" },
+    ],
+    showRelatedContactButton: true,
   },
   {
     slug: "fashion-campaign-photography",
@@ -294,5 +329,15 @@ export const services: Service[] = [
         meta: "Los Angeles, CA · 2025",
       },
     ],
+    caseStudiesEnabled: true,
+    caseStudiesIntro: "Explore related projects and outcomes.",
+    relatedServicesEnabled: true,
+    relatedServicesIntro:
+      "Campaign teams often pair fashion and advertising work with architecture and commercial property photography.",
+    relatedServicesLinks: [
+      { slug: "architecture-photography", title: "Architecture & Spaces Photography" },
+      { slug: "commercial-real-estate-photography", title: "Commercial Real Estate Photography" },
+    ],
+    showRelatedContactButton: true,
   },
 ];

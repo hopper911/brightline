@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import {
   getEditableServicePages,
@@ -38,6 +39,7 @@ export async function PATCH(req: Request) {
 
   try {
     const services = await saveEditableServicePages(input);
+    revalidatePath("/services", "layout");
     return NextResponse.json({ ok: true, services });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to save services.";

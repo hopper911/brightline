@@ -62,6 +62,12 @@ function newService(slug: string): Service {
     },
     faqs: [{ q: "Question?", a: "Answer." }],
     caseStudies: [],
+    caseStudiesEnabled: true,
+    caseStudiesIntro: "Explore related projects and outcomes.",
+    relatedServicesEnabled: true,
+    relatedServicesIntro: "",
+    relatedServicesLinks: [],
+    showRelatedContactButton: true,
   };
 }
 
@@ -662,8 +668,13 @@ export default function ServicePagesClient({ initialServices }: Props) {
         </section>
       </div>
 
-      <section className="mt-6 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6">
-        <h2 className="text-xs uppercase tracking-[0.3em] text-white/50">FAQ and related work</h2>
+        <section className="mt-6 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xs uppercase tracking-[0.3em] text-white/50">FAQ and related work</h2>
+          <Link href="/admin/service-sections" className="text-xs uppercase tracking-[0.18em] text-white/55 underline hover:text-white">
+            Case studies & related services →
+          </Link>
+        </div>
         <label className="block text-sm text-white/70">
           FAQs, one per line as <code>Question | Answer</code>
           <textarea

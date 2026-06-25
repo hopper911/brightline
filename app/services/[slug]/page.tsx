@@ -144,10 +144,16 @@ export default async function ServicePage({
     Fashion: "acd",
     Culinary: "cul",
   };
-  const getCaseStudyHref = (projectSlug: string, category: string) => {
-    const section = categoryToSection[category] ?? "acd";
+  const getCaseStudyHref = (item: (typeof service.caseStudies)[number]) => {
+    if (item.href?.trim()) return item.href.trim();
+    const section = categoryToSection[item.category] ?? "acd";
     return `/work/${section}`;
   };
+
+  const caseStudiesOn = service.caseStudiesEnabled !== false && service.caseStudies.length > 0;
+  const relatedOn =
+    service.relatedServicesEnabled !== false &&
+    (service.relatedServicesLinks?.length ?? 0) > 0;
 
   const faqSchema = {
     "@context": "https://schema.org",
@@ -349,37 +355,69 @@ export default async function ServicePage({
         </div>
       </section>
 
-      <section className="mt-16" aria-labelledby="service-case-studies">
-        <p className="section-kicker">Case studies</p>
-        <p className="mt-3 text-sm text-white/70">
-          Explore related projects and outcomes.
-        </p>
-        <h2 id="service-case-studies" className="sr-only">
-          Related case studies
-        </h2>
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
-          {service.caseStudies.slice(0, 2).map((item) => (
-            <Link
-              key={item.slug}
-              href={getCaseStudyHref(item.slug, item.category)}
-              className="group overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04]"
-            >
-              <div className="relative h-[240px] overflow-hidden bg-black/30">
-                <ServiceMedia
-                  src={item.image}
-                  alt={item.title}
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                />
-              </div>
-              <div className="p-5">
-                <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.category}</p>
-                <h3 className="mt-2 font-display text-xl text-white">{item.title}</h3>
-                <p className="mt-2 text-sm text-white/60">{item.meta}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {caseStudiesOn ? (
+        <section className="mt-16" aria-labelledby="service-case-studies">
+          <p className="section-kicker">Case studies</p>
+          <p className="mt-3 text-sm text-white/70">
+            {service.caseStudiesIntro?.trim() || "Explore related projects and outcomes."}
+          </p>
+          <h2 id="service-case-studies" className="sr-only">
+            Related case studies
+          </h2>
+          <div className="mt-6 grid gap-6 md:grid-cols-2">
+            {service.caseStudies.slice(0, 2).map((item) => (
+              <Link
+                key={item.slug}
+                href={getCaseStudyHref(item)}
+                className="group overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04]"
+              >
+                <div className="relative h-[240px] overflow-hidden bg-black/30">
+                  <ServiceMedia
+                    src={item.image}
+                    alt={item.title}
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-5">
+                  <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.category}</p>
+                  <h3 className="mt-2 font-display text-xl text-white">{item.title}</h3>
+                  <p className="mt-2 text-sm text-white/60">{item.meta}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {relatedOn ? (
+        <section className="mt-16" aria-labelledby="service-related-services">
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-6">
+            <p className="section-kicker">Related services</p>
+            <h2 id="service-related-services" className="sr-only">
+              Related services
+            </h2>
+            {service.relatedServicesIntro?.trim() ? (
+              <p className="mt-2 text-sm text-white/70">{service.relatedServicesIntro}</p>
+            ) : null}
+            <div className="mt-4 flex flex-wrap gap-3">
+              {service.relatedServicesLinks?.map((link) => (
+                <Link
+                  key={link.slug}
+                  href={`/services/${link.slug}`}
+                  className="btn btn-ghost text-white/80 hover:text-white"
+                >
+                  {link.title}
+                </Link>
+              ))}
+              {service.showRelatedContactButton !== false ? (
+                <Link href="/contact" className="btn btn-ghost text-white/80 hover:text-white">
+                  Contact
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-16">
         <p className="section-kicker">FAQs</p>

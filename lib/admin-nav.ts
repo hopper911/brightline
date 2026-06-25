@@ -37,6 +37,7 @@ export const DEFAULT_ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { id: "hero_showcase", label: "Hero showcase", href: "/admin/hero-showcase", visible: true },
       { id: "blog", label: "Blog", href: "/admin/blog", visible: true },
       { id: "service_pages", label: "Service pages", href: "/admin/services", visible: true },
+      { id: "service_sections", label: "Service sections", href: "/admin/service-sections", visible: true },
       { id: "work", label: "Work", href: "/admin/work", visible: true },
       { id: "work_pillars", label: "Work pillars", href: "/admin/work-pillars", visible: true },
       { id: "studio_cms", label: "Studio CMS", href: "/admin/projects", visible: true },

@@ -1,5 +1,11 @@
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
+import {
+  SectionBlendBottom,
+  SectionBlendTop,
+  sectionMediaFadeClass,
+  type SectionMediaFade,
+} from "@/components/SectionBackgroundBlend";
 import type { WebsiteBlock, WebsiteBlockItem, WebsitePage } from "@/lib/website-pages";
 import { resolveStoredMediaUrl } from "@/lib/r2";
 
@@ -67,30 +73,64 @@ function MediaFrame({ url, alt, className = "" }: { url: string; alt: string; cl
   return <img src={src} alt={alt} draggable={false} className={className} />;
 }
 
-function BackgroundMedia({ block, className = "" }: { block: WebsiteBlock; className?: string }) {
+function BackgroundMedia({
+  block,
+  className = "",
+  fade = "none",
+}: {
+  block: WebsiteBlock;
+  className?: string;
+  fade?: SectionMediaFade;
+}) {
   const src = mediaUrl(block.mediaUrl);
   if (!src) return null;
+  const wrapClass = `absolute inset-0 -z-20 ${sectionMediaFadeClass(fade)}`;
+  const mediaClass = `h-full w-full object-cover ${className}`;
   if (isVideoUrl(src)) {
     return (
-      <video
-        src={src}
-        poster={mediaUrl(block.posterUrl) || undefined}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        className={`absolute inset-0 -z-20 h-full w-full object-cover ${className}`}
-        aria-hidden
-      />
+      <div className={wrapClass}>
+        <video
+          src={src}
+          poster={mediaUrl(block.posterUrl) || undefined}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className={mediaClass}
+          aria-hidden
+        />
+      </div>
     );
   }
   return (
-    <div
-      className={`absolute inset-0 -z-20 bg-cover bg-center ${className}`}
-      style={{ backgroundImage: `url(${src})` }}
-      aria-hidden
-    />
+    <div className={wrapClass}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" draggable={false} className={mediaClass} aria-hidden />
+    </div>
+  );
+}
+
+function SectionBackgroundStack({
+  block,
+  fade,
+  overlayClassName,
+  mediaClassName = "opacity-25",
+  blendBottom = false,
+}: {
+  block: WebsiteBlock;
+  fade: SectionMediaFade;
+  overlayClassName: string;
+  mediaClassName?: string;
+  blendBottom?: boolean;
+}) {
+  if (!block.mediaUrl?.trim()) return null;
+  return (
+    <>
+      <BackgroundMedia block={block} className={mediaClassName} fade={fade} />
+      <div className={`absolute inset-0 -z-10 ${overlayClassName}`} aria-hidden />
+      {blendBottom ? <SectionBlendBottom /> : null}
+    </>
   );
 }
 
@@ -201,14 +241,20 @@ function RecentProjectsShowcase({ block }: { block: WebsiteBlock }) {
   );
 }
 
-function RenderBlock({ block }: { block: WebsiteBlock }) {
+function RenderBlock({ block, isFirst }: { block: WebsiteBlock; isFirst: boolean }) {
+  const sectionTopBlend = !isFirst ? <SectionBlendTop /> : null;
+
   if (block.type === "hero") {
     const showcaseOn = block.showcaseEnabled !== false;
     return (
       <Reveal className="relative isolate min-h-[78vh] overflow-hidden px-6 py-24 lg:px-10 lg:py-32">
-        <BackgroundMedia block={block} className="opacity-48" />
+        <BackgroundMedia
+          block={block}
+          className="opacity-48"
+          fade="bottom"
+        />
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.16),transparent_30%),linear-gradient(90deg,rgba(7,9,11,0.95),rgba(7,9,11,0.70)_48%,rgba(7,9,11,0.92))]" />
-        <div className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-t from-[var(--color-bg)] to-transparent" />
+        <SectionBlendBottom />
 
         <div
           className={`mx-auto grid max-w-6xl items-center gap-12 ${
@@ -264,9 +310,10 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   if (block.type === "gallery") {
     return (
       <Reveal className="relative isolate min-h-[72vh] overflow-hidden px-6 py-24 lg:px-10 lg:py-28">
-        <BackgroundMedia block={block} className="opacity-52" />
+        {sectionTopBlend}
+        <BackgroundMedia block={block} className="opacity-52" fade="bottom" />
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(95deg,rgba(7,9,11,0.92),rgba(7,9,11,0.55)_52%,rgba(7,9,11,0.88))]" />
-        <div className="absolute inset-x-0 bottom-0 -z-10 h-36 bg-gradient-to-t from-[var(--color-bg)] to-transparent" />
+        <SectionBlendBottom />
 
         <div className="mx-auto max-w-3xl">
           {block.eyebrow ? <p className="section-kicker">{block.eyebrow}</p> : null}
@@ -293,7 +340,13 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   if (block.type === "stats") {
     return (
       <Reveal className="relative isolate mx-auto max-w-5xl overflow-hidden px-6 py-8 lg:px-10">
-        <BackgroundMedia block={block} className="opacity-25" />
+        {sectionTopBlend}
+        <SectionBackgroundStack
+          block={block}
+          fade="edges"
+          mediaClassName="opacity-25"
+          overlayClassName="bg-black/20"
+        />
         <div className="rounded-[24px] border border-white/10 bg-black/35 p-6 backdrop-blur-md md:p-8">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {block.items.map((item) => (
@@ -314,8 +367,14 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   if (block.type === "cards") {
     return (
       <Reveal className="section-pad relative isolate mx-auto max-w-6xl overflow-hidden px-6 lg:px-10">
-        <BackgroundMedia block={block} className="opacity-22" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[var(--color-bg)]/70 via-[var(--color-bg)]/45 to-[var(--color-bg)]/80" aria-hidden />
+        {sectionTopBlend}
+        <SectionBackgroundStack
+          block={block}
+          fade="edges"
+          mediaClassName="opacity-22"
+          overlayClassName="bg-gradient-to-b from-[var(--color-bg)]/70 via-[var(--color-bg)]/45 to-[var(--color-bg)]/80"
+          blendBottom
+        />
         <BlockHeader block={block} />
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {block.items.map((item) => (
@@ -338,8 +397,14 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   if (block.type === "list") {
     return (
       <Reveal className="section-pad relative isolate mx-auto max-w-4xl overflow-hidden px-6 lg:px-10">
-        <BackgroundMedia block={block} className="opacity-18" />
-        <div className="absolute inset-0 -z-10 bg-[var(--color-bg)]/75" aria-hidden />
+        {sectionTopBlend}
+        <SectionBackgroundStack
+          block={block}
+          fade="edges"
+          mediaClassName="opacity-18"
+          overlayClassName="bg-[var(--color-bg)]/75"
+          blendBottom
+        />
         <BlockHeader block={block} />
         <ul className="mt-6 space-y-3 text-white/75">
           {block.items.map((item, index) => (
@@ -363,11 +428,13 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   if (block.type === "cta") {
     return (
       <Reveal className="section-pad mx-auto max-w-5xl px-6 lg:px-10">
+        {sectionTopBlend}
         <div className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-black/60 px-8 py-10">
           {block.mediaUrl ? (
             <>
-              <BackgroundMedia block={block} className="opacity-35" />
+              <BackgroundMedia block={block} className="opacity-35" fade="edges" />
               <div className="absolute inset-0 -z-10 bg-black/55" />
+              <SectionBlendBottom />
             </>
           ) : null}
           <BlockHeader block={block} />
@@ -384,8 +451,14 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   if (block.type === "contactForm") {
     return (
       <Reveal className="section-pad relative isolate mx-auto max-w-5xl overflow-hidden px-6 lg:px-10">
-        <BackgroundMedia block={block} className="opacity-22" />
-        <div className="absolute inset-0 -z-10 bg-[var(--color-bg)]/80" aria-hidden />
+        {sectionTopBlend}
+        <SectionBackgroundStack
+          block={block}
+          fade="edges"
+          mediaClassName="opacity-22"
+          overlayClassName="bg-[var(--color-bg)]/80"
+          blendBottom
+        />
         <div className="grid gap-8 md:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-2xl border border-white/10 bg-black/40 p-6 md:p-8">
             <BlockHeader block={block} />
@@ -411,10 +484,16 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   }
 
   return (
-    <Reveal className="section-pad mx-auto max-w-4xl px-6 lg:px-10">
+    <Reveal className="section-pad relative isolate mx-auto max-w-4xl overflow-hidden px-6 lg:px-10">
+      {sectionTopBlend}
       <div className="relative isolate overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.055] p-6 shadow-2xl shadow-black/25 backdrop-blur md:p-8">
-        <BackgroundMedia block={block} className="opacity-22" />
-        {block.mediaUrl ? <div className="absolute inset-0 -z-10 bg-black/58" aria-hidden /> : null}
+        {block.mediaUrl?.trim() ? (
+          <>
+            <BackgroundMedia block={block} className="opacity-22" fade="edges" />
+            <div className="absolute inset-0 -z-10 bg-black/58" aria-hidden />
+            <SectionBlendBottom />
+          </>
+        ) : null}
         <div>
           <div>
             <BlockHeader block={block} />
@@ -432,8 +511,8 @@ export default function WebsitePageView({ page }: { page: WebsitePage }) {
   if (page.blocks.length > 0) {
     return (
       <main>
-        {page.blocks.map((block) => (
-          <RenderBlock key={block.id} block={block} />
+        {page.blocks.map((block, index) => (
+          <RenderBlock key={block.id} block={block} isFirst={index === 0} />
         ))}
       </main>
     );

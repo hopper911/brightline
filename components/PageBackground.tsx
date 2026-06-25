@@ -52,7 +52,8 @@ export default function PageBackground({
         aria-hidden
       >
         <div className={`absolute inset-0 ${darkBaseClassName}`} />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,0.12),transparent_28%),linear-gradient(180deg,rgba(7,9,11,0.52),rgba(7,9,11,0.9))]" />
+        <div className="page-bg-vignette transition-opacity duration-700" style={{ opacity: 0.88 }} />
+        <div className="page-bg-blend-bottom" />
       </div>
     );
   }
@@ -95,9 +96,10 @@ export default function PageBackground({
         />
       )}
       <div
-        className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,0.12),transparent_28%),linear-gradient(180deg,rgba(7,9,11,0.52),rgba(7,9,11,0.9))] transition-opacity duration-700"
+        className="page-bg-vignette transition-opacity duration-700"
         style={{ opacity: ready ? 1 : 0.88 }}
       />
+      <div className="page-bg-blend-bottom" />
     </div>
   );
 }

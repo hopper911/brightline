@@ -27,7 +27,7 @@ export default async function BlogIndexPage() {
         <p className="section-kicker">Journal</p>
         <h1 className="section-title">BRIGHTLINE Journal</h1>
         <p className="section-subtitle max-w-2xl">
-          Notes, project stories, and production guidance from the studio.
+          Notes, project stories, and behind-the-scenes work from the studio — photography, design, and production.
         </p>
       </Reveal>
 

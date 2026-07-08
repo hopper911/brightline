@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 
 export type BlogPostStatus = "DRAFT" | "PUBLISHED";
 
+export type BlogGalleryImage = {
+  url: string;
+  alt: string;
+};
+
 export type BlogPost = {
   id: string;
   slug: string;
@@ -11,6 +16,7 @@ export type BlogPost = {
   body: string;
   coverImageUrl: string;
   coverImageAlt: string;
+  galleryImages: BlogGalleryImage[];
   author: string;
   tags: string[];
   seoTitle: string;
@@ -57,6 +63,23 @@ function cleanTags(value: unknown): string[] {
     .slice(0, 12);
 }
 
+function cleanGalleryImages(value: unknown): BlogGalleryImage[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const url = cleanString(row.url);
+      if (!url) return null;
+      return {
+        url,
+        alt: cleanString(row.alt),
+      };
+    })
+    .filter((item): item is BlogGalleryImage => Boolean(item))
+    .slice(0, 120);
+}
+
 export function blankBlogPost(title = "Untitled post"): BlogPost {
   const now = new Date().toISOString();
   const slug = slugify(title) || "untitled-post";
@@ -68,6 +91,7 @@ export function blankBlogPost(title = "Untitled post"): BlogPost {
     body: "",
     coverImageUrl: "",
     coverImageAlt: "",
+    galleryImages: [],
     author: "BRIGHTLINE",
     tags: [],
     seoTitle: "",
@@ -102,6 +126,7 @@ export function normalizeBlogPost(input: unknown): BlogPost | null {
     body: cleanString(row.body),
     coverImageUrl: cleanString(row.coverImageUrl),
     coverImageAlt: cleanString(row.coverImageAlt),
+    galleryImages: cleanGalleryImages(row.galleryImages),
     author: cleanString(row.author) || "BRIGHTLINE",
     tags: cleanTags(row.tags),
     seoTitle: cleanString(row.seoTitle),

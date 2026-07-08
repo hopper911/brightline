@@ -108,6 +108,34 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         ))}
       </Reveal>
 
+      {post.galleryImages.length > 0 ? (
+        <Reveal className="mt-12" delay={0.09}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {post.galleryImages.map((image, index) => (
+              <div
+                key={`${image.url}-${index}`}
+                className={`relative overflow-hidden rounded-2xl border border-white/10 image-guard-overlay ${
+                  index % 5 === 0 ? "sm:col-span-2 aspect-[16/10]" : "aspect-[4/5]"
+                }`}
+              >
+                <Image
+                  src={image.url}
+                  alt={image.alt || `${post.title} image ${index + 1}`}
+                  fill
+                  draggable={false}
+                  sizes={
+                    index % 5 === 0
+                      ? "(min-width: 1024px) 768px, 100vw"
+                      : "(min-width: 1024px) 384px, 50vw"
+                  }
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        </Reveal>
+      ) : null}
+
       {post.tags.length ? (
         <Reveal className="mt-10 flex flex-wrap gap-2" delay={0.1}>
           {post.tags.map((tag) => (

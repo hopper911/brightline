@@ -82,6 +82,11 @@ const nextConfig: NextConfig = {
         hostname: "images.brightlinephotography.co",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "cdn.myportfolio.com",
+        pathname: "/**",
+      },
     ],
   },
   async redirects() {

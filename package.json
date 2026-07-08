@@ -36,7 +36,9 @@
     "deploy:check:env": "DEPLOY_CHECK_LOAD_DOTENV=1 node scripts/check-prod-deploy-ready.mjs",
     "seed:delivery-smoke": "npx tsx scripts/seed-delivery-smoke.ts",
     "seed:delivery-smoke:empty": "DELIVERY_SMOKE_BOOTSTRAP_EMPTY=1 npx tsx scripts/seed-delivery-smoke.ts",
-    "test:client-delivery": "npx tsx scripts/client-delivery-test.ts"
+    "test:client-delivery": "npx tsx scripts/client-delivery-test.ts",
+    "import:myportfolio-journal": "npx tsx scripts/import-myportfolio-journal.ts",
+    "launch:journal": "npx tsx scripts/launch-journal.ts"
   },
   "dependencies": {
     "@aws-crypto/crc32c": "^5.2.0",

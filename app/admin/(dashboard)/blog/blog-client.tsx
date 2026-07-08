@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { BlogPost, BlogPostStatus } from "@/lib/blog-posts";
+import type { BlogPost, BlogPostStatus, BlogGalleryImage } from "@/lib/blog-posts";
 import { blankBlogPost, formatBlogDate } from "@/lib/blog-posts";
 import type { BlogSuggestResult } from "@/lib/ai/generateBlogPostAssist";
 import { getPublicR2Url } from "@/lib/r2";
@@ -43,7 +43,7 @@ export default function BlogAdminClient({ initialPosts }: { initialPosts: BlogPo
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [aiError, setAiError] = useState("");
   const [suggestions, setSuggestions] = useState<BlogSuggestResult | null>(null);
-  const [r2Open, setR2Open] = useState(false);
+  const [r2Target, setR2Target] = useState<"cover" | "gallery" | null>(null);
 
   const selected = useMemo(
     () => posts.find((post) => post.id === selectedId) ?? posts[0],
@@ -190,10 +190,46 @@ export default function BlogAdminClient({ initialPosts }: { initialPosts: BlogPo
   }
 
   function useR2Keys(keys: string[]) {
-    const url = keys.map(getPublicR2Url).filter(Boolean)[0];
-    if (!url || !selected) return;
-    updateSelected({ coverImageUrl: url });
-    setR2Open(false);
+    if (!selected) return;
+    const urls = keys.map(getPublicR2Url).filter(Boolean);
+    if (urls.length === 0) return;
+
+    if (r2Target === "gallery") {
+      const nextImages: BlogGalleryImage[] = urls.map((url, index) => ({
+        url,
+        alt: `${selected.title} image ${selected.galleryImages.length + index + 1}`,
+      }));
+      updateSelected({ galleryImages: [...selected.galleryImages, ...nextImages] });
+      setR2Target(null);
+      return;
+    }
+
+    updateSelected({ coverImageUrl: urls[0] ?? "" });
+    setR2Target(null);
+  }
+
+  function updateGalleryImage(index: number, patch: Partial<BlogGalleryImage>) {
+    if (!selected) return;
+    const next = selected.galleryImages.map((image, i) =>
+      i === index ? { ...image, ...patch } : image
+    );
+    updateSelected({ galleryImages: next });
+  }
+
+  function moveGalleryImage(index: number, direction: -1 | 1) {
+    if (!selected) return;
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= selected.galleryImages.length) return;
+    const next = [...selected.galleryImages];
+    [next[index], next[swapIndex]] = [next[swapIndex]!, next[index]!];
+    updateSelected({ galleryImages: next });
+  }
+
+  function removeGalleryImage(index: number) {
+    if (!selected) return;
+    updateSelected({
+      galleryImages: selected.galleryImages.filter((_, i) => i !== index),
+    });
   }
 
   if (!selected) {
@@ -210,7 +246,12 @@ export default function BlogAdminClient({ initialPosts }: { initialPosts: BlogPo
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16">
-      <R2BrowserModal isOpen={r2Open} onClose={() => setR2Open(false)} onAddKeys={useR2Keys} mode="single" />
+      <R2BrowserModal
+        isOpen={r2Target !== null}
+        onClose={() => setR2Target(null)}
+        onAddKeys={useR2Keys}
+        mode={r2Target === "gallery" ? "multiple" : "single"}
+      />
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -368,7 +409,7 @@ export default function BlogAdminClient({ initialPosts }: { initialPosts: BlogPo
                   onChange={(event) => updateSelected({ coverImageUrl: event.target.value })}
                   className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 font-mono text-xs text-white"
                 />
-                <button type="button" className="mt-2 text-xs uppercase tracking-[0.18em] text-white/55 underline" onClick={() => setR2Open(true)}>
+                <button type="button" className="mt-2 text-xs uppercase tracking-[0.18em] text-white/55 underline" onClick={() => setR2Target("cover")}>
                   Choose from R2
                 </button>
               </label>
@@ -380,6 +421,69 @@ export default function BlogAdminClient({ initialPosts }: { initialPosts: BlogPo
                   className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
                 />
               </label>
+            </div>
+
+            <div className="border-t border-white/10 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-white/70">Gallery images</p>
+                  <p className="mt-1 text-xs text-white/50">
+                    Optional image grid below the body — ideal for photo sets and case-study visuals.
+                  </p>
+                </div>
+                <button type="button" className="btn btn-ghost text-xs" onClick={() => setR2Target("gallery")}>
+                  Add from R2
+                </button>
+              </div>
+              {selected.galleryImages.length === 0 ? (
+                <p className="mt-3 text-xs text-white/45">No gallery images yet.</p>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {selected.galleryImages.map((image, index) => (
+                    <div
+                      key={`${image.url}-${index}`}
+                      className="grid gap-3 rounded-xl border border-white/10 bg-black/25 p-3 md:grid-cols-[72px_1fr_auto]"
+                    >
+                      <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-white/10 bg-black/40">
+                        {image.url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={image.url} alt="" className="h-full w-full object-cover" />
+                        ) : null}
+                      </div>
+                      <div className="space-y-2">
+                        <input
+                          value={image.url}
+                          onChange={(event) => updateGalleryImage(index, { url: event.target.value })}
+                          placeholder="Image URL"
+                          className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white"
+                        />
+                        <input
+                          value={image.alt}
+                          onChange={(event) => updateGalleryImage(index, { alt: event.target.value })}
+                          placeholder="Alt text"
+                          className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 text-xs text-white/55">
+                        <button type="button" className="underline disabled:opacity-30" disabled={index === 0} onClick={() => moveGalleryImage(index, -1)}>
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          className="underline disabled:opacity-30"
+                          disabled={index === selected.galleryImages.length - 1}
+                          onClick={() => moveGalleryImage(index, 1)}
+                        >
+                          Down
+                        </button>
+                        <button type="button" className="text-red-300/80 underline hover:text-red-200" onClick={() => removeGalleryImage(index)}>
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 border-t border-white/10 pt-4">

@@ -21,6 +21,9 @@ export const PUBLIC_MEDIA_PREFIXES = [
 /** Private client vault — require admin session or client/package token to sign. */
 export const PRIVATE_MEDIA_PREFIXES = ["client-galleries/"] as const;
 
+/** Additional prefixes admins may sign via upload/storage helpers. */
+export const ADMIN_SIGNABLE_EXTRA_PREFIXES = ["journal/", "accounting/"] as const;
+
 export function normalizeMediaKey(key: string): string {
   return key.trim().replace(/^\/+/, "").toLowerCase();
 }
@@ -37,4 +40,14 @@ export function isPrivateMediaKey(key: string): boolean {
 
 export function isAllowedPublicMediaKey(key: string): boolean {
   return isPublicMediaKey(key);
+}
+
+export function isAdminSignableMediaKey(key: string): boolean {
+  const clean = normalizeMediaKey(key);
+  if (!clean || clean.includes("..")) return false;
+  return (
+    isPublicMediaKey(key) ||
+    isPrivateMediaKey(key) ||
+    ADMIN_SIGNABLE_EXTRA_PREFIXES.some((prefix) => clean.startsWith(prefix))
+  );
 }

@@ -2,8 +2,9 @@
  * Admin session cookie parsing — no `next/headers` so this is safe to import from
  * `proxy.ts` (Next.js proxy) without bundling server-only APIs.
  */
+import { verifyAdminSessionToken } from "@/lib/admin-session";
+
 export const ADMIN_ACCESS_COOKIE = "admin_access";
-export const ADMIN_ACCESS_VALUE = "true";
 
 function normalizeCookieValue(raw: string): string {
   let v = raw.trim();
@@ -22,12 +23,12 @@ function normalizeCookieValue(raw: string): string {
 
 export function adminCookieIndicatesAccess(value: string | undefined | null): boolean {
   if (value == null) return false;
-  return normalizeCookieValue(value) === ADMIN_ACCESS_VALUE;
+  return verifyAdminSessionToken(normalizeCookieValue(value));
 }
 
 /** Raw cookie value from Cookie header or `cookies().get()` (may be quoted / encoded). */
 export function adminAccessCookieValueMatches(raw: string): boolean {
-  return normalizeCookieValue(raw) === ADMIN_ACCESS_VALUE;
+  return verifyAdminSessionToken(normalizeCookieValue(raw));
 }
 
 export function parseAdminAccessCookieHeader(cookieHeader: string | null): boolean {
@@ -38,7 +39,7 @@ export function parseAdminAccessCookieHeader(cookieHeader: string | null): boole
     if (eq === -1) continue;
     const name = p.slice(0, eq).trim();
     const value = normalizeCookieValue(p.slice(eq + 1));
-    if (name === ADMIN_ACCESS_COOKIE && value === ADMIN_ACCESS_VALUE) return true;
+    if (name === ADMIN_ACCESS_COOKIE && verifyAdminSessionToken(value)) return true;
   }
   return false;
 }

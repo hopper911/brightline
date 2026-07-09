@@ -1,4 +1,8 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { ADMIN_ACCESS_COOKIE } from "@/lib/admin-cookie";
+import { ADMIN_SESSION_MAX_AGE_SEC, createAdminSessionToken } from "@/lib/admin-session";
+import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
 import { resolveAdminAccessCode } from "@/lib/resolve-admin-access-code";
 
 export const runtime = "nodejs";
@@ -21,7 +25,19 @@ function cookieSecure(req: Request): boolean {
   }
 }
 
+function timingSafeMatch(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  if (isRateLimited(ip, { scope: "admin-login", max: 8, windowMs: 15 * 60_000 })) {
+    return NextResponse.json({ ok: false, error: "Too many attempts. Try again later." }, { status: 429 });
+  }
+
   let body: { code?: string };
   try {
     body = (await req.json()) as { code?: string };
@@ -45,8 +61,16 @@ export async function POST(req: Request) {
     );
   }
 
-  if (provided !== expected) {
+  if (!timingSafeMatch(provided, expected)) {
     return NextResponse.json({ ok: false, error: "Invalid code." }, { status: 401 });
+  }
+
+  const sessionToken = createAdminSessionToken();
+  if (!sessionToken) {
+    return NextResponse.json(
+      { ok: false, error: "Admin session signing is not configured." },
+      { status: 503 }
+    );
   }
 
   const res = NextResponse.json(
@@ -57,12 +81,12 @@ export async function POST(req: Request) {
       },
     }
   );
-  res.cookies.set("admin_access", "true", {
+  res.cookies.set(ADMIN_ACCESS_COOKIE, sessionToken, {
     httpOnly: true,
     sameSite: "lax",
     secure: cookieSecure(req),
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge: ADMIN_SESSION_MAX_AGE_SEC,
   });
   return res;
 }

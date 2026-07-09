@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ADMIN_ACCESS_COOKIE } from "@/lib/admin-cookie";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
@@ -9,7 +10,7 @@ export async function POST(req: Request) {
   }
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("admin_access", "", {
+  res.cookies.set(ADMIN_ACCESS_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

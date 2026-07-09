@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { signPut } from "@/lib/storage-r2";
 import { getAdminSession } from "@/lib/admin-auth";
+import { isAdminSignableMediaKey } from "@/lib/media-key-access";
 
 export const runtime = "nodejs";
 
@@ -26,9 +27,17 @@ export async function POST(req: Request) {
     );
   }
 
+  const key = body.key.trim().replace(/^\/+/, "");
+  if (!isAdminSignableMediaKey(key)) {
+    return NextResponse.json(
+      { ok: false, error: "Unsupported media key prefix." },
+      { status: 400 }
+    );
+  }
+
   try {
     const signed = await signPut({
-      key: body.key,
+      key,
       contentType: body.contentType,
       expiresIn: body.expiresIn,
     });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isAdminSignableMediaKey,
   isAllowedPublicMediaKey,
   isPrivateMediaKey,
   isPublicMediaKey,
@@ -19,5 +20,12 @@ describe("media key access policy", () => {
   it("rejects unknown prefixes", () => {
     expect(isPublicMediaKey("private-vault/secret.jpg")).toBe(false);
     expect(isPrivateMediaKey("private-vault/secret.jpg")).toBe(false);
+    expect(isAdminSignableMediaKey("private-vault/secret.jpg")).toBe(false);
+  });
+
+  it("allows admin signable prefixes", () => {
+    expect(isAdminSignableMediaKey("journal/import/waldo-01.jpg")).toBe(true);
+    expect(isAdminSignableMediaKey("accounting/receipts/2024/01/file.pdf")).toBe(true);
+    expect(isAdminSignableMediaKey("client-galleries/g1/photo.jpg")).toBe(true);
   });
 });

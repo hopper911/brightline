@@ -81,6 +81,7 @@ const SOURCES: SourcePage[] = [
 
 const DRY_RUN = process.env.DRY_RUN === "1";
 const FORCE = process.env.FORCE === "1";
+const TEXT_ONLY = process.env.TEXT_ONLY === "1";
 const imageCache = new Map<string, string>();
 
 function decodeHtml(value: string) {
@@ -95,7 +96,83 @@ function decodeHtml(value: string) {
 }
 
 function stripTags(html: string) {
-  return decodeHtml(html.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+  return decodeHtml(
+    html
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim()
+  );
+}
+
+const RICH_TEXT_MARKER = '<div class="rich-text js-text-editable module-text">';
+
+function extractRichTextInnerBlocks(html: string): string[] {
+  const blocks: string[] = [];
+  let searchFrom = 0;
+
+  while (searchFrom < html.length) {
+    const start = html.indexOf(RICH_TEXT_MARKER, searchFrom);
+    if (start === -1) break;
+
+    let pos = start + RICH_TEXT_MARKER.length;
+    let depth = 1;
+
+    while (pos < html.length && depth > 0) {
+      const nextOpen = html.indexOf("<div", pos);
+      const nextClose = html.indexOf("</div>", pos);
+      if (nextClose === -1) break;
+
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth += 1;
+        pos = nextOpen + 4;
+      } else {
+        depth -= 1;
+        pos = nextClose + 6;
+      }
+    }
+
+    const inner = html.slice(start + RICH_TEXT_MARKER.length, pos - 6);
+    if (inner.trim()) blocks.push(inner);
+    searchFrom = pos;
+  }
+
+  return blocks;
+}
+
+function richTextInnerToPlain(innerHtml: string) {
+  const parts: string[] = [];
+  const chunkPattern = /<div\b([^>]*)>([\s\S]*?)<\/div>/gi;
+
+  for (const match of innerHtml.matchAll(chunkPattern)) {
+    const attrs = match[1] ?? "";
+    const content = match[2] ?? "";
+    const isTitle = /\bclass="[^"]*\btitle\b/i.test(attrs) || /text-transform:\s*uppercase/i.test(attrs);
+    const text = stripTags(content);
+    if (!text) continue;
+    parts.push(isTitle ? `\n\n${text.toUpperCase()}\n\n` : text);
+  }
+
+  const remainder = innerHtml.replace(chunkPattern, " ").trim();
+  const trailing = stripTags(remainder);
+  if (trailing) parts.push(trailing);
+
+  return parts
+    .join("\n\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function extractBody(html: string) {
+  return extractRichTextInnerBlocks(html)
+    .map(richTextInnerToPlain)
+    .filter(Boolean)
+    .join("\n\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function extractMeta(html: string, property: string) {
@@ -194,27 +271,6 @@ function extractImageUrls(html: string) {
   return [...byBase.values()].sort((a, b) => scoreImageUrl(b) - scoreImageUrl(a));
 }
 
-function extractBody(html: string) {
-  const blocks: string[] = [];
-  const modulePattern =
-    /<div class="project-module module text project-module-text[\s\S]*?<div class="rich-text js-text-editable module-text">([\s\S]*?)<\/div>/gi;
-
-  for (const match of html.matchAll(modulePattern)) {
-    const raw = match[1] ?? "";
-    const withHeadings = raw
-      .replace(/<div[^>]*class="[^"]*title[^"]*"[^>]*>/gi, "\n\n## ")
-      .replace(/<\/div>/gi, "\n")
-      .replace(/<div[^>]*>/gi, "\n");
-    const text = stripTags(withHeadings)
-      .replace(/\s*##\s*/g, "\n\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-    if (text) blocks.push(text);
-  }
-
-  return blocks.join("\n\n").trim();
-}
-
 function excerptFromBody(body: string, title: string) {
   const source = body || title;
   if (source.length <= 160) return source;
@@ -269,7 +325,7 @@ async function uploadImage(sourceUrl: string, key: string) {
   return publicUrl;
 }
 
-async function importPage(source: SourcePage): Promise<BlogPost | null> {
+async function importPage(source: SourcePage, existing?: BlogPost): Promise<BlogPost | null> {
   console.log(`\n→ ${source.title} (${source.url})`);
   const res = await fetch(source.url, {
     headers: { "User-Agent": "BRIGHTLINE-Journal-Import/1.0" },
@@ -280,9 +336,23 @@ async function importPage(source: SourcePage): Promise<BlogPost | null> {
   const title = extractTitle(html, source.title);
   const description = extractDescription(html);
   const body = extractBody(html);
-  const imageUrls = extractImageUrls(html);
 
-  console.log(`  text blocks: ${body ? "yes" : "no"} | images found: ${imageUrls.length}`);
+  console.log(`  body chars: ${body.length}`);
+
+  if (TEXT_ONLY && existing) {
+    return {
+      ...existing,
+      title,
+      excerpt: description || excerptFromBody(body, title),
+      body,
+      seoTitle: `${title} · BRIGHTLINE Photography`,
+      seoDescription: description || excerptFromBody(body, title),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  const imageUrls = extractImageUrls(html);
+  console.log(`  images found: ${imageUrls.length}`);
 
   const uploadedUrls: string[] = [];
   for (let i = 0; i < imageUrls.length; i += 1) {
@@ -333,6 +403,35 @@ async function importPage(source: SourcePage): Promise<BlogPost | null> {
 
 async function main() {
   const existing = await getBlogPosts();
+
+  if (TEXT_ONLY) {
+    const updated = [...existing];
+    let repaired = 0;
+    for (const source of SOURCES) {
+      const index = updated.findIndex((post) => post.slug === source.slug);
+      if (index < 0) {
+        console.log(`\n→ skip ${source.slug} (not in database)`);
+        continue;
+      }
+      const post = await importPage(source, updated[index]);
+      if (post) {
+        updated[index] = post;
+        repaired += 1;
+      }
+    }
+    if (repaired === 0) {
+      console.log("\nNo posts updated.");
+      return;
+    }
+    if (DRY_RUN) {
+      console.log(`\nDRY_RUN: would repair text on ${repaired} post(s).`);
+      return;
+    }
+    await saveBlogPosts(updated);
+    console.log(`\nRepaired text on ${repaired} post(s).`);
+    return;
+  }
+
   const existingSlugs = new Set(
     FORCE ? existing.filter((post) => !SOURCES.some((s) => s.slug === post.slug)).map((p) => p.slug) : existing.map((p) => p.slug)
   );

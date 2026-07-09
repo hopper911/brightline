@@ -39,6 +39,7 @@
     "test:client-delivery": "npx tsx scripts/client-delivery-test.ts",
     "import:myportfolio-journal": "npx tsx scripts/import-myportfolio-journal.ts",
     "import:myportfolio-journal:prod": "BRIGHTLINE_ENV=production npx tsx scripts/import-myportfolio-journal.ts",
+    "repair:journal-text:prod": "BRIGHTLINE_ENV=production TEXT_ONLY=1 npx tsx scripts/import-myportfolio-journal.ts",
     "launch:journal": "npx tsx scripts/launch-journal.ts",
     "launch:journal:prod": "BRIGHTLINE_ENV=production npx tsx scripts/launch-journal.ts"
   },

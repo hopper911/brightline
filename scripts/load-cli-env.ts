@@ -10,6 +10,11 @@ import dotenv from "dotenv";
 
 const root = process.cwd();
 
-dotenv.config({ path: path.join(root, ".env") });
-dotenv.config({ path: path.join(root, ".env.local"), override: true });
-dotenv.config({ path: path.join(root, ".env.development.local"), override: true });
+if (process.env.BRIGHTLINE_ENV === "production") {
+  dotenv.config({ path: path.join(root, ".env.production.local") });
+  dotenv.config({ path: path.join(root, ".env") });
+} else {
+  dotenv.config({ path: path.join(root, ".env") });
+  dotenv.config({ path: path.join(root, ".env.local"), override: true });
+  dotenv.config({ path: path.join(root, ".env.development.local"), override: true });
+}

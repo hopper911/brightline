@@ -1,8 +1,10 @@
 node_modules
 .next
 
-# Cursor
-.cursor/
+# Cursor (track permanent agent rules; ignore plans/cache)
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 # TypeScript incremental build cache
 *.tsbuildinfo

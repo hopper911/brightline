@@ -1,0 +1,18 @@
+---
+description: BRIGHTLINE Photography brand identity and logo usage
+alwaysApply: true
+---
+
+# BRIGHTLINE Brand Identity
+
+- Treat the uploaded BRIGHTLINE Photography marks as the canonical brand logo system.
+- Use `/brand/brightline-photography-wordmark.png` for horizontal signage and refined brand placements, but do not force it into the top website navigation.
+- Use `/brand/brightline-bl-monogram.png` for favicon/app icons, compact marks, avatar-style placements, and small square contexts.
+- Preserve the public website top navigation design and naming exactly unless the user explicitly asks to change navigation. The nav brand should remain text-based: `BRIGHTLINE` with smaller `PHOTOGRAPHY`; nav links should remain `Work`, `Galleries`, `Services`, `About`, `Contact`.
+- Keep logos subtle inside the site chrome. Prefer integrated watermark, favicon, footer, or metadata usage over obvious boxed logo placements.
+- Do not make major visual redesigns, layout overhauls, or copy reductions unless the user explicitly asks. Preserve the established public-site look and richer marketing copy while layering new CMS/R2/video features into the existing design.
+- Keep the visual direction sophisticated, premium, cinematic, restrained, and elegant.
+- Preserve the dark charcoal/black photographic base, crisp white typography, fine-line accents, and subtle warm light/signage glow.
+- Avoid playful colors, loud gradients, cartoon styling, generic SaaS visuals, or replacing the logo with unrelated marks.
+- For business-facing pages and assets, keep naming consistent as `BRIGHTLINE Photography` unless the surrounding design intentionally uses the spaced signage form `BRIGHT LINE`.
+- Executable locks for nav/brand/security: `brightline/lib/truth/` (see `brightline-frozen-truth` rule). Do not weaken those modules.

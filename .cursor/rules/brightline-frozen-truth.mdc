@@ -1,0 +1,37 @@
+---
+description: Frozen website state + permanent truth code — do not change without explicit user request
+alwaysApply: true
+---
+
+# BRIGHTLINE frozen truth (2026-08-01)
+
+Canonical executable locks live in `brightline/lib/truth/`. **Do not edit those modules or weaken their tests** unless the user explicitly names them and asks to change the baseline.
+
+## Current website state (notes)
+
+- Production: `https://brightlinephotography.com` (Next.js App Router, Prisma/Neon, R2, Vercel).
+- Public: Work case studies, Galleries, Services, About, Contact; Journal with in-frame IG/YouTube; optional Design nav; token packages (`/package/*`, `/final-package/*`).
+- Private: `/admin`, `/studio`, `/accountant`, `/client`.
+- Top nav brand is **text** `BRIGHTLINE` + smaller `PHOTOGRAPHY` — **no wordmark in top nav**.
+- Core nav labels stay **Work, Galleries, Services, About, Contact** (CMS cannot rename/hide these).
+- Look: dark charcoal photographic base, white type, fine lines — no redesign unless asked.
+- Security baseline already shipped: edge CSRF on admin/studio/accountant APIs; SSRF-safe image fetch helpers; upload MIME allowlist (no SVG/HTML); package download rate limits; final-package expiry.
+
+## Permanent rules for agents
+
+1. **No drive-by redesigns or nav/copy “improvements.”** Preserve established public chrome and marketing copy.
+2. **Harden only via `lib/truth` + existing guards** (`ssrf-guard`, `safe-fetch-image`, `upload-mime`, `rejectCrossSiteMutation`). Do not reintroduce bare `fetch(userUrl)`.
+3. **Never overwrite Google Sheet formulas** (Brightline Image Uploads tab).
+4. **Never weaken CSRF, MIME allowlists, or core-nav freeze** without an explicit user request.
+5. Service area stays NJ/NY metro only (`SERVICE_AREA_LOCATIONS` / `BRAND.contact.locations`).
+6. Deferred is not baseline: CSP nonce migration may come later; do not treat `unsafe-inline` cleanup as an excuse to change UX.
+
+## Truth modules
+
+| Module | Locks |
+| --- | --- |
+| `lib/truth/site-state.ts` | Snapshot of live surfaces / stack |
+| `lib/truth/public-chrome.ts` | Nav brand + core nav + visual baseline |
+| `lib/truth/security.ts` | CSRF prefixes, upload MIME, must-use guards |
+| `lib/truth/brand-lock.ts` | Origin + service area + legal name |
+| `lib/truth/truth.test.ts` | Vitest locks — must stay green |

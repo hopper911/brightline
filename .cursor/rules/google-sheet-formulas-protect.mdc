@@ -1,0 +1,25 @@
+---
+description: Protect Google Sheet formulas and column contract for Brightline uploads
+alwaysApply: true
+---
+
+# Google Sheet: do not touch formulas
+
+This project relies on a Google Sheet (tab: **Brightline Image Uploads**) that may contain **formulas**. Preserve them.
+
+## Hard rules
+
+- **Never overwrite formula cells** in the Google Sheet.
+- **Never change** the meaning/order of existing columns/headers for the uploads tab without explicit user request.
+- When editing `tools/doPost.gs` or sheet-related tooling, assume some columns may be formula-driven and must remain intact.
+
+## When changing Apps Script (`tools/doPost.gs`)
+
+- Avoid any change that would write a whole row/range in a way that could **clobber formulas**.
+- If you must write values, **only write to the explicit non-formula columns** required by the pipeline contract, and leave formula columns untouched.
+- Keep header names and `COL.*` indices consistent unless the user explicitly requests a sheet migration.
+
+## Verification expectation
+
+- If a change affects sheet writes, include a quick runtime check using `tools/diagnose-sheet.mjs` and/or `tools/test-sheet-full.mjs` to confirm the webhook still works **without disturbing sheet formulas**.
+

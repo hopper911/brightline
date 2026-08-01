@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { assertCorePublicNavPreserved } from "@/lib/truth/public-chrome";
 
 import type { WorkPillarNavItem } from "@/lib/work-pillar-settings";
 
@@ -16,6 +17,8 @@ export const DEFAULT_SITE_NAV: SiteNavItem[] = [
   { id: "work", label: "Work", href: "/work", visible: true },
   /** Off by default; turn on under Admin → Website pages → Navigation. Same destination as Work unless you edit the URL. */
   { id: "projects", label: "Projects", href: "/work", visible: false },
+  /** Driven by Admin → Design master toggle + showInNav; forced off when Design section is hidden. */
+  { id: "design", label: "Design", href: "/design", visible: false },
   { id: "galleries", label: "Galleries", href: "/galleries", visible: true },
   { id: "services", label: "Services", href: "/services", visible: true },
   { id: "about", label: "About", href: "/about", visible: true },
@@ -63,7 +66,8 @@ export function normalizeSiteNav(input: unknown): SiteNavItem[] {
       normalized.push(fallback);
     }
   }
-  return normalized;
+  // Permanent lock: core public marketing nav labels/hrefs stay visible.
+  return assertCorePublicNavPreserved(normalized);
 }
 
 export async function getSiteNav(): Promise<SiteNavItem[]> {
@@ -143,3 +147,76 @@ function isWorkHubNavItem(link: SiteNavItem): boolean {
   const path = pathOnly.replace(/\/+$/, "") || "/";
   return path === "/work";
 }
+
+function navPathOnly(href: string): string {
+  const raw = href.trim();
+  if (!raw) return "";
+  const pathOnly = raw.split("#")[0]?.split("?")[0] ?? raw;
+  if (pathOnly.startsWith("http://") || pathOnly.startsWith("https://")) {
+    try {
+      return new URL(pathOnly).pathname.replace(/\/+$/, "") || "/";
+    } catch {
+      return pathOnly.replace(/\/+$/, "") || "/";
+    }
+  }
+  return pathOnly.replace(/\/+$/, "") || "/";
+}
+
+function isAdvertisingNavItem(link: SiteNavItem): boolean {
+  if (link.id === "work_pillar_advertising") return true;
+  if (navPathOnly(link.href) === "/work/advertising") return true;
+  return link.label.trim().toLowerCase() === "advertising";
+}
+
+function isContactNavItem(link: SiteNavItem): boolean {
+  if (link.id === "contact") return true;
+  return navPathOnly(link.href) === "/contact";
+}
+
+/**
+ * Apply Design section master toggle + showInNav.
+ * When live, Design is placed immediately after Advertising and before Contact.
+ */
+export function applyDesignNavToSiteNav(
+  nav: SiteNavItem[],
+  opts: { enabled: boolean; showInNav: boolean; navLabel: string }
+): SiteNavItem[] {
+  const visible = opts.enabled && opts.showInNav;
+  const designItem: SiteNavItem = {
+    id: "design",
+    label: opts.navLabel || "Design",
+    href: "/design",
+    visible,
+    cta: false,
+  };
+
+  const withoutDesign = nav.filter((item) => item.id !== "design");
+
+  if (!visible) {
+    // Keep a hidden Design entry so CMS nav editors still see the slot; park it before Contact when possible.
+    const contactIdx = withoutDesign.findIndex(isContactNavItem);
+    if (contactIdx >= 0) {
+      const out = withoutDesign.slice();
+      out.splice(contactIdx, 0, designItem);
+      return out;
+    }
+    return [...withoutDesign, designItem];
+  }
+
+  const advertisingIdx = withoutDesign.findIndex(isAdvertisingNavItem);
+  if (advertisingIdx >= 0) {
+    const out = withoutDesign.slice();
+    out.splice(advertisingIdx + 1, 0, designItem);
+    return out;
+  }
+
+  const contactIdx = withoutDesign.findIndex(isContactNavItem);
+  if (contactIdx >= 0) {
+    const out = withoutDesign.slice();
+    out.splice(contactIdx, 0, designItem);
+    return out;
+  }
+
+  return [...withoutDesign, designItem];
+}
+

@@ -1,0 +1,26 @@
+---
+description: Permanent security hardening — SSRF, CSRF, uploads, tokens; do not weaken
+globs: brightline/app/api/**/*,brightline/lib/**/*,brightline/proxy.ts,brightline/next.config.ts
+alwaysApply: false
+---
+
+# Security invariants (permanent)
+
+When touching APIs, media fetch, uploads, or `proxy.ts`:
+
+## Must keep
+
+- Mutations under `/api/admin`, `/api/studio`, `/api/accountant` go through `rejectCrossSiteMutation` via `pathRequiresCsrf` in `proxy.ts` (login paths exempt).
+- Outbound image/URL fetch: `assertPublicHttpUrlResolved` and/or `fetchTrustedImageBytes` / `trustedImageToDataUrl` — never bare `fetch` to caller-supplied URLs.
+- Uploads: `normalizeUploadContentType` / `ALLOWED_UPLOAD_MIME` from `lib/upload-mime` (fed by `lib/truth/security`). Block SVG/HTML.
+- Client HTML: `sanitizeHtmlForClientPreview`; strip `data:image/svg+xml`.
+- Token downloads: rate-limit helpers; respect `finalPackageExpiresAt`.
+
+## Must not
+
+- Remove CSRF from `proxy.ts` matcher or `pathRequiresCsrf`.
+- Add `image/svg+xml` to upload allowlists.
+- Follow open redirects in maps/IG/media helpers without host allowlists.
+- Clobber Google Sheet formula cells from Apps Script / sheet tools.
+
+Source of truth: `brightline/lib/truth/security.ts` + `brightline/lib/truth/truth.test.ts`.

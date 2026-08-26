@@ -4,6 +4,7 @@ import { assertSameOriginAdminMutation } from "@/lib/admin-request-origin";
 import {
   assertR2ManagerKeyAllowed,
   collectReferencedR2KeysCached,
+  detectR2Kind,
   detectR2Quality,
   fileNameFromKey,
   formatBytes,
@@ -21,7 +22,7 @@ import { normalizeR2VaultId, type R2VaultId } from "@/lib/r2-vaults";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const TOOL_OPS = ["orphans", "pairs", "summary", "duplicates", "heavy"] as const;
+const TOOL_OPS = ["orphans", "pairs", "summary", "duplicates", "heavy", "videos"] as const;
 
 export async function POST(req: Request) {
   if (!(await authorizeAdminRequest(req))) {
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
   const op = (body.op ?? "").trim();
   if (!(TOOL_OPS as readonly string[]).includes(op)) {
     return NextResponse.json(
-      { ok: false, error: "op required: orphans | pairs | summary | duplicates | heavy" },
+      { ok: false, error: "op required: orphans | pairs | summary | duplicates | heavy | videos" },
       { status: 400 }
     );
   }
@@ -65,6 +66,67 @@ export async function POST(req: Request) {
         });
       }
       return NextResponse.json({ ok: true, summary, vault });
+    }
+
+    if (op === "videos") {
+      const maxKeys = Math.min(typeof body.maxKeys === "number" ? body.maxKeys : 5000, 8000);
+      const keySet = new Set<string>();
+      const objects: Array<{
+        key: string;
+        name: string;
+        size: number;
+        sizeLabel: string;
+        lastModified: string | null;
+        quality: string;
+        qualityLabel: string;
+        kind: "video";
+        previewUrl: string;
+        pairKey: string | null;
+        pairPresent: boolean;
+      }> = [];
+      let truncated = false;
+
+      for (const root of rootsForVault(vault)) {
+        const flat = await listFlatWithSizes(root.prefix, maxKeys, vault);
+        if (flat.truncated) truncated = true;
+        for (const o of flat.objects) {
+          if (detectR2Kind(o.key) !== "video") continue;
+          try {
+            assertR2ManagerKeyAllowed(o.key, vault);
+          } catch {
+            continue;
+          }
+          keySet.add(o.key);
+          const quality = detectR2Quality(o.key);
+          const pair = vault === "brightline" ? pairKeyCandidate(o.key) : null;
+          objects.push({
+            key: o.key,
+            name: fileNameFromKey(o.key),
+            size: o.size,
+            sizeLabel: formatBytes(o.size),
+            lastModified: null,
+            quality,
+            qualityLabel: qualityLabel(quality),
+            kind: "video",
+            previewUrl: previewUrlForKey(o.key, vault),
+            pairKey: pair,
+            pairPresent: pair ? keySet.has(pair) : false,
+          });
+          if (objects.length >= maxKeys) {
+            truncated = true;
+            break;
+          }
+        }
+        if (objects.length >= maxKeys) break;
+      }
+
+      return NextResponse.json({
+        ok: true,
+        vault,
+        objects,
+        scanned: objects.length,
+        truncated,
+      });
     }
 
     const defaultPrefix = vault === "mirotech-site" ? "projects/" : "portfolio/";

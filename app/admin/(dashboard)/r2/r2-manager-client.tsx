@@ -2,10 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import R2VideoEncodePanel from "@/components/admin/R2VideoEncodePanel";
 import { externalLinkProps } from "@/lib/external-link";
 import type { R2VaultId } from "@/lib/r2-vaults-shared";
-import { isR2VaultId } from "@/lib/r2-vaults-shared";
+import {
+  defaultPrefixForVault,
+  inferVaultFromPrefix,
+  isR2VaultId,
+} from "@/lib/r2-vaults-shared";
 import { isT9WebVideoPrefix } from "@/lib/video-port/parse-prefix";
 
 type Root = { id: string; label: string; prefix: string };
@@ -354,6 +359,28 @@ async function uploadCompactFile(file: File, destPrefix: string, vault: R2VaultI
   }
 }
 
+function normalizePrefixParam(raw: string): string {
+  const cleaned = raw.trim().replace(/^\/+/, "");
+  if (!cleaned) return "";
+  return cleaned.endsWith("/") ? cleaned : `${cleaned}/`;
+}
+
+function buildR2Href(
+  vault: R2VaultId,
+  prefix: string,
+  kind: KindFilter,
+  encode: boolean
+): string {
+  const params = new URLSearchParams();
+  if (vault !== "brightline") params.set("vault", vault);
+  const cleanPrefix = prefix.replace(/^\/+/, "").replace(/\/$/, "");
+  if (cleanPrefix) params.set("prefix", `${cleanPrefix}/`);
+  if (kind !== "all") params.set("kind", kind);
+  if (encode) params.set("mode", "encode");
+  const qs = params.toString();
+  return qs ? `/admin/r2?${qs}` : "/admin/r2";
+}
+
 export default function R2ManagerClient({
   initialPrefix = "",
   initialVault = "brightline",
@@ -365,16 +392,17 @@ export default function R2ManagerClient({
   initialMode?: "encode";
   initialKindFilter?: KindFilter;
 }) {
-  const [prefix, setPrefix] = useState(() => {
-    const cleaned = initialPrefix.trim().replace(/^\/+/, "");
-    if (!cleaned) return "";
-    return cleaned.endsWith("/") ? cleaned : `${cleaned}/`;
-  });
-  const [vault, setVault] = useState<R2VaultId>(
-    isR2VaultId(initialVault) ? initialVault : "brightline"
-  );
-  const vaultRef = useRef<R2VaultId>(isR2VaultId(initialVault) ? initialVault : "brightline");
+  const router = useRouter();
+  const normalizedInitialPrefix = normalizePrefixParam(initialPrefix);
+  const inferredVault = inferVaultFromPrefix(normalizedInitialPrefix);
+  const resolvedInitialVault: R2VaultId =
+    inferredVault ?? (isR2VaultId(initialVault) ? initialVault : "brightline");
+
+  const [prefix, setPrefix] = useState(normalizedInitialPrefix);
+  const [vault, setVault] = useState<R2VaultId>(resolvedInitialVault);
+  const vaultRef = useRef<R2VaultId>(resolvedInitialVault);
   vaultRef.current = vault;
+  const [siteWideBrowse, setSiteWideBrowse] = useState(false);
   const [encodeOpen, setEncodeOpen] = useState(initialMode === "encode");
   const [roots, setRoots] = useState<Root[]>([]);
   const [folders, setFolders] = useState<FolderPreview[]>([]);
@@ -413,6 +441,13 @@ export default function R2ManagerClient({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingMore = useRef(false);
 
+  const syncUrl = useCallback(
+    (nextVault: R2VaultId, nextPrefix: string, kind: KindFilter, encode: boolean) => {
+      router.replace(buildR2Href(nextVault, nextPrefix, kind, encode), { scroll: false });
+    },
+    [router]
+  );
+
   const crumbs = useMemo(() => {
     if (!prefix) return [{ label: "Root", prefix: "" }];
     const parts = prefix.replace(/\/$/, "").split("/");
@@ -446,6 +481,7 @@ export default function R2ManagerClient({
   const load = useCallback(
     async (nextPrefix: string, token?: string | null, append = false) => {
       if (append) loadingMore.current = true;
+      setSiteWideBrowse(false);
       setLoading(true);
       setError("");
       try {
@@ -472,6 +508,9 @@ export default function R2ManagerClient({
         };
         if (!res.ok || !data.ok) throw new Error(data.error || "List failed");
         setPrefix(nextPrefix);
+        if (!append) {
+          syncUrl(vaultRef.current, nextPrefix, kindFilter, encodeOpen);
+        }
         if (data.roots) setRoots(data.roots);
         const nextFolders =
           data.folders ??
@@ -489,7 +528,6 @@ export default function R2ManagerClient({
           setSelected(new Set());
           setOrderedKeys(incoming.map((o) => o.key));
           setQualityFilter("all");
-          setKindFilter("all");
           setSearch("");
           setUsedMap({});
         } else {
@@ -503,11 +541,59 @@ export default function R2ManagerClient({
         loadingMore.current = false;
       }
     },
-    [loadUsed]
+    [encodeOpen, kindFilter, loadUsed, syncUrl]
   );
 
+  const loadSiteVideos = useCallback(async () => {
+    setSiteWideBrowse(true);
+    setKindFilter("video");
+    setLoading(true);
+    setError("");
+    setPrefix("");
+    setFolders([]);
+    syncUrl(vaultRef.current, "", "video", encodeOpen);
+    try {
+      const res = await fetch("/api/admin/r2/tools", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          op: "videos",
+          maxKeys: 5000,
+          vault: vaultRef.current,
+        }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        objects?: R2Object[];
+        truncated?: boolean;
+        scanned?: number;
+      };
+      if (!res.ok || !data.ok) throw new Error(data.error || "Video scan failed");
+      const incoming = data.objects ?? [];
+      setObjects(incoming);
+      setNextToken(null);
+      setSelected(new Set());
+      setOrderedKeys(incoming.map((o) => o.key));
+      setUsedMap({});
+      setStatus(
+        `Site-wide videos: ${incoming.length}${data.truncated ? " (truncated — narrow prefix to see more)" : ""}.`
+      );
+      void loadUsed(incoming.map((o) => o.key));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Video scan failed");
+    } finally {
+      setLoading(false);
+    }
+  }, [encodeOpen, loadUsed, syncUrl]);
+
   useEffect(() => {
-    void load(prefix || "");
+    if (initialKind === "video" && !normalizedInitialPrefix) {
+      void loadSiteVideos();
+    } else {
+      void load(normalizedInitialPrefix || "");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -861,7 +947,8 @@ export default function R2ManagerClient({
                   setPairReport(null);
                   setPreview(null);
                   setStatus("");
-                  void load("");
+                  setSiteWideBrowse(false);
+                  void load(defaultPrefixForVault(opt.id));
                 }}
                 className={`rounded-full px-3 py-1.5 text-xs uppercase tracking-[0.14em] disabled:opacity-40 ${
                   vault === opt.id
@@ -932,9 +1019,35 @@ export default function R2ManagerClient({
               : "border-white/15 text-white/70 hover:border-white/35 hover:text-white"
           }`}
           disabled={busy}
-          onClick={() => setKindFilter((k) => (k === "video" ? "all" : "video"))}
+          onClick={() => {
+            if (kindFilter === "video" && (siteWideBrowse || !prefix)) {
+              setKindFilter("all");
+              setSiteWideBrowse(false);
+              syncUrl(vaultRef.current, prefix, "all", encodeOpen);
+              if (!prefix) void load("");
+              return;
+            }
+            if (!prefix) {
+              void loadSiteVideos();
+              return;
+            }
+            setKindFilter("video");
+            syncUrl(vaultRef.current, prefix, "video", encodeOpen);
+          }}
         >
           Videos
+        </button>
+        <button
+          type="button"
+          className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.16em] disabled:opacity-40 ${
+            siteWideBrowse
+              ? "border-white/40 bg-white/10 text-white"
+              : "border-white/15 text-white/70 hover:border-white/35 hover:text-white"
+          }`}
+          disabled={busy}
+          onClick={() => void loadSiteVideos()}
+        >
+          All site videos
         </button>
         {(["orphans", "duplicates", "heavy", "pairs"] as const).map((op) => (
           <button
@@ -1090,6 +1203,12 @@ export default function R2ManagerClient({
 
         <section className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
+            <span className="rounded-full border border-white/15 px-2 py-0.5 uppercase tracking-[0.14em] text-white/70">
+              {vault === "mirotech-site" ? "Mirotech site bucket" : "Brightline bucket"}
+            </span>
+            {siteWideBrowse ? (
+              <span className="text-white/60">Site-wide video browse</span>
+            ) : null}
             {crumbs.map((c, i) => (
               <span key={c.prefix || "root"} className="flex items-center gap-2">
                 {i > 0 ? <span>/</span> : null}

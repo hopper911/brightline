@@ -31,3 +31,33 @@ export function isR2VaultId(value: unknown): value is R2VaultId {
 export function normalizeR2VaultId(value: unknown): R2VaultId {
   return isR2VaultId(value) ? value : "brightline";
 }
+
+/** Infer vault from a folder prefix when deep-linking (client-safe). */
+export function inferVaultFromPrefix(prefix: string): R2VaultId | null {
+  const clean = prefix.trim().replace(/^\/+/, "").toLowerCase();
+  if (!clean) return null;
+  if (MIROTECH_SITE_ALLOWED_PREFIXES.some((p) => clean.startsWith(p))) {
+    return "mirotech-site";
+  }
+  const brightlineRoots = [
+    "portfolio/",
+    "mirotech/",
+    "client-galleries/",
+    "work/",
+    "studio/",
+    "site/",
+    "delivery/",
+    "journal/",
+    "accounting/",
+    "tmp/",
+    "studio-os/",
+  ];
+  if (brightlineRoots.some((p) => clean.startsWith(p))) {
+    return "brightline";
+  }
+  return null;
+}
+
+export function defaultPrefixForVault(vault: R2VaultId): string {
+  return vault === "mirotech-site" ? "projects/" : "portfolio/";
+}

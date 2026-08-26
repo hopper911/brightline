@@ -5,34 +5,17 @@
 
 import { mergeParentDotenvIntoProcess } from "@/lib/merge-parent-dotenv";
 
-export const R2_VAULT_IDS = ["brightline", "mirotech-site"] as const;
-export type R2VaultId = (typeof R2_VAULT_IDS)[number];
+export {
+  isR2VaultId,
+  MIROTECH_SITE_ALLOWED_PREFIXES,
+  MIROTECH_SITE_ROOTS,
+  normalizeR2VaultId,
+  R2_VAULT_IDS,
+  type R2VaultId,
+  type R2VaultRoot,
+} from "@/lib/r2-vaults-shared";
 
-export type R2VaultRoot = { id: string; label: string; prefix: string };
-
-/** Mirotech CMS bucket prefixes (mirror mirotech-solutions/lib/storage-mirotech.ts). */
-export const MIROTECH_SITE_ALLOWED_PREFIXES = [
-  "projects/",
-  "journal/",
-  "resume/",
-  "site/",
-] as const;
-
-export const MIROTECH_SITE_ROOTS: readonly R2VaultRoot[] = [
-  { id: "projects", label: "Projects", prefix: "projects/" },
-  { id: "journal", label: "Journal", prefix: "journal/" },
-  { id: "resume", label: "Resume", prefix: "resume/" },
-  { id: "site", label: "Site", prefix: "site/" },
-] as const;
-
-export function isR2VaultId(value: unknown): value is R2VaultId {
-  return typeof value === "string" && (R2_VAULT_IDS as readonly string[]).includes(value);
-}
-
-/** Invalid / missing → Brightline (safe default for product routes). */
-export function normalizeR2VaultId(value: unknown): R2VaultId {
-  return isR2VaultId(value) ? value : "brightline";
-}
+import type { R2VaultId } from "@/lib/r2-vaults-shared";
 
 function normalizeCredential(value: string | undefined): string {
   if (value == null || typeof value !== "string") return "";
@@ -98,7 +81,7 @@ export function getR2VaultCredentials(vault: R2VaultId = "brightline"): R2VaultC
     }
     if (!bucket.toLowerCase().startsWith("mirotech")) {
       throw Object.assign(
-        new Error("MIROTECH_R2_BUCKET must start with \"mirotech\"."),
+        new Error('MIROTECH_R2_BUCKET must start with "mirotech".'),
         { status: 503, code: "mirotech_r2_bad_bucket" }
       );
     }

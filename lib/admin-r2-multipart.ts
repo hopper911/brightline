@@ -1,4 +1,4 @@
-import type { R2VaultId } from "@/lib/r2-vaults";
+import type { R2VaultId } from "@/lib/r2-vaults-shared";
 
 /** Staging prefixes for vault-aware R2 multipart uploads (≤3MB chunks via Vercel). */
 export const R2_UPLOAD_STAGING_ROOT: Record<R2VaultId, string> = {

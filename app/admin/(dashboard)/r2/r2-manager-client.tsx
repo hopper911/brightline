@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import R2VideoEncodePanel from "@/components/admin/R2VideoEncodePanel";
 import { externalLinkProps } from "@/lib/external-link";
-import type { R2VaultId } from "@/lib/r2-vaults";
-import { isR2VaultId } from "@/lib/r2-vaults";
+import type { R2VaultId } from "@/lib/r2-vaults-shared";
+import { isR2VaultId } from "@/lib/r2-vaults-shared";
 import { isT9WebVideoPrefix } from "@/lib/video-port/parse-prefix";
 
 type Root = { id: string; label: string; prefix: string };

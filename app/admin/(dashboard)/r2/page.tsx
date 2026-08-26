@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { hasAdminAccess } from "@/lib/admin-auth";
 import R2ManagerClient from "./r2-manager-client";
-import { isR2VaultId } from "@/lib/r2-vaults";
+import { isR2VaultId } from "@/lib/r2-vaults-shared";
 
 export const dynamic = "force-dynamic";
 

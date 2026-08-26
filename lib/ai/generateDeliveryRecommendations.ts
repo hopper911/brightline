@@ -3,6 +3,7 @@ import { DELIVERY_GROUPS, normalizeDeliveryGroup } from "@/lib/delivery/package"
 
 export type DeliveryRecommendationInput = {
   projectId: string;
+  origin: string;
   projectContext: Record<string, unknown>;
   images: Array<{
     id: string;
@@ -32,14 +33,11 @@ function clampScore(value: unknown) {
   return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 75;
 }
 
-async function imageUrlToDataUrl(imageUrl: string) {
-  const res = await fetch(imageUrl);
-  if (!res.ok) throw Object.assign(new Error(`Could not load image (${res.status}).`), { status: 400 });
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  if (!contentType.startsWith("image/")) throw Object.assign(new Error("Image URL must point to an image."), { status: 400 });
-  const bytes = Buffer.from(await res.arrayBuffer());
-  if (bytes.byteLength > 8 * 1024 * 1024) throw Object.assign(new Error("Image is too large for delivery analysis."), { status: 400 });
-  return `data:${contentType};base64,${bytes.toString("base64")}`;
+async function imageUrlToDataUrl(imageUrl: string, origin: string) {
+  const { resolveAbsoluteMediaUrl } = await import("@/lib/ai/generateBlogAiVideo");
+  const { trustedImageToDataUrl } = await import("@/lib/safe-fetch-image");
+  const absolute = resolveAbsoluteMediaUrl(imageUrl, origin);
+  return trustedImageToDataUrl(absolute, origin);
 }
 
 function parseJsonObject(text: string): Record<string, unknown> {
@@ -75,7 +73,7 @@ export async function generateDeliveryRecommendations(input: DeliveryRecommendat
   const results: DeliveryRecommendation[] = [];
 
   for (const image of images) {
-    const dataUrl = await imageUrlToDataUrl(image.url);
+    const dataUrl = await imageUrlToDataUrl(image.url, input.origin);
     try {
       const completion = await openai.chat.completions.create({
         model,

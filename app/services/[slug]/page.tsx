@@ -2,9 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { services } from "../data";
-import PageBackground from "@/components/PageBackground";
+import AssignedPageBackground from "@/components/AssignedPageBackground";
 import PrimaryCTA from "@/components/PrimaryCTA";
 import { getImageAltFallback } from "@/lib/config/brand";
+import { pageKeyService } from "@/lib/page-backgrounds";
 import { getEditableServicePageBySlug } from "@/lib/service-pages";
 
 export const dynamic = "force-dynamic";
@@ -33,36 +34,45 @@ function ServiceMedia({
 
   if (isVideoUrl(src)) {
     return (
-      <video
-        src={src}
-        className={className}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        aria-label={alt}
-      />
+      <div className={`relative overflow-hidden image-guard-overlay ${className}`}>
+        <video
+          src={src}
+          className="h-full w-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          draggable={false}
+          aria-label={alt}
+        />
+      </div>
     );
   }
 
   if (src.startsWith("http")) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} draggable={false} className={className} />;
+    return (
+      <div className={`relative overflow-hidden image-guard-overlay ${className}`}>
+        <img src={src} alt={alt} draggable={false} className="h-full w-full object-cover" />
+      </div>
+    );
   }
 
   return (
-    <Image
-      src={src}
-      alt={alt}
-      fill
-      draggable={false}
-      className={className}
-      priority={priority}
-      sizes="(min-width: 1024px) 420px, 100vw"
-      placeholder="blur"
-      blurDataURL={BLUR_DATA}
-    />
+    <div className={`relative overflow-hidden image-guard-overlay ${className}`}>
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        draggable={false}
+        className="object-cover"
+        priority={priority}
+        sizes="(min-width: 1024px) 420px, 100vw"
+        placeholder="blur"
+        blurDataURL={BLUR_DATA}
+      />
+    </div>
   );
 }
 
@@ -170,7 +180,11 @@ export default async function ServicePage({
 
   return (
     <>
-      <PageBackground media={service.backgroundMediaUrl} poster={service.backgroundPosterUrl} />
+      <AssignedPageBackground
+        pageKey={pageKeyService(service.slug)}
+        fallbackMedia={service.backgroundMediaUrl}
+        fallbackPoster={service.backgroundPosterUrl}
+      />
       <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
       <script type="application/ld+json">
         {JSON.stringify(faqSchema)}
@@ -190,7 +204,7 @@ export default async function ServicePage({
           <p className="section-subtitle text-balance text-white/85">
             {service.description}
           </p>
-          <div className="flex flex-wrap gap-3">
+          <div className="btn-row">
             <Link href={service.portfolioHref} className="btn btn-ghost">
               {service.portfolioLabel}
             </Link>
@@ -399,7 +413,7 @@ export default async function ServicePage({
             {service.relatedServicesIntro?.trim() ? (
               <p className="mt-2 text-sm text-white/70">{service.relatedServicesIntro}</p>
             ) : null}
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="btn-row mt-4">
               {service.relatedServicesLinks?.map((link) => (
                 <Link
                   key={link.slug}
@@ -436,18 +450,6 @@ export default async function ServicePage({
         </div>
       </section>
 
-      <section className="mt-16 border-t border-white/10 pt-16">
-        <div className="rounded-2xl border border-white/10 bg-black/60 px-8 py-10">
-          <p className="section-kicker">Next step</p>
-          <h2 className="font-display text-2xl text-white">
-            Let’s scope your production.
-          </h2>
-          <p className="mt-3 text-sm text-white/70">
-            Share timing, usage, and location so we can craft a tailored plan.
-          </p>
-          <PrimaryCTA service={service.slug} className="btn btn-solid mt-6" />
-        </div>
-      </section>
       </div>
     </>
   );

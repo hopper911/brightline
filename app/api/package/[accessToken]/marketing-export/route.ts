@@ -2,14 +2,14 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { generateMarketingExport } from "@/lib/ai/clientPackageContent";
 import { prisma } from "@/lib/prisma";
-import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request, context: { params: Promise<{ accessToken: string }> }) {
   const ip = getClientIp(req);
-  if (isRateLimited(ip)) return NextResponse.json({ ok: false, error: "Too many requests." }, { status: 429 });
+  if (await isRateLimitedAsync(ip)) return NextResponse.json({ ok: false, error: "Too many requests." }, { status: 429 });
 
   const { accessToken } = await context.params;
   const pkg = await prisma.deliveryPackage.findFirst({

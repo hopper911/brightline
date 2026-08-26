@@ -52,7 +52,13 @@ export async function PATCH(
       return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
     }
     const { id: mediaId } = await context.params;
-    const body = (await req.json()) as { alt?: string | null };
+    const body = (await req.json()) as {
+      alt?: string | null;
+      keyFull?: string | null;
+      keyThumb?: string | null;
+      width?: number | null;
+      height?: number | null;
+    };
 
     const existing = await prisma.mediaAsset.findUnique({
       where: { id: mediaId },
@@ -61,19 +67,54 @@ export async function PATCH(
       return NextResponse.json({ ok: false, error: "Media not found." }, { status: 404 });
     }
 
-    const alt =
-      body.alt === null || body.alt === undefined
-        ? null
-        : typeof body.alt === "string"
-          ? body.alt.trim() || null
-          : null;
+    const data: {
+      alt?: string | null;
+      keyFull?: string | null;
+      keyThumb?: string | null;
+      width?: number | null;
+      height?: number | null;
+    } = {};
 
-    await prisma.mediaAsset.update({
+    if ("alt" in body) {
+      data.alt =
+        body.alt === null || body.alt === undefined
+          ? null
+          : typeof body.alt === "string"
+            ? body.alt.trim() || null
+            : null;
+    }
+    if (typeof body.keyFull === "string" && body.keyFull.trim()) {
+      data.keyFull = body.keyFull.trim();
+    }
+    if ("keyThumb" in body) {
+      data.keyThumb =
+        body.keyThumb === null || body.keyThumb === undefined
+          ? null
+          : typeof body.keyThumb === "string"
+            ? body.keyThumb.trim() || null
+            : null;
+    }
+    if ("width" in body) {
+      data.width =
+        typeof body.width === "number" && Number.isFinite(body.width) ? Math.round(body.width) : null;
+    }
+    if ("height" in body) {
+      data.height =
+        typeof body.height === "number" && Number.isFinite(body.height)
+          ? Math.round(body.height)
+          : null;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ ok: false, error: "No fields to update." }, { status: 400 });
+    }
+
+    const media = await prisma.mediaAsset.update({
       where: { id: mediaId },
-      data: { alt },
+      data,
     });
 
-    return NextResponse.json({ ok: true, alt });
+    return NextResponse.json({ ok: true, media, alt: media.alt });
   } catch (err: unknown) {
     console.error("MEDIA_PATCH_ERROR", err);
     const message = err instanceof Error ? err.message : "Failed to update media.";

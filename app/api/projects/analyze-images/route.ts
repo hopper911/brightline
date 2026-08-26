@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import OpenAI, { APIError } from "openai";
 import { requireProjectsApiAuth } from "@/lib/api/automation-auth";
+import { fetchPublicImageAsDataUrl } from "@/lib/fetch-public-image";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function parseImageAnalysisBody(body: unknown):
   | { ok: true; imageUrls: string[]; briefNotes: string }
@@ -57,6 +60,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
   }
 
+  if (
+    await isRateLimitedAsync(getClientIp(req), {
+      scope: "projects-analyze-images",
+      max: 30,
+      windowMs: 60 * 60_000,
+    })
+  ) {
+    return NextResponse.json({ ok: false, error: "Too many requests." }, { status: 429 });
+  }
+
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     return NextResponse.json(
@@ -77,6 +90,24 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { ok: false, error: parsed.error },
       { status: parsed.status }
+    );
+  }
+
+  const origin = new URL(req.url).origin;
+  let dataUrls: string[];
+  try {
+    dataUrls = await Promise.all(
+      parsed.imageUrls.map((url) =>
+        fetchPublicImageAsDataUrl(url, origin, { maxBytes: 8 * 1024 * 1024 })
+      )
+    );
+  } catch (err) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: err instanceof Error ? err.message : "Could not load one or more images.",
+      },
+      { status: 400 }
     );
   }
 
@@ -103,7 +134,7 @@ export async function POST(req: Request) {
               type: "text",
               text: `Brief notes: ${parsed.briefNotes || "None provided."}`,
             },
-            ...parsed.imageUrls.map((url) => ({
+            ...dataUrls.map((url) => ({
               type: "image_url" as const,
               image_url: { url },
             })),

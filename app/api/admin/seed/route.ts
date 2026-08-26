@@ -114,6 +114,7 @@ export async function POST(req: Request) {
 
     const pillars = await getWorkPillarList();
     for (const pillar of pillars) {
+      if (pillar.hub === "dual-brand") continue;
       const section = getPrimaryWorkSection(pillar);
       const pillarSlug = pillar.slug;
       const slug = `demo-${pillarSlug}`;

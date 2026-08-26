@@ -2,18 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound, permanentRedirect } from "next/navigation";
-import PageBackground from "@/components/PageBackground";
+import AssignedPageBackground from "@/components/AssignedPageBackground";
 import Reveal from "@/components/Reveal";
+import { pageKeyWorkSection } from "@/lib/page-backgrounds";
 import StudioProjectCaseStudy from "@/components/studio/StudioProjectCaseStudy";
 import { BRAND } from "@/lib/config/brand";
 import {
   getPillarBySlug,
   getSectionToPillarSlugMap,
+  isDualBrandHub,
   isKnownPillarSlug,
   resolvePillarCoverUrl,
 } from "@/lib/work-pillar-settings";
 import { getFeaturedHeroForSection, getPublishedProjectsBySections } from "@/lib/queries/work";
-import { getPublicR2Url } from "@/lib/r2";
+import { getPublicR2FullBleedUrl, getPublicR2Url } from "@/lib/r2";
 import { normalizeProjectSlug } from "@/lib/slugify";
 import {
   getAdjacentPublishedStudioProjects,
@@ -22,6 +24,12 @@ import {
   listPublishedStudioProjectsForWorkPillar,
 } from "@/lib/studio/studio-project-cms";
 import type { WorkSection } from "@prisma/client";
+import {
+  dualBrandMediaSrc,
+  dualBrandWorkHref,
+  fetchDualBrandWork,
+  type DualBrandWorkProject,
+} from "@/lib/dual-brand/content-api";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +39,10 @@ const BLUR_DATA =
 const LEGACY_WORK_SECTION_REDIRECTS: Record<string, string> = {
   acd: "advertising",
   cul: "advertising",
-  rea: "architecture",
-  tri: "architecture",
+  rea: "commercial",
+  tri: "commercial",
   biz: "corporate",
+  architecture: "commercial",
 };
 
 export async function generateMetadata({
@@ -112,7 +121,7 @@ function ProjectGrid({
         const hero = project.heroMedia;
         const heroImageUrl =
           hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)
-            ? getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? "")
+            ? getPublicR2FullBleedUrl(hero.keyFull ?? hero.keyThumb ?? "")
             : null;
         const heroVideoId =
           hero?.kind === "VIDEO" && hero.providerId ? hero.providerId : null;
@@ -206,7 +215,7 @@ function ProjectGrid({
             const hero = tile.heroImage;
             const heroImageUrl =
               hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)
-                ? getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? "")
+                ? getPublicR2FullBleedUrl(hero.keyFull ?? hero.keyThumb ?? "")
                 : null;
 
             return (
@@ -282,10 +291,104 @@ function WorkUpdatingFallback() {
   );
 }
 
+async function DualBrandHubContent({
+  pillar,
+}: {
+  pillar: NonNullable<Awaited<ReturnType<typeof getPillarBySlug>>>;
+}) {
+  const projects = await fetchDualBrandWork();
+  const firstCover =
+    dualBrandMediaSrc(
+      projects.find((p) => p.heroImage || p.thumbnailImage)?.heroImage ||
+        projects.find((p) => p.thumbnailImage)?.thumbnailImage ||
+        null
+    ) || null;
+  const coverMedia = resolvePillarCoverUrl(pillar.coverImageKey, firstCover);
+
+  return (
+    <>
+      <AssignedPageBackground
+        pageKey={pageKeyWorkSection(pillar.slug)}
+        fallbackMedia={coverMedia}
+      />
+      <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
+        <Reveal className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="section-kicker">Work</p>
+            <h1 className="section-title">{pillar.label}</h1>
+            <p className="section-subtitle">{pillar.description}</p>
+          </div>
+          <Link href="/work" className="btn btn-ghost">
+            Back to work
+          </Link>
+        </Reveal>
+
+        {projects.length > 0 ? (
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project: DualBrandWorkProject) => {
+              const heroUrl =
+                dualBrandMediaSrc(project.heroImage) ||
+                dualBrandMediaSrc(project.thumbnailImage) ||
+                null;
+              return (
+                <Reveal key={project.id}>
+                  <Link
+                    href={dualBrandWorkHref(project)}
+                    className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
+                  >
+                    <div className="relative h-[240px] w-full overflow-hidden image-guard-overlay">
+                      {heroUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={heroUrl}
+                          alt={project.title}
+                          draggable={false}
+                          className="h-full w-full object-cover image-zoom"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">
+                          <span className="text-xs uppercase tracking-[0.2em]">
+                            {project.title}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <p className="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">
+                        Collaboration
+                      </p>
+                      <h2 className="mt-2 text-base text-white">{project.title}</h2>
+                      <p className="mt-2 line-clamp-2 text-sm text-white/70">{project.summary}</p>
+                      <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/50">
+                        {project.year}
+                      </p>
+                    </div>
+                  </Link>
+                </Reveal>
+              );
+            })}
+          </div>
+        ) : (
+          <Reveal className="mt-12 rounded-2xl border border-white/10 bg-black/40 p-12 text-center">
+            <p className="text-white/70">No shared Mirotech projects published to Brightline yet.</p>
+            <Link href="/work" className="btn btn-ghost mt-4">
+              Back to work
+            </Link>
+          </Reveal>
+        )}
+      </div>
+    </>
+  );
+}
+
 async function PillarSectionContent({ section }: { section: string }) {
   if (!(await isKnownPillarSlug(section))) notFound();
   const pillar = await getPillarBySlug(section);
   if (!pillar || pillar.visible === false) notFound();
+
+  if (isDualBrandHub(pillar)) {
+    return <DualBrandHubContent pillar={pillar} />;
+  }
 
   let sectionMap: Awaited<ReturnType<typeof getSectionToPillarSlugMap>>;
   try {
@@ -314,7 +417,7 @@ async function PillarSectionContent({ section }: { section: string }) {
       try {
         const hero = await getFeaturedHeroForSection(firstSection);
         if (hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)) {
-          coverMedia = getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? "");
+          coverMedia = getPublicR2FullBleedUrl(hero.keyFull ?? hero.keyThumb ?? "");
         }
       } catch {
         /* keep null */
@@ -324,7 +427,10 @@ async function PillarSectionContent({ section }: { section: string }) {
 
   return (
     <>
-      <PageBackground media={coverMedia} poster={null} />
+      <AssignedPageBackground
+        pageKey={pageKeyWorkSection(pillar.slug)}
+        fallbackMedia={coverMedia}
+      />
       <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
       <Reveal className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>

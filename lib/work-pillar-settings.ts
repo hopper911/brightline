@@ -4,12 +4,16 @@ import { prisma } from "@/lib/prisma";
 import {
   buildSectionToPillarMap,
   getPrimaryWorkSection,
+  isDualBrandHub,
   isReservedPillarSlug,
   isValidPillarSlugFormat,
   PILLARS,
   type PillarConfig,
+  type PillarHub,
 } from "@/lib/portfolioPillars";
-import { getPublicR2Url } from "@/lib/r2";
+import { getPublicR2FullBleedUrl } from "@/lib/r2";
+
+export { isDualBrandHub };
 
 export const WORK_PILLARS_SETTING_KEY = "work_pillars:v1";
 
@@ -48,6 +52,7 @@ function migrateV1Overrides(row: Record<string, unknown>): WorkPillarsFileV2 {
     const o = raw as Record<string, unknown>;
     return {
       ...base,
+      hub: base.hub ?? "none",
       visible: typeof o.visible === "boolean" ? o.visible : base.visible,
       label: cleanString(o.label) || base.label,
       homeMeta: cleanString(o.homeMeta) || base.homeMeta,
@@ -86,6 +91,10 @@ function parseSectionList(raw: unknown): WorkSection[] | null {
   return out;
 }
 
+function parseHub(raw: unknown): PillarHub {
+  return raw === "dual-brand" ? "dual-brand" : "none";
+}
+
 export function normalizePillarConfig(raw: unknown, fallbackSort: number): PillarConfig | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -97,8 +106,12 @@ export function normalizePillarConfig(raw: unknown, fallbackSort: number): Pilla
   const homeMeta = cleanString(o.homeMeta);
   if (!label || !description) return null;
 
-  const sections = parseSectionList(o.sections);
-  if (!sections || sections.length === 0) return null;
+  const hub = parseHub(o.hub);
+  const sectionsRaw = parseSectionList(o.sections ?? []);
+  if (sectionsRaw === null) return null;
+
+  const sections = hub === "dual-brand" ? [] : sectionsRaw;
+  if (hub === "none" && sections.length === 0) return null;
 
   const visible = typeof o.visible === "boolean" ? o.visible : true;
   const coverImageKey = cleanString(o.coverImageKey);
@@ -114,6 +127,7 @@ export function normalizePillarConfig(raw: unknown, fallbackSort: number): Pilla
     description,
     homeMeta,
     sections,
+    hub,
     visible,
     coverImageKey,
     coverAlt,
@@ -123,6 +137,7 @@ export function normalizePillarConfig(raw: unknown, fallbackSort: number): Pilla
 
 export function validatePillarList(pillars: PillarConfig[]): string | null {
   const slugs = new Set<string>();
+  let dualBrandCount = 0;
   for (const p of pillars) {
     if (slugs.has(p.slug)) return `Duplicate pillar slug: ${p.slug}`;
     slugs.add(p.slug);
@@ -130,14 +145,28 @@ export function validatePillarList(pillars: PillarConfig[]): string | null {
       return `Invalid reserved slug: ${p.slug}`;
     }
     if (!p.label.trim() || !p.description.trim()) return `Pillar ${p.slug} needs a label and description`;
-    if (!p.sections.length) return `Pillar ${p.slug} needs at least one work section`;
+    const hub = p.hub === "dual-brand" ? "dual-brand" : "none";
+    if (hub === "dual-brand") {
+      dualBrandCount += 1;
+      if (p.sections.length > 0) {
+        return `Dual-brand hub ${p.slug} must not assign photography work sections`;
+      }
+    } else if (!p.sections.length) {
+      return `Pillar ${p.slug} needs at least one work section`;
+    }
   }
+  if (dualBrandCount > 1) return "Only one Mirotech / dual-brand hub is allowed";
   try {
     buildSectionToPillarMap(pillars);
   } catch (e) {
     return e instanceof Error ? e.message : "Invalid section mapping";
   }
   return null;
+}
+
+export async function hasVisibleDualBrandHub(): Promise<boolean> {
+  const list = await getVisibleWorkPillars();
+  return list.some(isDualBrandHub);
 }
 
 async function readWorkPillarsFileFromDb(): Promise<WorkPillarsFileV2> {
@@ -206,7 +235,7 @@ export function resolvePillarCoverUrl(
   const v = coverKeyOrUrl?.trim();
   if (!v) return fallbackUrl;
   if (/^(https?:|\/)/i.test(v)) return v;
-  const signed = getPublicR2Url(v.replace(/^\/+/, ""));
+  const signed = getPublicR2FullBleedUrl(v.replace(/^\/+/, ""));
   return signed || fallbackUrl;
 }
 
@@ -238,12 +267,17 @@ export async function saveWorkPillarList(pillars: PillarConfig[]): Promise<Pilla
   if (err) throw new Error(err);
 
   const normalized = sortPillars(
-    pillars.map((p, i) => ({
-      ...p,
-      slug: p.slug.trim().toLowerCase(),
-      sortOrder:
-        typeof p.sortOrder === "number" && Number.isFinite(p.sortOrder) ? Math.round(p.sortOrder) : i,
-    }))
+    pillars.map((p, i) => {
+      const hub = p.hub === "dual-brand" ? ("dual-brand" as const) : ("none" as const);
+      return {
+        ...p,
+        slug: p.slug.trim().toLowerCase(),
+        hub,
+        sections: hub === "dual-brand" ? [] : p.sections,
+        sortOrder:
+          typeof p.sortOrder === "number" && Number.isFinite(p.sortOrder) ? Math.round(p.sortOrder) : i,
+      };
+    })
   );
 
   const file: WorkPillarsFileV2 = { version: 2, pillars: normalized };

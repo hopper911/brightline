@@ -1,8 +1,8 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ADMIN_ACCESS_COOKIE } from "@/lib/admin-cookie";
 import { ADMIN_SESSION_MAX_AGE_SEC, createAdminSessionToken } from "@/lib/admin-session";
-import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { resolveAdminAccessCode } from "@/lib/resolve-admin-access-code";
 
 export const runtime = "nodejs";
@@ -25,16 +25,19 @@ function cookieSecure(req: Request): boolean {
   }
 }
 
+/** Constant-time compare via SHA-256 digests (avoids length oracle on raw strings). */
 function timingSafeMatch(provided: string, expected: string): boolean {
-  const a = Buffer.from(provided, "utf8");
-  const b = Buffer.from(expected, "utf8");
-  if (a.length !== b.length) return false;
+  const a = createHash("sha256").update(provided, "utf8").digest();
+  const b = createHash("sha256").update(expected, "utf8").digest();
   return timingSafeEqual(a, b);
 }
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  if (isRateLimited(ip, { scope: "admin-login", max: 8, windowMs: 15 * 60_000 })) {
+  if (
+    (await isRateLimitedAsync(ip, { scope: "admin-login", max: 8, windowMs: 15 * 60_000 })) ||
+    (await isRateLimitedAsync(ip, { scope: "admin-login-burst", max: 3, windowMs: 60_000 }))
+  ) {
     return NextResponse.json({ ok: false, error: "Too many attempts. Try again later." }, { status: 429 });
   }
 
@@ -61,7 +64,9 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!timingSafeMatch(provided, expected)) {
+  const ok = timingSafeMatch(provided, expected);
+  if (!ok) {
+    await new Promise((r) => setTimeout(r, 250 + Math.floor(Math.random() * 200)));
     return NextResponse.json({ ok: false, error: "Invalid code." }, { status: 401 });
   }
 

@@ -4,12 +4,16 @@
  * If the DB already holds a full https URL to our R2/public host, pass it through for img src.
  */
 
+import { preferPortfolioWebFullKey } from "@/lib/portfolio-web-full";
+
 export function isTrustedR2Host(hostname: string): boolean {
   const h = hostname.toLowerCase();
   return (
     h.endsWith(".r2.dev") ||
     h.endsWith(".r2.cloudflarestorage.com") ||
-    h === "images.brightlinephotography.co"
+    h === "images.brightlinephotography.co" ||
+    h === "mirotech.solutions" ||
+    h.endsWith(".mirotech.solutions")
   );
 }
 
@@ -67,6 +71,16 @@ export function resolveStoredMediaUrl(stored: string | null | undefined): string
 
 export function getPublicR2Url(key: string): string {
   return resolveStoredMediaUrl(key);
+}
+
+/** Full-bleed / hero / page background — prefer ~2400px web_full over ~800px web_thumb. */
+export function resolveFullBleedMediaUrl(stored: string | null | undefined): string {
+  if (!stored?.trim()) return "";
+  return resolveStoredMediaUrl(preferPortfolioWebFullKey(stored.trim()));
+}
+
+export function getPublicR2FullBleedUrl(key: string): string {
+  return resolveFullBleedMediaUrl(key);
 }
 
 /** Append `proxy=1` so the handler streams bytes instead of 302 (canvas-safe). */

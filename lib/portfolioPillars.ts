@@ -3,6 +3,9 @@ import type { WorkSection } from "@prisma/client";
 /** All Prisma WorkSection enum values (for API validation). */
 export const WORK_SECTIONS: WorkSection[] = ["ACD", "REA", "CUL", "BIZ", "TRI"];
 
+/** Hub pillars list dual-brand (or other) content instead of photography WorkSections. */
+export type PillarHub = "none" | "dual-brand";
+
 /** Dynamic work pillar (public URLs `/work/{slug}`). */
 export type PillarConfig = {
   slug: string;
@@ -10,14 +13,20 @@ export type PillarConfig = {
   description: string;
   /** One line under the card title on the homepage */
   homeMeta: string;
-  /** DB sections that belong to this pillar (each section may appear on only one pillar). */
+  /** DB sections that belong to this pillar (each section may appear on only one pillar). Empty when hub is dual-brand. */
   sections: WorkSection[];
+  /** When dual-brand, this card indexes Mirotech dual-brand projects (no WorkSection). */
+  hub: PillarHub;
   visible: boolean;
   /** R2 object key, or `/path`, or `https://...` — empty = use featured hero */
   coverImageKey: string;
   coverAlt: string;
   sortOrder: number;
 };
+
+export function isDualBrandHub(pillar: Pick<PillarConfig, "hub">): boolean {
+  return pillar.hub === "dual-brand";
+}
 
 /** @deprecated Prefer plain `string` slugs from CMS; alias kept for existing imports. */
 export type PillarSlug = string;
@@ -30,6 +39,7 @@ export const PILLARS: PillarConfig[] = [
       "Buildings, interiors, and spaces—imagery for listings, proposals, hospitality, and destinations, prepared for web and brand use.",
     homeMeta: "Spaces & places · ready for listings & brand",
     sections: ["REA", "TRI"],
+    hub: "none",
     visible: true,
     coverImageKey: "",
     coverAlt: "",
@@ -42,6 +52,7 @@ export const PILLARS: PillarConfig[] = [
       "Editorial and campaign work for brands and agencies—visual stories built to travel across web, social, and print.",
     homeMeta: "Brand & editorial · built for every channel",
     sections: ["ACD", "CUL"],
+    hub: "none",
     visible: true,
     coverImageKey: "",
     coverAlt: "",
@@ -54,12 +65,28 @@ export const PILLARS: PillarConfig[] = [
       "Workplace, leadership, and professional imagery—assets that support trust, recruiting, and communications.",
     homeMeta: "Teams & leadership · aligned to your narrative",
     sections: ["BIZ"],
+    hub: "none",
     visible: true,
     coverImageKey: "",
     coverAlt: "",
     sortOrder: 2,
   },
 ];
+
+/** Prefill for Admin → Work pillars → Add Mirotech hub. */
+export const DEFAULT_MIROTECH_HUB_PILLAR: PillarConfig = {
+  slug: "mirotech",
+  label: "Mirotech",
+  description:
+    "Product, systems, and design collaborations published through the dual-brand CMS—photo-forward case studies shared with Mirotech.",
+  homeMeta: "Product & systems · design collaborations",
+  sections: [],
+  hub: "dual-brand",
+  visible: true,
+  coverImageKey: "",
+  coverAlt: "",
+  sortOrder: 99,
+};
 
 /** Default slugs in order — use for admin dropdowns seeded from code. */
 export const PILLAR_SLUGS: readonly string[] = PILLARS.map((p) => p.slug);
@@ -89,6 +116,9 @@ export const PILLAR_TO_SECTION: Record<string, WorkSection> = Object.fromEntries
 );
 
 export function getPrimaryWorkSection(pillar: PillarConfig): WorkSection {
+  if (isDualBrandHub(pillar)) {
+    throw new Error(`Pillar ${pillar.slug} is a dual-brand hub and has no work sections`);
+  }
   const s = pillar.sections[0];
   if (!s) throw new Error(`Pillar ${pillar.slug} has no work sections`);
   return s;
@@ -114,6 +144,7 @@ const RESERVED_PILLAR_SLUGS = new Set(
     "terms",
     "login",
     "media",
+    "shared",
     "commercial-photographer-nyc",
     "architecture-photographer-nyc",
     "corporate-photographer-nyc",

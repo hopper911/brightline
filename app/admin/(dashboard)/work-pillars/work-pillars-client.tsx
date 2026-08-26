@@ -3,7 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { PillarConfig } from "@/lib/portfolioPillars";
-import { WORK_SECTIONS } from "@/lib/portfolioPillars";
+import {
+  DEFAULT_MIROTECH_HUB_PILLAR,
+  WORK_SECTIONS,
+  isDualBrandHub,
+} from "@/lib/portfolioPillars";
 import R2BrowserModal from "../work/R2BrowserModal";
 
 const SECTION_LABELS: Record<string, string> = {
@@ -29,6 +33,7 @@ function blankPillar(sortOrder: number): PillarConfig {
       "Short summary for the pillar index page (SEO and hero copy underneath the title).",
     homeMeta: "",
     sections: ["REA"],
+    hub: "none",
     visible: true,
     coverImageKey: "",
     coverAlt: "",
@@ -37,7 +42,11 @@ function blankPillar(sortOrder: number): PillarConfig {
 }
 
 function normalizeSort(list: PillarConfig[]): PillarConfig[] {
-  return list.map((p, i) => ({ ...p, sortOrder: i }));
+  return list.map((p, i) => ({
+    ...p,
+    hub: p.hub === "dual-brand" ? "dual-brand" : "none",
+    sortOrder: i,
+  }));
 }
 
 type Props = {
@@ -119,6 +128,29 @@ export default function WorkPillarsClient({ initialPillars }: Props) {
     setDraft((rows) => [...rows, blankPillar(rows.length)]);
   }
 
+  function addMirotechHub() {
+    if (sorted.some(isDualBrandHub)) {
+      setMessage({
+        kind: "err",
+        text: "A Mirotech / dual-brand hub already exists. Toggle Show or reorder it instead.",
+      });
+      return;
+    }
+    setDraft((rows) =>
+      normalizeSort([
+        ...rows,
+        {
+          ...DEFAULT_MIROTECH_HUB_PILLAR,
+          sortOrder: rows.length,
+        },
+      ])
+    );
+    setMessage({
+      kind: "ok",
+      text: "Mirotech hub added — set cover/order and Save to publish on /work.",
+    });
+  }
+
   function removePillar(index: number) {
     if (sorted.length <= 1) {
       setMessage({ kind: "err", text: "Keep at least one pillar." });
@@ -149,7 +181,10 @@ export default function WorkPillarsClient({ initialPillars }: Props) {
         </p>
         <p className="text-xs text-black/55">
           Turning off <strong>Show</strong> hides a pillar from the homepage grid, the /work hub, and the
-          header links after Work. Adding pillars creates new routes at <span className="font-mono">/work/your-slug</span>.
+          header links after Work. Adding pillars creates new routes at{" "}
+          <span className="font-mono">/work/your-slug</span>. Use{" "}
+          <strong>Add Mirotech hub</strong> for a dual-brand card that lists shared Mirotech projects
+          (no photography work section required).
         </p>
       </div>
 
@@ -166,6 +201,9 @@ export default function WorkPillarsClient({ initialPillars }: Props) {
         <button type="button" className="btn btn-ghost text-sm" onClick={addPillar}>
           Add pillar
         </button>
+        <button type="button" className="btn btn-ghost text-sm" onClick={addMirotechHub}>
+          Add Mirotech hub
+        </button>
       </div>
 
       <div className="mt-8 flex flex-col gap-8">
@@ -176,7 +214,7 @@ export default function WorkPillarsClient({ initialPillars }: Props) {
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <p className="text-xs uppercase tracking-wide text-black/50">
-                Pillar {index + 1}
+                {isDualBrandHub(pillar) ? "Mirotech hub" : `Pillar ${index + 1}`}
                 {pillar.slug ? (
                   <span className="ml-2 font-mono text-[0.7rem] normal-case text-black/45">
                     /work/{pillar.slug}
@@ -259,26 +297,34 @@ export default function WorkPillarsClient({ initialPillars }: Props) {
               />
             </label>
 
-            <div>
-              <p className="text-xs font-medium text-black/70">Work sections in this pillar</p>
-              <p className="mt-0.5 text-[0.65rem] text-black/50">
-                Projects in these sections appear on this pillar index. Each section can only be selected once
-                across all pillars (save will error if duplicated).
-              </p>
-              <div className="mt-2 flex flex-wrap gap-3">
-                {WORK_SECTIONS.map((section) => (
-                  <label key={section} className="flex items-center gap-2 text-xs text-black/80">
-                    <input
-                      type="checkbox"
-                      checked={pillar.sections.includes(section)}
-                      onChange={() => toggleSection(index, section)}
-                      className="rounded border-black/30"
-                    />
-                    {SECTION_LABELS[section] ?? section}
-                  </label>
-                ))}
+            {isDualBrandHub(pillar) ? (
+              <div className="rounded-lg border border-black/10 bg-black/[0.03] px-3 py-2 text-xs text-black/65">
+                Dual-brand hub — lists projects published to Brightline from the Mirotech CMS at{" "}
+                <span className="font-mono">/work/{pillar.slug || "mirotech"}</span>. No photography work
+                section mapping is required.
               </div>
-            </div>
+            ) : (
+              <div>
+                <p className="text-xs font-medium text-black/70">Work sections in this pillar</p>
+                <p className="mt-0.5 text-[0.65rem] text-black/50">
+                  Projects in these sections appear on this pillar index. Each section can only be selected once
+                  across all pillars (save will error if duplicated).
+                </p>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  {WORK_SECTIONS.map((section) => (
+                    <label key={section} className="flex items-center gap-2 text-xs text-black/80">
+                      <input
+                        type="checkbox"
+                        checked={pillar.sections.includes(section)}
+                        onChange={() => toggleSection(index, section)}
+                        className="rounded border-black/30"
+                      />
+                      {SECTION_LABELS[section] ?? section}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="relative aspect-[4/3] max-h-48 overflow-hidden rounded-lg border border-black/10 bg-black/5">
               {(() => {
@@ -288,7 +334,9 @@ export default function WorkPillarsClient({ initialPillars }: Props) {
                   <img src={preview} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full min-h-[120px] items-center justify-center px-3 text-center text-xs text-black/40">
-                    No cover override — uses featured project hero from the first section
+                    {isDualBrandHub(pillar)
+                      ? "No cover override — uses first dual-brand project hero when available"
+                      : "No cover override — uses featured project hero from the first section"}
                   </div>
                 );
               })()}

@@ -55,28 +55,8 @@ function normalizeReason(value: unknown) {
 }
 
 async function imageUrlToDataUrl(imageUrl: string, origin: string) {
-  const url = new URL(imageUrl, origin);
-  if (!["http:", "https:"].includes(url.protocol)) {
-    throw Object.assign(new Error("Unsupported image URL."), { status: 400 });
-  }
-
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw Object.assign(new Error(`Could not load image for placement analysis (${res.status}).`), {
-      status: 400,
-    });
-  }
-
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  if (!contentType.startsWith("image/")) {
-    throw Object.assign(new Error("imageUrl must point to an image."), { status: 400 });
-  }
-
-  const bytes = Buffer.from(await res.arrayBuffer());
-  if (bytes.byteLength > 8 * 1024 * 1024) {
-    throw Object.assign(new Error("Image is too large for AI placement analysis."), { status: 400 });
-  }
-  return `data:${contentType};base64,${bytes.toString("base64")}`;
+  const { trustedImageToDataUrl } = await import("@/lib/safe-fetch-image");
+  return trustedImageToDataUrl(imageUrl, origin);
 }
 
 function parseJsonObject(text: string): Record<string, unknown> {

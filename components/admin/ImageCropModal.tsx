@@ -95,7 +95,10 @@ export default function ImageCropModal({
           </button>
         </div>
         <p className="mt-2 text-xs text-black/55">
-          Drag to reposition. Use the slider to zoom. Applied image is saved as a new JPEG upload.
+          Drag to reposition. Use the slider to zoom.
+          {title.toLowerCase().includes("hero")
+            ? " Applied crop replaces the current hero image in place — it does not add a gallery item."
+            : " Applied image is saved as a new JPEG upload."}
         </p>
 
         {error ? (

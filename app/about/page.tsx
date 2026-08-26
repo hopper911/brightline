@@ -1,12 +1,13 @@
-import Link from "next/link";
+import AssignedPageBackground from "@/components/AssignedPageBackground";
 import Reveal from "@/components/Reveal";
-import PrimaryCTA from "@/components/PrimaryCTA";
 import CredibilityBar from "@/components/CredibilityBar";
 import ProcessTimeline from "@/components/ProcessTimeline";
-import BookingButton from "@/components/BookingButton";
 import WebsitePageView from "@/components/WebsitePageView";
+import MultidisciplinaryAboutBand from "@/components/MultidisciplinaryAboutBand";
 import { BRAND } from "@/lib/config/brand";
 import { getPublishedWebsitePageBySlug } from "@/lib/website-pages";
+import { getDesignSectionSettings } from "@/lib/design-section-settings";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -98,11 +99,24 @@ const differentiators = [
 export default async function AboutPage() {
   const pageOverride = await getPublishedWebsitePageBySlug("about");
   if (pageOverride) {
-    return <WebsitePageView page={pageOverride} />;
+    return (
+      <>
+        <WebsitePageView page={pageOverride} />
+        <MultidisciplinaryAboutBand />
+      </>
+    );
   }
 
+  const design = await getDesignSectionSettings();
+  const showDesign = design.enabled && design.showOnAbout;
+  const capabilityList = showDesign
+    ? [...capabilities, "Graphic design & brand systems"]
+    : capabilities;
+
   return (
-    <div className="mx-auto max-w-6xl px-6 lg:px-10 section-pad py-16">
+    <>
+      <AssignedPageBackground pageKey="about" />
+      <div className="relative z-[2] mx-auto max-w-6xl px-6 lg:px-10 section-pad py-16">
       {/* Hero Section */}
       <Reveal>
         <p className="text-xs uppercase tracking-[0.35em] text-white/60">
@@ -225,7 +239,7 @@ export default async function AboutPage() {
           assets, and AI-assisted organization for faster publishing.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          {capabilities.map((v) => (
+          {capabilityList.map((v) => (
             <span
               key={v}
               className="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.28em] text-white/75"
@@ -234,6 +248,15 @@ export default async function AboutPage() {
             </span>
           ))}
         </div>
+        {showDesign ? (
+          <p className="mt-6 text-sm text-white/60">
+            Explore design specimens in{" "}
+            <Link href="/design" className="underline underline-offset-4 hover:text-white/80">
+              {design.hubLabel}
+            </Link>
+            .
+          </p>
+        ) : null}
       </Reveal>
 
       {/* Process */}
@@ -300,31 +323,8 @@ export default async function AboutPage() {
           </div>
         </div>
       </Reveal>
-
-      {/* CTA */}
-      <Reveal className="mt-20" delay={0.16}>
-        <div className="rounded-[28px] border border-black/10 bg-black px-8 py-12 text-white md:px-12">
-          <p className="text-xs uppercase tracking-[0.35em] text-white/60">
-            Let&apos;s work together
-          </p>
-          <h2 className="font-display text-2xl md:text-3xl text-white mt-2">
-            Ready to build your next visual story?
-          </h2>
-          <p className="mt-4 text-sm text-white/70 max-w-xl">
-            Share your project, timeline, and goals. We respond with a tailored
-            scope within 48 hours.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-4">
-            <PrimaryCTA service="general" className="btn btn-light" />
-            <BookingButton className="btn btn-outline-light">
-              Book a call
-            </BookingButton>
-            <Link href="/work" className="btn btn-ghost text-white/80 hover:text-white">
-              View work
-            </Link>
-          </div>
-        </div>
-      </Reveal>
     </div>
+    <MultidisciplinaryAboutBand />
+    </>
   );
 }

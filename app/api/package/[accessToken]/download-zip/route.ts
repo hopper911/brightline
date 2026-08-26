@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rejectIfTokenDownloadLimited } from "@/lib/client-token-rate-limit";
 import { packageInclude } from "@/lib/delivery/db";
 import { createR2KeysZipResponse, MAX_ZIP_FILES } from "@/lib/zip/r2KeysZipResponse";
 
@@ -26,10 +27,16 @@ function safeZipBaseName(title: string, pkgId: string): string {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ accessToken: string }> }
 ) {
   const { accessToken } = await context.params;
+  const limited = await rejectIfTokenDownloadLimited(req, accessToken, "package-zip", {
+    max: 12,
+    windowMs: 60 * 60_000,
+  });
+  if (limited) return limited;
+
   const pkg = await prisma.deliveryPackage.findUnique({
     where: { accessToken },
     include: packageInclude(),

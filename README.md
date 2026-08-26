@@ -1,98 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BRIGHTLINE Photography
 
-## Environment & secrets parity (Vercel)
+Next.js App Router site for [brightlinephotography.com](https://brightlinephotography.com): public portfolio, client galleries, delivery packages, admin/studio/accountant portals, R2 media, Prisma/Neon.
 
-- Keep Preview and Production env vars in parity. Missing secrets often surface only at runtime.
-- Use `brightline/.env.example` as the canonical list for both environments.
-- Prefer identical values across Preview and Production unless a setting is destructive (e.g., seed flags).
-- Prisma runs only in the Node runtime; avoid Edge for any Prisma-backed routes.
-- For Neon, use a pooled `DATABASE_URL` and set `DIRECT_URL` for migrations.
+## Architecture (high level)
 
-## Getting Started
+```text
+Public (/work, /galleries, /services, /about, /contact, /journal)
+        │
+        ▼
+Next.js App Router ── Prisma ── Neon Postgres
+        │
+        ├── Admin cookie session (/admin) + Studio OS (/studio)
+        ├── Accountant JWT portal (/accountant)
+        ├── Client gallery access codes → signed session cookie
+        ├── Delivery packages (/package/[token]) + final-package tokens
+        └── Cloudflare R2 (presigned upload/download, MIME allowlist)
+```
 
-First, run the development server:
+**Authz boundaries (do not “simplify” into multi-tenant Org tables):**
+
+| Surface | Gate |
+| --- | --- |
+| Admin / Studio | HMAC admin session cookie |
+| Accountant | JWT + permission flags |
+| Client gallery | Access code → signed `client_access_session` |
+| Delivery package | Opaque URL token (+ optional `expiresAt`) |
+| Public media | Allowlisted R2 key prefixes only |
+
+Security locks live in `lib/truth/` (CSRF prefixes, upload MIME, nav brand). Prefer hardening those tests over schema rewrites.
+
+## Environment
+
+- Use `.env.example` as the checklist for Preview/Production parity on Vercel.
+- Neon: pooled `DATABASE_URL` + unpooled `DIRECT_URL` for migrations.
+- Optional: `SENTRY_DSN` (see `instrumentation.ts` / `lib/monitoring/sentry.ts`).
 
 ```bash
+npm install
+npx prisma generate
+npm run db:migrate   # needs DIRECT_URL
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 5-minute delivery-package demo
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+One finished vertical: seed → open package → API authz rejects.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# 1) Empty-DB friendly seed (writes tmp/delivery-smoke.json)
+npm run seed:delivery-smoke:empty
 
-## Case studies (MDX workflow)
+# 2) Start the app (another terminal)
+npm run dev
 
-Case studies live in `content/projects` as MDX files with frontmatter. Only items with `status: PUBLISHED` render on `/work` and `/work/[slug]`.
+# 3) Open the printed /package/<token> URL — or:
+#    cat tmp/delivery-smoke.json
 
-Required frontmatter fields:
+# 4) Authz smoke (Vitest — no browser)
+npm test -- lib/authz/authz.test.ts
 
-- `title`
-- `category`
-- `categorySlug`
-- `location`
-- `year`
-- `cover`
-- `overview`
-- `goals` (array)
-- `deliverables` (array)
-- `gallery` (array)
-- `results`
-- `cta`
-- `status` (`PUBLISHED` or `DRAFT`)
-
-Optional frontmatter fields:
-
-- `tags` (array)
-- `featured` (boolean)
-
-Editing flow:
-
-1. Add or update a file at `content/projects/<slug>.mdx`.
-2. Set `status: PUBLISHED` when ready to ship.
-3. Ensure `cover` and `gallery` point to valid image paths in `public/`.
-4. Visit `/work` to confirm filters + cards.
-
-## Operations: database backups (Neon)
-
-This project uses Neon Postgres. Neon provides automated backups and point-in-time recovery (PITR).
-
-Recommended baseline:
-
-1. Enable PITR in the Neon project settings.
-2. Confirm the retention window matches your recovery needs (at least 7–14 days).
-3. For manual snapshots, create a “branch” in Neon before risky changes (schema/data migrations).
-4. For exports, use pg_dump against the direct URL:
-
-```
-pg_dump "${DIRECT_URL}" --format=custom --file=backup.dump
+# 5) Playwright vertical (build + start, or reuse running server)
+npm run build && PLAYWRIGHT_SKIP_WEBSERVER=1 npm run test:e2e
+# with auto webServer after build:
+npm run build && npm run test:e2e
 ```
 
-Restore checklist:
+Expect: valid token page loads; wrong/expired tokens 404; manifest OK for seed token; download of a foreign item id returns 404.
 
-1. Create a new Neon branch for recovery.
-2. Restore to that branch with pg_restore.
-3. Validate app behavior, then promote/replace.
+## Tests & CI
 
-## Learn More
+- `npm test` — Vitest (authz, truth locks, delivery IDOR, …)
+- `npm run test:e2e` — Playwright package vertical
+- GitHub Actions (`.github/workflows/ci.yml`): unit tests → build; e2e job with Postgres service + seed
 
-To learn more about Next.js, take a look at the following resources:
+## Case studies (legacy MDX note)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Older MDX under `content/projects` may still exist; live Work content is CMS/Studio Hub driven. Do not treat MDX as the production source of truth unless you are explicitly migrating it.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Ops notes
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# Deployment test Mon Feb  9 15:41:31 EST 2026
+- Neon PITR + branch-before-risky-migrate.
+- Never overwrite Google Sheet formula cells (Brightline Image Uploads tab).
+- Do not re-enable Lenis on `/admin`, `/studio`, `/accountant` (sidebar scroll lock).

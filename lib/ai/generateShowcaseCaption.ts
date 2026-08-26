@@ -1,4 +1,8 @@
-import { SHOWCASE_CAPTION_SINGLE_IMAGE } from "@/lib/ai/prompts";
+import {
+  SHOWCASE_CAPTION_SINGLE_IMAGE,
+  SHOWCASE_LABEL_SINGLE_IMAGE,
+  SHOWCASE_TITLE_SINGLE_IMAGE,
+} from "@/lib/ai/prompts";
 import { runAiChatCompletion } from "@/lib/ai/ops";
 import { createOpenAiClient, resolveOpenAiChatModel } from "@/lib/ai/runtime";
 
@@ -8,8 +12,11 @@ export type ShowcaseCaptionContext = {
   cardLabel?: string;
 };
 
+export type ShowcaseCopyField = "caption" | "label" | "title";
+
 export type GenerateShowcaseCaptionInput = {
   imageUrl: string;
+  field: ShowcaseCopyField;
   context: ShowcaseCaptionContext;
 };
 
@@ -21,6 +28,11 @@ function cleanString(value: unknown): string | undefined {
 
 function truncate(value: string, max: number) {
   return value.length <= max ? value : value.slice(0, max - 1).trimEnd();
+}
+
+function parseField(value: unknown): ShowcaseCopyField {
+  if (value === "label" || value === "title" || value === "caption") return value;
+  return "caption";
 }
 
 export function parseGenerateShowcaseCaptionInput(body: unknown):
@@ -43,6 +55,7 @@ export function parseGenerateShowcaseCaptionInput(body: unknown):
     ok: true,
     data: {
       imageUrl,
+      field: parseField(obj.field),
       context: {
         pageTitle: cleanString(rawContext.pageTitle),
         cardTitle: cleanString(rawContext.cardTitle),
@@ -53,38 +66,46 @@ export function parseGenerateShowcaseCaptionInput(body: unknown):
 }
 
 async function imageUrlToDataUrl(imageUrl: string, origin: string) {
-  const url = new URL(imageUrl, origin);
-  if (!["http:", "https:"].includes(url.protocol)) {
-    throw Object.assign(new Error("Unsupported image URL."), { status: 400 });
-  }
-
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw Object.assign(new Error(`Could not load image for caption (${res.status}).`), {
-      status: 400,
-    });
-  }
-
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  if (!contentType.startsWith("image/")) {
-    throw Object.assign(new Error("imageUrl must point to an image."), { status: 400 });
-  }
-
-  const bytes = Buffer.from(await res.arrayBuffer());
-  if (bytes.byteLength > 8 * 1024 * 1024) {
-    throw Object.assign(new Error("Image is too large for AI caption generation."), { status: 400 });
-  }
-  return `data:${contentType};base64,${bytes.toString("base64")}`;
+  const { trustedImageToDataUrl } = await import("@/lib/safe-fetch-image");
+  return trustedImageToDataUrl(imageUrl, origin);
 }
 
-function normalizeCaption(raw: string) {
+function normalizeText(raw: string, max: number) {
   return truncate(
     raw
       .replace(/^["']|["']$/g, "")
       .replace(/\s+/g, " ")
       .trim(),
-    240
+    max
   );
+}
+
+function fieldConfig(field: ShowcaseCopyField) {
+  if (field === "label") {
+    return {
+      prompt: SHOWCASE_LABEL_SINGLE_IMAGE,
+      maxLen: 64,
+      instruction:
+        "Write one showcase category label that fits this photograph for a hero card on the studio website.",
+      taskType: "showcase_label.single_image" as const,
+    };
+  }
+  if (field === "title") {
+    return {
+      prompt: SHOWCASE_TITLE_SINGLE_IMAGE,
+      maxLen: 80,
+      instruction:
+        "Write one short showcase title/headline that fits this photograph for a hero card on the studio website.",
+      taskType: "showcase_title.single_image" as const,
+    };
+  }
+  return {
+    prompt: SHOWCASE_CAPTION_SINGLE_IMAGE,
+    maxLen: 240,
+    instruction:
+      "Write one showcase caption that accurately describes this photograph for a hero card on the studio website.",
+    taskType: "showcase_caption.single_image" as const,
+  };
 }
 
 export async function generateShowcaseCaption(
@@ -94,6 +115,7 @@ export async function generateShowcaseCaption(
   const dataUrl = await imageUrlToDataUrl(input.imageUrl, origin);
   const openai = createOpenAiClient();
   const model = resolveOpenAiChatModel();
+  const config = fieldConfig(input.field);
 
   const completion = await runAiChatCompletion(
     openai,
@@ -102,7 +124,7 @@ export async function generateShowcaseCaption(
       messages: [
         {
           role: "system",
-          content: SHOWCASE_CAPTION_SINGLE_IMAGE.systemPrompt,
+          content: config.prompt.systemPrompt,
         },
         {
           role: "user",
@@ -111,8 +133,7 @@ export async function generateShowcaseCaption(
               type: "text",
               text: JSON.stringify({
                 context: input.context,
-                instruction:
-                  "Write one showcase caption that accurately describes this photograph for a hero card on the studio website.",
+                instruction: config.instruction,
               }),
             },
             {
@@ -124,21 +145,25 @@ export async function generateShowcaseCaption(
       ],
     },
     {
-      taskType: "showcase_caption.single_image",
-      promptId: SHOWCASE_CAPTION_SINGLE_IMAGE.id,
-      promptVersion: SHOWCASE_CAPTION_SINGLE_IMAGE.version,
+      taskType: config.taskType,
+      promptId: config.prompt.id,
+      promptVersion: config.prompt.version,
       projectId: null,
       createdBy: "admin",
       inputSummary: {
         hasImageUrl: true,
+        field: input.field,
         pageTitle: input.context.pageTitle ?? null,
       },
     }
   );
 
-  const caption = normalizeCaption(completion.choices[0]?.message?.content ?? "");
-  if (!caption) {
-    throw new Error("AI did not return a caption.");
+  const text = normalizeText(completion.choices[0]?.message?.content ?? "", config.maxLen);
+  if (!text) {
+    throw new Error(`AI did not return a ${input.field}.`);
   }
-  return { caption };
+
+  if (input.field === "label") return { field: "label" as const, label: text, caption: text };
+  if (input.field === "title") return { field: "title" as const, title: text, caption: text };
+  return { field: "caption" as const, caption: text };
 }

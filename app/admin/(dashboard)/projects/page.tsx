@@ -98,13 +98,13 @@ export default function AdminProjectsListPage() {
     <div className="mx-auto max-w-6xl px-4 py-16">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="section-title">Studio project pages</h1>
+          <h1 className="section-title">Studio delivery projects</h1>
           <p className="section-subtitle max-w-3xl">
-            Studio CMS — create, edit, and publish structured project content. When published, the
-            public page is{" "}
-            <span className="font-mono text-[0.9em] text-black/80">/work/your-slug</span> (not the
-            legacy <span className="font-mono text-[0.9em] text-black/80">/work/pillar/slug</span>{" "}
-            route). Matching categories also show on the pillar index.
+            Legacy Brightline-only studio pages (delivery / contracts). Dual-brand drafts live in{" "}
+            <Link href="/admin/studio-cms" className="underline">
+              Studio CMS
+            </Link>
+            .
           </p>
         </div>
         <Link href="/admin/projects/new" className="btn btn-primary shrink-0">
@@ -183,8 +183,6 @@ export default function AdminProjectsListPage() {
                           <Link
                             href={`/work/${encodeURIComponent(p.slug)}`}
                             className="font-mono font-medium text-sky-800 underline decoration-sky-800/40 underline-offset-2 hover:text-sky-900"
-                            target="_blank"
-                            rel="noopener noreferrer"
                           >
                             /work/{p.slug}
                           </Link>
@@ -209,6 +207,12 @@ export default function AdminProjectsListPage() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/admin/projects/preview/${p.id}`}
+                  className="btn btn-ghost text-sm"
+                >
+                  Preview
+                </Link>
                 <Link href={`/admin/projects/${p.id}/edit`} className="btn btn-ghost text-sm">
                   Edit
                 </Link>

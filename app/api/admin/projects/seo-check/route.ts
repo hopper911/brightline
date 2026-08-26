@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { parseSeoCheckInput, seoCheckProject } from "@/lib/ai/seoCheckProject";
 import { prisma } from "@/lib/prisma";
 
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   }
 
   const ip = getClientIp(req);
-  if (isRateLimited(ip)) {
+  if (await isRateLimitedAsync(ip)) {
     return NextResponse.json(
       { ok: false, error: "Too many SEO check requests. Try again shortly." },
       { status: 429 }

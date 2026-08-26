@@ -946,7 +946,6 @@ export default function AdminPortfolioPage() {
                   <Link
                     href={`/work/${project.StudioProject.slug}`}
                     className="btn btn-primary"
-                    target="_blank"
                   >
                     View on site
                   </Link>

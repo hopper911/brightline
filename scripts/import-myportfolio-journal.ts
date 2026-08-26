@@ -9,6 +9,7 @@
  */
 import "./load-cli-env";
 import { blankBlogPost, getBlogPosts, saveBlogPosts, type BlogGalleryImage, type BlogPost } from "@/lib/blog-posts";
+import { normalizeImportedBlogBody } from "@/lib/blog-imported";
 import { getPublicR2Url } from "@/lib/r2";
 import { putObjectBuffer } from "@/lib/storage-r2";
 
@@ -386,7 +387,7 @@ async function importPage(source: SourcePage, existing?: BlogPost): Promise<Blog
     slug: source.slug,
     title,
     excerpt: description || excerptFromBody(body, title),
-    body,
+    body: normalizeImportedBlogBody(body),
     coverImageUrl,
     coverImageAlt: title,
     galleryImages,

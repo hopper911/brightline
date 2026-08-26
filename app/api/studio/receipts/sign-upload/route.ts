@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getOcrProvider } from "@/lib/integrations/ocrProvider";
 import { getStorageProvider } from "@/lib/integrations/storageProvider";
+import { normalizeUploadContentType } from "@/lib/upload-mime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,18 @@ function safeFilename(input: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .slice(0, 120) || "receipt";
+}
+
+function guessReceiptContentType(filename: string, raw?: string): string | null {
+  const normalized = normalizeUploadContentType(raw);
+  if (normalized) return normalized;
+  const lower = filename.toLowerCase();
+  if (lower.endsWith(".pdf")) return normalizeUploadContentType("application/pdf");
+  if (/\.jpe?g$/.test(lower)) return normalizeUploadContentType("image/jpeg");
+  if (lower.endsWith(".png")) return normalizeUploadContentType("image/png");
+  if (lower.endsWith(".webp")) return normalizeUploadContentType("image/webp");
+  if (lower.endsWith(".heic")) return normalizeUploadContentType("image/heic");
+  return normalizeUploadContentType("application/pdf");
 }
 
 export async function POST(req: Request) {
@@ -31,6 +44,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "filename is required." }, { status: 400 });
   }
 
+  const contentType = guessReceiptContentType(body.filename, body.contentType);
+  if (!contentType) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Unsupported content type. Receipt uploads allow images or PDF only (not HTML/SVG).",
+      },
+      { status: 400 }
+    );
+  }
+
   const now = new Date();
   const key = [
     "studio-os",
@@ -44,7 +68,7 @@ export async function POST(req: Request) {
     const storage = getStorageProvider();
     const signed = await storage.signUpload({
       key,
-      contentType: body.contentType ?? "application/octet-stream",
+      contentType,
     });
     const ocrProvider = getOcrProvider();
     return NextResponse.json({

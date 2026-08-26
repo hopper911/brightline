@@ -2,16 +2,10 @@ import { NextResponse } from "next/server";
 import type { GalleryStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { randomInt } from "crypto";
-import { hashAccessCode, verifyAccessCode } from "@/lib/client-access";
+import { generateGalleryAccessCode, hashAccessCode, verifyAccessCode } from "@/lib/client-access";
 import { getAdminGalleryDetail } from "@/lib/admin-gallery-detail";
 
 export const runtime = "nodejs";
-
-/** 5-digit numeric codes (10000–99999) for easy client entry. */
-function generateNumericAccessCode(): string {
-  return String(randomInt(10_000, 100_000));
-}
 
 async function isPlaintextUniqueAmongGalleryActives(
   galleryId: string,
@@ -55,7 +49,7 @@ export async function POST(
 
   let token = "";
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const candidate = generateNumericAccessCode();
+    const candidate = generateGalleryAccessCode();
     if (await isPlaintextUniqueAmongGalleryActives(id, candidate)) {
       token = candidate;
       break;

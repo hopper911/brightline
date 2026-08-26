@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getPublicR2Url } from "@/lib/r2";
-import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { analyzePortfolioPlacement } from "@/lib/ai/analyzePortfolioPlacement";
 
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ export async function POST(
   }
 
   const ip = getClientIp(req);
-  if (isRateLimited(ip)) {
+  if (await isRateLimitedAsync(ip)) {
     return NextResponse.json(
       { ok: false, error: "Too many portfolio placement requests. Try again shortly." },
       { status: 429 }

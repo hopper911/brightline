@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI, { APIError } from "openai";
 import { requireProjectsApiAuth } from "@/lib/api/automation-auth";
+import { rejectCrossSiteMutation } from "@/lib/admin-request-origin";
 import {
   buildGenerateCopyUserPayload,
   GENERATE_COPY_SYSTEM,
@@ -8,6 +9,7 @@ import {
   parseGenerateCopyInput,
   type GenerateCopyResult,
 } from "@/lib/studio/generate-copy";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,13 +31,37 @@ function safeClientMessage(err: unknown): string {
     if (err.status === 408) return "The model request timed out.";
     if (err.status === 401 || err.status === 403) return "Model provider rejected credentials.";
   }
-  return err instanceof Error ? err.message : "OpenAI request failed.";
+  return "AI generation failed.";
+}
+
+function isBearerAuth(req: Request): boolean {
+  const auth = req.headers.get("authorization") || "";
+  return auth.startsWith("Bearer ");
 }
 
 export async function POST(req: Request) {
   const auth = await requireProjectsApiAuth(req);
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+  }
+
+  // Cookie-authenticated browser callers need CSRF; automation bearers skip.
+  if (!isBearerAuth(req)) {
+    const csrf = rejectCrossSiteMutation(req);
+    if (csrf) return csrf;
+  }
+
+  if (
+    await isRateLimitedAsync(getClientIp(req), {
+      scope: "ai-projects-automation-copy",
+      max: 40,
+      windowMs: 60 * 60_000,
+    })
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "Too many AI generation requests. Try again shortly." },
+      { status: 429 }
+    );
   }
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -54,8 +80,8 @@ export async function POST(req: Request) {
 
   if (!apiKey) {
     return NextResponse.json(
-      { ok: false, error: "OPENAI_API_KEY is not configured." },
-      { status: 500 }
+      { ok: false, error: "AI is temporarily unavailable." },
+      { status: 503 }
     );
   }
 
@@ -94,6 +120,7 @@ export async function POST(req: Request) {
     const result = normalizeGeneratedProject(raw, parsed.data);
     return NextResponse.json(result);
   } catch (err: unknown) {
+    console.error("PROJECTS_GENERATE_COPY_ERROR", err);
     return NextResponse.json(
       {
         ok: false,

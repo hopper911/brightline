@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { CSSProperties } from "react";
 import { Inter, Montserrat } from "next/font/google";
 import Providers from "./providers";
@@ -6,11 +6,20 @@ import Analytics from "../components/Analytics";
 import { BRAND } from "@/lib/config/brand";
 import AppShell from "./AppShell";
 import { DEFAULT_SITE_THEME, getSiteTheme, themeToCssVars } from "@/lib/site-theme";
-import { DEFAULT_SITE_NAV, getSiteNav, mergeWorkPillarNavIntoSiteNav } from "@/lib/site-nav";
+import { resolveSiteBackgroundMedia } from "@/lib/site-background-videos";
+import { DEFAULT_SITE_NAV, getSiteNav, mergeWorkPillarNavIntoSiteNav, applyDesignNavToSiteNav } from "@/lib/site-nav";
 import { getDefaultVisibleWorkPillarNavItems, getVisibleWorkPillarNavItems } from "@/lib/work-pillar-settings";
+import { getDesignSectionSettings, DEFAULT_DESIGN_SECTION_SETTINGS } from "@/lib/design-section-settings";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0b0e12",
+};
 
 const inter = Inter({
   subsets: ["latin"],
@@ -90,19 +99,47 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [theme, nav, pillarNav] = await Promise.all([
+  const [theme, nav, pillarNav, designSettings] = await Promise.all([
     withTimeout(getSiteTheme(), DEFAULT_SITE_THEME),
     withTimeout(getSiteNav(), DEFAULT_SITE_NAV),
     withTimeout(getVisibleWorkPillarNavItems(), getDefaultVisibleWorkPillarNavItems()),
+    withTimeout(getDesignSectionSettings(), DEFAULT_DESIGN_SECTION_SETTINGS),
   ]);
-  const mergedNav = mergeWorkPillarNavIntoSiteNav(nav, pillarNav);
+  const backgroundMedia = await withTimeout(resolveSiteBackgroundMedia(theme), {
+    enabled: false,
+    videoUrl: "",
+    posterUrl: "",
+    cinematic: false,
+    source: "none" as const,
+    videoId: null,
+    title: null,
+  });
+  const mergedNav = applyDesignNavToSiteNav(
+    mergeWorkPillarNavIntoSiteNav(nav, pillarNav),
+    {
+      enabled: designSettings.enabled,
+      showInNav: designSettings.showInNav,
+      navLabel: designSettings.navLabel,
+    }
+  );
   const themeStyle = themeToCssVars(theme) as CSSProperties;
+  const designFooter =
+    designSettings.enabled && designSettings.showInFooter
+      ? { label: designSettings.navLabel || "Design", href: "/design" as const }
+      : null;
 
   return (
     <html lang="en" className={`${inter.variable} ${montserrat.variable}`}>
       <body className="antialiased" style={themeStyle}>
         <Providers>
-          <AppShell siteNav={mergedNav} siteTheme={theme}>{children}</AppShell>
+          <AppShell
+            siteNav={mergedNav}
+            siteTheme={theme}
+            backgroundMedia={backgroundMedia}
+            designFooter={designFooter}
+          >
+            {children}
+          </AppShell>
         </Providers>
         <Analytics />
       </body>

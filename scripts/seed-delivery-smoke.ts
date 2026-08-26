@@ -110,13 +110,54 @@ async function main() {
     include: { _count: { select: { items: true } } },
   });
 
+  const selectedItem = await prisma.deliveryPackageItem.findFirst({
+    where: { deliveryPackageId: pkg.id, selectedForDelivery: true },
+    select: { id: true },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  // Expired twin for authz / Playwright negative paths (same project, different token).
+  const expiredPkg = await prisma.deliveryPackage.create({
+    data: {
+      projectId: project.id,
+      title: `[smoke] Expired — ${project.title}`.slice(0, 120),
+      accessToken: createPackageAccessToken(),
+      publicSlug: `smoke-expired-${randomBytes(4).toString("base64url")}`,
+      status: "draft",
+      expiresAt: new Date(Date.now() - 60_000),
+      notes: "Expired package for IDOR/expiry demos (seed-delivery-smoke).",
+    },
+  });
+
   const base = process.env.BASE_URL?.replace(/\/$/, "") || "http://localhost:3000";
+  const artifact = {
+    packageId: pkg.id,
+    accessToken: pkg.accessToken,
+    publicSlug,
+    itemId: selectedItem?.id ?? null,
+    itemCount: full?._count.items ?? 0,
+    expiredAccessToken: expiredPkg.accessToken,
+    packageUrl: `${base}/package/${pkg.accessToken}`,
+    manifestUrl: `${base}/api/package/${pkg.accessToken}/manifest`,
+  };
+
+  if (process.env.DELIVERY_SMOKE_WRITE_JSON === "1") {
+    const { mkdirSync, writeFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const dir = join(process.cwd(), "tmp");
+    mkdirSync(dir, { recursive: true });
+    const out = join(dir, "delivery-smoke.json");
+    writeFileSync(out, JSON.stringify(artifact, null, 2));
+    console.log(`Wrote ${out}`);
+  }
+
   console.log("");
   console.log("Created delivery package:");
   console.log(`  id:           ${pkg.id}`);
   console.log(`  accessToken:  ${pkg.accessToken}`);
   console.log(`  publicSlug:   ${publicSlug}`);
   console.log(`  item count:   ${full?._count.items ?? "?"}`);
+  console.log(`  expiredToken: ${expiredPkg.accessToken}`);
   console.log("");
   console.log("Open in browser:");
   console.log(`  ${base}/package/${pkg.accessToken}`);

@@ -35,7 +35,11 @@ export function cleanText(value: unknown) {
   return trimmed || null;
 }
 
-export async function buildDeliveryManifest(projectId: string) {
+export async function buildDeliveryManifest(
+  projectId: string,
+  options?: { includeStorageKeys?: boolean }
+) {
+  const includeStorageKeys = options?.includeStorageKeys === true;
   const project = await prisma.workProject.findUnique({
     where: { id: projectId },
     include: {
@@ -56,8 +60,12 @@ export async function buildDeliveryManifest(projectId: string) {
       images: images.map((item) => ({
         id: item.mediaId,
         filename: item.media.keyFull?.split("/").pop() ?? item.media.id,
-        keyFull: item.media.keyFull,
-        keyThumb: item.media.keyThumb,
+        ...(includeStorageKeys
+          ? {
+              keyFull: item.media.keyFull,
+              keyThumb: item.media.keyThumb,
+            }
+          : {}),
         altText: item.media.alt,
         usageSuggestion: item.usageSuggestion,
         clientFacingCaption: item.clientFacingCaption,

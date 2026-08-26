@@ -1,37 +1,30 @@
-import { jsonErr, jsonOk, parseJsonBody } from "@/lib/api/http";
-import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
+import { jsonErr, jsonOk } from "@/lib/api/http";
+import { parseJsonWithSchema } from "@/lib/api/parse";
+import { contactSchema } from "@/lib/contact/schema";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { createInquiry, notifyInquiry } from "@/lib/services/contact";
-import { z } from "zod";
 
 export const runtime = "nodejs";
 
-const contactSchema = z.object({
-  name: z.string().min(2, "Please include your name."),
-  email: z.string().email("Please use a valid email."),
-  message: z.string().min(5, "Please include a short message.").max(2000),
-  company: z.string().optional(),
-  projectType: z.string().optional(),
-  budget: z.string().optional(),
-  location: z.string().optional(),
-  timeline: z.string().optional(),
-  companyWebsite: z.string().optional(),
-});
-
 export async function POST(req: Request) {
   try {
-    if (isRateLimited(getClientIp(req))) {
+    const fetchSite = (req.headers.get("sec-fetch-site") || "").toLowerCase();
+    if (fetchSite === "cross-site") {
+      return jsonErr("Forbidden origin.", 403);
+    }
+
+    if (
+      await isRateLimitedAsync(getClientIp(req), {
+        scope: "contact",
+        max: 8,
+        windowMs: 15 * 60_000,
+      })
+    ) {
       return jsonErr("Too many requests.", 429);
     }
 
-    const parsedBody = await parseJsonBody(req);
-    if (!parsedBody.ok) return parsedBody.response;
-
-    const parsed = contactSchema.safeParse(parsedBody.value);
-    if (!parsed.success) {
-      return jsonErr(parsed.error.issues[0]?.message || "Invalid input.", 400, {
-        code: "validation_error",
-      });
-    }
+    const parsed = await parseJsonWithSchema(req, contactSchema);
+    if (!parsed.ok) return parsed.response;
 
     const { companyWebsite, ...data } = parsed.data;
 

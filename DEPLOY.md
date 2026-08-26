@@ -53,6 +53,35 @@ Set these in **Vercel → Project → Settings → Environment Variables**:
 - `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` — Analytics
 - `NEXT_PUBLIC_GA_ID` — Google Analytics
 
+### AI (OpenAI + fal.ai video)
+- `OPENAI_API_KEY` — Blog assist, alt text, showcase captions, motion prompts
+- `OPENAI_MODEL` — Optional chat model override
+- `OPENAI_VISION_MODEL` — Optional vision model override
+- `FAL_KEY` — Required for **Blog → Video → Generate AI video** (image-to-video via fal.ai). Without it, generation returns 503.
+- `FAL_IMAGE_TO_VIDEO_MODEL` — Optional; defaults to `fal-ai/kling-video/v3/standard/image-to-video` (~5s clips). Rate limits: 8 requests/hour/IP and 3 generations/hour/post.
+
+### Canva Connect (blog cover + social designs)
+- `CANVA_CLIENT_ID` — Public integration from [Canva Developer Portal](https://www.canva.com/developers/)
+- `CANVA_CLIENT_SECRET` — Generated secret for the integration
+- `CANVA_REDIRECT_URI` — Must match an authorized redirect, e.g. `https://brightlinephotography.com/api/admin/canva/oauth/callback` (add `http://127.0.0.1:3000/api/admin/canva/oauth/callback` for local)
+- **Free plan:** Connect + create blank designs + export JPG works. Brand-template Autofill requires Enterprise (not used). Private integrations require Enterprise — use a **Public** integration (can remain unpublished for your own account). MFA must be enabled on the Canva account.
+- Scopes to enable: `design:content:read`, `design:content:write`, `design:meta:read`, `asset:read`, `asset:write`, `profile:read`
+
+### Media Kit (shared pack / batch / Work→Journal)
+- Uses `OPENAI_API_KEY` for social captions and `FAL_KEY` for ~5s image-to-video inside **Generate media pack** / batch.
+- Assets land under `site/media-kits/{blog|work}/{id}/…` on R2.
+- Admin: Blog → Media kit + Distribution toggles; Work project → **Create journal draft**.
+- Distribution flags (published post): `showInJournal` (/blog), `showInTravel` (/travel), `featureOnHome` (homepage strip), `featureInCaseStudies` (/case-studies).
+
+### Travel blog (`format: "travel"`)
+- Public: `/travel` index + `/travel/[slug]` (separate from Journal `/blog`).
+- Same CMS store (`blog_posts:v1`) with `format: "journal" | "travel"` and nested `travel` fields (destination, dates, itinerary, tips, packing, map stops, season, camera kit, essentials).
+- Interactive itinerary map: admin Travel details → map stops + **Lookup place** (Nominatim via `/api/admin/geocode`); public renders Leaflet dark map when stops have coordinates.
+- New travel drafts: `showInJournal: false`, `showInTravel: true`, media-kit preset `travel`.
+- Top nav is **not** changed — link `/travel` when you are ready.
+- Canonical redirects: travel slug on `/blog/…` → `/travel/…` (and reverse for journal).
+- Authoring extras (journal + travel): pull quote, key takeaways, photo credits; body **Polish** / **Fix** AI; admin **Preview** at `/admin/blog/preview/[id]`; Work project picker in Distribution.
+
 ### Storage (R2/S3 for client galleries and Work images)
 R2 (Cloudflare):
 - `R2_ACCESS_KEY_ID`
@@ -62,6 +91,13 @@ R2 (Cloudflare):
 - `R2_REGION` — Use `auto`
 - `R2_PUBLIC_URL` — Public URL for serving images (e.g. `https://pub-xxx.r2.dev`)
 - `NEXT_PUBLIC_R2_PUBLIC_URL` — Same as R2_PUBLIC_URL (needed for client-side image URLs)
+
+Dual-bucket hub (`/admin/r2` → Vault **Mirotech site**). Separate Mirotech CMS bucket — do **not** repoint Brightline `R2_*`:
+- `MIROTECH_R2_ACCESS_KEY_ID` / `MIROTECH_R2_SECRET_ACCESS_KEY` — token scoped to the Mirotech bucket
+- `MIROTECH_R2_BUCKET` — must start with `mirotech` (e.g. `mirotech`)
+- `MIROTECH_R2_ENDPOINT` — optional if same account as `R2_ENDPOINT`
+- `MIROTECH_R2_REGION` — `auto`
+- `MIROTECH_R2_PUBLIC_URL` / `NEXT_PUBLIC_MIROTECH_R2_PUBLIC_URL` — e.g. `https://media.mirotech.solutions`
 
 S3 (AWS):
 - `S3_ACCESS_KEY_ID`

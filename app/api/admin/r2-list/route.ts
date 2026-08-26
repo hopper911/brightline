@@ -4,6 +4,7 @@ import { listPublicR2Objects } from "@/lib/storage-r2-public";
 
 const ALLOWED_PREFIXES = [
   "portfolio/",
+  "mirotech/",
   "portfolio-public/",
   "work/",
   "studio/",

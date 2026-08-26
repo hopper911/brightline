@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { guardAdminJson } from "@/lib/api/guards";
 import { jsonErr, parseJsonBody } from "@/lib/api/http";
 import { generateAltText, parseGenerateAltTextInput } from "@/lib/ai/generateAltText";
-import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (denied) return denied;
 
   const ip = getClientIp(req);
-  if (isRateLimited(ip)) {
+  if (await isRateLimitedAsync(ip)) {
     return jsonErr("Too many alt text generation requests. Try again shortly.", 429);
   }
 

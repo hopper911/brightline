@@ -173,21 +173,6 @@ export default function SeoServicePage({
           {config.locations.join(", ")}
         </p>
       </Reveal>
-
-      <Reveal className="mt-12">
-        <div className="rounded-2xl border border-white/10 bg-black/60 p-8">
-          <p className="section-kicker">Next step</p>
-          <h2 className="font-display text-2xl text-white">
-            {config.ctaHeadline}
-          </h2>
-          <p className="mt-3 text-sm text-white/70">{config.ctaSubtext}</p>
-          <div className="mt-6">
-            <Link href="/contact" className="btn btn-solid">
-              Request a quote
-            </Link>
-          </div>
-        </div>
-      </Reveal>
     </div>
   );
 }

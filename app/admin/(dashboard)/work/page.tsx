@@ -379,12 +379,20 @@ export default function AdminWorkPage() {
                     {project.published ? "Published" : "Draft"} · {project.media?.length ?? 0} media
                   </p>
                 </div>
-                <Link
-                  href={`/admin/work/${project.id}`}
-                  className="btn btn-ghost text-xs shrink-0"
-                >
-                  Edit
-                </Link>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Link
+                    href={`/admin/work/preview/${project.id}`}
+                    className="btn btn-ghost text-xs"
+                  >
+                    Preview
+                  </Link>
+                  <Link
+                    href={`/admin/work/${project.id}`}
+                    className="btn btn-ghost text-xs"
+                  >
+                    Edit
+                  </Link>
+                </div>
               </div>
             </div>
           ))}

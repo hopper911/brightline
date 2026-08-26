@@ -15,6 +15,12 @@ export type SiteTheme = {
   backgroundMediaEnabled: boolean;
   backgroundMediaUrl: string;
   backgroundPosterUrl: string;
+  /** Stronger opacity / lighter scrim when a site background video is active. */
+  backgroundCinematic: boolean;
+  /** When true (default), page PageBackground media is suppressed while site video plays. */
+  backgroundSuppressPageMedia: boolean;
+  /** Optional image shown in the site-wide footer “Next step” CTA card. */
+  footerCtaImageUrl: string;
 };
 
 export const SITE_THEME_SETTING_KEY = "site_theme:v1";
@@ -34,6 +40,9 @@ export const DEFAULT_SITE_THEME: SiteTheme = {
   backgroundMediaEnabled: false,
   backgroundMediaUrl: "",
   backgroundPosterUrl: "",
+  backgroundCinematic: true,
+  backgroundSuppressPageMedia: true,
+  footerCtaImageUrl: "",
 };
 
 const FONT_STACKS: Record<string, string> = {
@@ -72,6 +81,15 @@ export function normalizeSiteTheme(input: unknown): SiteTheme {
         : DEFAULT_SITE_THEME.backgroundMediaEnabled,
     backgroundMediaUrl: asString(row.backgroundMediaUrl, DEFAULT_SITE_THEME.backgroundMediaUrl),
     backgroundPosterUrl: asString(row.backgroundPosterUrl, DEFAULT_SITE_THEME.backgroundPosterUrl),
+    backgroundCinematic:
+      typeof row.backgroundCinematic === "boolean"
+        ? row.backgroundCinematic
+        : DEFAULT_SITE_THEME.backgroundCinematic,
+    backgroundSuppressPageMedia:
+      typeof row.backgroundSuppressPageMedia === "boolean"
+        ? row.backgroundSuppressPageMedia
+        : DEFAULT_SITE_THEME.backgroundSuppressPageMedia,
+    footerCtaImageUrl: asString(row.footerCtaImageUrl, DEFAULT_SITE_THEME.footerCtaImageUrl),
   };
 }
 

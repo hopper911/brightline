@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { buildDeliveryManifest, buildDeliverySummaryPdf, cleanText, normalizeDeliveryGroup } from "@/lib/delivery/package";
+import { finalPackageExpiresAtFromNow } from "@/lib/final-package-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export async function GET(
       });
     }
 
-    const manifest = await buildDeliveryManifest(id);
+    const manifest = await buildDeliveryManifest(id, { includeStorageKeys: true });
     await prisma.workProject.update({ where: { id }, data: { deliveryPreparedAt: new Date() } }).catch(() => null);
     return NextResponse.json({ ok: true, manifest });
   } catch (err) {
@@ -70,7 +71,10 @@ export async function PATCH(
       if (finalPackageToken) {
         await tx.workProject.update({
           where: { id: projectId },
-          data: { finalPackageToken },
+          data: {
+            finalPackageToken,
+            finalPackageExpiresAt: finalPackageExpiresAtFromNow(),
+          },
         });
       }
       if (typeof obj.attachedInvoiceId === "string" || obj.attachedInvoiceId === null) {

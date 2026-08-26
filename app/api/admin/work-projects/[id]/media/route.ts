@@ -4,6 +4,33 @@ import { authorizeAdminRequest } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
+/**
+ * T9 portfolio exports live as sibling folders: `portfolio/{pillar}/web_full/*` (2400px)
+ * and `portfolio/{pillar}/web_thumb/*` (800px). Admins can pick either in the R2 browser,
+ * so map whatever was picked to the right slot — storing a thumb as `keyFull` makes heroes
+ * and grids render at 800px.
+ */
+function normalizeImageKeys(input: {
+  keyFull: string;
+  keyThumb?: string | null;
+}): { keyFull: string; keyThumb: string | null } {
+  const keyFull = input.keyFull.trim();
+  const keyThumb = input.keyThumb?.trim() || null;
+  if (keyFull.includes("/web_thumb/")) {
+    return {
+      keyFull: keyFull.replace("/web_thumb/", "/web_full/"),
+      keyThumb: keyFull,
+    };
+  }
+  if (keyFull.includes("/web_full/")) {
+    return {
+      keyFull,
+      keyThumb: keyThumb ?? keyFull.replace("/web_full/", "/web_thumb/"),
+    };
+  }
+  return { keyFull, keyThumb };
+}
+
 export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> }
@@ -41,12 +68,16 @@ export async function POST(
     }
 
     const kind = body.kind === "VIDEO" ? "VIDEO" : "IMAGE";
+    const keys =
+      kind === "IMAGE"
+        ? normalizeImageKeys({ keyFull: body.keyFull, keyThumb: body.keyThumb })
+        : { keyFull: body.keyFull.trim(), keyThumb: body.keyThumb?.trim() || null };
     const nextOrder = (project.media[0]?.sortOrder ?? -1) + 1;
     const media = await prisma.mediaAsset.create({
       data: {
         kind,
-        keyFull: body.keyFull.trim(),
-        keyThumb: body.keyThumb?.trim() || null,
+        keyFull: keys.keyFull,
+        keyThumb: keys.keyThumb,
         alt: body.alt?.trim() || null,
         width: typeof body.width === "number" ? body.width : undefined,
         height: typeof body.height === "number" ? body.height : undefined,

@@ -29,9 +29,13 @@ const tracingRoot = __dirname;
 
 const connectSrcParts = [
   "'self'",
-  ...(process.env.NODE_ENV === "development" ? ["http://127.0.0.1:7242"] : []),
   "https://plausible.io",
   "https://api.resend.com",
+  // Direct browser PUTs to signed R2 upload URLs (admin media / backgrounds)
+  "https://*.r2.cloudflarestorage.com",
+  "https://*.r2.dev",
+  // ffmpeg.wasm core (admin background web encode)
+  "https://cdn.jsdelivr.net",
 ];
 
 const nextConfig: NextConfig = {
@@ -140,15 +144,24 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+              "base-uri 'self'",
+              "object-src 'none'",
+              "form-action 'self'",
+              // Next.js requires unsafe-eval/inline today; prefer nonces in a future CSP pass.
+              "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' https://plausible.io blob:",
+              // ffmpeg.wasm: module worker + blob workers (Video Port / background encode)
+              "worker-src 'self' blob:",
+              "child-src 'self' blob:",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com",
-              "img-src 'self' data: https: blob:",
-              "media-src 'self' data: https: blob:",
+              // Public marketing images may be absolute https (R2 / media proxy / YT thumbs).
+              "img-src 'self' data: blob: https:",
+              "media-src 'self' data: blob: https://*.r2.cloudflarestorage.com https://*.r2.dev https://brightlinephotography.com https://*.brightlinephotography.com https://www.youtube-nocookie.com",
               `connect-src ${connectSrcParts.join(" ")}`,
               "manifest-src 'self'",
-              "frame-src 'self' https://www.youtube-nocookie.com",
+              "frame-src 'self' https://www.youtube-nocookie.com https://www.instagram.com https://instagram.com https://calendly.com https://*.calendly.com https://www.google.com https://maps.google.com https://maps.googleapis.com",
               "frame-ancestors 'self'",
+              "upgrade-insecure-requests",
             ].join("; "),
           },
           { key: "X-Content-Type-Options", value: "nosniff" },
@@ -157,6 +170,18 @@ const nextConfig: NextConfig = {
             value: "strict-origin-when-cross-origin",
           },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
+            key: "Permissions-Policy",
+            value:
+              "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+          },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+          { key: "X-DNS-Prefetch-Control", value: "on" },
+          { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
         ],
       },
     ];

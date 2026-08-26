@@ -5,12 +5,28 @@ const COOKIE_VERSION = "v1";
 
 function getSigningSecret(): string | null {
   const dedicated = process.env.ADMIN_SESSION_SECRET?.trim();
-  if (dedicated) return dedicated;
+  if (dedicated) {
+    if (dedicated.length < 32) {
+      console.error(
+        "ADMIN_SESSION_SECRET must be at least 32 characters. Admin sessions will not be issued until it is updated."
+      );
+      return null;
+    }
+    return dedicated;
+  }
+
+  // Production must use a dedicated secret — do not derive from the access code.
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") {
+    console.error(
+      "ADMIN_SESSION_SECRET is required in production. Admin sessions will not be issued until it is set."
+    );
+    return null;
+  }
 
   const accessCode = process.env.ADMIN_ACCESS_CODE?.trim();
   if (!accessCode) return null;
 
-  // Derive a server-only secret from the access code when ADMIN_SESSION_SECRET is unset.
+  // Dev-only fallback: derive a server-only secret from the access code.
   return createHmac("sha256", "brightline-admin-session-v1")
     .update(accessCode)
     .digest("hex");

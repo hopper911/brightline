@@ -7,7 +7,9 @@ import { getPublishedProjectsBySections } from "@/lib/queries/work";
 import { getPublishedGalleryCards } from "@/lib/queries/public-galleries";
 import { listPublishedStudioProjectSlugsForSitemap } from "@/lib/studio/studio-project-cms";
 import { getVisibleWorkPillars } from "@/lib/work-pillar-settings";
-import { getPublishedBlogPosts } from "@/lib/blog-posts";
+import { getPublishedBlogPosts, getPublishedTravelPosts } from "@/lib/blog-posts";
+import { getDesignSectionSettings } from "@/lib/design-section-settings";
+import { listPublishedDesignSlugsForSitemap } from "@/lib/queries/design";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || BRAND.url;
@@ -126,6 +128,49 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // DB may not be available
   }
 
+  let travelRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const travelPosts = await getPublishedTravelPosts();
+    travelRoutes.push({
+      url: `${baseUrl}/travel`,
+      lastModified: now,
+      priority: 0.72,
+    });
+    travelRoutes = [
+      ...travelRoutes,
+      ...travelPosts.map((post) => ({
+        url: `${baseUrl}/travel/${post.slug}`,
+        lastModified: new Date(post.updatedAt),
+        priority: 0.68,
+      })),
+    ];
+  } catch {
+    // DB may not be available
+  }
+
+  let designRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const designSettings = await getDesignSectionSettings();
+    if (designSettings.enabled) {
+      designRoutes.push({
+        url: `${baseUrl}/design`,
+        lastModified: now,
+        priority: 0.78,
+      });
+      const designProjects = await listPublishedDesignSlugsForSitemap();
+      designRoutes = [
+        ...designRoutes,
+        ...designProjects.map((p) => ({
+          url: `${baseUrl}/design/${p.slug}`,
+          lastModified: p.updatedAt,
+          priority: 0.7,
+        })),
+      ];
+    }
+  } catch {
+    // DB may not be available
+  }
+
   return [
     ...routes,
     ...seoServiceRoutes,
@@ -136,5 +181,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...galleryRoutes,
     ...caseStudyRoutes,
     ...blogRoutes,
+    ...travelRoutes,
+    ...designRoutes,
   ];
 }

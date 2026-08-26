@@ -8,6 +8,7 @@ export const CSRF_PROTECTED_API_PREFIXES = Object.freeze([
   "/api/admin",
   "/api/studio",
   "/api/accountant",
+  "/api/ai",
 ] as const);
 
 /** Login endpoints under protected prefixes that skip CSRF (credential POST). */
@@ -56,6 +57,7 @@ export const SECURITY_MUST_USE = Object.freeze({
   assertPublicHttpUrlResolved: "@/lib/ssrf-guard",
   fetchTrustedImageBytes: "@/lib/safe-fetch-image",
   trustedImageToDataUrl: "@/lib/safe-fetch-image",
+  fetchPublicUrlBytes: "@/lib/safe-fetch-url",
   normalizeUploadContentType: "@/lib/upload-mime",
   sanitizeHtmlForClientPreview: "@/lib/contracts/render",
 } as const);

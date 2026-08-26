@@ -1,5 +1,4 @@
-import Link from "next/link";
-import BookingButton from "@/components/BookingButton";
+import AssignedPageBackground from "@/components/AssignedPageBackground";
 import CredibilityBar from "@/components/CredibilityBar";
 import ProcessTimeline from "@/components/ProcessTimeline";
 import WebsitePageView from "@/components/WebsitePageView";
@@ -64,9 +63,14 @@ export default async function ServicesPage() {
   ]);
 
   if (pageOverride) {
+    // CMS "packages" cards duplicate ServicePackagesSection — keep the live package grid only.
+    const page = {
+      ...pageOverride,
+      blocks: pageOverride.blocks.filter((block) => block.id !== "services_packages"),
+    };
     return (
       <>
-        <WebsitePageView page={pageOverride} />
+        <WebsitePageView page={page} />
         <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
           <ServicePackagesSection services={services} variant="afterCms" />
         </div>
@@ -75,7 +79,9 @@ export default async function ServicesPage() {
   }
 
   return (
-    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+    <>
+      <AssignedPageBackground pageKey="services" />
+      <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
       {/* Hero Section */}
       <section className="space-y-4">
         <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">
@@ -263,31 +269,7 @@ export default async function ServicesPage() {
           ))}
         </div>
       </section>
-
-      {/* CTA Section */}
-      <section className="mt-20 rounded-[32px] border border-white/10 bg-black px-8 py-12 text-white">
-        <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-          <div className="max-w-xl">
-            <p className="text-xs uppercase tracking-[0.32em] text-white/60">
-              Next steps
-            </p>
-            <h2 className="font-display text-2xl md:text-3xl text-white mt-2">
-              Assets that do more than look good
-            </h2>
-            <p className="mt-3 text-sm text-white/70">
-              Tell us about your space, brand, or campaign—we&apos;ll respond with availability and a clear path from capture to delivery.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/contact?type=inquiry" className="btn btn-light">
-              Request a proposal
-            </Link>
-            <BookingButton className="btn btn-outline-light">
-              Book a call
-            </BookingButton>
-          </div>
-        </div>
-      </section>
     </div>
+    </>
   );
 }

@@ -5,6 +5,19 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { trackContactSubmit } from "@/lib/analytics";
 
+const INQUIRY_TYPES = [
+  { value: "", label: "What is this about?" },
+  { value: "photography", label: "Photography project" },
+  { value: "digital", label: "Design or digital project" },
+  { value: "employment", label: "Employment opportunity" },
+  { value: "architecture", label: "Architecture photography" },
+  { value: "advertising", label: "Advertising photography" },
+  { value: "corporate", label: "Corporate / workplace photography" },
+  { value: "collaboration", label: "Collaboration" },
+  { value: "portfolio-pdf", label: "Portfolio PDF request" },
+  { value: "other", label: "Something else" },
+] as const;
+
 export default function ContactPage() {
   const searchParams = useSearchParams();
   const [form, setForm] = useState({
@@ -22,15 +35,26 @@ export default function ContactPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (searchParams.get("intent") !== "portfolio-pdf") return;
+    const intent = searchParams.get("intent");
+    const service = searchParams.get("service");
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      setForm((prev) => ({
-        ...prev,
-        projectType: "portfolio-pdf",
-        message: prev.message || "I would like to receive a copy of the portfolio PDF.",
-      }));
+      if (intent === "portfolio-pdf") {
+        setForm((prev) => ({
+          ...prev,
+          projectType: "portfolio-pdf",
+          message: prev.message || "I would like to receive a copy of the portfolio PDF.",
+        }));
+        return;
+      }
+      if (service === "general" || service === "employment" || service === "digital") {
+        setForm((prev) => ({
+          ...prev,
+          projectType:
+            service === "employment" ? "employment" : service === "digital" ? "digital" : prev.projectType,
+        }));
+      }
     });
     return () => {
       cancelled = true;
@@ -67,28 +91,32 @@ export default function ContactPage() {
         companyWebsite: "",
       });
       setStatus("sent");
-      trackContactSubmit({});
+      trackContactSubmit({ type: form.projectType || "general" });
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Something went wrong.");
     }
   }
 
+  const isEmployment = form.projectType === "employment";
+  const isDigital = form.projectType === "digital" || form.projectType === "collaboration";
+
   return (
     <div className="section-pad mx-auto min-h-screen max-w-6xl px-6 lg:px-10">
       <section className="grid gap-10 md:grid-cols-[0.95fr_1.05fr] md:items-start">
-        <div className="sticky top-28 space-y-6">
+        <div className="space-y-6 md:sticky md:top-28">
           <div>
             <p className="section-kicker">Contact</p>
-            <h1 className="section-title max-w-2xl">Start with the essentials.</h1>
+            <h1 className="section-title max-w-2xl">Say what you need.</h1>
             <p className="section-subtitle max-w-xl">
-              Send the minimum details. I’ll reply with next steps, timing, and what else is needed.
+              Photography projects, digital work, employment, or a quick question—send a short note and
+              I&apos;ll reply with next steps.
             </p>
           </div>
           <div className="grid gap-3 text-sm text-white/72">
             <div className="rounded-2xl border border-white/10 bg-black/35 p-5">
               <p className="text-xs uppercase tracking-[0.28em] text-white/45">Response</p>
-              <p className="mt-2 text-white/85">Usually within 24 hours.</p>
+              <p className="mt-2 text-white/85">Usually within 24–48 hours.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/35 p-5">
               <p className="text-xs uppercase tracking-[0.28em] text-white/45">Direct email</p>
@@ -137,8 +165,26 @@ export default function ContactPage() {
               </label>
             </div>
 
+            <label className="block text-xs uppercase tracking-widest text-white/60" htmlFor="projectType">
+              Inquiry type
+              <select
+                className="mt-2 w-full rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-sm text-white focus:border-white/35 focus:outline-none"
+                id="projectType"
+                name="projectType"
+                value={form.projectType}
+                onChange={(e) => setForm({ ...form, projectType: e.target.value })}
+                required
+              >
+                {INQUIRY_TYPES.map((opt) => (
+                  <option key={opt.value || "empty"} value={opt.value} disabled={!opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <label className="block text-xs uppercase tracking-widest text-white/60" htmlFor="message">
-              What do you need?
+              Message
               <textarea
                 className="mt-2 w-full rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-white/35 focus:outline-none"
                 id="message"
@@ -146,47 +192,54 @@ export default function ContactPage() {
                 rows={6}
                 value={form.message}
                 onChange={(e) => setForm({ ...form, message: e.target.value })}
-                placeholder="A few words is enough: project type, location, timing, or a link."
+                placeholder="A few sentences is enough: context, timing, links, or what you’re looking for."
                 required
               />
             </label>
 
             <details className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
               <summary className="cursor-pointer text-xs uppercase tracking-[0.24em] text-white/55">
-                Add optional details
+                Optional details
               </summary>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <input
                   className="rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
                   value={form.company}
                   onChange={(e) => setForm({ ...form, company: e.target.value })}
-                  placeholder="Company"
+                  placeholder={isEmployment ? "Company or studio" : "Company or organization"}
                 />
                 <input
                   className="rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
                   value={form.location}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  placeholder="Location"
+                  placeholder={isEmployment ? "Location or remote" : "Location"}
                 />
                 <input
                   className="rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
                   value={form.timeline}
                   onChange={(e) => setForm({ ...form, timeline: e.target.value })}
-                  placeholder="Timeline"
+                  placeholder={
+                    isEmployment
+                      ? "Employment type (full-time, contract…)"
+                      : isDigital
+                        ? "Timeline"
+                        : "Timeline (if any)"
+                  }
                 />
-                <select
-                  className="rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white"
-                  value={form.projectType}
-                  onChange={(e) => setForm({ ...form, projectType: e.target.value })}
-                >
-                  <option value="">Project type</option>
-                  <option value="architecture">Architecture</option>
-                  <option value="advertising">Advertising</option>
-                  <option value="corporate">Corporate</option>
-                  <option value="portfolio-pdf">Portfolio PDF request</option>
-                  <option value="other">Other</option>
-                </select>
+                {!isEmployment ? (
+                  <input
+                    className="rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                    value={form.budget}
+                    onChange={(e) => setForm({ ...form, budget: e.target.value })}
+                    placeholder={isDigital ? "Budget range (optional)" : "Budget range (optional)"}
+                  />
+                ) : null}
               </div>
+              {isEmployment ? (
+                <p className="mt-3 text-xs text-white/45">
+                  Include role title and a relevant link in your message. No photography budget needed.
+                </p>
+              ) : null}
             </details>
 
             <input

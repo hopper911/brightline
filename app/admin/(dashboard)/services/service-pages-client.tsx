@@ -375,7 +375,7 @@ export default function ServicePagesClient({ initialServices }: Props) {
           <button className="btn btn-ghost" type="button" onClick={deleteSelected}>
             Delete selected
           </button>
-          <Link href={`/services/${selected.slug}`} className="btn btn-ghost" target="_blank">
+          <Link href={`/services/${selected.slug}`} className="btn btn-ghost">
             View live
           </Link>
           <button className="btn btn-primary" disabled={status === "saving"} onClick={() => void save()}>

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
+import { loadClientGallerySession } from "@/lib/client-gallery-session";
 import { createR2KeysZipResponse, MAX_ZIP_FILES } from "@/lib/zip/r2KeysZipResponse";
 
 export const runtime = "nodejs";
@@ -66,6 +65,20 @@ function imageMatchesDeliveryGroup(
 
 export async function POST(req: Request) {
   try {
+    const { getClientIp, isRateLimitedAsync } = await import("@/lib/permissions/rate-limit");
+    if (
+      await isRateLimitedAsync(getClientIp(req), {
+        scope: "client-download",
+        max: 60,
+        windowMs: 60 * 60_000,
+      })
+    ) {
+      return NextResponse.json(
+        { ok: false, error: "Too many download requests. Try again later." },
+        { status: 429 }
+      );
+    }
+
     const body = (await req.json()) as {
       token?: string;
       imageId?: string;
@@ -76,58 +89,16 @@ export async function POST(req: Request) {
       quality?: "low" | "high";
     };
 
-    const jar = await cookies();
     const { imageId, videoId, type = "single", deliveryGroup, zipScope, quality = "high" } = body;
-    const accessId = jar.get("client_access_id")?.value;
 
-    if (!accessId) {
+    const loaded = await loadClientGallerySession();
+    if (!loaded.ok) {
       return NextResponse.json(
-        { ok: false, error: "Access session required." },
-        { status: 400 }
+        { ok: false, error: loaded.error },
+        { status: loaded.status }
       );
     }
-
-    // Validate token
-    const access = await prisma.galleryAccessToken.findUnique({
-      where: { id: accessId },
-      include: {
-        gallery: {
-          include: {
-            images: true,
-            videos: true,
-          },
-        },
-        favorites: true,
-      },
-    });
-
-    if (!access) {
-      return NextResponse.json(
-        { ok: false, error: "Invalid access token." },
-        { status: 401 }
-      );
-    }
-
-    if (access.expiresAt && access.expiresAt.getTime() < Date.now()) {
-      return NextResponse.json(
-        { ok: false, error: "Access token has expired." },
-        { status: 410 }
-      );
-    }
-
-    if (!access.isActive) {
-      return NextResponse.json(
-        { ok: false, error: "Access code is no longer active." },
-        { status: 403 }
-      );
-    }
-
-    if (!access.gallery || !isGalleryViewableByClient(access.gallery)) {
-      return NextResponse.json(
-        { ok: false, error: "Gallery is not available." },
-        { status: 403 }
-      );
-    }
+    const access = loaded.access;
 
     if (!access.allowDownload) {
       return NextResponse.json(
@@ -135,22 +106,6 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
-
-    jar.set("client_access", "true", {
-      httpOnly: true,
-      path: "/",
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-
-    jar.set("client_access_id", access.id, {
-      httpOnly: true,
-      path: "/",
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7,
-    });
 
     // Check download limits
     if (access.maxDownloads !== null) {

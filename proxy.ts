@@ -7,7 +7,7 @@ import { pathRequiresCsrf } from "@/lib/truth/security";
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Permanent CSRF baseline (lib/truth/security) — admin / studio / accountant.
+  // Permanent CSRF baseline (lib/truth/security) — admin / studio / accountant / ai.
   if (pathRequiresCsrf(pathname)) {
     const csrf = rejectCrossSiteMutation(request, {
       requestOrigin: request.nextUrl.origin,
@@ -15,8 +15,8 @@ export function proxy(request: NextRequest) {
     if (csrf) return csrf;
   }
 
-  // Accountant API: CSRF above; auth is enforced per-route.
-  if (pathname.startsWith("/api/accountant")) {
+  // Accountant + AI APIs: CSRF above; auth is enforced per-route.
+  if (pathname.startsWith("/api/accountant") || pathname.startsWith("/api/ai")) {
     return NextResponse.next();
   }
 
@@ -68,5 +68,6 @@ export const config = {
     "/studio/:path*",
     "/api/studio/:path*",
     "/api/accountant/:path*",
+    "/api/ai/:path*",
   ],
 };

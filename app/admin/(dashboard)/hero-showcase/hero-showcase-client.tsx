@@ -63,9 +63,9 @@ async function uploadSiteMedia(file: File) {
 
 function blankShowcaseItem(index: number): WebsiteBlockItem {
   return {
-    title: `Recent project ${index + 1}`,
-    body: "Update this caption.",
-    meta: `Recent ${String(index + 1).padStart(2, "0")}`,
+    title: "",
+    body: "",
+    meta: "",
   };
 }
 
@@ -75,6 +75,31 @@ function isVideoUrl(url: string) {
 
 function cardKey(blockId: string, index: number) {
   return `${blockId}:${index}`;
+}
+
+function fieldLoadKey(blockId: string, index: number, field: "label" | "title" | "caption") {
+  return `${cardKey(blockId, index)}:${field}`;
+}
+
+function AiButton({
+  loading,
+  disabled,
+  onClick,
+}: {
+  loading?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="shrink-0 rounded-lg border border-violet-400/25 bg-violet-400/10 px-2.5 py-1 text-[0.62rem] font-medium uppercase tracking-[0.14em] text-violet-200 transition hover:border-violet-400/45 hover:bg-violet-400/15 disabled:opacity-40"
+    >
+      {loading ? "…" : "✦ AI"}
+    </button>
+  );
 }
 
 export default function HeroShowcaseClient({ initialPages }: { initialPages: WebsitePage[] }) {
@@ -90,6 +115,8 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
   const [error, setError] = useState("");
   const [captionLoadingByCard, setCaptionLoadingByCard] = useState<Record<string, boolean>>({});
   const [captionErrorByCard, setCaptionErrorByCard] = useState<Record<string, string>>({});
+  const [fieldLoadingByKey, setFieldLoadingByKey] = useState<Record<string, boolean>>({});
+  const [fieldErrorByKey, setFieldErrorByKey] = useState<Record<string, string>>({});
 
   const selectedPage = useMemo(
     () => pages.find((page) => page.slug === selectedSlug) ?? heroPages[0],
@@ -165,38 +192,71 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
     }
   }
 
-  async function generateCaption(itemIndex: number, options: { replace?: boolean } = {}) {
+  async function generateField(
+    itemIndex: number,
+    field: "label" | "title" | "caption",
+    options: { replace?: boolean } = {}
+  ) {
     if (!heroBlock || !selectedPage) return;
     const item = heroBlock.items[itemIndex];
     if (!item) return;
 
     const mediaUrl = item.mediaUrl?.trim();
+    const loadKey = fieldLoadKey(heroBlock.id, itemIndex, field);
+    const cardErrKey = cardKey(heroBlock.id, itemIndex);
+
     if (!mediaUrl) {
-      setCaptionErrorByCard((current) => ({
-        ...current,
-        [cardKey(heroBlock.id, itemIndex)]: "Add an image before generating a caption.",
-      }));
+      const message = "Add an image before generating.";
+      if (field === "caption") {
+        setCaptionErrorByCard((current) => ({ ...current, [cardErrKey]: message }));
+      } else {
+        setFieldErrorByKey((current) => ({ ...current, [loadKey]: message }));
+      }
       return;
     }
     if (isVideoUrl(mediaUrl)) {
-      setCaptionErrorByCard((current) => ({
-        ...current,
-        [cardKey(heroBlock.id, itemIndex)]: "AI captions work for images only.",
-      }));
+      const message = "AI works for images only.";
+      if (field === "caption") {
+        setCaptionErrorByCard((current) => ({ ...current, [cardErrKey]: message }));
+      } else {
+        setFieldErrorByKey((current) => ({ ...current, [loadKey]: message }));
+      }
       return;
     }
-    if (item.body.trim() && item.body !== "Update this caption." && !options.replace) {
-      const ok = window.confirm("Replace the existing caption with AI-generated text?");
+
+    const existing =
+      field === "label"
+        ? item.meta?.trim() ?? ""
+        : field === "title"
+          ? item.title.trim()
+          : item.body.trim();
+    const isPlaceholder =
+      field === "caption"
+        ? !existing || existing === "Update this caption."
+        : field === "title"
+          ? !existing || /^Recent project \d+$/i.test(existing)
+          : !existing || /^Recent \d+$/i.test(existing);
+
+    if (existing && !isPlaceholder && !options.replace) {
+      const ok = window.confirm(`Replace the existing ${field} with AI-generated text?`);
       if (!ok) return;
     }
 
-    const key = cardKey(heroBlock.id, itemIndex);
-    setCaptionLoadingByCard((current) => ({ ...current, [key]: true }));
-    setCaptionErrorByCard((current) => {
-      const next = { ...current };
-      delete next[key];
-      return next;
-    });
+    if (field === "caption") {
+      setCaptionLoadingByCard((current) => ({ ...current, [cardErrKey]: true }));
+      setCaptionErrorByCard((current) => {
+        const next = { ...current };
+        delete next[cardErrKey];
+        return next;
+      });
+    } else {
+      setFieldLoadingByKey((current) => ({ ...current, [loadKey]: true }));
+      setFieldErrorByKey((current) => {
+        const next = { ...current };
+        delete next[loadKey];
+        return next;
+      });
+    }
 
     try {
       const res = await fetch("/api/admin/hero-showcase/generate-caption", {
@@ -205,6 +265,7 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageUrl: mediaUrl,
+          field,
           context: {
             pageTitle: selectedPage.title,
             cardTitle: item.title,
@@ -212,17 +273,47 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
           },
         }),
       });
-      const data = (await res.json()) as { ok?: boolean; caption?: string; error?: string };
-      if (!res.ok || !data.caption) {
-        throw new Error(data.error ?? "Failed to generate caption.");
+      const data = (await res.json()) as {
+        ok?: boolean;
+        caption?: string;
+        label?: string;
+        title?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? `Failed to generate ${field}.`);
       }
-      updateItem(heroBlock.id, itemIndex, { body: data.caption });
+
+      if (field === "label") {
+        const label = data.label ?? data.caption;
+        if (!label) throw new Error("Failed to generate label.");
+        updateItem(heroBlock.id, itemIndex, { meta: label });
+      } else if (field === "title") {
+        const title = data.title ?? data.caption;
+        if (!title) throw new Error("Failed to generate title.");
+        updateItem(heroBlock.id, itemIndex, { title });
+      } else {
+        if (!data.caption) throw new Error("Failed to generate caption.");
+        updateItem(heroBlock.id, itemIndex, { body: data.caption });
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to generate caption.";
-      setCaptionErrorByCard((current) => ({ ...current, [key]: message }));
+      const message = err instanceof Error ? err.message : `Failed to generate ${field}.`;
+      if (field === "caption") {
+        setCaptionErrorByCard((current) => ({ ...current, [cardErrKey]: message }));
+      } else {
+        setFieldErrorByKey((current) => ({ ...current, [loadKey]: message }));
+      }
     } finally {
-      setCaptionLoadingByCard((current) => ({ ...current, [key]: false }));
+      if (field === "caption") {
+        setCaptionLoadingByCard((current) => ({ ...current, [cardErrKey]: false }));
+      } else {
+        setFieldLoadingByKey((current) => ({ ...current, [loadKey]: false }));
+      }
     }
+  }
+
+  async function generateCaption(itemIndex: number, options: { replace?: boolean } = {}) {
+    return generateField(itemIndex, "caption", options);
   }
 
   async function save() {
@@ -285,7 +376,6 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
           <Link
             href={pagePath(selectedPage.slug)}
             className="btn btn-ghost"
-            target="_blank"
           >
             View live
           </Link>
@@ -423,47 +513,76 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block text-sm text-white/70">
-                    Label (e.g. Recent 01)
+                  <div>
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <p className="text-sm text-white/70">Label (e.g. Recent 01)</p>
+                      <AiButton
+                        loading={fieldLoadingByKey[fieldLoadKey(heroBlock.id, index, "label")]}
+                        disabled={
+                          !item.mediaUrl ||
+                          isVideoUrl(item.mediaUrl) ||
+                          fieldLoadingByKey[fieldLoadKey(heroBlock.id, index, "label")]
+                        }
+                        onClick={() => void generateField(index, "label")}
+                      />
+                    </div>
                     <input
                       value={item.meta ?? ""}
                       onChange={(event) =>
                         updateItem(heroBlock.id, index, { meta: event.target.value })
                       }
-                      className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
+                      className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
                     />
-                  </label>
-                  <label className="block text-sm text-white/70">
-                    Title
-                    <span className="mt-0.5 block text-xs text-white/45">
-                      Short headline — keep to a few words.
-                    </span>
+                    {fieldErrorByKey[fieldLoadKey(heroBlock.id, index, "label")] ? (
+                      <p className="mt-2 text-xs text-red-300">
+                        {fieldErrorByKey[fieldLoadKey(heroBlock.id, index, "label")]}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div>
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm text-white/70">Title</p>
+                        <p className="mt-0.5 text-xs text-white/45">
+                          Short headline — keep to a few words.
+                        </p>
+                      </div>
+                      <AiButton
+                        loading={fieldLoadingByKey[fieldLoadKey(heroBlock.id, index, "title")]}
+                        disabled={
+                          !item.mediaUrl ||
+                          isVideoUrl(item.mediaUrl) ||
+                          fieldLoadingByKey[fieldLoadKey(heroBlock.id, index, "title")]
+                        }
+                        onClick={() => void generateField(index, "title")}
+                      />
+                    </div>
                     <input
                       value={item.title}
                       onChange={(event) =>
                         updateItem(heroBlock.id, index, { title: event.target.value })
                       }
-                      className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
+                      className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
                     />
-                  </label>
+                    {fieldErrorByKey[fieldLoadKey(heroBlock.id, index, "title")] ? (
+                      <p className="mt-2 text-xs text-red-300">
+                        {fieldErrorByKey[fieldLoadKey(heroBlock.id, index, "title")]}
+                      </p>
+                    ) : null}
+                  </div>
                   <label className="block text-sm text-white/70 sm:col-span-2">
                     <span className="flex flex-wrap items-center justify-between gap-2">
                       Caption
                       <span className="text-xs text-white/45">1–2 short sentences for the card body.</span>
-                      <button
-                        type="button"
-                        className="text-xs uppercase tracking-[0.18em] text-white/55 underline hover:text-white disabled:opacity-40"
+                      <AiButton
+                        loading={captionLoadingByCard[cardKey(heroBlock.id, index)]}
                         disabled={
                           !item.mediaUrl ||
                           isVideoUrl(item.mediaUrl) ||
                           captionLoadingByCard[cardKey(heroBlock.id, index)]
                         }
                         onClick={() => void generateCaption(index)}
-                      >
-                        {captionLoadingByCard[cardKey(heroBlock.id, index)]
-                          ? "Generating…"
-                          : "Generate with AI"}
-                      </button>
+                      />
                     </span>
                     <textarea
                       value={item.body}

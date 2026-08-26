@@ -1,6 +1,7 @@
 import { ALT_TEXT_SINGLE_IMAGE } from "@/lib/ai/prompts";
 import { runAiChatCompletion } from "@/lib/ai/ops";
 import { createOpenAiClient, resolveOpenAiChatModel } from "@/lib/ai/runtime";
+import { fetchPublicImageAsDataUrl } from "@/lib/fetch-public-image";
 
 export type AltTextProjectContext = {
   clientName?: string;
@@ -59,28 +60,7 @@ export function parseGenerateAltTextInput(body: unknown):
 }
 
 async function imageUrlToDataUrl(imageUrl: string, origin: string) {
-  const url = new URL(imageUrl, origin);
-  if (!["http:", "https:"].includes(url.protocol)) {
-    throw Object.assign(new Error("Unsupported image URL."), { status: 400 });
-  }
-
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw Object.assign(new Error(`Could not load image for alt text (${res.status}).`), {
-      status: 400,
-    });
-  }
-
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  if (!contentType.startsWith("image/")) {
-    throw Object.assign(new Error("imageUrl must point to an image."), { status: 400 });
-  }
-
-  const bytes = Buffer.from(await res.arrayBuffer());
-  if (bytes.byteLength > 8 * 1024 * 1024) {
-    throw Object.assign(new Error("Image is too large for AI alt text generation."), { status: 400 });
-  }
-  return `data:${contentType};base64,${bytes.toString("base64")}`;
+  return fetchPublicImageAsDataUrl(imageUrl, origin, { maxBytes: 8 * 1024 * 1024 });
 }
 
 function normalizeAltText(raw: string) {

@@ -667,8 +667,6 @@ export default function GalleryDetail({ initialGallery }: { initialGallery: Gall
           <a
             href={`/client`}
             className="btn btn-ghost"
-            target="_blank"
-            rel="noreferrer"
           >
             Open client access
           </a>

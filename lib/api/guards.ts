@@ -8,7 +8,8 @@ export async function guardAdminJson(req: Request): Promise<NextResponse | null>
   if (!(await authorizeAdminRequest(req))) {
     return jsonErr("Unauthorized.", 401);
   }
-  return null;
+  const { assertSameOriginAdminMutation } = await import("@/lib/admin-request-origin");
+  return assertSameOriginAdminMutation(req);
 }
 
 /** Admin cookie or automation bearer; returns an error response or null when OK. */
@@ -22,12 +23,11 @@ export async function guardProjectsApiJson(req: Request): Promise<NextResponse |
 
 /**
  * Vercel / external cron: `Authorization: Bearer CRON_SECRET`.
- * When `CRON_SECRET` is unset: allow outside production (matches legacy behavior).
+ * Fail closed when secret is missing (including preview/dev) so cron routes stay locked.
  */
 export function guardCronBearer(req: Request): NextResponse | null {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) {
-    if (process.env.NODE_ENV !== "production") return null;
     return jsonErr("Unauthorized.", 401);
   }
   if (req.headers.get("authorization") !== `Bearer ${secret}`) {

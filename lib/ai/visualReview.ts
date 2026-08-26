@@ -10,6 +10,7 @@ export type VisualReviewImage = {
 
 export type VisualReviewInput = {
   projectId: string;
+  origin: string;
   projectContext: Record<string, unknown>;
   images: VisualReviewImage[];
 };
@@ -34,14 +35,9 @@ export type VisualReviewResult = {
   weakImageIds: string[];
 };
 
-async function imageUrlToDataUrl(imageUrl: string) {
-  const res = await fetch(imageUrl);
-  if (!res.ok) throw Object.assign(new Error(`Could not load image (${res.status}).`), { status: 400 });
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  if (!contentType.startsWith("image/")) throw Object.assign(new Error("Image URL must point to an image."), { status: 400 });
-  const bytes = Buffer.from(await res.arrayBuffer());
-  if (bytes.byteLength > 8 * 1024 * 1024) throw Object.assign(new Error("Image is too large for visual review."), { status: 400 });
-  return `data:${contentType};base64,${bytes.toString("base64")}`;
+async function imageUrlToDataUrl(imageUrl: string, origin: string) {
+  const { trustedImageToDataUrl } = await import("@/lib/safe-fetch-image");
+  return trustedImageToDataUrl(imageUrl, origin);
 }
 
 function parseJsonObject(text: string): Record<string, unknown> {
@@ -130,7 +126,7 @@ export async function generateVisualReview(input: VisualReviewInput): Promise<Vi
   const imagePayload = await Promise.all(
     images.map(async (image) => ({
       image,
-      dataUrl: await imageUrlToDataUrl(image.url),
+      dataUrl: await imageUrlToDataUrl(image.url, input.origin),
     }))
   );
   const openai = new OpenAI({ apiKey });

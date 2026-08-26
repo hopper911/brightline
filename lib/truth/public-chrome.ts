@@ -14,7 +14,7 @@ export const PUBLIC_NAV_BRAND = Object.freeze({
   homeHref: "/" as const,
 });
 
-/** Core marketing nav that must remain available (labels + hrefs). */
+/** Core marketing nav ids with frozen labels + hrefs (visibility is CMS-editable). */
 export const CORE_PUBLIC_NAV = Object.freeze([
   Object.freeze({ id: "work", label: "Work", href: "/work" }),
   Object.freeze({ id: "galleries", label: "Galleries", href: "/galleries" }),
@@ -36,8 +36,9 @@ export const PUBLIC_VISUAL_BASELINE = Object.freeze({
 type NavLike = { id: string; label: string; href: string; visible?: boolean };
 
 /**
- * After CMS nav normalize, restore core public items’ frozen label/href and
- * force them visible. Optional CMS items (blog, design, projects) are untouched.
+ * After CMS nav normalize, restore core public items’ frozen label/href.
+ * Visibility is owned by Admin → Navigation (SHOW). Missing core rows are
+ * re-inserted default-visible so the set cannot be deleted by accident.
  */
 export function assertCorePublicNavPreserved<T extends NavLike>(nav: T[]): T[] {
   const byId = new Map(nav.map((item) => [item.id, item]));
@@ -48,7 +49,6 @@ export function assertCorePublicNavPreserved<T extends NavLike>(nav: T[]): T[] {
     if (existing) {
       existing.label = core.label;
       existing.href = core.href;
-      existing.visible = true;
     } else {
       out.push({
         id: core.id,

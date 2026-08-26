@@ -3,7 +3,10 @@ import Link from "next/link";
 import Image from "next/image";
 import Reveal from "@/components/Reveal";
 import { CASE_STUDIES } from "@/lib/caseStudies";
+import { formatBlogDate, getCaseStudyJournalPosts } from "@/lib/blog-posts";
 import { getPublicR2Url } from "@/lib/r2";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Case Studies · BRIGHTLINE Photography",
@@ -17,11 +20,14 @@ export const metadata: Metadata = {
 };
 
 function imageUrl(key: string): string {
-  if (key.startsWith("/")) return key;
+  if (!key) return "";
+  if (key.startsWith("/") || key.startsWith("http")) return key;
   return getPublicR2Url(key);
 }
 
-export default function CaseStudiesPage() {
+export default async function CaseStudiesPage() {
+  const journalCaseStudies = await getCaseStudyJournalPosts();
+
   return (
     <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
       <Reveal>
@@ -32,7 +38,47 @@ export default function CaseStudiesPage() {
         </p>
       </Reveal>
 
-      <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+      {journalCaseStudies.length > 0 ? (
+        <div className="mt-12">
+          <p className="text-[0.65rem] uppercase tracking-[0.28em] text-white/45">From the journal</p>
+          <div className="mt-6 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {journalCaseStudies.map((post, index) => (
+              <Reveal key={post.id} delay={index * 0.08}>
+                <Link
+                  href={`/blog/${post.slug}`}
+                  className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
+                >
+                  <div className="relative aspect-[4/3] w-full image-guard-overlay">
+                    {post.coverImageUrl ? (
+                      <Image
+                        src={imageUrl(post.coverImageUrl)}
+                        alt={post.coverImageAlt || post.title}
+                        fill
+                        draggable={false}
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        className="object-cover image-zoom"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-black/50 text-xs text-white/40">
+                        {post.title}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <p className="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">
+                      Journal · {formatBlogDate(post.publishedAt ?? post.updatedAt)}
+                    </p>
+                    <h2 className="mt-2 text-base text-white group-hover:text-white">{post.title}</h2>
+                    <p className="mt-2 text-xs text-white/70">View case study →</p>
+                  </div>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className={`${journalCaseStudies.length > 0 ? "mt-16" : "mt-12"} grid gap-8 md:grid-cols-2 lg:grid-cols-3`}>
         {CASE_STUDIES.map((study, index) => (
           <Reveal key={study.slug} delay={index * 0.08}>
             <Link

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AssignedPageBackground from "@/components/AssignedPageBackground";
 import HomeHero from "@/components/HomeHero";
 import Reveal from "@/components/Reveal";
 import WorkCard from "@/components/WorkCard";
@@ -16,9 +17,13 @@ import {
 import { getFeaturedHeroForSection } from "@/lib/queries/work";
 import { getHomepageFeaturedMedia } from "@/lib/queries/site";
 import { getPublishedGalleryCards } from "@/lib/queries/public-galleries";
-import { getPublicR2Url } from "@/lib/r2";
+import { getHomepageJournalPosts, formatBlogDate } from "@/lib/blog-posts";
+import { getPublicR2FullBleedUrl, getPublicR2Url } from "@/lib/r2";
 import { getPublishedWebsitePageBySlug } from "@/lib/website-pages";
-import { getVisibleWorkPillars, resolvePillarCoverUrl } from "@/lib/work-pillar-settings";
+import { getVisibleWorkPillars, isDualBrandHub, resolvePillarCoverUrl } from "@/lib/work-pillar-settings";
+import DesignEntryBand from "@/components/DesignEntryBand";
+import { getDesignSectionSettings } from "@/lib/design-section-settings";
+import { fetchDualBrandWork } from "@/lib/dual-brand/content-api";
 
 export const dynamic = "force-dynamic";
 
@@ -86,10 +91,24 @@ const localBusinessSchema = {
 export default async function Page() {
   const pageOverride = await getPublishedWebsitePageBySlug("home");
   if (pageOverride) {
-    return <WebsitePageView page={pageOverride} />;
+    return (
+      <>
+        <WebsitePageView page={pageOverride} />
+        <DesignEntryBand variant="home" />
+      </>
+    );
   }
 
   const visiblePillars = await getVisibleWorkPillars();
+  const designSettings = await getDesignSectionSettings();
+  const showDesignPath = designSettings.enabled && designSettings.showOnHome;
+  const dualBrandProjects = visiblePillars.some(isDualBrandHub)
+    ? await fetchDualBrandWork()
+    : [];
+  const dualBrandCoverFallback =
+    dualBrandProjects.find((p) => p.heroImage || p.thumbnailImage)?.heroImage ||
+    dualBrandProjects.find((p) => p.thumbnailImage)?.thumbnailImage ||
+    null;
 
   let pillarData: {
     slug: string;
@@ -101,16 +120,23 @@ export default async function Page() {
   try {
     pillarData = await Promise.all(
       visiblePillars.map(async (pillar) => {
-        const firstSection = pillar.sections[0];
-        const hero = firstSection
-          ? await getFeaturedHeroForSection(firstSection)
-          : null;
-        const imageKey = hero?.kind === "IMAGE" ? hero.keyFull ?? hero.keyThumb : null;
-        const autoCover = imageKey ? getPublicR2Url(imageKey) : "/images/hero.jpg";
+        let autoCover = "/images/hero.jpg";
+        let coverAltDefault = pillar.label;
+        if (isDualBrandHub(pillar)) {
+          if (dualBrandCoverFallback) autoCover = dualBrandCoverFallback;
+        } else {
+          const firstSection = pillar.sections[0];
+          const hero = firstSection
+            ? await getFeaturedHeroForSection(firstSection)
+            : null;
+          const imageKey = hero?.kind === "IMAGE" ? hero.keyFull ?? hero.keyThumb : null;
+          autoCover = imageKey ? getPublicR2FullBleedUrl(imageKey) : "/images/hero.jpg";
+          coverAltDefault = hero?.alt ?? pillar.label;
+        }
         const coverUrl =
           resolvePillarCoverUrl(pillar.coverImageKey, autoCover) ?? autoCover;
         const coverAlt =
-          pillar.coverAlt.trim() ? pillar.coverAlt.trim() : (hero?.alt ?? pillar.label);
+          pillar.coverAlt.trim() ? pillar.coverAlt.trim() : coverAltDefault;
         return {
           slug: pillar.slug,
           label: pillar.label,
@@ -122,7 +148,10 @@ export default async function Page() {
     );
   } catch {
     pillarData = visiblePillars.map((pillar) => {
-      const autoCover = "/images/hero.jpg";
+      const autoCover =
+        isDualBrandHub(pillar) && dualBrandCoverFallback
+          ? dualBrandCoverFallback
+          : "/images/hero.jpg";
       const coverUrl =
         resolvePillarCoverUrl(pillar.coverImageKey, autoCover) ?? autoCover;
       const coverAlt = pillar.coverAlt.trim() ? pillar.coverAlt.trim() : pillar.label;
@@ -156,13 +185,22 @@ export default async function Page() {
     galleryCards = [];
   }
 
+  let journalPosts: Awaited<ReturnType<typeof getHomepageJournalPosts>> = [];
+  try {
+    journalPosts = await getHomepageJournalPosts(3);
+  } catch {
+    journalPosts = [];
+  }
+
   return (
-    <div className="page-shell min-h-screen">
+    <>
+      <AssignedPageBackground pageKey="home" />
+      <div className="page-shell relative z-[2] min-h-screen">
       <div className="soft-grid">
         <script type="application/ld+json">
           {JSON.stringify(localBusinessSchema)}
         </script>
-        <HomeHero featuredImage={featuredImage} />
+        <HomeHero featuredImage={featuredImage} showDesignPath={showDesignPath} />
 
         <Reveal className="section-pad relative mx-auto max-w-3xl px-6 text-center lg:px-10">
           <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">
@@ -223,6 +261,67 @@ export default async function Page() {
                       <h3 className="mt-2 font-display text-lg text-white group-hover:underline">
                         {gallery.title}
                       </h3>
+                    </div>
+                  </Link>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+        ) : null}
+
+        {journalPosts.length > 0 ? (
+          <Reveal
+            id="journal"
+            className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10 scroll-mt-20"
+          >
+            <div className="flex flex-wrap items-end justify-between gap-6">
+              <div className="space-y-2">
+                <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">Journal</p>
+                <h2 className="font-display text-2xl md:text-3xl text-white text-balance">
+                  From the studio
+                </h2>
+                <p className="max-w-xl text-sm text-white/75">
+                  Selected stories, process notes, and project case studies.
+                </p>
+              </div>
+              <Link href="/blog" className="btn btn-ghost">
+                View journal
+              </Link>
+            </div>
+            <div className="mt-10 grid gap-5 md:grid-cols-3">
+              {journalPosts.map((post, index) => (
+                <Reveal key={post.id} delay={index * 0.08}>
+                  <Link
+                    href={`/blog/${post.slug}`}
+                    className="group block overflow-hidden rounded-2xl border border-white/10 bg-black/40 lift-card"
+                  >
+                    <div className="relative h-[220px] overflow-hidden bg-black/60">
+                      {post.coverImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={post.coverImageUrl.startsWith("http") || post.coverImageUrl.startsWith("/")
+                            ? post.coverImageUrl
+                            : getPublicR2Url(post.coverImageUrl)}
+                          alt={post.coverImageAlt || post.title}
+                          className="h-full w-full object-cover image-zoom"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center px-6 text-center text-xs uppercase tracking-[0.24em] text-white/40">
+                          {post.title}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <p className="text-[0.62rem] uppercase tracking-[0.28em] text-white/45">
+                        {formatBlogDate(post.publishedAt ?? post.updatedAt)}
+                      </p>
+                      <h3 className="mt-2 font-display text-lg text-white group-hover:underline">
+                        {post.title}
+                      </h3>
+                      {post.excerpt ? (
+                        <p className="mt-2 line-clamp-2 text-sm text-white/70">{post.excerpt}</p>
+                      ) : null}
                     </div>
                   </Link>
                 </Reveal>
@@ -313,6 +412,8 @@ export default async function Page() {
           </div>
         </Reveal>
 
+        <DesignEntryBand variant="home" />
+
         <Reveal className="section-pad relative mx-auto max-w-6xl px-6 lg:px-10">
           <p className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">
             Kind words
@@ -328,5 +429,6 @@ export default async function Page() {
         </Reveal>
       </div>
     </div>
+    </>
   );
 }

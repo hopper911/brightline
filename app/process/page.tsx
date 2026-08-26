@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import AssignedPageBackground from "@/components/AssignedPageBackground";
 import Reveal from "@/components/Reveal";
 import { STRATEGIC_PROCESS_STEPS_DETAIL } from "@/lib/config/strategicPositioning";
 
@@ -12,7 +12,9 @@ export const metadata: Metadata = {
 
 export default function ProcessPage() {
   return (
-    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+    <>
+      <AssignedPageBackground pageKey="process" />
+      <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
       <Reveal>
         <p className="section-kicker">Process</p>
         <h1 className="section-title">How we work</h1>
@@ -36,18 +38,7 @@ export default function ProcessPage() {
           </Reveal>
         ))}
       </div>
-
-      <Reveal className="mt-12">
-        <div className="rounded-2xl border border-white/10 bg-black/60 p-8 text-center">
-          <h2 className="font-display text-2xl text-white">Start a conversation</h2>
-          <p className="mt-2 text-sm text-white/70">
-            Share your scope and goals—we&apos;ll respond with availability and next steps.
-          </p>
-          <Link href="/contact" className="btn btn-solid mt-6">
-            Get in touch
-          </Link>
-        </div>
-      </Reveal>
     </div>
+    </>
   );
 }

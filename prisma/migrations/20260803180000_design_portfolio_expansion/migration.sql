@@ -1,0 +1,27 @@
+-- AlterEnum
+CREATE TYPE "DesignPortfolioStatus" AS ENUM (
+  'LIVE_PRODUCT',
+  'WORKING_MVP',
+  'INTERACTIVE_PROTOTYPE',
+  'PRODUCT_CONCEPT',
+  'INTERNAL_TOOL',
+  'CLIENT_PROJECT',
+  'ONGOING',
+  'ARCHIVED'
+);
+
+-- AlterTable
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "problemStatement" TEXT;
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "yearEnd" INTEGER;
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "timelineLabel" TEXT;
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "teamLabel" TEXT;
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "platformLabel" TEXT;
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "toolsLabel" TEXT;
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "industryLabel" TEXT;
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "projectTypeLabel" TEXT;
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "status" "DesignPortfolioStatus" NOT NULL DEFAULT 'PRODUCT_CONCEPT';
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "caseStudy" JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "ogImageKey" TEXT;
+ALTER TABLE "DesignProject" ADD COLUMN IF NOT EXISTS "publishedAt" TIMESTAMP(3);
+
+CREATE INDEX IF NOT EXISTS "DesignProject_status_idx" ON "DesignProject"("status");

@@ -27,7 +27,7 @@ describe("frozen truth — permanent baseline", () => {
     expect(PUBLIC_NAV_BRAND.wordmarkInTopNav).toBe(false);
   });
 
-  it("locks core public nav labels and hrefs", () => {
+  it("locks core public nav labels and hrefs; SHOW stays CMS-editable", () => {
     expect(CORE_PUBLIC_NAV.map((n) => n.label)).toEqual([
       "Work",
       "Galleries",
@@ -43,7 +43,7 @@ describe("frozen truth — permanent baseline", () => {
     }
   });
 
-  it("restores core nav if CMS tries to hide or rename", () => {
+  it("restores core nav labels/hrefs but allows hiding via SHOW", () => {
     const tampered = normalizeSiteNav([
       { id: "work", label: "Portfolio", href: "/elsewhere", visible: false },
       { id: "galleries", label: "Galleries", href: "/galleries", visible: true },
@@ -55,7 +55,7 @@ describe("frozen truth — permanent baseline", () => {
     const work = locked.find((n) => n.id === "work");
     expect(work?.label).toBe("Work");
     expect(work?.href).toBe("/work");
-    expect(work?.visible).toBe(true);
+    expect(work?.visible).toBe(false);
   });
 
   it("locks NJ/NY metro service area", () => {
@@ -70,10 +70,12 @@ describe("frozen truth — permanent baseline", () => {
     expect(ALLOWED_UPLOAD_MIME.has("image/svg+xml")).toBe(false);
   });
 
-  it("requires CSRF on admin/studio/accountant APIs", () => {
+  it("requires CSRF on admin/studio/accountant/ai APIs", () => {
     expect(pathRequiresCsrf("/api/admin/clients")).toBe(true);
     expect(pathRequiresCsrf("/api/studio/invoices/1")).toBe(true);
     expect(pathRequiresCsrf("/api/accountant/notes")).toBe(true);
+    expect(pathRequiresCsrf("/api/ai/chat")).toBe(true);
+    expect(pathRequiresCsrf("/api/ai/alt-text")).toBe(true);
     expect(pathRequiresCsrf("/api/accountant/login")).toBe(false);
     expect(pathRequiresCsrf("/api/admin/login")).toBe(false);
     expect(pathRequiresCsrf("/api/contact")).toBe(false);

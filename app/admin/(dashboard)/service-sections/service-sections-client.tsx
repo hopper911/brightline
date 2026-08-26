@@ -191,7 +191,7 @@ export default function ServiceSectionsClient({ initialServices }: { initialServ
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Link href={`/services/${selected.slug}`} className="btn btn-ghost" target="_blank">
+          <Link href={`/services/${selected.slug}`} className="btn btn-ghost">
             View live
           </Link>
           <Link href="/admin/services" className="btn btn-ghost">

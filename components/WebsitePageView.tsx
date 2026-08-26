@@ -1,8 +1,15 @@
 import Link from "next/link";
+import AssignedPageBackground from "@/components/AssignedPageBackground";
 import Reveal from "@/components/Reveal";
 import { HeroSectionFade } from "@/components/SectionBackgroundBlend";
+import { resolveFullBleedMediaUrl } from "@/lib/r2";
 import type { WebsiteBlock, WebsiteBlockItem, WebsitePage } from "@/lib/website-pages";
-import { resolveStoredMediaUrl } from "@/lib/r2";
+import { getBackgroundMediaFromPage } from "@/lib/website-pages";
+import {
+  CREDIBILITY,
+  isPublicPlaceholderCopy,
+  sanitizePublicStatItem,
+} from "@/lib/config/credibility";
 
 function isVideoUrl(url: string) {
   const decoded = decodeURIComponent(url);
@@ -16,18 +23,24 @@ function isVideoUrl(url: string) {
 }
 
 function mediaUrl(input?: string | null) {
-  return resolveStoredMediaUrl(input);
+  return resolveFullBleedMediaUrl(input);
 }
 
 function Paragraphs({ body }: { body: string }) {
   const paragraphs = body
     .split(/\n{2,}/)
     .map((line) => line.trim())
-    .filter(Boolean);
+    .filter((line) => line && !isPublicPlaceholderCopy(line));
+  // Dedupe identical consecutive paragraphs (CMS often repeats hero body in text blocks).
+  const deduped: string[] = [];
+  for (const paragraph of paragraphs) {
+    if (deduped[deduped.length - 1] === paragraph) continue;
+    deduped.push(paragraph);
+  }
   return (
     <div className="space-y-5 text-base leading-relaxed text-white/78">
-      {paragraphs.length > 0 ? (
-        paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
+      {deduped.length > 0 ? (
+        deduped.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
       ) : (
         <p>This section is being updated.</p>
       )}
@@ -35,12 +48,12 @@ function Paragraphs({ body }: { body: string }) {
   );
 }
 
-function BlockHeader({ block }: { block: WebsiteBlock }) {
+function BlockHeader({ block, hideBody = false }: { block: WebsiteBlock; hideBody?: boolean }) {
   return (
     <div>
       {block.eyebrow ? <p className="section-kicker">{block.eyebrow}</p> : null}
       {block.title ? <h2 className="section-title">{block.title}</h2> : null}
-      {block.body && block.type !== "hero" && block.type !== "gallery" ? (
+      {!hideBody && block.body && block.type !== "hero" && block.type !== "gallery" ? (
         <p className="section-subtitle">{block.body}</p>
       ) : null}
     </div>
@@ -52,20 +65,27 @@ function MediaFrame({ url, alt, className = "" }: { url: string; alt: string; cl
   if (!src) return null;
   if (isVideoUrl(src)) {
     return (
-      <video
-        src={src}
-        className={className}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        aria-label={alt}
-      />
+      <div className={`relative overflow-hidden image-guard-overlay ${className}`}>
+        <video
+          src={src}
+          className="h-full w-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          draggable={false}
+          aria-label={alt}
+        />
+      </div>
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={alt} draggable={false} className={className} />;
+  return (
+    <div className={`relative overflow-hidden image-guard-overlay ${className}`}>
+      <img src={src} alt={alt} draggable={false} className="h-full w-full object-cover" />
+    </div>
+  );
 }
 
 function BackgroundMedia({ block, className = "" }: { block: WebsiteBlock; className?: string }) {
@@ -97,9 +117,32 @@ function BackgroundMedia({ block, className = "" }: { block: WebsiteBlock; class
 
 function showcaseCardBody(title: string, body?: string | null) {
   const trimmed = body?.trim() ?? "";
-  if (!trimmed || trimmed === "Update this caption.") return "";
+  if (!trimmed || isPublicPlaceholderCopy(trimmed)) return "";
   if (trimmed.toLowerCase() === title.toLowerCase()) return "";
   return trimmed;
+}
+
+function showcaseCardTitle(raw?: string | null) {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed || isPublicPlaceholderCopy(trimmed)) return "";
+  return trimmed;
+}
+
+function showcaseCardLabel(raw?: string | null) {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed || isPublicPlaceholderCopy(trimmed)) return "";
+  if (/^recent\s+\d+$/i.test(trimmed)) return "";
+  return trimmed;
+}
+
+function isRenderableShowcaseItem(item: WebsiteBlockItem): boolean {
+  const hasMedia = Boolean(item.mediaUrl?.trim());
+  if (!hasMedia) return false;
+  const title = showcaseCardTitle(item.title);
+  const body = showcaseCardBody(title || item.title?.trim() || "", item.body);
+  const label = showcaseCardLabel(item.meta);
+  // Media-only cards are fine; pure placeholder text without media is not.
+  return Boolean(title || body || label || hasMedia);
 }
 
 function RecentProjectCard({
@@ -111,9 +154,11 @@ function RecentProjectCard({
   index: number;
   featured?: boolean;
 }) {
-  const title = item.title?.trim() || `Recent project ${index + 1}`;
-  const body = showcaseCardBody(title, item.body);
-  const label = item.meta?.trim() || `Recent ${String(index + 1).padStart(2, "0")}`;
+  const title = showcaseCardTitle(item.title);
+  const body = showcaseCardBody(title || item.title?.trim() || "", item.body);
+  const label = showcaseCardLabel(item.meta);
+  const altText = title || label || "Project image";
+  void index;
   const motionBadge =
     item.mediaUrl && isVideoUrl(mediaUrl(item.mediaUrl)) ? (
       <span className="inline-flex rounded-full border border-white/20 bg-black/35 px-3 py-1 text-[0.58rem] uppercase tracking-[0.22em] text-white/72">
@@ -128,12 +173,14 @@ function RecentProjectCard({
       }`}
     >
       <div
-        className={`relative overflow-hidden ${featured ? "aspect-[16/11]" : "aspect-[4/3] shrink-0"}`}
+        className={`relative overflow-hidden ${
+          featured ? "aspect-[16/11]" : "min-h-[210px] flex-1 aspect-[5/4] sm:min-h-[230px]"
+        }`}
       >
         {item.mediaUrl ? (
           <MediaFrame
             url={item.mediaUrl}
-            alt={title}
+            alt={altText}
             className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
           />
         ) : (
@@ -143,35 +190,39 @@ function RecentProjectCard({
         {!featured ? (
           <>
             <div
-              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/88 via-black/30 to-transparent"
+              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent"
               aria-hidden
             />
-            <div className="absolute inset-x-0 bottom-0 px-4 pb-4 pt-14">
-              <p className="text-[0.58rem] uppercase tracking-[0.28em] text-white/55">{label}</p>
-              <p className="mt-1 font-display text-[0.95rem] font-semibold leading-snug text-white">
-                {title}
-              </p>
+            <div className="showcase-card-copy showcase-card-copy--overlay absolute inset-x-0 bottom-0">
+              {label ? <p className="showcase-label">{label}</p> : null}
+              {title ? (
+                <p className="font-display text-[0.98rem] font-semibold leading-snug text-white">
+                  {title}
+                </p>
+              ) : null}
               {body ? (
-                <p className="mt-1 line-clamp-2 text-[0.72rem] leading-relaxed text-white/75">
+                <p className="line-clamp-3 text-[0.75rem] leading-relaxed text-white/78">
                   {body}
                 </p>
               ) : null}
-              {motionBadge ? <div className="mt-2">{motionBadge}</div> : null}
+              {motionBadge ? <div className="mt-1">{motionBadge}</div> : null}
             </div>
           </>
         ) : null}
       </div>
 
       {featured ? (
-        <div className="border-t border-white/10 bg-black/45 px-5 py-5 md:px-6 md:py-6">
-          <p className="text-[0.62rem] uppercase tracking-[0.3em] text-white/52">{label}</p>
-          <p className="mt-2 font-display text-lg font-semibold leading-tight text-white md:text-xl">
-            {title}
-          </p>
-          {body ? (
-            <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-white/72">{body}</p>
+        <div className="showcase-card-copy showcase-card-copy--featured">
+          {label ? <p className="showcase-label">{label}</p> : null}
+          {title ? (
+            <p className="font-display text-lg font-semibold leading-snug text-white md:text-xl">
+              {title}
+            </p>
           ) : null}
-          {motionBadge ? <div className="mt-3">{motionBadge}</div> : null}
+          {body ? (
+            <p className="line-clamp-4 text-sm leading-relaxed text-white/75">{body}</p>
+          ) : null}
+          {motionBadge ? <div className="pt-1">{motionBadge}</div> : null}
         </div>
       ) : null}
     </article>
@@ -179,12 +230,8 @@ function RecentProjectCard({
 }
 
 function RecentProjectsShowcase({ block }: { block: WebsiteBlock }) {
-  const items = block.items.length
-    ? block.items
-    : [
-        { title: "Recent project", body: "Add image or video from R2.", meta: "Featured" },
-        { title: "Behind the frame", body: "Use this for a motion clip or detail." },
-      ];
+  const items = block.items.filter(isRenderableShowcaseItem);
+  if (items.length === 0) return null;
   const [featured, ...secondary] = items;
   return (
     <div className="relative">
@@ -192,11 +239,13 @@ function RecentProjectsShowcase({ block }: { block: WebsiteBlock }) {
       <div className="absolute -right-6 bottom-8 h-56 w-56 rounded-full bg-[#b2673f]/20 blur-3xl" aria-hidden />
       <div className="relative grid gap-4 md:grid-cols-12">
         <RecentProjectCard item={featured} index={0} featured />
-        <div className="grid gap-4 md:col-span-5">
-          {secondary.slice(0, 2).map((item, index) => (
-            <RecentProjectCard key={`${block.id}-${item.title}-${index}`} item={item} index={index + 1} />
-          ))}
-        </div>
+        {secondary.length > 0 ? (
+          <div className="grid gap-4 md:col-span-5">
+            {secondary.slice(0, 2).map((item, index) => (
+              <RecentProjectCard key={`${block.id}-${item.title}-${index}`} item={item} index={index + 1} />
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -204,7 +253,8 @@ function RecentProjectsShowcase({ block }: { block: WebsiteBlock }) {
 
 function RenderBlock({ block }: { block: WebsiteBlock }) {
   if (block.type === "hero") {
-    const showcaseOn = block.showcaseEnabled !== false;
+    const showcaseItems = block.items.filter(isRenderableShowcaseItem);
+    const showcaseOn = block.showcaseEnabled !== false && showcaseItems.length > 0;
     const hasHeroMedia = Boolean(block.mediaUrl?.trim());
     return (
       <Reveal className="relative isolate min-h-[78vh] overflow-hidden px-6 py-24 lg:px-10 lg:py-32">
@@ -221,33 +271,29 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
             {block.eyebrow ? (
               <p className="section-kicker">{block.eyebrow}</p>
             ) : null}
-            <h1 className="mt-5 max-w-4xl font-display text-5xl font-semibold leading-[0.95] tracking-[-0.04em] text-white text-balance md:text-7xl">
+            <h1 className="mt-5 max-w-4xl font-display text-4xl font-semibold leading-[0.95] tracking-[-0.04em] text-white text-balance sm:text-5xl md:text-7xl">
               {block.title}
             </h1>
-            {block.body ? (
+            {block.body && !isPublicPlaceholderCopy(block.body) ? (
               <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/78 md:text-lg">
                 {block.body}
               </p>
             ) : null}
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="btn-row mt-8">
               {block.ctaHref && block.ctaLabel ? (
                 <Link href={block.ctaHref} className="btn btn-primary">
                   {block.ctaLabel}
                 </Link>
               ) : null}
               <Link href="/contact" className="btn btn-ghost">
-                Start a project
+                Start a conversation
               </Link>
             </div>
-            <div className="mt-10 grid max-w-xl grid-cols-3 gap-3 text-center">
-              {[
-                ["500+", "Projects"],
-                ["48hr", "Reply"],
-                ["NYC", "Metro"],
-              ].map(([value, label]) => (
-                <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-4 backdrop-blur">
-                  <p className="font-display text-xl text-white">{value}</p>
-                  <p className="mt-1 text-[0.6rem] uppercase tracking-[0.25em] text-white/50">{label}</p>
+            <div className="mt-10 grid max-w-xl grid-cols-3 gap-2 text-center sm:gap-3">
+              {CREDIBILITY.heroStrip.map(({ value, label }) => (
+                <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.05] px-2 py-3 backdrop-blur sm:px-3 sm:py-4">
+                  <p className="font-display text-lg text-white sm:text-xl">{value}</p>
+                  <p className="mt-1 text-[0.55rem] uppercase tracking-[0.2em] text-white/50 sm:text-[0.6rem] sm:tracking-[0.25em]">{label}</p>
                 </div>
               ))}
             </div>
@@ -255,7 +301,7 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
 
           {showcaseOn ? (
             <div aria-label="Recent project samples">
-              <RecentProjectsShowcase block={block} />
+              <RecentProjectsShowcase block={{ ...block, items: showcaseItems }} />
             </div>
           ) : null}
         </div>
@@ -294,6 +340,10 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   }
 
   if (block.type === "stats") {
+    const items = block.items
+      .map((item) => sanitizePublicStatItem(item))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    if (items.length === 0) return null;
     return (
       <Reveal className="relative isolate mx-auto max-w-5xl px-6 py-8 lg:px-10">
         {block.mediaUrl?.trim() ? (
@@ -304,13 +354,15 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
         ) : null}
         <div className="rounded-[24px] border border-white/10 bg-black/35 p-6 backdrop-blur-md md:p-8">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {block.items.map((item) => (
-              <div key={`${block.id}-${item.title}`} className="text-center">
+            {items.map((item) => (
+              <div key={`${block.id}-${item.title}-${item.body}`} className="text-center">
                 <p className="font-display text-2xl text-white">{item.title}</p>
                 <p className="mt-1 text-[0.62rem] uppercase tracking-[0.25em] text-white/55">
                   {item.body}
                 </p>
-                {item.meta ? <p className="mt-1 text-xs text-white/45">{item.meta}</p> : null}
+                {item.meta && !isPublicPlaceholderCopy(item.meta) ? (
+                  <p className="mt-1 text-xs text-white/45">{item.meta}</p>
+                ) : null}
               </div>
             ))}
           </div>
@@ -320,6 +372,13 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   }
 
   if (block.type === "cards") {
+    const items = block.items.filter(
+      (item) =>
+        !isPublicPlaceholderCopy(item.title) ||
+        !isPublicPlaceholderCopy(item.body) ||
+        Boolean(item.mediaUrl?.trim())
+    );
+    if (items.length === 0) return null;
     return (
       <Reveal className="section-pad relative isolate mx-auto max-w-6xl overflow-hidden px-6 lg:px-10">
         {block.mediaUrl?.trim() ? (
@@ -333,15 +392,19 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
         ) : null}
         <BlockHeader block={block} />
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {block.items.map((item) => (
+          {items.map((item) => (
             <div key={`${block.id}-${item.title}`} className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.065] shadow-2xl shadow-black/20 backdrop-blur">
               {item.mediaUrl ? (
                 <MediaFrame url={item.mediaUrl} alt={item.title} className="aspect-[4/3] w-full object-cover" />
               ) : null}
               <div className="p-5">
-              <h3 className="font-medium text-white">{item.title}</h3>
-              <p className="mt-2 text-sm text-white/72">{item.body}</p>
-              {item.meta ? <p className="mt-3 text-xs uppercase tracking-[0.2em] text-white/45">{item.meta}</p> : null}
+              <h3 className="font-medium text-white">{isPublicPlaceholderCopy(item.title) ? "Project" : item.title}</h3>
+              {!isPublicPlaceholderCopy(item.body) ? (
+                <p className="mt-2 text-sm text-white/72">{item.body}</p>
+              ) : null}
+              {item.meta && !isPublicPlaceholderCopy(item.meta) ? (
+                <p className="mt-3 text-xs uppercase tracking-[0.2em] text-white/45">{item.meta}</p>
+              ) : null}
               </div>
             </div>
           ))}
@@ -380,24 +443,8 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   }
 
   if (block.type === "cta") {
-    return (
-      <Reveal className="section-pad mx-auto max-w-5xl px-6 lg:px-10">
-        <div className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-black/60 px-8 py-10">
-          {block.mediaUrl ? (
-            <>
-              <BackgroundMedia block={block} className="opacity-35" />
-              <div className="absolute inset-0 -z-10 bg-black/55" />
-            </>
-          ) : null}
-          <BlockHeader block={block} />
-          {block.ctaHref && block.ctaLabel ? (
-            <Link href={block.ctaHref} className="btn btn-primary mt-6">
-              {block.ctaLabel}
-            </Link>
-          ) : null}
-        </div>
-      </Reveal>
-    );
+    // Site-wide Footer owns the bottom CTA — skip page-level CTA blocks to avoid duplicates.
+    return null;
   }
 
   if (block.type === "contactForm") {
@@ -444,7 +491,8 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
         ) : null}
         <div>
           <div>
-            <BlockHeader block={block} />
+            {/* hideBody: body is rendered once below to avoid CMS subtitle + paragraph duplication */}
+            <BlockHeader block={block} hideBody />
             <div className="mt-6">
               <Paragraphs body={block.body} />
             </div>
@@ -455,32 +503,49 @@ function RenderBlock({ block }: { block: WebsiteBlock }) {
   );
 }
 
-export default function WebsitePageView({ page }: { page: WebsitePage }) {
+export default async function WebsitePageView({ page }: { page: WebsitePage }) {
+  const pageKey = page.slug;
+  const { media, poster } = getBackgroundMediaFromPage(page);
+
   if (page.blocks.length > 0) {
     return (
-      <main>
-        {page.blocks.map((block) => (
-          <RenderBlock key={block.id} block={block} />
-        ))}
-      </main>
+      <>
+        <AssignedPageBackground
+          pageKey={pageKey}
+          fallbackMedia={media}
+          fallbackPoster={poster}
+        />
+        <main className="relative z-[2]">
+          {page.blocks.map((block) => (
+            <RenderBlock key={block.id} block={block} />
+          ))}
+        </main>
+      </>
     );
   }
 
   return (
-    <main className="section-pad mx-auto max-w-4xl px-6 lg:px-10">
-      <Reveal>
-        {page.eyebrow ? <p className="section-kicker">{page.eyebrow}</p> : null}
-        <h1 className="section-title">{page.title}</h1>
-        {page.description ? <p className="section-subtitle">{page.description}</p> : null}
-      </Reveal>
-      <Reveal className="mt-12 rounded-[24px] border border-white/10 bg-white/[0.04] p-6 md:p-8">
-        <Paragraphs body={page.body} />
-        {page.ctaHref && page.ctaLabel ? (
-          <Link href={page.ctaHref} className="btn btn-primary mt-8">
-            {page.ctaLabel}
-          </Link>
-        ) : null}
-      </Reveal>
-    </main>
+    <>
+      <AssignedPageBackground
+        pageKey={pageKey}
+        fallbackMedia={media}
+        fallbackPoster={poster}
+      />
+      <main className="section-pad relative z-[2] mx-auto max-w-4xl px-6 lg:px-10">
+        <Reveal>
+          {page.eyebrow ? <p className="section-kicker">{page.eyebrow}</p> : null}
+          <h1 className="section-title">{page.title}</h1>
+          {page.description ? <p className="section-subtitle">{page.description}</p> : null}
+        </Reveal>
+        <Reveal className="mt-12 rounded-[24px] border border-white/10 bg-white/[0.04] p-6 md:p-8">
+          <Paragraphs body={page.body} />
+          {page.ctaHref && page.ctaLabel ? (
+            <Link href={page.ctaHref} className="btn btn-primary mt-8">
+              {page.ctaLabel}
+            </Link>
+          ) : null}
+        </Reveal>
+      </main>
+    </>
   );
 }

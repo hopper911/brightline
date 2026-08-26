@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { guardAdminJson } from "@/lib/api/guards";
 import { jsonErr } from "@/lib/api/http";
 import { isPrivateMediaKey, isPublicMediaKey } from "@/lib/media-key-access";
+import { clampSignedUrlExpiresIn, SIGNED_URL_TTL } from "@/lib/signed-url-ttl";
 import { signGet } from "@/lib/storage-r2";
 
 export const runtime = "nodejs";
@@ -27,9 +28,14 @@ export async function POST(req: Request) {
   }
 
   try {
+    const expiresIn = clampSignedUrlExpiresIn(
+      body.expiresIn,
+      SIGNED_URL_TTL.adminPreviewSec,
+      SIGNED_URL_TTL.adminSignMaxSec
+    );
     const signed = await signGet({
       key,
-      expiresIn: body.expiresIn,
+      expiresIn,
     });
     return NextResponse.json({ ok: true, url: signed.url, expiresIn: signed.expiresIn });
   } catch (error) {

@@ -305,6 +305,10 @@ export async function createStudioProjectRecord(body: unknown): Promise<StudioPr
       backgroundMediaUrl: optTrim(b.backgroundMediaUrl as string | null | undefined) ?? null,
       backgroundPosterUrl: optTrim(b.backgroundPosterUrl as string | null | undefined) ?? null,
       gallery,
+      galleryCarouselEnabled:
+        typeof b.galleryCarouselEnabled === "boolean" ? b.galleryCarouselEnabled : false,
+      galleryBlocks: Array.isArray(b.galleryBlocks) ? b.galleryBlocks : [],
+      storyChapters: Array.isArray(b.storyChapters) ? b.storyChapters : [],
     },
     include: STUDIO_PROJECT_INCLUDE,
   });
@@ -341,6 +345,9 @@ export type UpdateStudioProjectRecordBody = {
   backgroundMediaUrl?: string | null;
   backgroundPosterUrl?: string | null;
   gallery?: unknown;
+  galleryCarouselEnabled?: boolean;
+  galleryBlocks?: unknown;
+  storyChapters?: unknown;
   /** Operational production status (`ProjectStatus`). Logged in `StudioProjectStageHistory` when changed. */
   projectStatus?: string | null;
 };
@@ -485,6 +492,15 @@ export async function updateStudioProjectRecord(
   }
   if (b.gallery !== undefined) {
     data.gallery = toGalleryJson(b.gallery);
+  }
+  if (typeof b.galleryCarouselEnabled === "boolean") {
+    data.galleryCarouselEnabled = b.galleryCarouselEnabled;
+  }
+  if (b.galleryBlocks !== undefined) {
+    data.galleryBlocks = Array.isArray(b.galleryBlocks) ? b.galleryBlocks : [];
+  }
+  if (b.storyChapters !== undefined) {
+    data.storyChapters = Array.isArray(b.storyChapters) ? b.storyChapters : [];
   }
 
   let pendingProjectStatus: ProjectStatus | undefined;
@@ -658,11 +674,12 @@ function inferPillarSlugFromStudioCategory(category: string): string | null {
     return "corporate";
   }
   if (
-    /\b(architecture|architect|real\s*estate|interior|hospitality|building|spatial|property|residential)\b/i.test(
+    /\b(architecture|architect|real\s*estate|interior|hospitality|building|spatial|property|residential|commercial)\b/i.test(
       c
     )
   ) {
-    return "architecture";
+    // Public pillar slug is `commercial` (legacy `architecture` redirects there).
+    return "commercial";
   }
   return null;
 }

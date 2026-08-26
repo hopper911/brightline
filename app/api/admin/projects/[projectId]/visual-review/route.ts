@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getPublicR2Url } from "@/lib/r2";
 import { generateVisualReview } from "@/lib/ai/visualReview";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,19 @@ export async function POST(
 ) {
   if (!(await authorizeAdminRequest(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+  }
+
+  if (
+    await isRateLimitedAsync(getClientIp(req), {
+      scope: "ai-visual-review",
+      max: 12,
+      windowMs: 60 * 60_000,
+    })
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "Too many visual review requests. Try again later." },
+      { status: 429 }
+    );
   }
 
   const { projectId } = await context.params;
@@ -62,6 +76,7 @@ export async function POST(
   try {
     const result = await generateVisualReview({
       projectId,
+      origin,
       projectContext: {
         clientName: project.client,
         projectTitle: project.title,

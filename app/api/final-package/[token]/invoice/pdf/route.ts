@@ -1,7 +1,9 @@
 import PDFDocument from "pdfkit";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { rejectIfTokenDownloadLimited } from "@/lib/client-token-rate-limit";
 import { pdfToBuffer } from "@/lib/delivery/package";
+import { findValidFinalPackageProject } from "@/lib/final-package-access";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,14 +13,17 @@ function money(value: { toString(): string } | null | undefined) {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ token: string }> }
 ) {
   const { token } = await context.params;
-  const project = await prisma.workProject.findUnique({
-    where: { finalPackageToken: token },
-    select: { title: true, attachedInvoiceId: true },
+  const limited = await rejectIfTokenDownloadLimited(req, token, "final-pkg-invoice", {
+    max: 30,
+    windowMs: 60 * 60_000,
   });
+  if (limited) return limited;
+
+  const project = await findValidFinalPackageProject(token);
   if (!project?.attachedInvoiceId) {
     return NextResponse.json({ ok: false, error: "Invoice not attached." }, { status: 404 });
   }
@@ -55,4 +60,3 @@ export async function GET(
     },
   });
 }
-

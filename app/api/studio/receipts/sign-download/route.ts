@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getStorageProvider } from "@/lib/integrations/storageProvider";
+import { isStudioReceiptKey } from "@/lib/media-key-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,10 +22,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "key is required." }, { status: 400 });
   }
 
+  if (!isStudioReceiptKey(body.key)) {
+    return NextResponse.json(
+      { ok: false, error: "Key not allowed for receipt download." },
+      { status: 400 }
+    );
+  }
+
   try {
     const storage = getStorageProvider();
     const signed = await storage.signDownload({
-      key: body.key,
+      key: body.key.trim().replace(/^\/+/, ""),
       expiresIn: body.expiresIn,
     });
     return NextResponse.json({

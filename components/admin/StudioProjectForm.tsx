@@ -13,6 +13,17 @@ import { getCropSafeMediaUrl, getPublicR2Url } from "@/lib/r2";
 import { slugify } from "@/lib/slugify";
 import ImageCropModal from "@/components/admin/ImageCropModal";
 import R2BrowserModal from "@/components/admin/R2BrowserModal";
+import GalleryBlocksEditor from "@/components/admin/GalleryBlocksEditor";
+import StoryChaptersEditor from "@/components/admin/StoryChaptersEditor";
+import {
+  migrateLegacyGalleryBlocks,
+  type GalleryBlock,
+} from "@/lib/gallery-blocks";
+import {
+  cleanStoryChapters,
+  workProjectToChapter,
+  type StoryChapter,
+} from "@/lib/story-chapters";
 import { ProjectStatusBadge } from "@/components/admin/studio-os/ProjectStatusBadge";
 import { PublishProjectButton } from "@/components/admin/studio-os/PublishProjectButton";
 import { ProductionPipelineStrip } from "@/components/admin/studio-os/ProductionPipelineStrip";
@@ -90,6 +101,9 @@ type StudioProjectPayload = {
   backgroundMediaUrl: string | null;
   backgroundPosterUrl: string | null;
   galleryMedia?: GalleryRow[];
+  galleryCarouselEnabled?: boolean;
+  galleryBlocks?: unknown;
+  storyChapters?: unknown;
   contentStatus: string;
   captionDrafted: boolean;
   websiteCopyDrafted: boolean;
@@ -148,6 +162,9 @@ export default function StudioProjectForm({ projectId }: Props) {
   const [backgroundMediaUrl, setBackgroundMediaUrl] = useState("");
   const [backgroundPosterUrl, setBackgroundPosterUrl] = useState("");
   const [galleryMedia, setGalleryMedia] = useState<GalleryRow[]>([]);
+  const [galleryCarouselEnabled, setGalleryCarouselEnabled] = useState(false);
+  const [galleryBlocks, setGalleryBlocks] = useState<GalleryBlock[]>([]);
+  const [storyChapters, setStoryChapters] = useState<StoryChapter[]>([]);
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
   const [error, setError] = useState("");
   const [generatorStatus, setGeneratorStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -222,6 +239,7 @@ export default function StudioProjectForm({ projectId }: Props) {
       setHeroPreview(p.heroImage ?? null);
       setBackgroundMediaUrl(p.backgroundMediaUrl ?? "");
       setBackgroundPosterUrl(p.backgroundPosterUrl ?? "");
+      setGalleryCarouselEnabled(Boolean(p.galleryCarouselEnabled));
       setGalleryMedia(
         (p.galleryMedia ?? []).map((g, i) => ({
           mediaId: g.mediaId,
@@ -229,6 +247,14 @@ export default function StudioProjectForm({ projectId }: Props) {
           media: g.media,
         }))
       );
+      setGalleryBlocks(
+        migrateLegacyGalleryBlocks({
+          existingBlocks: p.galleryBlocks,
+          carouselEnabled: Boolean(p.galleryCarouselEnabled),
+          hasImages: (p.galleryMedia ?? []).some((g) => g.media?.kind === "IMAGE"),
+        })
+      );
+      setStoryChapters(cleanStoryChapters(p.storyChapters));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Load failed");
     } finally {
@@ -297,6 +323,9 @@ export default function StudioProjectForm({ projectId }: Props) {
       heroImageId,
       backgroundMediaUrl: backgroundMediaUrl.trim() || null,
       backgroundPosterUrl: backgroundPosterUrl.trim() || null,
+      galleryCarouselEnabled,
+      galleryBlocks,
+      storyChapters,
       gallery: buildGalleryJson(galleryMedia),
     };
 
@@ -1095,7 +1124,69 @@ export default function StudioProjectForm({ projectId }: Props) {
               </div>
             </div>
             <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-black/50">Stories</p>
+              <p className="text-xs text-black/45">
+                Stack multiple mini case studies on this page. When stories exist, they replace the
+                classic single layout.
+              </p>
+              <div className="rounded-xl border border-black/10 bg-black/[0.02] p-3">
+                <StoryChaptersEditor
+                  chapters={storyChapters}
+                  pool={galleryMedia
+                    .filter((g) => g.media.kind === "IMAGE")
+                    .map((g) => ({
+                      id: g.mediaId,
+                      src: getPublicR2Url(g.media.keyThumb || g.media.keyFull || ""),
+                      alt: g.media.alt ?? "",
+                    }))
+                    .filter((item) => item.src)}
+                  onChange={setStoryChapters}
+                  onConvertLegacy={() => {
+                    setStoryChapters([
+                      workProjectToChapter({
+                        title,
+                        projectType: category,
+                        location,
+                        year: year === "" ? null : Number(year),
+                        opening,
+                        context,
+                        approach,
+                        highlight,
+                        execution,
+                        closing,
+                        credits,
+                        client,
+                        scope: subcategory,
+                        heroMediaId: heroImageId,
+                        galleryBlocks,
+                      }),
+                    ]);
+                  }}
+                  tone="light"
+                  heroUsesPoolIds
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.2em] text-black/50">Gallery images</p>
+              <div className="rounded-xl border border-black/10 bg-black/[0.02] p-3">
+                <GalleryBlocksEditor
+                  blocks={galleryBlocks}
+                  pool={galleryMedia
+                    .filter((g) => g.media.kind === "IMAGE")
+                    .map((g) => ({
+                      id: g.mediaId,
+                      src: getPublicR2Url(g.media.keyThumb || g.media.keyFull || ""),
+                      alt: g.media.alt ?? "",
+                    }))
+                    .filter((item) => item.src)}
+                  onChange={(next) => {
+                    setGalleryBlocks(next);
+                    setGalleryCarouselEnabled(next.some((b) => b.type === "carousel"));
+                  }}
+                  tone="light"
+                />
+              </div>
               <div className="flex flex-wrap items-center gap-3">
                 <input
                   type="file"
@@ -1300,7 +1391,6 @@ export default function StudioProjectForm({ projectId }: Props) {
           <Link
             href={`/work/${computedSlug}`}
             className="inline-flex text-sm font-medium text-black underline-offset-4 hover:underline"
-            target="_blank"
           >
             View live project
           </Link>
@@ -1314,6 +1404,14 @@ export default function StudioProjectForm({ projectId }: Props) {
           >
             {status === "saving" ? "Saving…" : "Save draft"}
           </button>
+          {projectId ? (
+            <Link
+              href={`/admin/projects/preview/${projectId}`}
+              className="btn btn-ghost"
+            >
+              Preview
+            </Link>
+          ) : null}
           <PublishProjectButton
             busy={pubBusy}
             disabled={!projectId}

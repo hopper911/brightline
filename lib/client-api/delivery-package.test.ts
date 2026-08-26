@@ -54,4 +54,14 @@ describe("resolveDeliverablePackageItem (IDOR)", () => {
       expect(r.key).toBe("k/full.jpg");
     }
   });
+
+  it("returns 404 when package is expired", async () => {
+    mockPkg.mockResolvedValue({
+      id: "pkg1",
+      expiresAt: new Date(Date.now() - 1),
+    });
+    const r = await resolveDeliverablePackageItem("tok", "item1");
+    expect(r).toEqual({ ok: false, status: 404 });
+    expect(mockItem).not.toHaveBeenCalled();
+  });
 });

@@ -6,6 +6,7 @@
 /** Anonymous `/api/media/public` — portfolio, site CMS, legacy Lightroom sections only. */
 export const PUBLIC_MEDIA_PREFIXES = [
   "portfolio/",
+  "mirotech/",
   "portfolio-public/",
   "work/",
   "studio/",
@@ -18,11 +19,23 @@ export const PUBLIC_MEDIA_PREFIXES = [
   "thumb/",
 ] as const;
 
-/** Private client vault — require admin session or client/package token to sign. */
-export const PRIVATE_MEDIA_PREFIXES = ["client-galleries/"] as const;
+/** Private vault — require admin session or client/package token to sign. Never expose via `/api/media/public`. */
+export const PRIVATE_MEDIA_PREFIXES = ["client-galleries/", "delivery/", "accounting/"] as const;
 
 /** Additional prefixes admins may sign via upload/storage helpers. */
-export const ADMIN_SIGNABLE_EXTRA_PREFIXES = ["journal/", "accounting/"] as const;
+export const ADMIN_SIGNABLE_EXTRA_PREFIXES = [
+  "journal/",
+  "tmp/",
+  "studio-os/",
+] as const;
+
+/** Studio Hub receipt objects (subset of studio-os/). */
+export const STUDIO_RECEIPTS_PREFIX = "studio-os/receipts/";
+
+export function isStudioReceiptKey(key: string): boolean {
+  const clean = normalizeMediaKey(key);
+  return Boolean(clean) && !clean.includes("..") && clean.startsWith(STUDIO_RECEIPTS_PREFIX);
+}
 
 export function normalizeMediaKey(key: string): string {
   return key.trim().replace(/^\/+/, "").toLowerCase();

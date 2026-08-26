@@ -1,25 +1,24 @@
 "use client";
 
-import { motion } from "framer-motion";
-
 type RevealProps = {
   children: React.ReactNode;
   className?: string;
   id?: string;
+  /** Kept for call-site compatibility; motion entrance removed (Lenis broke whileInView). */
   delay?: number;
 };
 
-export default function Reveal({ children, className, id, delay = 0 }: RevealProps) {
+/**
+ * Content wrapper for section entrances.
+ *
+ * Important: do not use Framer `whileInView` opacity here. Lenis smooth-scroll
+ * detaches window scroll from layout, so IntersectionObserver often never fires
+ * and copy stays invisible — pages look empty aside from the footer.
+ */
+export default function Reveal({ children, className, id }: RevealProps) {
   return (
     <div id={id} className={className}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-40px" }}
-        transition={{ duration: 0.5, ease: "easeOut", delay }}
-      >
-        {children}
-      </motion.div>
+      {children}
     </div>
   );
 }

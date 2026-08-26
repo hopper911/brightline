@@ -123,6 +123,9 @@ export async function PATCH(
       relatedServicesIntro?: string | null;
       relatedServicesLinks?: { slug: string; title: string }[] | null;
       showRelatedContactButton?: boolean;
+      galleryCarouselEnabled?: boolean;
+      galleryBlocks?: unknown;
+      storyChapters?: unknown;
       tags?: string[];
       /** Pillar slug from Admin → Work pillars; moves project to that pillar's primary work section. */
       pillar?: string | null;
@@ -283,6 +286,18 @@ export async function PATCH(
         relatedServicesEnabled:
           body.relatedServicesEnabled !== undefined
             ? Boolean(body.relatedServicesEnabled)
+            : undefined,
+        galleryCarouselEnabled:
+          body.galleryCarouselEnabled !== undefined
+            ? Boolean(body.galleryCarouselEnabled)
+            : undefined,
+        galleryBlocks:
+          body.galleryBlocks !== undefined
+            ? (Array.isArray(body.galleryBlocks) ? body.galleryBlocks : [])
+            : undefined,
+        storyChapters:
+          body.storyChapters !== undefined
+            ? (Array.isArray(body.storyChapters) ? body.storyChapters : [])
             : undefined,
         relatedServicesIntro:
           body.relatedServicesIntro !== undefined

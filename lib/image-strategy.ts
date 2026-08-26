@@ -1,5 +1,6 @@
 import { signPut } from "@/lib/storage-r2";
 import { signDownloadUrl } from "@/lib/storage";
+import { SIGNED_URL_TTL } from "@/lib/signed-url-ttl";
 
 export type GetClientUploadUrlOptions = {
   key: string;
@@ -22,7 +23,7 @@ export type GetClientDownloadUrlOptions = {
 export async function getClientDownloadUrl(options: GetClientDownloadUrlOptions) {
   return signDownloadUrl({
     key: options.key,
-    expiresIn: options.expiresIn,
+    expiresIn: options.expiresIn ?? SIGNED_URL_TTL.clientGalleryViewSec,
   });
 }
 

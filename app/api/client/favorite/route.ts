@@ -5,8 +5,11 @@ import {
   guardImageInClientGallery,
 } from "@/lib/client-api/gallery-scope";
 import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
+import { clientFavoriteBodySchema } from "@/lib/api/client-package-schemas";
 import { jsonErr, jsonOk } from "@/lib/api/http";
+import { parseJsonWithSchema } from "@/lib/api/parse";
 import { loadClientGallerySession } from "@/lib/client-gallery-session";
+import { shouldUseSecureCookies } from "@/lib/cookie-secure";
 import { recordEngagementEvent } from "@/lib/engagement/recordEvent";
 
 export const runtime = "nodejs";
@@ -14,23 +17,20 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as {
-      imageId?: string;
-      action?: "add" | "remove";
-      note?: string;
-    };
+    const parsed = await parseJsonWithSchema(req, clientFavoriteBodySchema);
+    if (!parsed.ok) return parsed.response;
 
     const loaded = await loadClientGallerySession();
     if (!loaded.ok) {
       return clientGallerySessionErrorResponse(loaded);
     }
 
-    const badImage = guardImageInClientGallery(loaded, body.imageId);
+    const badImage = guardImageInClientGallery(loaded, parsed.data.imageId);
     if (badImage) return badImage;
 
-    const imageId = body.imageId!.trim();
-    const action = body.action === "remove" ? "remove" : "add";
-    const { note } = body;
+    const imageId = parsed.data.imageId.trim();
+    const action = parsed.data.action === "remove" ? "remove" : "add";
+    const note = parsed.data.note;
     const access = loaded.access;
 
     if (!isGalleryViewableByClient(access.gallery)) {
@@ -38,20 +38,20 @@ export async function POST(req: Request) {
     }
 
     const jar = await cookies();
+    const secure = shouldUseSecureCookies(req);
     jar.set("client_access", "true", {
       httpOnly: true,
       path: "/",
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure,
       maxAge: 60 * 60 * 24 * 7,
     });
-
-    jar.set("client_access_id", access.id, {
+    jar.set("client_access_id", "", {
       httpOnly: true,
       path: "/",
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7,
+      secure,
+      maxAge: 0,
     });
 
     if (action === "add") {

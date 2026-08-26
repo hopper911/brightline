@@ -43,6 +43,7 @@ export async function POST(
 
   const result = await generateDeliveryRecommendations({
     projectId: pkg.projectId,
+    origin,
     projectContext: {
       packageId: pkg.id,
       clientName: pkg.client?.companyName ?? pkg.project.client,

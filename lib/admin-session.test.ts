@@ -11,7 +11,7 @@ describe("admin session tokens", () => {
   });
 
   it("creates and verifies a signed token", () => {
-    process.env.ADMIN_SESSION_SECRET = "test-secret";
+    process.env.ADMIN_SESSION_SECRET = "test-secret-at-least-32-characters!!";
     delete process.env.ADMIN_ACCESS_CODE;
 
     const token = createAdminSessionToken();
@@ -20,14 +20,23 @@ describe("admin session tokens", () => {
   });
 
   it("rejects legacy boolean cookie value", () => {
-    process.env.ADMIN_SESSION_SECRET = "test-secret";
+    process.env.ADMIN_SESSION_SECRET = "test-secret-at-least-32-characters!!";
     expect(verifyAdminSessionToken("true")).toBe(false);
   });
 
   it("rejects tampered tokens", () => {
-    process.env.ADMIN_SESSION_SECRET = "test-secret";
+    process.env.ADMIN_SESSION_SECRET = "test-secret-at-least-32-characters!!";
     const token = createAdminSessionToken();
     expect(token).toBeTruthy();
     expect(verifyAdminSessionToken(`${token}x`)).toBe(false);
+  });
+
+  it("requires ADMIN_SESSION_SECRET in production", () => {
+    const prevVercel = process.env.VERCEL_ENV;
+    process.env.VERCEL_ENV = "production";
+    delete process.env.ADMIN_SESSION_SECRET;
+    process.env.ADMIN_ACCESS_CODE = "not-enough-alone";
+    expect(createAdminSessionToken()).toBeNull();
+    process.env.VERCEL_ENV = prevVercel;
   });
 });

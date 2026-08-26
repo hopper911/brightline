@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import PageBackground from "@/components/PageBackground";
+import AssignedPageBackground from "@/components/AssignedPageBackground";
 import Reveal from "@/components/Reveal";
 import { getFeaturedHeroForSection } from "@/lib/queries/work";
-import { getPublicR2Url } from "@/lib/r2";
+import { getPublicR2FullBleedUrl } from "@/lib/r2";
 import {
   listFeaturedPublishedStudioProjectsForHub,
   type PublishedStudioTileForWorkPillar,
@@ -13,7 +13,9 @@ import {
   getPublishedWebsitePageBySlug,
   type WebsitePage,
 } from "@/lib/website-pages";
-import { getVisibleWorkPillars, resolvePillarCoverUrl } from "@/lib/work-pillar-settings";
+import { getVisibleWorkPillars, isDualBrandHub, resolvePillarCoverUrl } from "@/lib/work-pillar-settings";
+import DesignEntryBand from "@/components/DesignEntryBand";
+import { dualBrandWorkHref, dualBrandMediaSrc, fetchDualBrandWork } from "@/lib/dual-brand/content-api";
 
 /** Full-bleed hero when the Work “Website pages” entry has no hero media (avoids an empty PageBackground). */
 function resolveWorkIndexBackground(
@@ -31,7 +33,7 @@ function resolveWorkIndexBackground(
   const hero = featured[0]?.heroImage;
   if (hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)) {
     return {
-      media: getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? ""),
+      media: getPublicR2FullBleedUrl(hero.keyFull ?? hero.keyThumb ?? ""),
       poster: null,
     };
   }
@@ -44,19 +46,24 @@ function resolveWorkIndexBackground(
 
 export const dynamic = "force-dynamic";
 
-async function fetchPillarData() {
+async function fetchPillarData(dualBrandCoverFallback: string | null) {
   const pillars = await getVisibleWorkPillars();
   return Promise.all(
     pillars.map(async (pillar) => {
-      const firstSection = pillar.sections[0];
-      const hero = firstSection
-        ? await getFeaturedHeroForSection(firstSection)
-        : null;
       let autoCover: string | null = null;
       let defaultAlt: string | null = null;
-      if (hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)) {
-        autoCover = getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? "");
-        defaultAlt = hero.alt ?? pillar.label;
+      if (isDualBrandHub(pillar)) {
+        autoCover = dualBrandCoverFallback;
+        defaultAlt = pillar.label;
+      } else {
+        const firstSection = pillar.sections[0];
+        const hero = firstSection
+          ? await getFeaturedHeroForSection(firstSection)
+          : null;
+        if (hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)) {
+          autoCover = getPublicR2FullBleedUrl(hero.keyFull ?? hero.keyThumb ?? "");
+          defaultAlt = hero.alt ?? pillar.label;
+        }
       }
       const coverUrl =
         resolvePillarCoverUrl(pillar.coverImageKey, autoCover) ?? autoCover;
@@ -70,6 +77,7 @@ async function fetchPillarData() {
         coverUrl,
         coverAlt,
         sections: pillar.sections,
+        hub: pillar.hub,
       };
     })
   );
@@ -78,26 +86,35 @@ async function fetchPillarData() {
 export const metadata: Metadata = {
   title: "Work · BRIGHTLINE Photography",
   description:
-    "Architecture, advertising, and corporate photography—projects and case studies with structured, channel-ready delivery.",
+    "Commercial, advertising, and corporate photography—selected case studies with structured, channel-ready delivery.",
   alternates: { canonical: "/work" },
   openGraph: {
     title: "Work · BRIGHTLINE Photography",
     description:
-      "Architecture, advertising, and corporate photography—projects and case studies.",
+      "Commercial, advertising, and corporate photography—selected case studies.",
     url: "/work",
     images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "BRIGHTLINE Photography" }],
   },
 };
 
 export default async function WorkIndexPage() {
-  const [publishedWorkPage, publishedHomePage, featuredStudioProjects] = await Promise.all([
-    getPublishedWebsitePageBySlug("work"),
-    getPublishedWebsitePageBySlug("home"),
-    listFeaturedPublishedStudioProjectsForHub(),
-  ]);
+  const [publishedWorkPage, publishedHomePage, featuredStudioProjects, dualBrandProjects] =
+    await Promise.all([
+      getPublishedWebsitePageBySlug("work"),
+      getPublishedWebsitePageBySlug("home"),
+      listFeaturedPublishedStudioProjectsForHub(),
+      fetchDualBrandWork(),
+    ]);
+  const dualBrandCoverFallback =
+    dualBrandMediaSrc(
+      dualBrandProjects.find((p) => p.heroImage || p.thumbnailImage)?.heroImage ||
+        dualBrandProjects.find((p) => p.thumbnailImage)?.thumbnailImage ||
+        null
+    ) || null;
+
   let pillarData: Awaited<ReturnType<typeof fetchPillarData>>;
   try {
-    pillarData = await fetchPillarData();
+    pillarData = await fetchPillarData(dualBrandCoverFallback);
   } catch {
     const pillars = await getVisibleWorkPillars();
     pillarData = pillars.map((p) => ({
@@ -105,11 +122,18 @@ export default async function WorkIndexPage() {
       label: p.label,
       description: p.description,
       homeMeta: p.homeMeta,
-      coverUrl: resolvePillarCoverUrl(p.coverImageKey, null),
+      coverUrl: resolvePillarCoverUrl(
+        p.coverImageKey,
+        isDualBrandHub(p) ? dualBrandCoverFallback : null
+      ),
       coverAlt: p.coverAlt.trim() ? p.coverAlt.trim() : p.label,
       sections: p.sections,
+      hub: p.hub,
     }));
   }
+
+  const hasDualBrandHubCard = pillarData.some((p) => p.hub === "dual-brand");
+  const showCollaborations = dualBrandProjects.length > 0 && !hasDualBrandHubCard;
 
   const { media, poster } = resolveWorkIndexBackground(
     publishedWorkPage,
@@ -120,13 +144,13 @@ export default async function WorkIndexPage() {
 
   return (
     <>
-      <PageBackground media={media} poster={poster} />
+      <AssignedPageBackground pageKey="work" fallbackMedia={media} fallbackPoster={poster} />
       <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
         <Reveal>
           <p className="section-kicker">Work</p>
           <h1 className="section-title">Case studies</h1>
           <p className="section-subtitle">
-            Architecture, advertising, and corporate—visuals prepared for how teams actually use them.
+            Commercial, advertising, and corporate—selected case studies prepared for how teams actually use them.
           </p>
         </Reveal>
 
@@ -145,7 +169,7 @@ export default async function WorkIndexPage() {
                 const hero = project.heroImage;
                 const heroUrl =
                   hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)
-                    ? getPublicR2Url(hero.keyFull ?? hero.keyThumb ?? "")
+                    ? getPublicR2FullBleedUrl(hero.keyFull ?? hero.keyThumb ?? "")
                     : null;
 
                 return (
@@ -154,12 +178,13 @@ export default async function WorkIndexPage() {
                       href={`/work/${encodeURIComponent(project.slug)}`}
                       className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
                     >
-                      <div className="relative h-[220px] w-full">
+                      <div className="relative h-[220px] w-full image-guard-overlay">
                         {heroUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={heroUrl}
                             alt={hero?.alt ?? project.title}
+                            draggable={false}
                             className="h-full w-full object-cover image-zoom"
                           />
                         ) : (
@@ -196,6 +221,66 @@ export default async function WorkIndexPage() {
           </section>
         ) : null}
 
+        {showCollaborations ? (
+          <section className="mt-12">
+            <Reveal>
+              <div>
+                <p className="section-kicker">Collaborations</p>
+                <h2 className="font-display text-3xl text-white sm:text-4xl">
+                  Shared projects
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm text-white/60">
+                  Photo-forward case studies also published through the dual-brand CMS.
+                </p>
+              </div>
+            </Reveal>
+            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {dualBrandProjects.map((project) => {
+                const heroUrl =
+                  dualBrandMediaSrc(project.heroImage) ||
+                  dualBrandMediaSrc(project.thumbnailImage) ||
+                  null;
+                return (
+                  <Reveal key={project.id}>
+                    <Link
+                      href={dualBrandWorkHref(project)}
+                      className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
+                    >
+                      <div className="relative h-[200px] w-full image-guard-overlay">
+                        {heroUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={heroUrl}
+                            alt={project.title}
+                            draggable={false}
+                            className="h-full w-full object-cover image-zoom"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">
+                            <span className="text-xs uppercase tracking-[0.2em]">
+                              {project.title}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-5">
+                        <p className="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">
+                          Collaboration
+                        </p>
+                        <h3 className="mt-2 text-base text-white">{project.title}</h3>
+                        <p className="mt-2 line-clamp-2 text-sm text-white/70">{project.summary}</p>
+                        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/50">
+                          {project.year}
+                        </p>
+                      </div>
+                    </Link>
+                  </Reveal>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {pillarData.map((pillar) => (
             <Reveal key={pillar.slug}>
@@ -203,12 +288,13 @@ export default async function WorkIndexPage() {
                 href={`/work/${pillar.slug}`}
                 className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
               >
-                <div className="relative h-[200px] w-full">
+                <div className="relative h-[200px] w-full image-guard-overlay">
                   {pillar.coverUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={pillar.coverUrl}
                       alt={pillar.coverAlt ?? pillar.label}
+                      draggable={false}
                       className="h-full w-full object-cover image-zoom"
                     />
                   ) : (
@@ -234,6 +320,8 @@ export default async function WorkIndexPage() {
             </Reveal>
           ))}
         </div>
+
+        <DesignEntryBand variant="work" />
       </div>
     </>
   );

@@ -31,6 +31,11 @@ export const BRAND = Object.freeze({
     enabled: false,
     calendlyUrl: "",
   }),
+  sibling: Object.freeze({
+    name: "MiroTech Solutions",
+    url: "https://mirotech.solutions",
+    label: "Product, editorial, and visual systems",
+  }),
 });
 
 export function getUrl(path?: string) {

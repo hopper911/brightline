@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { guardAdminJson } from "@/lib/api/guards";
 import { jsonErr, parseJsonBody } from "@/lib/api/http";
 import { generateBlogPostAssist, parseBlogAssistInput } from "@/lib/ai/generateBlogPostAssist";
-import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
+import { safeAiClientError } from "@/lib/ai/safe-client-error";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,13 @@ export async function POST(req: Request) {
   if (denied) return denied;
 
   const ip = getClientIp(req);
-  if (isRateLimited(ip)) {
+  if (
+    await isRateLimitedAsync(ip, {
+      scope: "ai-blog-assist",
+      max: 40,
+      windowMs: 60 * 60_000,
+    })
+  ) {
     return jsonErr("Too many AI requests. Try again shortly.", 429);
   }
 
@@ -29,11 +36,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, action: parsed.data.action, result });
   } catch (err: unknown) {
     console.error("BLOG_ASSIST_ERROR", err);
-    const status =
-      err && typeof err === "object" && "status" in err && typeof err.status === "number"
-        ? err.status
-        : 500;
-    const message = err instanceof Error ? err.message : "AI assist failed.";
-    return jsonErr(message, status);
+    const safe = safeAiClientError(err, "AI assist failed.");
+    return jsonErr(safe.error, safe.status);
   }
 }

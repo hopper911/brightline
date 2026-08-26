@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { guardAdminJson } from "@/lib/api/guards";
 import { jsonErr } from "@/lib/api/http";
-import { isPrivateMediaKey, isPublicMediaKey } from "@/lib/media-key-access";
+import { isAdminSignableMediaKey, isPublicMediaKey } from "@/lib/media-key-access";
 import { signGet } from "@/lib/storage-r2";
 import { signPublicR2Get } from "@/lib/storage-r2-public";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Admin-only signed read for private vault keys (e.g. client-galleries/). */
+/** Admin-only signed read for allowlisted media/receipt prefixes. */
 export async function GET(req: Request) {
   const denied = await guardAdminJson(req);
   if (denied) return denied;
@@ -17,14 +17,14 @@ export async function GET(req: Request) {
   if (!key) {
     return jsonErr("key is required.", 400);
   }
-  if (!isPrivateMediaKey(key) && !isPublicMediaKey(key)) {
-    return jsonErr("Unsupported media key prefix.", 400);
+  if (!isAdminSignableMediaKey(key)) {
+    return jsonErr("Invalid media key.", 400);
   }
 
   try {
-    const signed = isPrivateMediaKey(key)
-      ? await signGet({ key, expiresIn: 300 })
-      : await signPublicR2Get({ key, expiresIn: 300 });
+    const signed = isPublicMediaKey(key)
+      ? await signPublicR2Get({ key, expiresIn: 300 })
+      : await signGet({ key, expiresIn: 300 });
     const res = NextResponse.redirect(signed.url, { status: 302 });
     res.headers.set("Cache-Control", "private, max-age=60");
     return res;

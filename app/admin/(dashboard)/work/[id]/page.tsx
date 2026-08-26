@@ -9,12 +9,39 @@ import { getCropSafeMediaUrl, getPublicR2Url } from "@/lib/r2";
 import R2BrowserModal from "@/components/admin/R2BrowserModal";
 import ImageCropModal from "@/components/admin/ImageCropModal";
 import AiEditableField from "@/components/admin/AiEditableField";
+import GalleryBlocksEditor from "@/components/admin/GalleryBlocksEditor";
+import StoryChaptersEditor from "@/components/admin/StoryChaptersEditor";
+import {
+  migrateLegacyGalleryBlocks,
+  type GalleryBlock,
+} from "@/lib/gallery-blocks";
+import {
+  cleanStoryChapters,
+  workProjectToChapter,
+  type StoryChapter,
+} from "@/lib/story-chapters";
 import {
   GENERATE_ALL_BRIEF_KEYS,
   type GenerateAllBriefKey,
   type ProjectCopyFieldKey,
   type ProjectCopyTonePreset,
 } from "@/lib/ai/generateProjectCopy";
+
+function formatProjectAiError(status: number, error?: string, code?: string): string {
+  if (code === "admin_session" || status === 401) {
+    return "Admin session expired. Open /admin/login, sign in again, then retry.";
+  }
+  if (code === "openai_credentials") {
+    return (
+      error ||
+      "OpenAI rejected the API key. Check OPENAI_API_KEY in Vercel, then redeploy."
+    );
+  }
+  if (error && /^unauthorized\.?$/i.test(error.trim())) {
+    return "Admin session expired. Open /admin/login, sign in again, then retry.";
+  }
+  return error || "AI generation failed.";
+}
 
 function mediaUrl(key: string | null): string {
   if (!key) return "";
@@ -124,6 +151,9 @@ type WorkProject = {
   closing?: string | null;
   credits?: string | null;
   tags?: string[];
+  galleryCarouselEnabled?: boolean;
+  galleryBlocks?: unknown;
+  storyChapters?: unknown;
   followUpSchedules?: FollowUpSchedule[];
 };
 
@@ -360,6 +390,9 @@ export default function AdminWorkEditPage() {
   const [isFeatured, setIsFeatured] = useState(false);
   const [sortOrder, setSortOrder] = useState(0);
   const [heroMediaId, setHeroMediaId] = useState<string | null>(null);
+  const [galleryCarouselEnabled, setGalleryCarouselEnabled] = useState(false);
+  const [galleryBlocks, setGalleryBlocks] = useState<GalleryBlock[]>([]);
+  const [storyChapters, setStoryChapters] = useState<StoryChapter[]>([]);
   const [backgroundMediaUrl, setBackgroundMediaUrl] = useState("");
   const [backgroundPosterUrl, setBackgroundPosterUrl] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "error">("idle");
@@ -501,6 +534,21 @@ export default function AdminWorkEditPage() {
         setIsFeatured(p.isFeatured);
         setSortOrder(p.sortOrder);
         setHeroMediaId(p.heroMediaId);
+        setGalleryCarouselEnabled(Boolean(p.galleryCarouselEnabled));
+        {
+          const imageCount = (p.media ?? []).filter(
+            (pm: { media: { kind: string; id: string } }) =>
+              pm.media.kind === "IMAGE" && pm.media.id !== p.heroMediaId
+          ).length;
+          setGalleryBlocks(
+            migrateLegacyGalleryBlocks({
+              existingBlocks: p.galleryBlocks,
+              carouselEnabled: Boolean(p.galleryCarouselEnabled),
+              hasImages: imageCount > 0,
+            })
+          );
+        }
+        setStoryChapters(cleanStoryChapters(p.storyChapters));
         setBackgroundMediaUrl(p.backgroundMediaUrl ?? "");
         setBackgroundPosterUrl(p.backgroundPosterUrl ?? "");
         setClient(p.client ?? "");
@@ -694,8 +742,15 @@ export default function AdminWorkEditPage() {
           existingValues: existingCopyValues(),
         }),
       });
-      const data = (await res.json()) as { fieldKey?: ProjectCopyFieldKey; value?: string; error?: string };
-      if (!res.ok || !data.value) throw new Error(data.error ?? "AI generation failed.");
+      const data = (await res.json()) as {
+        fieldKey?: ProjectCopyFieldKey;
+        value?: string;
+        error?: string;
+        code?: string;
+      };
+      if (!res.ok || !data.value) {
+        throw new Error(formatProjectAiError(res.status, data.error, data.code));
+      }
       const targetField = data.fieldKey ?? fieldKey;
       const oldValue = copyFieldState[targetField].value;
       setAiUndoByField((prev) => ({ ...prev, [targetField]: oldValue }));
@@ -756,8 +811,15 @@ export default function AdminWorkEditPage() {
           existingValues: existingCopyValues(),
         }),
       });
-      const data = (await res.json()) as { fieldKey?: ProjectCopyFieldKey; value?: string; error?: string };
-      if (!res.ok || !data.value) throw new Error(data.error ?? "AI rewrite failed.");
+      const data = (await res.json()) as {
+        fieldKey?: ProjectCopyFieldKey;
+        value?: string;
+        error?: string;
+        code?: string;
+      };
+      if (!res.ok || !data.value) {
+        throw new Error(formatProjectAiError(res.status, data.error, data.code));
+      }
       const targetField = data.fieldKey ?? fieldKey;
       setAiDraftByField((prev) => ({ ...prev, [targetField]: data.value ?? "" }));
       void saveCopyVersions([
@@ -823,8 +885,11 @@ export default function AdminWorkEditPage() {
         values?: Partial<Record<ProjectCopyFieldKey, string>>;
         brief?: Partial<Record<GenerateAllBriefKey, string>>;
         error?: string;
+        code?: string;
       };
-      if (!res.ok || !data.values) throw new Error(data.error ?? "AI generation failed.");
+      if (!res.ok || !data.values) {
+        throw new Error(formatProjectAiError(res.status, data.error, data.code));
+      }
       const undoUpdates: Partial<Record<ProjectCopyFieldKey, string>> = {};
       const pendingUpdates: Partial<Record<ProjectCopyFieldKey, boolean>> = {};
       const versionUpdates: Array<{
@@ -939,8 +1004,10 @@ export default function AdminWorkEditPage() {
           existingValues: existingCopyValues(),
         }),
       });
-      const data = (await res.json()) as BriefCaseStudyResult & { error?: string };
-      if (!res.ok || !data.values) throw new Error(data.error ?? "Brief to case study failed.");
+      const data = (await res.json()) as BriefCaseStudyResult & { error?: string; code?: string };
+      if (!res.ok || !data.values) {
+        throw new Error(formatProjectAiError(res.status, data.error, data.code));
+      }
       setBriefCaseStudyResult(data);
       if (mode !== "draft_only") applyBriefCaseStudyResult(data, mode);
     } catch (err) {
@@ -1148,6 +1215,9 @@ export default function AdminWorkEditPage() {
           isFeatured,
           sortOrder,
           heroMediaId,
+          galleryCarouselEnabled,
+          galleryBlocks,
+          storyChapters,
           backgroundMediaUrl: backgroundMediaUrl.trim() || null,
           backgroundPosterUrl: backgroundPosterUrl.trim() || null,
           client: client.trim() || null,
@@ -1394,19 +1464,47 @@ export default function AdminWorkEditPage() {
 
   async function applyHeroCrop(blob: Blob) {
     if (id === "new") throw new Error("Save the project before cropping.");
-    const file = new File([blob], `hero-crop-${Date.now()}.jpg`, { type: "image/jpeg" });
+    if (!heroMediaId) throw new Error("Set a hero image before cropping.");
+
+    const existingHero = orderedMedia.find((pm) => pm.media.id === heroMediaId)?.media;
+    if (!existingHero || existingHero.kind !== "IMAGE") {
+      throw new Error("Hero image not found.");
+    }
+
+    // Replace the existing hero asset in place — do not add a new gallery row.
+    const file = new File([blob], `hero-reframe-${Date.now()}.jpg`, { type: "image/jpeg" });
     setUploadStatus("uploading");
     setSaveError("");
     try {
-      const mediaId = await uploadGalleryImageFromFile(file);
-      const res = await fetch(`/api/admin/work-projects/${id}`, {
+      const keyFull = await uploadWorkProjectFileViaApi(
+        id,
+        file,
+        file.name,
+        "image/jpeg",
+        "full"
+      );
+      const thumbBlob = await resizeToThumb(file);
+      const keyThumb = await uploadWorkProjectFileViaApi(
+        id,
+        thumbBlob,
+        file.name.replace(/\.[^.]+$/, "-thumb.jpg"),
+        "image/jpeg",
+        "thumb"
+      );
+
+      const bitmap = await createImageBitmap(file);
+      const width = bitmap.width;
+      const height = bitmap.height;
+      bitmap.close();
+
+      const res = await fetch(`/api/admin/media/${heroMediaId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ heroMediaId: mediaId }),
+        body: JSON.stringify({ keyFull, keyThumb, width, height }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Failed to set hero.");
-      setHeroMediaId(mediaId);
+      if (!res.ok || !data.ok) throw new Error(data.error ?? "Failed to update hero image.");
+
       await loadProject();
       setUploadStatus("idle");
     } catch (e) {
@@ -2060,11 +2158,58 @@ export default function AdminWorkEditPage() {
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            className="btn btn-primary text-sm"
+            disabled={saveStatus === "saving"}
+            onClick={() =>
+              void handleSaveProject({ preventDefault() {} } as React.FormEvent)
+            }
+          >
+            {saveStatus === "saving" ? "Saving…" : "Save changes"}
+          </button>
+          <Link
+            href={`/admin/work/preview/${id}`}
+            className="btn btn-ghost text-sm"
+          >
+            Preview
+          </Link>
+          <button
+            type="button"
+            className="btn btn-ghost text-sm"
+            onClick={() => {
+              const withPack = window.confirm(
+                "Create a Journal draft from this project?\n\nOK = also run media pack on the hero (crops + optional AI video).\nCancel = draft only."
+              );
+              void (async () => {
+                try {
+                  const res = await fetch("/api/admin/media-kit/from-work", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ projectId: id, runPack: withPack }),
+                  });
+                  const json = (await res.json()) as {
+                    ok?: boolean;
+                    error?: string;
+                    blogAdminUrl?: string;
+                  };
+                  if (!res.ok || !json.ok) {
+                    alert(json.error || "Failed to create journal draft.");
+                    return;
+                  }
+                  if (json.blogAdminUrl) router.push(json.blogAdminUrl);
+                } catch {
+                  alert("Failed to create journal draft.");
+                }
+              })();
+            }}
+          >
+            Create journal draft
+          </button>
           <a
             href={`/api/admin/work-projects/${id}/client-pdf`}
-            className="btn btn-primary text-sm"
-            target="_blank"
-            rel="noreferrer"
+            className="btn btn-ghost text-sm"
           >
             Generate Client PDF
           </a>
@@ -2083,6 +2228,8 @@ export default function AdminWorkEditPage() {
           </button>
         </div>
       </div>
+
+      {saveError ? <p className="mb-6 text-sm text-red-600">{saveError}</p> : null}
 
       {generateAllOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -2912,9 +3059,17 @@ export default function AdminWorkEditPage() {
         </div>
 
         {saveError && <p className="text-sm text-red-600">{saveError}</p>}
-        <button type="submit" className="btn btn-primary" disabled={saveStatus === "saving"}>
-          {saveStatus === "saving" ? "Saving…" : "Save changes"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" className="btn btn-primary" disabled={saveStatus === "saving"}>
+            {saveStatus === "saving" ? "Saving…" : "Save changes"}
+          </button>
+          <Link
+            href={`/admin/work/preview/${id}`}
+            className="btn btn-ghost"
+          >
+            Preview
+          </Link>
+        </div>
       </form>
 
       <div className="mt-10 rounded-xl border border-black/10 bg-white p-6">
@@ -3018,14 +3173,14 @@ export default function AdminWorkEditPage() {
           </div>
         ) : null}
         <div className="mt-4 flex flex-wrap gap-2">
-          <a className="btn btn-ghost text-xs" href={`/api/admin/work-projects/${id}/delivery`} target="_blank" rel="noreferrer">
+          <a className="btn btn-ghost text-xs" href={`/api/admin/work-projects/${id}/delivery`}>
             Generate delivery manifest JSON
           </a>
-          <a className="btn btn-ghost text-xs" href={`/api/admin/work-projects/${id}/delivery?format=pdf`} target="_blank" rel="noreferrer">
+          <a className="btn btn-ghost text-xs" href={`/api/admin/work-projects/${id}/delivery?format=pdf`}>
             Generate client-facing PDF summary
           </a>
           {project.finalPackageToken ? (
-            <a className="btn btn-ghost text-xs" href={`/package/${project.finalPackageToken}`} target="_blank" rel="noreferrer">
+            <a className="btn btn-ghost text-xs" href={`/package/${project.finalPackageToken}`}>
               Open final package page
             </a>
           ) : null}
@@ -3034,7 +3189,7 @@ export default function AdminWorkEditPage() {
           </button>
           {project.attachedInvoiceId ? (
             <>
-              <a className="btn btn-ghost text-xs" href={`/api/admin/work-projects/${id}/delivery/invoice/pdf`} target="_blank" rel="noreferrer">
+              <a className="btn btn-ghost text-xs" href={`/api/admin/work-projects/${id}/delivery/invoice/pdf`}>
                 Download invoice PDF
               </a>
               <button
@@ -3269,10 +3424,74 @@ export default function AdminWorkEditPage() {
       </div>
 
       <div className="mt-10 rounded-xl border border-black/10 bg-white p-6">
+        <h2 className="text-sm font-semibold text-black/80">Stories</h2>
+        <p className="mt-1 text-xs text-black/50">
+          Stack multiple mini case studies on this project page. When stories exist, they replace the
+          classic single layout below.
+        </p>
+        <div className="mt-4">
+          <StoryChaptersEditor
+            chapters={storyChapters}
+            pool={orderedMedia
+              .filter((pm) => pm.media.kind === "IMAGE")
+              .map((pm) => ({
+                id: pm.media.id,
+                src: mediaUrl(pm.media.keyThumb ?? pm.media.keyFull),
+                alt: pm.media.alt ?? "",
+              }))
+              .filter((item) => item.src)}
+            onChange={setStoryChapters}
+            onConvertLegacy={() => {
+              setStoryChapters([
+                workProjectToChapter({
+                  title,
+                  projectType,
+                  location,
+                  year: year === "" ? null : Number(year),
+                  opening,
+                  context,
+                  approach,
+                  highlight,
+                  execution,
+                  closing,
+                  credits,
+                  client,
+                  scope,
+                  whoIsThisFor,
+                  heroMediaId,
+                  galleryBlocks,
+                }),
+              ]);
+            }}
+            tone="light"
+            heroUsesPoolIds
+          />
+        </div>
+      </div>
+
+      <div className="mt-10 rounded-xl border border-black/10 bg-white p-6">
         <h2 className="text-sm font-semibold text-black/80">Media</h2>
         <p className="mt-1 text-xs text-black/50">
           Hero: choose one below or leave none. Drag to reorder. Hero is hidden from the gallery.
         </p>
+        <div className="mt-4 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+          <GalleryBlocksEditor
+            blocks={galleryBlocks}
+            pool={orderedMedia
+              .filter((pm) => pm.media.kind === "IMAGE" && pm.media.id !== heroMediaId)
+              .map((pm) => ({
+                id: pm.media.id,
+                src: mediaUrl(pm.media.keyThumb ?? pm.media.keyFull),
+                alt: pm.media.alt ?? "",
+              }))
+              .filter((item) => item.src)}
+            onChange={(next) => {
+              setGalleryBlocks(next);
+              setGalleryCarouselEnabled(next.some((b) => b.type === "carousel"));
+            }}
+            tone="light"
+          />
+        </div>
 
         {heroMediaId && (() => {
           const heroPm = orderedMedia.find((pm) => pm.media.id === heroMediaId);

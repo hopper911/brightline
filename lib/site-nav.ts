@@ -66,7 +66,7 @@ export function normalizeSiteNav(input: unknown): SiteNavItem[] {
       normalized.push(fallback);
     }
   }
-  // Permanent lock: core public marketing nav labels/hrefs stay visible.
+  // Permanent lock: core public marketing nav labels/hrefs (SHOW remains CMS-editable).
   return assertCorePublicNavPreserved(normalized);
 }
 

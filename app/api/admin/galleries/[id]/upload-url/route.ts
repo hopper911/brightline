@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { normalizeUploadContentType } from "@/lib/upload-mime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,13 +31,25 @@ export async function POST(
       );
     }
 
+    const contentType = normalizeUploadContentType(body.contentType || "image/jpeg");
+    if (!contentType) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Unsupported content type. Upload images, video, audio, PDF, or fonts only (not HTML/SVG).",
+        },
+        { status: 400 }
+      );
+    }
+
     const safeName = body.filename.replace(/[^\w.-]/g, "-");
     const key = `client-galleries/${id}/${Date.now()}-${safeName}`;
 
     const { getClientUploadUrl } = await import("@/lib/image-strategy");
     const signed = await getClientUploadUrl({
       key,
-      contentType: body.contentType || "image/jpeg",
+      contentType,
     });
 
     const image = await prisma.galleryImage.create({

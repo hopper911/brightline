@@ -100,8 +100,6 @@ export default async function StudioProjectDeliveryBridgePage({
                     <span className="text-xs text-white/45">{p.status}</span>
                     <a
                       href={`/package/${p.accessToken}`}
-                      target="_blank"
-                      rel="noreferrer"
                       className="text-xs text-emerald-300 underline"
                     >
                       View client page

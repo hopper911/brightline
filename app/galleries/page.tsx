@@ -1,5 +1,5 @@
+import AssignedPageBackground from "@/components/AssignedPageBackground";
 import ClientAccessLanding from "@/components/ClientAccessLanding";
-import PageBackground from "@/components/PageBackground";
 import { BRAND } from "@/lib/config/brand";
 import {
   getBackgroundMediaFromPage,
@@ -43,7 +43,7 @@ export default async function GalleriesPage() {
 
   return (
     <>
-      <PageBackground media={media} poster={poster} />
+      <AssignedPageBackground pageKey="galleries" fallbackMedia={media} fallbackPoster={poster} />
       <ClientAccessLanding page={publishedPage} />
     </>
   );

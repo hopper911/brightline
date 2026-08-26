@@ -108,7 +108,7 @@ export async function generatePresetExportsForPackage(options: {
           key: outKey,
           body,
           contentType: "image/webp",
-          access: "public-read",
+          access: "private",
         });
 
         const maxSort =

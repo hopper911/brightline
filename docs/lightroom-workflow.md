@@ -4,7 +4,7 @@ This pipeline uploads images from Lightroom exports into **client galleries** (p
 
 ## T9 → R2 + Google Sheet (portfolio watcher)
 
-Separate from client galleries: exports on drive **T9** under `WEB_FULL` are watched by **`tools/upload-watcher.mjs`** (see repo root [`docs/WATCHER.md`](../../docs/WATCHER.md)). For exact **Lightroom User Presets** (folder per pillar, all four presets), use the table in **WATCHER.md → [Lightroom User Presets (folder per pillar)](../../docs/WATCHER.md#lightroom-user-presets-folder-per-pillar)**.
+Separate from client galleries: exports on drive **T9** under `WEB_FULL` are watched by **`tools/upload-watcher.mjs`** (see repo root [`docs/WATCHER.md`](../../docs/WATCHER.md)). For exact **Lightroom User Presets** (folder per pillar, all four presets), use the table in **WATCHER.md → [Lightroom User Presets (folder per pillar)](../../docs/WATCHER.md#lightroom-user-presets-folder-per-pillar)**. Mirotech case studies use the **same** LR → T9 → WebP settings and R2 keys (see **WATCHER.md → Mirotech / dual-brand**); there is no separate Mirotech export pipeline.
 
 **Flat layout (default):** export into `/Volumes/T9/05_EXPORTS/WEB_FULL/{architecture|campaign|corporate}/` (or short folder names `arc` / `cam` / `cor`).
 

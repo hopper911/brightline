@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
+import { verifyClientGallerySessionToken } from "@/lib/client-gallery-session-token";
 
 const galleryInclude = {
   images: { orderBy: { sortOrder: "asc" as const } },
@@ -9,9 +10,16 @@ const galleryInclude = {
   project: true,
 } as const;
 
+function resolveAccessTokenId(jar: Awaited<ReturnType<typeof cookies>>): string | null {
+  const signed = verifyClientGallerySessionToken(jar.get("client_access_session")?.value);
+  if (signed.ok) return signed.accessTokenId;
+  // Legacy bare cuid cookies are no longer accepted — re-auth required.
+  return null;
+}
+
 export async function loadClientGallerySession() {
   const jar = await cookies();
-  const accessId = jar.get("client_access_id")?.value;
+  const accessId = resolveAccessTokenId(jar);
   if (!accessId) {
     return { ok: false as const, status: 401, error: "Access session required." };
   }

@@ -170,6 +170,7 @@ export async function createDefaultPackageItems(deliveryPackageId: string, proje
 export function serializePackageManifest(pkg: Awaited<ReturnType<typeof prisma.deliveryPackage.findUnique>>) {
   if (!pkg || !("items" in pkg)) return null;
   const withItems = pkg as NonNullable<typeof pkg> & {
+    accessToken?: string;
     project?: { title?: string | null; seoTitle?: string | null; metaDescription?: string | null; tags?: string[] };
     client?: { companyName?: string | null } | null;
     items: Array<{
@@ -187,6 +188,7 @@ export function serializePackageManifest(pkg: Awaited<ReturnType<typeof prisma.d
       mediaAsset: { id: string; keyFull: string | null; keyThumb: string | null; alt: string | null };
     }>;
   };
+  const token = withItems.accessToken?.trim() ?? "";
   return {
     package: {
       id: withItems.id,
@@ -208,19 +210,23 @@ export function serializePackageManifest(pkg: Awaited<ReturnType<typeof prisma.d
       group,
       images: withItems.items
         .filter((item) => item.selectedForDelivery && item.deliveryGroup === group)
-        .map((item) => ({
-          id: item.id,
-          variantKey: item.variantKey ?? "",
-          mediaAssetId: item.mediaAsset.id,
-          storageKey: item.storageKey ?? item.mediaAsset.keyFull,
-          thumbKey: item.mediaAsset.keyThumb,
-          altText: item.altText ?? item.mediaAsset.alt,
-          usageSuggestion: item.usageSuggestion,
-          clientFacingCaption: item.clientFacingCaption,
-          aiDescription: item.aiDescription,
-          imagePurpose: item.imagePurpose,
-          sortOrder: item.sortOrder,
-        })),
+        .map((item) => {
+          const hasMedia = Boolean(item.storageKey ?? item.mediaAsset.keyFull ?? item.mediaAsset.keyThumb);
+          return {
+            id: item.id,
+            variantKey: item.variantKey ?? "",
+            mediaAssetId: item.mediaAsset.id,
+            // Never expose raw R2 keys to clients — use token-scoped preview/download routes.
+            previewUrl: token && hasMedia ? `/api/package/${token}/items/${item.id}/preview` : null,
+            downloadUrl: token && hasMedia ? `/api/package/${token}/items/${item.id}/download` : null,
+            altText: item.altText ?? item.mediaAsset.alt,
+            usageSuggestion: item.usageSuggestion,
+            clientFacingCaption: item.clientFacingCaption,
+            aiDescription: item.aiDescription,
+            imagePurpose: item.imagePurpose,
+            sortOrder: item.sortOrder,
+          };
+        }),
     })),
     positioning: "Bright Line delivers a ready-to-use visual system, not just a folder of images.",
   };

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import AssignedPageBackground from "@/components/AssignedPageBackground";
 import Reveal from "@/components/Reveal";
 import { BRAND } from "@/lib/config/brand";
 import { formatBlogDate, getPublishedBlogPosts } from "@/lib/blog-posts";
+import { fetchDualBrandJournal } from "@/lib/dual-brand/content-api";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +20,50 @@ export const metadata: Metadata = {
   },
 };
 
+type IndexCard = {
+  key: string;
+  href: string;
+  title: string;
+  excerpt: string;
+  coverImageUrl: string | null;
+  coverImageAlt: string;
+  dateLabel: string;
+  tags: string[];
+};
+
 export default async function BlogIndexPage() {
-  const posts = await getPublishedBlogPosts();
+  const [localPosts, dualPosts] = await Promise.all([
+    getPublishedBlogPosts(),
+    fetchDualBrandJournal(),
+  ]);
+
+  const cards: IndexCard[] = [
+    ...localPosts.map((post) => ({
+      key: post.id,
+      href: `/blog/${post.slug}`,
+      title: post.title,
+      excerpt: post.excerpt,
+      coverImageUrl: post.coverImageUrl || null,
+      coverImageAlt: post.coverImageAlt || post.title,
+      dateLabel: formatBlogDate(post.publishedAt ?? post.updatedAt),
+      tags: post.tags,
+    })),
+    ...dualPosts.map((post) => ({
+      key: `dual-${post.id}`,
+      href: `/blog/shared/${post.slug}`,
+      title: post.title,
+      excerpt: post.excerpt,
+      coverImageUrl: post.heroImage || null,
+      coverImageAlt: post.title,
+      dateLabel: post.publishedAt || "",
+      tags: post.tags,
+    })),
+  ].sort((a, b) => b.dateLabel.localeCompare(a.dateLabel));
 
   return (
-    <div className="section-pad mx-auto max-w-6xl px-6 lg:px-10">
+    <>
+      <AssignedPageBackground pageKey="blog" />
+      <div className="section-pad relative z-[2] mx-auto max-w-6xl px-6 lg:px-10">
       <Reveal>
         <p className="section-kicker">Journal</p>
         <h1 className="section-title">BRIGHTLINE Journal</h1>
@@ -31,7 +72,7 @@ export default async function BlogIndexPage() {
         </p>
       </Reveal>
 
-      {posts.length === 0 ? (
+      {cards.length === 0 ? (
         <Reveal className="mt-12" delay={0.06}>
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-12 text-center">
             <p className="text-sm text-white/70">New posts are on the way.</p>
@@ -39,27 +80,37 @@ export default async function BlogIndexPage() {
         </Reveal>
       ) : (
         <div className="mt-12 grid gap-8 md:grid-cols-2">
-          {posts.map((post, index) => (
-            <Reveal key={post.id} delay={index * 0.06}>
+          {cards.map((post, index) => (
+            <Reveal key={post.key} delay={index * 0.06}>
               <Link
-                href={`/blog/${post.slug}`}
+                href={post.href}
                 className="group block overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] lift-card"
               >
                 {post.coverImageUrl ? (
                   <div className="relative aspect-[16/10] w-full image-guard-overlay">
-                    <Image
-                      src={post.coverImageUrl}
-                      alt={post.coverImageAlt || post.title}
-                      fill
-                      draggable={false}
-                      sizes="(min-width: 768px) 50vw, 100vw"
-                      className="object-cover image-zoom"
-                    />
+                    {post.coverImageUrl.startsWith("http") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={post.coverImageUrl}
+                        alt={post.coverImageAlt || post.title}
+                        draggable={false}
+                        className="h-full w-full object-cover image-zoom"
+                      />
+                    ) : (
+                      <Image
+                        src={post.coverImageUrl}
+                        alt={post.coverImageAlt || post.title}
+                        fill
+                        draggable={false}
+                        sizes="(min-width: 768px) 50vw, 100vw"
+                        className="object-cover image-zoom"
+                      />
+                    )}
                   </div>
                 ) : null}
                 <div className="p-6">
                   <p className="text-[0.65rem] uppercase tracking-[0.28em] text-white/50">
-                    {formatBlogDate(post.publishedAt ?? post.updatedAt)}
+                    {post.dateLabel}
                   </p>
                   <h2 className="mt-3 font-display text-2xl text-white group-hover:text-white/90">{post.title}</h2>
                   {post.excerpt ? (
@@ -83,6 +134,7 @@ export default async function BlogIndexPage() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

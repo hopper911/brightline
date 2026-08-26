@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { normalizeUploadContentType } from "@/lib/upload-mime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,11 +48,24 @@ export async function POST(req: Request) {
       );
     }
 
-    const key = `portfolio/${body.categorySlug}/${body.projectSlug}/${Date.now()}-${body.filename}`;
+    const contentType = normalizeUploadContentType(body.contentType ?? "image/jpeg");
+    if (!contentType) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Unsupported content type. Upload images, video, audio, PDF, or fonts only (not HTML/SVG).",
+        },
+        { status: 400 }
+      );
+    }
+
+    const safeName = body.filename.replace(/[^\w.-]/g, "-").slice(0, 180);
+    const key = `portfolio/${body.categorySlug}/${body.projectSlug}/${Date.now()}-${safeName}`;
     const { getMarketingUploadUrl } = await import("@/lib/image-strategy");
     const signed = await getMarketingUploadUrl({
       key,
-      contentType: body.contentType,
+      contentType,
     });
 
     return NextResponse.json({ ok: true, url: signed.url, headers: signed.headers });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getBlogPosts, saveBlogPosts } from "@/lib/blog-posts";
+import { syncBlogPostsToMirotech } from "@/lib/dual-brand/sync-journal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,25 +17,64 @@ export async function GET(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const isAdmin = await authorizeAdminRequest(req);
-  if (!isAdmin) {
-    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
-  }
-
-  let body: unknown;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON." }, { status: 400 });
+    const isAdmin = await authorizeAdminRequest(req);
+    if (!isAdmin) {
+      return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+    }
+
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ ok: false, error: "Invalid JSON." }, { status: 400 });
+    }
+
+    const input =
+      body && typeof body === "object" && Array.isArray((body as { posts?: unknown }).posts)
+        ? (body as { posts: unknown[] }).posts
+        : body;
+
+    let posts = await saveBlogPosts(input);
+
+    let mirotechSync: Array<{ postId: string; ok: boolean; error?: string }> = [];
+    try {
+      const synced = await syncBlogPostsToMirotech(posts);
+      mirotechSync = synced.results.map((r) => ({
+        postId: r.postId,
+        ok: r.ok,
+        error: r.error,
+      }));
+      const idsChanged = synced.posts.some(
+        (p, i) => p.mirotechJournalId !== posts[i]?.mirotechJournalId
+      );
+      if (idsChanged || synced.results.some((r) => r.ok)) {
+        posts = await saveBlogPosts(synced.posts);
+      }
+    } catch (err) {
+      console.error("BLOG_MIROTECH_SYNC_ERROR", err);
+      mirotechSync = [
+        {
+          postId: "",
+          ok: false,
+          error: err instanceof Error ? err.message : "Mirotech sync failed",
+        },
+      ];
+    }
+
+    try {
+      revalidatePath("/blog");
+      revalidatePath("/blog/[slug]", "page");
+      revalidatePath("/travel");
+      revalidatePath("/travel/[slug]", "page");
+      revalidatePath("/sitemap.xml");
+    } catch (err) {
+      console.error("BLOG_POSTS_REVALIDATE_ERROR", err);
+    }
+    return NextResponse.json({ ok: true, posts, mirotechSync });
+  } catch (err: unknown) {
+    console.error("BLOG_POSTS_PATCH_ERROR", err);
+    const message = err instanceof Error ? err.message : "Failed to save blog posts.";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-
-  const input =
-    body && typeof body === "object" && Array.isArray((body as { posts?: unknown }).posts)
-      ? (body as { posts: unknown[] }).posts
-      : body;
-
-  const posts = await saveBlogPosts(input);
-  revalidatePath("/blog");
-  revalidatePath("/blog/[slug]", "page");
-  return NextResponse.json({ ok: true, posts });
 }

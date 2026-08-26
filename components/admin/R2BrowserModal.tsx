@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PILLAR_SLUGS, PILLARS } from "@/lib/portfolioPillars";
+import {
+  MIROTECH_CATEGORIES,
+  segmentsForRoot,
+} from "@/lib/t9-media-segments";
+import type { T9MediaRoot } from "@/lib/t9-media-root";
 
 function getImageUrl(key: string): string {
   if (!key) return "";
@@ -15,24 +20,36 @@ function getImageUrl(key: string): string {
 const MEDIA_EXT = /\.(jpg|jpeg|png|webp|gif|avif|mp4|webm|mov|m4v)$/i;
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
 
-/** T9 pipeline folders under each portfolio pillar code */
+/** Brightline T9 pillar codes */
 const T9_PILLAR_CODES = ["arc", "cam", "cor"] as const;
 
-type PortfolioFolderFilter = "all" | "web_full" | "web_thumb";
+type PortfolioFolderFilter = "all" | "web_full" | "web_thumb" | "web_video";
+
+function segmentCodesForRoot(mediaRoot: T9MediaRoot): readonly string[] {
+  return mediaRoot === "mirotech" ? MIROTECH_CATEGORIES : T9_PILLAR_CODES;
+}
+
+function resolveR2Folder(mediaRoot: T9MediaRoot, pillar: string): string {
+  if (pillar === "all") return "all";
+  if (mediaRoot === "mirotech") return pillar;
+  return PILLAR_TO_R2_FOLDER[pillar] ?? pillar;
+}
 
 function portfolioListPrefixes(
+  mediaRoot: T9MediaRoot,
   pillar: string,
   r2Folder: string,
   folderFilter: PortfolioFolderFilter
 ): string[] {
+  const codes = segmentCodesForRoot(mediaRoot);
   if (folderFilter === "all") {
-    if (pillar === "all") return ["portfolio"];
-    return [`portfolio/${r2Folder}`];
+    if (pillar === "all") return [mediaRoot];
+    return [`${mediaRoot}/${r2Folder}`];
   }
   if (pillar === "all") {
-    return T9_PILLAR_CODES.map((code) => `portfolio/${code}/${folderFilter}`);
+    return codes.map((code) => `${mediaRoot}/${code}/${folderFilter}`);
   }
-  return [`portfolio/${r2Folder}/${folderFilter}`];
+  return [`${mediaRoot}/${r2Folder}/${folderFilter}`];
 }
 
 /** Maps portfolio pillar slugs to the 3-letter R2 folder names */
@@ -45,6 +62,9 @@ const PILLAR_TO_R2_FOLDER: Record<string, string> = {
 function isVideoKey(key: string): boolean {
   return VIDEO_EXT.test(key);
 }
+
+/** Cap eager preview requests so /api/media/public is not flooded. */
+const PAGE_SIZE = 60;
 
 type R2BrowserModalProps = {
   isOpen: boolean;
@@ -59,6 +79,10 @@ type R2BrowserModalProps = {
   projectSlug?: string;
   /** When the modal opens, switch to Custom source with this prefix (e.g. client-galleries/{id}/). */
   initialCustomPrefix?: string;
+  /** Prefer a T9 portfolio subfolder when Source is Portfolio (e.g. web_video for video picks). */
+  initialPortfolioFolder?: PortfolioFolderFilter;
+  /** T9 vault root — Brightline `portfolio/` or Mirotech sibling `mirotech/`. */
+  mediaRoot?: T9MediaRoot;
 };
 
 export default function R2BrowserModal({
@@ -70,15 +94,22 @@ export default function R2BrowserModal({
   pillarSlug = "architecture",
   projectSlug,
   initialCustomPrefix,
+  initialPortfolioFolder,
+  mediaRoot: mediaRootProp = "portfolio",
 }: R2BrowserModalProps) {
+  const [mediaRoot, setMediaRoot] = useState<T9MediaRoot>(mediaRootProp);
   const [pillar, setPillar] = useState<string>(pillarSlug);
   const [source, setSource] = useState<"portfolio" | "project" | "custom">(
     projectId ? "portfolio" : "portfolio"
   );
   const [customPrefix, setCustomPrefix] = useState("");
-  /** T9 layout: portfolio/{arc|cam|cor}/web_full|web_thumb — filter hi-res vs thumbnails */
-  const [portfolioFolder, setPortfolioFolder] = useState<PortfolioFolderFilter>("all");
+  /** T9 layout: {root}/{arc|cam|cor}/web_full|web_thumb|web_video — default full so CMS heroes aren't 800px thumbs. */
+  const [portfolioFolder, setPortfolioFolder] = useState<PortfolioFolderFilter>(
+    initialPortfolioFolder ?? "web_full"
+  );
   const [keys, setKeys] = useState<string[]>([]);
+  /** How many listed keys to render as previews (avoids media-public rate-limit flood). */
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [, setErrorDetails] = useState<{
@@ -116,6 +147,16 @@ export default function R2BrowserModal({
       cancelled = true;
     };
   }, [isOpen, initialCustomPrefix]);
+
+  useEffect(() => {
+    if (!isOpen || !initialPortfolioFolder) return;
+    setPortfolioFolder(initialPortfolioFolder);
+  }, [isOpen, initialPortfolioFolder]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setMediaRoot(mediaRootProp);
+  }, [isOpen, mediaRootProp]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -168,13 +209,14 @@ export default function R2BrowserModal({
     document.addEventListener("mouseup", up);
   };
 
-  const r2Folder = PILLAR_TO_R2_FOLDER[pillar] ?? pillar;
+  const r2Folder = resolveR2Folder(mediaRoot, pillar);
+  const vaultLabel = mediaRoot === "mirotech" ? "Mirotech" : "Portfolio";
 
   const effectivePrefix =
     source === "portfolio"
       ? pillar === "all"
-        ? "portfolio"
-        : `portfolio/${r2Folder}`
+        ? mediaRoot
+        : `${mediaRoot}/${r2Folder}`
       : source === "project" && projectId
         ? projectSlug
           ? `portfolio/${pillarSlug}/${projectSlug}`
@@ -189,6 +231,7 @@ export default function R2BrowserModal({
       setError("");
       setErrorDetails(null);
       setKeys([]);
+      setVisibleCount(PAGE_SIZE);
       setSelected(new Set());
       setLastFailureDetails(null);
       if (source === "custom" && !customPrefix.trim()) return;
@@ -207,7 +250,9 @@ export default function R2BrowserModal({
 
       let prefixes: string[];
       if (source === "portfolio") {
-        prefixes = portfolioListPrefixes(pillar, r2Folder, portfolioFolder).map(normalizeListPrefix);
+        prefixes = portfolioListPrefixes(mediaRoot, pillar, r2Folder, portfolioFolder).map(
+          normalizeListPrefix
+        );
       } else {
         prefixes = [normalizeListPrefix(effectivePrefix)];
       }
@@ -284,6 +329,7 @@ export default function R2BrowserModal({
         raw.sort((a, b) => a.localeCompare(b));
         const mediaKeys = raw.filter((k) => MEDIA_EXT.test(k));
         setKeys(mediaKeys);
+        setVisibleCount(PAGE_SIZE);
       } catch (e) {
         const message = e instanceof Error ? e.message : "Failed to load";
         setErrorDetails({
@@ -322,6 +368,7 @@ export default function R2BrowserModal({
     projectSlug,
     portfolioFolder,
     r2Folder,
+    mediaRoot,
   ]);
 
   function toggleSelection(key: string) {
@@ -338,10 +385,11 @@ export default function R2BrowserModal({
   }
 
   function toggleAll() {
-    if (selected.size === keys.length) {
+    const visible = keys.slice(0, visibleCount);
+    if (selected.size >= visible.length && visible.every((k) => selected.has(k))) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(keys));
+      setSelected(new Set(visible));
     }
   }
 
@@ -388,6 +436,20 @@ export default function R2BrowserModal({
 
         <div className="flex flex-wrap items-center gap-4 border-b border-white/10 px-4 py-2">
           <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-white/50">Vault:</span>
+            <select
+              value={mediaRoot}
+              onChange={(e) => {
+                const next = e.target.value as T9MediaRoot;
+                setMediaRoot(next);
+                setPillar(next === "mirotech" ? "product" : pillarSlug);
+              }}
+              className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
+              aria-label="T9 media vault"
+            >
+              <option value="portfolio">Brightline portfolio</option>
+              <option value="mirotech">Mirotech</option>
+            </select>
             {projectId ? (
               <>
                 <span className="text-xs text-white/50">Source:</span>
@@ -396,7 +458,7 @@ export default function R2BrowserModal({
                   onChange={(e) => setSource(e.target.value as "portfolio" | "project" | "custom")}
                   className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
                 >
-                  <option value="portfolio">Portfolio (T9 uploads)</option>
+                  <option value="portfolio">{vaultLabel} (T9 uploads)</option>
                   <option value="project">This project</option>
                   <option value="custom">Custom prefix</option>
                 </select>
@@ -409,7 +471,7 @@ export default function R2BrowserModal({
                   onChange={(e) => setSource(e.target.value as "portfolio" | "project" | "custom")}
                   className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
                 >
-                  <option value="portfolio">Portfolio</option>
+                  <option value="portfolio">{vaultLabel}</option>
                   <option value="custom">Custom prefix</option>
                 </select>
               </>
@@ -420,14 +482,22 @@ export default function R2BrowserModal({
                   value={pillar}
                   onChange={(e) => setPillar(e.target.value)}
                   className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
-                  aria-label="Portfolio section"
+                  aria-label={mediaRoot === "mirotech" ? "Work category" : "Portfolio section"}
                 >
-                  <option value="all">All portfolio</option>
-                  {PILLAR_SLUGS.map((slug) => (
-                    <option key={slug} value={slug}>
-                      {PILLARS.find((p) => p.slug === slug)?.label ?? slug}
-                    </option>
-                  ))}
+                  <option value="all">
+                    {mediaRoot === "mirotech" ? "All categories" : "All pillars"}
+                  </option>
+                  {mediaRoot === "mirotech"
+                    ? segmentsForRoot("mirotech").map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))
+                    : PILLAR_SLUGS.map((slug) => (
+                        <option key={slug} value={slug}>
+                          {PILLARS.find((p) => p.slug === slug)?.label ?? slug}
+                        </option>
+                      ))}
                 </select>
                 <span className="text-xs text-white/50">Folder:</span>
                 <select
@@ -435,11 +505,12 @@ export default function R2BrowserModal({
                   onChange={(e) => setPortfolioFolder(e.target.value as PortfolioFolderFilter)}
                   className="max-w-[11rem] rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white sm:max-w-none"
                   aria-label="T9 R2 subfolder"
-                  title="T9 uploads use web_full (full) and web_thumb (thumbnails) under each pillar"
+                  title="T9 uploads: web_full / web_thumb (Image Port) and web_video (Video Port) under each pillar"
                 >
                   <option value="all">All (mixed)</option>
                   <option value="web_full">web_full — full size</option>
                   <option value="web_thumb">web_thumb — thumbnails</option>
+                  <option value="web_video">web_video — Video Port</option>
                 </select>
               </>
             )}
@@ -448,7 +519,9 @@ export default function R2BrowserModal({
                 type="text"
                 value={customPrefix}
                 onChange={(e) => setCustomPrefix(e.target.value)}
-                placeholder="portfolio/arc/web_full"
+                placeholder={
+                  mediaRoot === "mirotech" ? `${mediaRoot}/product/web_full` : `${mediaRoot}/arc/web_full`
+                }
                 className="min-w-[200px] rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm font-mono text-white placeholder:text-white/40"
               />
             )}
@@ -458,7 +531,12 @@ export default function R2BrowserModal({
             onClick={toggleAll}
             className="text-sm text-white/70 hover:text-white"
           >
-            {selected.size === keys.length ? "Deselect all" : "Select all"}
+            {(() => {
+              const visible = keys.slice(0, visibleCount);
+              const allVisibleSelected =
+                visible.length > 0 && visible.every((k) => selected.has(k));
+              return allVisibleSelected ? "Deselect all" : "Select all";
+            })()}
           </button>
         </div>
 
@@ -509,15 +587,16 @@ export default function R2BrowserModal({
                 <> Try &quot;All (mixed)&quot; if files use a different path.</>
               ) : null}
               {source === "portfolio" && pillar !== "all" && portfolioFolder === "all" ? (
-                <> Use Folder → web_full or web_thumb to filter T9 exports.</>
+                <> Use Folder → web_full, web_thumb, or web_video to filter T9 exports.</>
               ) : null}
               {source === "custom" ? (
-                <> Try prefixes like <code>site/</code>, <code>studio/</code>, <code>portfolio/</code>, <code>work/</code>, or <code>client-galleries/…</code> for gallery delivery.</>
+                <> Try prefixes like <code>site/</code>, <code>studio/</code>, <code>portfolio/</code>, <code>mirotech/</code>, <code>work/</code>, or <code>client-galleries/…</code> for gallery delivery.</>
               ) : null}
             </p>
           ) : keys.length > 0 ? (
+            <>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-5">
-              {keys.map((key) => {
+              {keys.slice(0, visibleCount).map((key) => {
                 const isSelected = selected.has(key);
                 return (
                   <button
@@ -541,6 +620,8 @@ export default function R2BrowserModal({
                       <img
                         src={getImageUrl(key)}
                         alt=""
+                        loading="lazy"
+                        decoding="async"
                         className="h-full w-full object-cover"
                       />
                     )}
@@ -553,6 +634,25 @@ export default function R2BrowserModal({
                 );
               })}
             </div>
+            {visibleCount < keys.length ? (
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                <p className="text-xs text-white/45">
+                  Showing {visibleCount} of {keys.length}
+                </p>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-white/80 hover:bg-white/10 hover:text-white"
+                  onClick={() => setVisibleCount((n) => Math.min(n + PAGE_SIZE, keys.length))}
+                >
+                  Load more
+                </button>
+              </div>
+            ) : keys.length > PAGE_SIZE ? (
+              <p className="mt-4 text-center text-xs text-white/40">
+                Showing all {keys.length}
+              </p>
+            ) : null}
+            </>
           ) : null}
           </div>
           {scrollState.scrollHeight > scrollState.clientHeight ? (

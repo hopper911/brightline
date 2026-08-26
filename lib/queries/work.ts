@@ -1,7 +1,19 @@
-import type { WorkSection } from "@prisma/client";
+import type { WorkSection, Prisma } from "@prisma/client";
 import { getPillarBySlug } from "@/lib/work-pillar-settings";
 import { prisma } from "@/lib/prisma";
 import { normalizeProjectSlug } from "@/lib/slugify";
+
+const WORK_CASE_STUDY_INCLUDE = {
+  heroMedia: true,
+  media: {
+    include: { media: true },
+    orderBy: { sortOrder: "asc" as const },
+  },
+} satisfies Prisma.WorkProjectInclude;
+
+export type WorkProjectCaseStudyData = Prisma.WorkProjectGetPayload<{
+  include: typeof WORK_CASE_STUDY_INCLUDE;
+}>;
 
 export async function getPublishedProjectsBySection(section: WorkSection) {
   return prisma.workProject.findMany({
@@ -28,13 +40,17 @@ export async function getProjectByPillarAndSlug(pillarSlug: string, slug: string
       slug: { equals: normalized, mode: "insensitive" },
       published: true,
     },
-    include: {
-      heroMedia: true,
-      media: {
-        include: { media: true },
-        orderBy: { sortOrder: "asc" },
-      },
-    },
+    include: WORK_CASE_STUDY_INCLUDE,
+  });
+}
+
+/** Admin draft preview — any project by id, published or not. */
+export async function getWorkProjectByIdForPreview(
+  id: string
+): Promise<WorkProjectCaseStudyData | null> {
+  return prisma.workProject.findUnique({
+    where: { id },
+    include: WORK_CASE_STUDY_INCLUDE,
   });
 }
 
@@ -49,13 +65,7 @@ export async function getProjectBySectionAndSlug(
       slug: { equals: normalized, mode: "insensitive" },
       published: true,
     },
-    include: {
-      heroMedia: true,
-      media: {
-        include: { media: true },
-        orderBy: { sortOrder: "asc" },
-      },
-    },
+    include: WORK_CASE_STUDY_INCLUDE,
   });
 }
 

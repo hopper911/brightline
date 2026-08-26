@@ -186,8 +186,6 @@ export default function DeliveryHubClient() {
                       <a
                         className="text-emerald-300 underline hover:text-emerald-200"
                         href={`/package/${r.accessToken}`}
-                        target="_blank"
-                        rel="noreferrer"
                       >
                         Client package
                       </a>
@@ -195,8 +193,6 @@ export default function DeliveryHubClient() {
                         <a
                           className="text-xs text-white/50 underline hover:text-white/70"
                           href={`/delivery/${r.publicSlug}`}
-                          target="_blank"
-                          rel="noreferrer"
                         >
                           /delivery/{r.publicSlug.slice(0, 12)}…
                         </a>

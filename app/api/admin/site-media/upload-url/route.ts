@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getPublicR2Url } from "@/lib/r2";
 import { signPut } from "@/lib/storage-r2";
+import { isAllowedImageOrVideoUpload } from "@/lib/upload-mime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   }
 
   const filename = safeFilename(body.filename ?? "");
-  const contentType = body.contentType?.trim() || "application/octet-stream";
+  const contentType = isAllowedImageOrVideoUpload(body.contentType);
   const folder = body.folder?.trim() && ALLOWED_FOLDERS.has(body.folder.trim())
     ? body.folder.trim()
     : "blocks";
@@ -35,8 +36,11 @@ export async function POST(req: Request) {
   if (!filename) {
     return NextResponse.json({ ok: false, error: "filename is required." }, { status: 400 });
   }
-  if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
-    return NextResponse.json({ ok: false, error: "Only image and video uploads are supported." }, { status: 400 });
+  if (!contentType) {
+    return NextResponse.json(
+      { ok: false, error: "Only allowed image/video types are supported (not SVG/HTML)." },
+      { status: 400 }
+    );
   }
 
   const key = `site/${folder}/${Date.now()}-${filename}`;

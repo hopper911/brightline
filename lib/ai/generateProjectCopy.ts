@@ -96,6 +96,11 @@ export type ProjectCopyRequest =
       brief: ProjectCopyBrief;
       existingValues: ProjectCopyValues;
       tonePreset?: ProjectCopyTonePreset;
+      /** When true, sourceText holds mandatory notes (+ optional prior draft). Compose brand-new copy. */
+      composeFromNotes?: boolean;
+      /** When true with composeFromNotes: merge notes into prior draft (preserve substance, must reflect every note). */
+      mergeMode?: boolean;
+      sourceText?: string;
     }
   | {
       projectId?: string;
@@ -112,6 +117,8 @@ export type ProjectCopyRequest =
       existingValues: ProjectCopyValues;
       sourceText: string;
       tonePreset?: ProjectCopyTonePreset;
+      composeFromNotes?: boolean;
+      mergeMode?: boolean;
     }
   | {
       projectId?: string;
@@ -124,10 +131,15 @@ export type ProjectCopyRequest =
 
 const FIELD_SET = new Set<string>(PROJECT_COPY_FIELD_KEYS);
 
-function cleanString(value: unknown): string | undefined {
+/** Max chars per brief / existing-value field sent to the model (cost abuse guard). */
+const MAX_INPUT_FIELD_CHARS = 8_000;
+const MAX_SOURCE_TEXT_CHARS = 24_000;
+
+function cleanString(value: unknown, max = MAX_INPUT_FIELD_CHARS): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
-  return trimmed || undefined;
+  if (!trimmed) return undefined;
+  return trimmed.length <= max ? trimmed : trimmed.slice(0, max);
 }
 
 function cleanRecord(raw: unknown, keys: readonly string[]) {
@@ -199,7 +211,7 @@ export function parseProjectCopyRequest(body: unknown):
   const tonePreset = rawTonePreset && TONE_PRESETS.has(rawTonePreset) ? rawTonePreset as ProjectCopyTonePreset : undefined;
 
   if (mode === "brief_case_study") {
-    const sourceText = cleanString(obj.sourceText);
+    const sourceText = cleanString(obj.sourceText, MAX_SOURCE_TEXT_CHARS);
     if (!sourceText) {
       return { ok: false, status: 400, error: "sourceText is required for brief_case_study mode." };
     }
@@ -217,11 +229,13 @@ export function parseProjectCopyRequest(body: unknown):
   }
 
   if (mode === "single_field" || mode === "rewrite_field") {
-    const fieldKey = cleanString(obj.fieldKey);
+    const fieldKey = cleanString(obj.fieldKey, 80);
     if (!fieldKey || !FIELD_SET.has(fieldKey)) {
       return { ok: false, status: 400, error: "fieldKey is required for single_field and rewrite_field mode." };
     }
-    const sourceText = cleanString(obj.sourceText);
+    const sourceText = cleanString(obj.sourceText, MAX_SOURCE_TEXT_CHARS);
+    const composeFromNotes = obj.composeFromNotes === true;
+    const mergeMode = obj.mergeMode === true;
     if (mode === "rewrite_field" && !sourceText) {
       return { ok: false, status: 400, error: "sourceText is required for rewrite_field mode." };
     }
@@ -235,6 +249,8 @@ export function parseProjectCopyRequest(body: unknown):
           brief,
           existingValues,
           sourceText: sourceText as string,
+          ...(composeFromNotes ? { composeFromNotes: true } : {}),
+          ...(mergeMode ? { mergeMode: true } : {}),
           ...(tonePreset ? { tonePreset } : {}),
         },
       };
@@ -247,6 +263,9 @@ export function parseProjectCopyRequest(body: unknown):
         fieldKey: fieldKey as ProjectCopyFieldKey,
         brief,
         existingValues,
+        ...(sourceText ? { sourceText } : {}),
+        ...(composeFromNotes ? { composeFromNotes: true } : {}),
+        ...(mergeMode ? { mergeMode: true } : {}),
         ...(tonePreset ? { tonePreset } : {}),
       },
     };
@@ -290,7 +309,7 @@ const FIELD_INSTRUCTIONS: Record<ProjectCopyFieldKey, string> = {
   metaDescription: "SEO meta description around 140-160 characters. Clear, professional, not keyword-stuffed.",
   ctaCopy: "Short call-to-action for the project page.",
   summary:
-    "Short listing summary for /work grids and section pages: 1–3 crisp sentences. Tease the project; avoid repeating the full case study. No markdown.",
+    "Short listing summary for /work grids and section pages: 1–3 crisp sentences. Tease the project; avoid repeating the full case study. No markdown. When mergeMode/composeFromNotes is set, preserve useful substance from the prior draft AND explicitly weave in every editor note (e.g. case-study-only / duplicate-of-original / not a client engagement) — never polish the draft while omitting notes.",
   description:
     "Optional longer intro or body copy for the project (detail page / expanded card). 2–4 tight paragraphs when useful; editorial and specific. Do not duplicate the summary verbatim—add context, subjects, or use-case.",
 };
@@ -329,16 +348,32 @@ function buildPrompt(input: ProjectCopyRequest) {
       : input.mode === "brief_case_study"
         ? ["opening", "context", "approach", "highlightLine", "execution", "closing", "projectTags", "seoTitle", "metaDescription", "ctaCopy"] as ProjectCopyFieldKey[]
         : PROJECT_COPY_FIELD_KEYS;
+  const composeFromNotes =
+    (input.mode === "single_field" || input.mode === "rewrite_field") &&
+    Boolean(input.composeFromNotes);
+  const mergeMode =
+    composeFromNotes &&
+    (input.mode === "single_field" || input.mode === "rewrite_field") &&
+    Boolean(input.mergeMode);
+  const sourceForPrompt =
+    input.mode === "rewrite_field" || input.mode === "brief_case_study"
+      ? input.sourceText
+      : input.mode === "single_field" && input.sourceText
+        ? input.sourceText
+        : undefined;
   return JSON.stringify(
     {
-      task:
-        input.mode === "brief_case_study"
-          ? "Turn rough project notes into a polished Bright Line case study draft."
-          : input.mode === "rewrite_field"
-          ? "Rewrite existing copy for one editable project field."
-          : input.mode === "single_field"
-          ? "Generate copy for one editable project field."
-          : "Generate complete copy for every CMS project field AND complete AI Brief helper fields (brief object). Both objects must be fully populated.",
+      task: mergeMode
+        ? "MERGE editor notes into the prior draft for one field. Preserve useful substance, facts, and voice from the draft. Every editor note must be explicitly reflected in the result (e.g. case-study-only / duplicate of an original / conceptual). Do not lightly polish while omitting notes."
+        : composeFromNotes
+        ? "Compose brand-new copy for one field. Mandatory editor notes in sourceText/brief.notes are requirements — fully reflect them. Prior draft (if any) is optional reference only; do not lightly polish it."
+        : input.mode === "brief_case_study"
+        ? "Turn rough project notes into a polished Bright Line case study draft."
+        : input.mode === "rewrite_field"
+        ? "Rewrite existing copy for one editable project field."
+        : input.mode === "single_field"
+        ? "Generate copy for one editable project field."
+        : "Generate complete copy for every CMS project field AND complete AI Brief helper fields (brief object). Both objects must be fully populated.",
       responseShape:
         input.mode === "single_field" || input.mode === "rewrite_field"
           ? { fieldKey: input.fieldKey, value: "Generated text here" }
@@ -362,7 +397,9 @@ function buildPrompt(input: ProjectCopyRequest) {
         : {}),
       brief: input.brief,
       existingValues: input.existingValues,
-      sourceText: input.mode === "rewrite_field" || input.mode === "brief_case_study" ? input.sourceText : undefined,
+      sourceText: sourceForPrompt,
+      composeFromNotes: composeFromNotes || undefined,
+      mergeMode: mergeMode || undefined,
       tonePreset: input.tonePreset,
       toneInstruction: input.tonePreset ? TONE_INSTRUCTIONS[input.tonePreset] : undefined,
       requestedFields,
@@ -376,7 +413,15 @@ function buildPrompt(input: ProjectCopyRequest) {
           input.mode === "all_fields"
             ? "Always output a short honest credits line (see credits field instruction). Never leave credits empty."
             : "Return empty string if no real credit information is provided.",
-        rewrite: "For rewrite_field mode, preserve the meaning and facts of sourceText. Improve clarity and Bright Line brand voice.",
+        mergeMode: mergeMode
+          ? "HARD REQUIREMENT: Keep the draft's useful substance. Explicitly satisfy every editor note in the output. A polished paraphrase that drops case-study/disclaimer notes is a failure."
+          : undefined,
+        composeFromNotes: composeFromNotes && !mergeMode
+          ? "MANDATORY: Editor notes define the new copy. Write fresh sentences that satisfy every note (e.g. case-study-only / duplicate-of-original / conceptual). Do not emit a polished paraphrase of the prior draft that omits the notes."
+          : undefined,
+        rewrite: composeFromNotes
+          ? undefined
+          : "For rewrite_field mode, treat sourceText as the author's current draft (and any Editor notes). Preserve meaning and facts, incorporate the notes, improve clarity and brand voice. Do not ignore the notes.",
         briefCaseStudy:
           "For brief_case_study mode, use sourceText as the rough notes. Produce a complete, specific, premium editorial case study draft. Do not invent specific facts beyond tasteful general framing.",
         ...(input.mode === "all_fields"

@@ -41,8 +41,22 @@ export const DEFAULT_ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { id: "work_sections", label: "Work sections", href: "/admin/work-sections", visible: true },
       { id: "work", label: "Work", href: "/admin/work", visible: true },
       { id: "work_pillars", label: "Work pillars", href: "/admin/work-pillars", visible: true },
-      { id: "studio_cms", label: "Studio CMS", href: "/admin/projects", visible: true },
+      { id: "design", label: "Design", href: "/admin/design", visible: true },
+      { id: "studio_cms", label: "Studio CMS", href: "/admin/studio-cms", visible: true },
+      { id: "studio_delivery", label: "Studio delivery", href: "/admin/projects", visible: true },
       { id: "portfolio", label: "Portfolio", href: "/admin/portfolio", visible: true },
+      {
+        id: "image_port",
+        label: "Image Port",
+        href: "/admin/r2?vault=brightline&prefix=portfolio/arc/web_full/",
+        visible: true,
+      },
+      {
+        id: "video_port",
+        label: "Video Port",
+        href: "/admin/r2?mode=encode&vault=brightline&prefix=portfolio/arc/web_video/",
+        visible: true,
+      },
     ],
   },
   {
@@ -85,7 +99,53 @@ export const DEFAULT_ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   {
     id: "assets",
     label: "Assets",
-    items: [{ id: "media", label: "Media", href: "/admin/media", visible: true }],
+    items: [
+      { id: "media", label: "Media", href: "/admin/media", visible: true },
+      {
+        id: "background_videos",
+        label: "Background videos",
+        href: "/admin/background-videos",
+        visible: true,
+      },
+      { id: "r2_storage", label: "R2 storage", href: "/admin/r2", visible: true },
+    ],
+  },
+  {
+    id: "mirotech",
+    label: "Mirotech",
+    items: [
+      { id: "mirotech_hub", label: "Mirotech hub", href: "/admin/mirotech", visible: true },
+      {
+        id: "mirotech_dashboard",
+        label: "Dashboard",
+        href: "/api/admin/mirotech/handoff?next=/admin",
+        visible: true,
+      },
+      {
+        id: "mirotech_projects",
+        label: "Projects",
+        href: "/api/admin/mirotech/handoff?next=/admin/projects",
+        visible: true,
+      },
+      {
+        id: "mirotech_journal",
+        label: "Journal",
+        href: "/api/admin/mirotech/handoff?next=/admin/journal",
+        visible: true,
+      },
+      {
+        id: "mirotech_media",
+        label: "Media",
+        href: "/api/admin/mirotech/handoff?next=/admin/media",
+        visible: true,
+      },
+      {
+        id: "mirotech_site",
+        label: "View site",
+        href: "https://mirotech.solutions",
+        visible: true,
+      },
+    ],
   },
   {
     id: "insight",

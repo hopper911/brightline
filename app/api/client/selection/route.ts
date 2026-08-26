@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { clientSelectionBodySchema } from "@/lib/api/client-package-schemas";
+import { jsonErr, jsonOk } from "@/lib/api/http";
+import { parseJsonWithSchema } from "@/lib/api/parse";
 import { gallerySupportsSelectionWorkflow } from "@/lib/gallery-client-delivery";
 import {
   imageBelongsToGallery,
@@ -11,43 +13,29 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as {
-      action?: "toggle" | "submit";
-      imageId?: string;
-      selected?: boolean;
-    };
-    const action = body.action;
+    const parsed = await parseJsonWithSchema(req, clientSelectionBodySchema);
+    if (!parsed.ok) return parsed.response;
+
+    const { action, selected } = parsed.data;
 
     const loaded = await loadClientGallerySession();
     if (!loaded.ok) {
-      return NextResponse.json(
-        { ok: false, error: loaded.error },
-        { status: loaded.status }
-      );
+      return jsonErr(loaded.error, loaded.status);
     }
 
     const { access } = loaded;
     const gallery = access.gallery;
 
     if (!gallerySupportsSelectionWorkflow(gallery)) {
-      return NextResponse.json(
-        { ok: false, error: "Selections are not enabled for this gallery." },
-        { status: 400 }
-      );
+      return jsonErr("Selections are not enabled for this gallery.", 400);
     }
 
     if (access.selectionsSubmittedAt) {
-      return NextResponse.json(
-        { ok: false, error: "Selections have already been submitted." },
-        { status: 400 }
-      );
+      return jsonErr("Selections have already been submitted.", 400);
     }
 
     if (gallery.status === "FINALIZED" || gallery.status === "DELIVERED") {
-      return NextResponse.json(
-        { ok: false, error: "This gallery is locked." },
-        { status: 400 }
-      );
+      return jsonErr("This gallery is locked.", 400);
     }
 
     if (action === "submit") {
@@ -73,58 +61,42 @@ export async function POST(req: Request) {
         }),
       ]);
 
-      return NextResponse.json({ ok: true, submitted: true });
+      return jsonOk({ submitted: true });
     }
 
-    if (action === "toggle") {
-      const imageId = body.imageId?.trim();
-      if (!imageId) {
-        return NextResponse.json(
-          { ok: false, error: "imageId is required." },
-          { status: 400 }
-        );
-      }
-      if (!imageBelongsToGallery(gallery, imageId)) {
-        return NextResponse.json(
-          { ok: false, error: "Invalid image." },
-          { status: 400 }
-        );
-      }
-
-      const selected = Boolean(body.selected);
-
-      await prisma.galleryImageSelection.upsert({
-        where: {
-          tokenId_imageId: { tokenId: access.id, imageId },
-        },
-        create: {
-          tokenId: access.id,
-          imageId,
-          selected,
-        },
-        update: { selected },
-      });
-
-      await prisma.galleryAccessLog.create({
-        data: {
-          tokenId: access.id,
-          action: selected ? "select" : "unselect",
-          imageId,
-        },
-      });
-
-      return NextResponse.json({ ok: true });
+    const imageId = parsed.data.imageId?.trim();
+    if (!imageId) {
+      return jsonErr("imageId is required.", 400, { code: "validation_error" });
+    }
+    if (!imageBelongsToGallery(gallery, imageId)) {
+      return jsonErr("Invalid image.", 400);
     }
 
-    return NextResponse.json(
-      { ok: false, error: "Invalid action." },
-      { status: 400 }
-    );
+    const selectedFlag = Boolean(selected);
+
+    await prisma.galleryImageSelection.upsert({
+      where: {
+        tokenId_imageId: { tokenId: access.id, imageId },
+      },
+      create: {
+        tokenId: access.id,
+        imageId,
+        selected: selectedFlag,
+      },
+      update: { selected: selectedFlag },
+    });
+
+    await prisma.galleryAccessLog.create({
+      data: {
+        tokenId: access.id,
+        action: selectedFlag ? "select" : "unselect",
+        imageId,
+      },
+    });
+
+    return jsonOk({});
   } catch (e) {
     console.error("CLIENT_SELECTION_ERROR", e);
-    return NextResponse.json(
-      { ok: false, error: "Unable to update selection." },
-      { status: 500 }
-    );
+    return jsonErr("Unable to update selection.", 500);
   }
 }

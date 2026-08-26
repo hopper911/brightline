@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { recomputeDeliveryItemPerformance } from "@/lib/delivery/db";
 import { recordEngagementEvent } from "@/lib/engagement/recordEvent";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,11 @@ export async function POST(
   req: Request,
   context: { params: Promise<{ accessToken: string }> }
 ) {
+  const ip = getClientIp(req);
+  if (await isRateLimitedAsync(ip, { scope: "package-track", max: 120, windowMs: 60_000 })) {
+    return NextResponse.json({ ok: false, error: "Too many requests." }, { status: 429 });
+  }
+
   const { accessToken } = await context.params;
   const pkg = await prisma.deliveryPackage.findFirst({
     where: { accessToken, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },

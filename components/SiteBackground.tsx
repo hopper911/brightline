@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import type { SiteTheme } from "@/lib/site-theme";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { ResolvedSiteBackgroundMedia } from "@/lib/site-background-videos";
+import { SiteBackgroundCoexistContext, type SiteBackgroundCoexistValue } from "./SiteBackgroundContext";
 
-function isVideoUrl(url: string) {
+function isVideoMediaUrl(url: string) {
   const decoded = decodeURIComponent(url);
   try {
     const parsed = new URL(decoded, "https://brightline.local");
@@ -14,60 +15,148 @@ function isVideoUrl(url: string) {
   }
 }
 
-function mediaUrl(input: string) {
-  const value = input.trim();
-  if (!value) return "";
-  if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith("/")) return value;
-  return `/api/media/public?key=${encodeURIComponent(value.replace(/^\/+/, ""))}`;
-}
-
 const mediaClass =
   "h-full w-full object-cover will-change-[opacity] transform-gpu [backface-visibility:hidden] transition-opacity duration-1000 ease-out motion-reduce:transition-none";
 
-export default function SiteBackground({ theme }: { theme: SiteTheme }) {
+/** Always silent + looping — no unmute/pause UI. */
+function SiteBackgroundMedia({ media }: { media: ResolvedSiteBackgroundMedia }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const src = media.videoUrl.trim();
+  const poster = media.posterUrl.trim();
+  const isVideo = src ? isVideoMediaUrl(src) : false;
+  const useVideo = isVideo && !reducedMotion && !videoFailed;
+  const stillSrc = poster || (!isVideo ? src : videoFailed ? poster : "");
+  // Keep video visible through a light scrim (not a black field).
+  const opacityClass = media.cinematic ? "opacity-75" : "opacity-65";
+  const scrim = media.cinematic
+    ? "bg-[linear-gradient(180deg,rgba(7,9,11,0.18),rgba(7,9,11,0.48))]"
+    : "bg-[linear-gradient(180deg,rgba(7,9,11,0.28),rgba(7,9,11,0.58))]";
 
-  if (!theme.backgroundMediaEnabled || !theme.backgroundMediaUrl) return null;
-  const src = mediaUrl(theme.backgroundMediaUrl);
-  const poster = mediaUrl(theme.backgroundPosterUrl);
-  if (!src) return null;
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReducedMotion(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    setReady(false);
+    setVideoFailed(false);
+  }, [src, poster]);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !useVideo) return;
+    el.muted = true;
+    el.defaultMuted = true;
+    el.setAttribute("muted", "");
+    el.volume = 0;
+    el.loop = true;
+    el.playsInline = true;
+
+    const tryPlay = () => {
+      el.muted = true;
+      el.volume = 0;
+      void el.play().then(() => setReady(true)).catch(() => undefined);
+    };
+
+    const onPlaying = () => setReady(true);
+
+    tryPlay();
+    el.addEventListener("canplay", tryPlay);
+    el.addEventListener("loadeddata", tryPlay);
+    el.addEventListener("playing", onPlaying);
+    el.addEventListener("pause", tryPlay);
+    const onVis = () => {
+      if (document.visibilityState === "visible") tryPlay();
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      el.removeEventListener("canplay", tryPlay);
+      el.removeEventListener("loadeddata", tryPlay);
+      el.removeEventListener("playing", onPlaying);
+      el.removeEventListener("pause", tryPlay);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [useVideo, src]);
+
+  if (!media.enabled || !src) return null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
       <div className="absolute inset-0 bg-[var(--color-bg)]" />
-      {isVideoUrl(src) ? (
-        <video
-          key={src}
-          src={src}
-          poster={poster || undefined}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          onLoadedData={() => setReady(true)}
-          onError={() => setReady(true)}
-          className={`${mediaClass} ${ready ? "opacity-30" : "opacity-0"}`}
-        />
-      ) : (
+      {stillSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          key={src}
-          src={src}
+          key={`still-${stillSrc}`}
+          src={stillSrc}
           alt=""
           draggable={false}
           loading="eager"
           decoding="async"
           fetchPriority="high"
-          onLoad={() => setReady(true)}
-          onError={() => setReady(true)}
-          className={`${mediaClass} ${ready ? "opacity-30" : "opacity-0"}`}
+          className={`${mediaClass} ${ready && useVideo ? "opacity-0" : ready ? opacityClass : "opacity-0"}`}
         />
-      )}
+      ) : null}
+      {useVideo ? (
+        <video
+          ref={videoRef}
+          key={src}
+          src={src}
+          poster={poster || undefined}
+          autoPlay
+          muted
+          defaultMuted
+          loop
+          playsInline
+          preload="auto"
+          onPlaying={() => setReady(true)}
+          onError={() => {
+            const code = videoRef.current?.error?.code;
+            if (code === 1) return;
+            setVideoFailed(true);
+            setReady(Boolean(poster));
+          }}
+          className={`${mediaClass} ${ready ? opacityClass : "opacity-0"}`}
+        />
+      ) : null}
       <div
-        className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,9,11,0.55),rgba(7,9,11,0.88))] transition-opacity duration-700"
-        style={{ opacity: ready ? 1 : 0.82 }}
+        className={`absolute inset-0 ${scrim} transition-opacity duration-700`}
+        style={{ opacity: ready ? 1 : 0.7 }}
       />
     </div>
+  );
+}
+
+export default function SiteBackgroundLayer({
+  media,
+  suppressPageMedia,
+  children,
+}: {
+  media: ResolvedSiteBackgroundMedia;
+  suppressPageMedia: boolean;
+  children: ReactNode;
+}) {
+  const src = media.videoUrl.trim();
+  const hasVideo = Boolean(media.enabled && src && isVideoMediaUrl(src));
+
+  const coexist = useMemo<SiteBackgroundCoexistValue>(
+    () => ({
+      siteVideoActive: hasVideo,
+      suppressPageMedia: hasVideo && suppressPageMedia,
+    }),
+    [hasVideo, suppressPageMedia]
+  );
+
+  return (
+    <SiteBackgroundCoexistContext.Provider value={coexist}>
+      <SiteBackgroundMedia media={media} />
+      {children}
+    </SiteBackgroundCoexistContext.Provider>
   );
 }

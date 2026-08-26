@@ -5,8 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { WebsiteBlock, WebsiteBlockItem, WebsiteBlockType, WebsitePage } from "@/lib/website-pages";
 import type { SiteTheme } from "@/lib/site-theme";
 import type { SiteNavItem } from "@/lib/site-nav";
-import type { WorkPillarNavItem } from "@/lib/work-pillar-settings";
-import { mergeWorkPillarNavIntoSiteNav } from "@/lib/site-nav";
+import type { PillarConfig } from "@/lib/portfolioPillars";
 import { getPublicR2Url } from "@/lib/r2";
 import R2BrowserModal from "../work/R2BrowserModal";
 
@@ -35,7 +34,8 @@ type R2Target =
   | { kind: "blockPoster"; blockId: string }
   | { kind: "itemMedia"; blockId: string }
   | { kind: "themeBackgroundMedia" }
-  | { kind: "themeBackgroundPoster" };
+  | { kind: "themeBackgroundPoster" }
+  | { kind: "themeFooterCtaImage" };
 
 function slugify(input: string) {
   return input
@@ -63,7 +63,7 @@ function blankBlock(type: WebsiteBlockType): WebsiteBlock {
     items:
       type === "stats"
         ? [
-            { title: "500+", body: "Projects", meta: "Delivered since 2019" },
+            { title: "NJ / NYC", body: "Metro focus", meta: "Tri-State commercial work" },
             { title: "48hr", body: "Response time", meta: "Initial inquiry" },
           ]
         : type === "cards" || type === "list"
@@ -178,7 +178,7 @@ export default function WebsitePagesClient({
   const [pages, setPages] = useState<WebsitePage[]>(initialPages);
   const [theme, setTheme] = useState<SiteTheme>(initialTheme);
   const [nav, setNav] = useState<SiteNavItem[]>(initialNav);
-  const [pillarNav, setPillarNav] = useState<WorkPillarNavItem[]>([]);
+  const [pillars, setPillars] = useState<PillarConfig[]>([]);
   const [selectedId, setSelectedId] = useState(initialPages[0]?.id ?? "");
   const [selectedBlockId, setSelectedBlockId] = useState(initialPages[0]?.blocks[0]?.id ?? "");
   const [newBlockType, setNewBlockType] = useState<WebsiteBlockType>("text");
@@ -192,13 +192,10 @@ export default function WebsitePagesClient({
         const res = await fetch("/api/admin/work-pillars", { credentials: "include" });
         const json = (await res.json().catch(() => ({}))) as {
           ok?: boolean;
-          pillars?: Array<{ slug: string; label: string; visible?: boolean }>;
+          pillars?: PillarConfig[];
         };
         if (!res.ok || !json.ok || !Array.isArray(json.pillars)) return;
-        const next = json.pillars
-          .filter((p) => p && p.visible !== false)
-          .map((p) => ({ slug: p.slug, href: `/work/${p.slug}`, label: p.label })) satisfies WorkPillarNavItem[];
-        setPillarNav(next);
+        setPillars(json.pillars);
       } catch {
         // ignore — preview stays empty
       }
@@ -206,14 +203,19 @@ export default function WebsitePagesClient({
     void loadPillars();
   }, []);
 
-  const navWithPillarsPreview = useMemo(
-    () => mergeWorkPillarNavIntoSiteNav(nav, pillarNav),
-    [nav, pillarNav]
-  );
-
   const autoPillarLinks = useMemo(
-    () => navWithPillarsPreview.filter((i) => i.id.startsWith("work_pillar_") && i.visible),
-    [navWithPillarsPreview]
+    () =>
+      pillars
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.slug.localeCompare(b.slug))
+        .map((p) => ({
+          id: `work_pillar_${p.slug}`,
+          slug: p.slug,
+          label: p.label,
+          href: `/work/${p.slug}`,
+          visible: p.visible !== false,
+        })),
+    [pillars]
   );
 
   const selected = useMemo(
@@ -253,6 +255,10 @@ export default function WebsitePagesClient({
       updateTheme({ backgroundPosterUrl: urls[0] ?? "" });
       return;
     }
+    if (r2Target.kind === "themeFooterCtaImage") {
+      updateTheme({ footerCtaImageUrl: urls[0] ?? "" });
+      return;
+    }
     if (!selected) return;
     const block = selected.blocks.find((item) => item.id === r2Target.blockId);
     if (!block) return;
@@ -269,9 +275,9 @@ export default function WebsitePagesClient({
     updateBlock(block.id, {
       items: [
         ...block.items,
-        ...urls.map((url, index) => ({
-          title: `R2 media ${block.items.length + index + 1}`,
-          body: "Update this caption.",
+        ...urls.map((url) => ({
+          title: "",
+          body: "",
           mediaUrl: url,
         })),
       ],
@@ -397,20 +403,51 @@ export default function WebsitePagesClient({
     setStatus("saving");
     setError("");
     try {
-      const res = await fetch("/api/admin/site-nav", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ nav }),
-      });
-      const json = (await res.json()) as { ok?: boolean; nav?: SiteNavItem[]; error?: string };
-      if (!res.ok || !json.ok) throw new Error(json.error ?? "Navigation save failed.");
-      setNav(json.nav ?? nav);
+      const [navRes, pillarsRes] = await Promise.all([
+        fetch("/api/admin/site-nav", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ nav }),
+        }),
+        pillars.length
+          ? fetch("/api/admin/work-pillars", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ pillars }),
+            })
+          : Promise.resolve(null),
+      ]);
+
+      const navJson = (await navRes.json()) as { ok?: boolean; nav?: SiteNavItem[]; error?: string };
+      if (!navRes.ok || !navJson.ok) throw new Error(navJson.error ?? "Navigation save failed.");
+      setNav(navJson.nav ?? nav);
+
+      if (pillarsRes) {
+        const pillarsJson = (await pillarsRes.json()) as {
+          ok?: boolean;
+          pillars?: PillarConfig[];
+          error?: string;
+        };
+        if (!pillarsRes.ok || !pillarsJson.ok) {
+          throw new Error(pillarsJson.error ?? "Work pillar nav visibility save failed.");
+        }
+        if (Array.isArray(pillarsJson.pillars)) setPillars(pillarsJson.pillars);
+      }
+
       setStatus("saved");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Navigation save failed.");
       setStatus("error");
     }
+  }
+
+  function setPillarNavVisible(slug: string, visible: boolean) {
+    setPillars((current) =>
+      current.map((pillar) => (pillar.slug === slug ? { ...pillar, visible } : pillar))
+    );
+    setDirty();
   }
 
   function updateTheme(patch: Partial<SiteTheme>) {
@@ -431,7 +468,10 @@ export default function WebsitePagesClient({
     }
   }
 
-  async function uploadThemeMedia(file: File, target: "backgroundMediaUrl" | "backgroundPosterUrl") {
+  async function uploadThemeMedia(
+    file: File,
+    target: "backgroundMediaUrl" | "backgroundPosterUrl" | "footerCtaImageUrl"
+  ) {
     setStatus("saving");
     setError("");
     try {
@@ -473,9 +513,9 @@ export default function WebsitePagesClient({
       updateBlock(block.id, {
         items: [
           ...block.items,
-          ...urls.map((url, index) => ({
-            title: `Uploaded media ${block.items.length + index + 1}`,
-            body: "Update this caption.",
+          ...urls.map((url) => ({
+            title: "",
+            body: "",
             mediaUrl: url,
           })),
         ],
@@ -508,7 +548,7 @@ export default function WebsitePagesClient({
           <button className="btn btn-ghost" type="button" onClick={addPage}>Add page</button>
           <button className="btn btn-ghost" type="button" onClick={deletePage} disabled={!selected || selected.managed}>Delete selected</button>
           {selected ? (
-            <Link href={selected.slug === "home" ? "/" : `/${selected.slug}`} className="btn btn-ghost" target="_blank">View live</Link>
+            <Link href={selected.slug === "home" ? "/" : `/${selected.slug}`} className="btn btn-ghost">View live</Link>
           ) : null}
           <button className="btn btn-ghost" disabled={status === "saving"} onClick={() => void save()}>
             Save draft
@@ -580,15 +620,42 @@ export default function WebsitePagesClient({
             </select>
           </label>
         </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-[180px_1fr_1fr]">
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
           <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
             <input
               type="checkbox"
               checked={theme.backgroundMediaEnabled}
               onChange={(event) => updateTheme({ backgroundMediaEnabled: event.target.checked })}
             />
-            Continue image/video background
+            Theme URL fallback
           </label>
+          <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
+            <input
+              type="checkbox"
+              checked={theme.backgroundCinematic !== false}
+              onChange={(event) => updateTheme({ backgroundCinematic: event.target.checked })}
+            />
+            Cinematic presence
+          </label>
+          <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
+            <input
+              type="checkbox"
+              checked={theme.backgroundSuppressPageMedia !== false}
+              onChange={(event) =>
+                updateTheme({ backgroundSuppressPageMedia: event.target.checked })
+              }
+            />
+            Suppress page backgrounds
+          </label>
+        </div>
+        <p className="mt-3 text-xs text-white/45">
+          Prefer{" "}
+          <Link href="/admin/background-videos" className="underline text-white/70 hover:text-white">
+            Background videos
+          </Link>{" "}
+          for the Live catalog clip. Theme URL fields remain a fallback when no catalog video is Live.
+        </p>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
           <label className="block text-xs uppercase tracking-[0.2em] text-white/55">
             Site background image/video URL
             <input
@@ -632,6 +699,56 @@ export default function WebsitePagesClient({
             />
           </label>
         </div>
+        <div className="mt-5">
+          <label className="block text-xs uppercase tracking-[0.2em] text-white/55">
+            Footer CTA image (Next step box)
+            <input
+              value={theme.footerCtaImageUrl}
+              onChange={(event) => updateTheme({ footerCtaImageUrl: event.target.value })}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white"
+              placeholder="Optional — image beside Ready to collaborate?"
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="text-xs uppercase tracking-[0.2em] text-white/55 underline"
+                onClick={() => setR2Target({ kind: "themeFooterCtaImage" })}
+              >
+                Choose from R2
+              </button>
+              <label className="cursor-pointer text-xs uppercase tracking-[0.2em] text-white/55 underline">
+                Upload image
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void uploadThemeMedia(file, "footerCtaImageUrl");
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              {theme.footerCtaImageUrl ? (
+                <button
+                  type="button"
+                  className="text-xs uppercase tracking-[0.2em] text-white/45 underline"
+                  onClick={() => updateTheme({ footerCtaImageUrl: "" })}
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+            {theme.footerCtaImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={theme.footerCtaImageUrl}
+                alt=""
+                className="mt-3 h-24 w-40 rounded-lg border border-white/10 object-cover"
+              />
+            ) : null}
+          </label>
+        </div>
       </section>
 
       <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -651,11 +768,12 @@ export default function WebsitePagesClient({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-white/55">
-                Auto Work pillar links (preview)
+                Auto Work pillar links
               </p>
               <p className="mt-1 text-xs text-white/60">
-                These links appear in the site header after your Work hub position. You can hide Work
-                and keep pillar links visible. Toggle each pillar under{" "}
+                These links appear in the site header after your Work hub. Turn SHOW off to hide a
+                pillar from the public nav and Work hub (the pillar page URL still works if linked
+                elsewhere). Full pillar settings live under{" "}
                 <Link href="/admin/work-pillars" className="underline text-white/80 hover:text-white">
                   Work pillars
                 </Link>
@@ -666,17 +784,27 @@ export default function WebsitePagesClient({
 
           {autoPillarLinks.length === 0 ? (
             <p className="mt-3 text-xs text-white/55">
-              No visible pillars (or pillars not loaded yet). If this is unexpected, check Work pillars.
+              No pillars loaded yet. If this is unexpected, check Work pillars.
             </p>
           ) : (
             <div className="mt-3 grid gap-2 md:grid-cols-2">
               {autoPillarLinks.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/25 px-3 py-2">
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/25 px-3 py-2"
+                >
                   <div className="min-w-0">
                     <p className="truncate text-sm text-white/85">{item.label}</p>
                     <p className="truncate font-mono text-[0.7rem] text-white/50">{item.href}</p>
                   </div>
-                  <span className="text-[0.65rem] uppercase tracking-[0.2em] text-white/40">Auto</span>
+                  <label className="flex shrink-0 items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/60">
+                    <input
+                      type="checkbox"
+                      checked={item.visible}
+                      onChange={(event) => setPillarNavVisible(item.slug, event.target.checked)}
+                    />
+                    Show
+                  </label>
                 </div>
               ))}
             </div>

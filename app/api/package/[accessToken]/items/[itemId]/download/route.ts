@@ -1,6 +1,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { jsonErr } from "@/lib/api/http";
 import { resolveDeliverablePackageItem } from "@/lib/client-api/delivery-package";
+import { rejectIfTokenDownloadLimited } from "@/lib/client-token-rate-limit";
 import { recomputeDeliveryItemPerformance } from "@/lib/delivery/db";
 import { prisma } from "@/lib/prisma";
 import { signGet } from "@/lib/storage-r2";
@@ -13,9 +15,15 @@ export async function GET(
   context: { params: Promise<{ accessToken: string; itemId: string }> }
 ) {
   const { accessToken, itemId } = await context.params;
+  const limited = await rejectIfTokenDownloadLimited(req, accessToken, "package-item-dl", {
+    max: 120,
+    windowMs: 60 * 60_000,
+  });
+  if (limited) return limited;
+
   const resolved = await resolveDeliverablePackageItem(accessToken, itemId);
   if (!resolved.ok) {
-    return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 });
+    return jsonErr("File not found.", 404);
   }
 
   const { pkg, item, key } = resolved;

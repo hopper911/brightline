@@ -36,12 +36,12 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-4xl rounded-[28px] border border-white/10 bg-black shadow-2xl"
+        className="relative flex max-h-[min(90dvh,900px)] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+          className="absolute right-3 top-3 z-10 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/10 p-2 text-white/70 hover:bg-white/20 hover:text-white transition-colors sm:right-4 sm:top-4"
           aria-label="Close booking modal"
         >
           <svg
@@ -66,7 +66,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
             width="100%"
             height="700"
             frameBorder="0"
-            className="rounded-[28px]"
+            className="h-[min(700px,calc(90dvh-2rem))] w-full rounded-[28px]"
             title="Book a consultation"
           />
         ) : (

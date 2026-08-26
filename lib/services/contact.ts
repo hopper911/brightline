@@ -28,7 +28,7 @@ export async function notifyInquiry(data: InquiryInput): Promise<void> {
     `Name: ${data.name}`,
     `Email: ${data.email}`,
     ...(data.company ? [`Company: ${data.company}`] : []),
-    ...(data.projectType ? [`Project type: ${data.projectType}`] : []),
+    ...(data.projectType ? [`Inquiry type: ${data.projectType}`] : []),
     ...(data.budget ? [`Budget: ${data.budget}`] : []),
     ...(data.location ? [`Location: ${data.location}`] : []),
     ...(data.timeline ? [`Timeline: ${data.timeline}`] : []),
@@ -36,6 +36,8 @@ export async function notifyInquiry(data: InquiryInput): Promise<void> {
     `Message:`,
     data.message,
   ];
+
+  const typeLabel = data.projectType?.trim() || "general";
 
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -47,7 +49,7 @@ export async function notifyInquiry(data: InquiryInput): Promise<void> {
       body: JSON.stringify({
         from,
         to: [to],
-        subject: `[BRIGHTLINE] New inquiry from ${data.name}`,
+        subject: `[BRIGHTLINE] ${typeLabel} inquiry from ${data.name}`,
         text: lines.join("\n"),
       }),
     });

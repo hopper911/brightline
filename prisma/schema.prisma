@@ -123,6 +123,21 @@ enum PaymentType {
   OTHER
 }
 
+/// Accountant portal — payment record lifecycle (separate from invoice PaymentStatus).
+enum StudioPaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum AccountingNoteAuthorType {
+  OWNER
+  ACCOUNTANT
+  SYSTEM
+}
+
 /// Reusable invoice line templates (Brightline service catalog).
 enum ServiceTemplateType {
   PER_IMAGE
@@ -157,6 +172,58 @@ enum ContentStatus {
   READY_TO_POST
   POSTED
   REUSABLE
+}
+
+enum DocumentTemplateType {
+  COMMERCIAL_PHOTOGRAPHY_AGREEMENT
+  ARCHITECTURE_REAL_ESTATE_AGREEMENT
+  CORPORATE_PORTRAIT_AGREEMENT
+  IMAGE_LICENSING_AGREEMENT
+  CANCELLATION_RESCHEDULING_AGREEMENT
+  MODEL_RELEASE
+  PROPERTY_RELEASE
+  FINAL_DELIVERY_APPROVAL
+  REVISION_REQUEST
+  OTHER
+}
+
+enum GeneratedDocumentStatus {
+  DRAFT
+  GENERATED
+  SENT
+  VIEWED
+  SIGNED
+  DECLINED
+  EXPIRED
+  ARCHIVED
+}
+
+enum FormTemplateType {
+  PROJECT_INTAKE
+  PRE_SHOOT_QUESTIONNAIRE
+  SHOT_LIST
+  LOCATION_ACCESS
+  DELIVERY_APPROVAL
+  REVISION_REQUEST_FORM
+  TESTIMONIAL_REQUEST
+  OTHER
+}
+
+enum FormFieldType {
+  TEXT
+  TEXTAREA
+  EMAIL
+  PHONE
+  NUMBER
+  DATE
+  CHECKBOX
+  SELECT
+  MULTISELECT
+}
+
+enum FormSubmissionStatus {
+  DRAFT
+  SUBMITTED
 }
 
 enum StudioEmailProvider {
@@ -436,6 +503,8 @@ model GalleryAccessToken {
   favorites     GalleryFavorite[]
   downloads     GalleryDownload[]
   selections    GalleryImageSelection[]
+
+  @@index([isActive, codeHint])
 }
 
 model GalleryAccessLog {
@@ -542,8 +611,9 @@ model WorkProject {
   heroMedia           MediaAsset?    @relation("HeroMedia", fields: [heroMediaId], references: [id])
   backgroundMediaUrl  String?
   backgroundPosterUrl String?
-  finalPackageToken   String?        @unique
-  attachedInvoiceId   String?
+  finalPackageToken      String?   @unique
+  finalPackageExpiresAt  DateTime?
+  attachedInvoiceId      String?
   clientPdfGeneratedAt DateTime?
   deliveryPreparedAt  DateTime?
   media               ProjectMedia[]
@@ -581,14 +651,82 @@ model WorkProject {
   relatedServicesIntro        String?
   relatedServicesLinks        Json?
   showRelatedContactButton    Boolean  @default(true)
+  /// Present supporting gallery as a cinematic carousel (vs grid). Legacy — prefer galleryBlocks.
+  galleryCarouselEnabled      Boolean  @default(false)
+  /// Ordered carousel/grid blocks over the shared media pool. Empty = legacy flag behavior.
+  galleryBlocks               Json     @default("[]")
+  /// Multi-story chapters (ordered blocks). Empty = classic scalar case study layout.
+  storyChapters               Json     @default("[]")
   /// Optional link to canonical Studio OS project record (`StudioProject.id`).
   studioProjectId     String?
+  relatedDesignProjects DesignProject[]
 
   @@unique([section, slug])
   @@index([section])
   @@index([published])
   @@index([studioProjectId])
   @@index([attachedInvoiceId])
+}
+
+/// Public Design & Digital portfolio status (do not reuse Studio ProjectStatus).
+enum DesignPortfolioStatus {
+  LIVE_PRODUCT
+  WORKING_MVP
+  INTERACTIVE_PROTOTYPE
+  PRODUCT_CONCEPT
+  INTERNAL_TOOL
+  CLIENT_PROJECT
+  ONGOING
+  ARCHIVED
+}
+
+/// Public graphic design portfolio (parallel to photography Work; gated by design_section:v1).
+model DesignProject {
+  id                     String                 @id @default(cuid())
+  title                  String
+  slug                   String                 @unique
+  summary                String?
+  brief                  String?
+  approach               String?
+  outcome                String?
+  problemStatement       String?
+  year                   Int?
+  yearEnd                Int?
+  clientName             String?
+  role                   String?
+  timelineLabel          String?
+  teamLabel              String?
+  platformLabel          String?
+  toolsLabel             String?
+  industryLabel          String?
+  projectTypeLabel       String?
+  status                 DesignPortfolioStatus  @default(PRODUCT_CONCEPT)
+  disciplines            String[]               @default([])
+  published              Boolean                @default(false)
+  featured               Boolean                @default(false)
+  sortOrder              Int                    @default(0)
+  coverMediaId           String?
+  coverMedia             MediaAsset?            @relation("DesignCover", fields: [coverMediaId], references: [id])
+  /// Ordered specimen / application blocks: { id, imageKey, caption, applicationLabel, sortOrder }
+  specimenBlocks         Json                   @default("[]")
+  /// Structured case-study sections (overview, context, research, goals, etc.)
+  caseStudy              Json                   @default("{}")
+  relatedWorkProjectId   String?
+  relatedWorkProject     WorkProject?           @relation(fields: [relatedWorkProjectId], references: [id], onDelete: SetNull)
+  relatedServicesEnabled Boolean                @default(false)
+  relatedServicesIntro   String?
+  relatedServicesLinks   Json?
+  seoTitle               String?
+  seoDescription         String?
+  ogImageKey             String?
+  publishedAt            DateTime?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  @@index([published])
+  @@index([featured, sortOrder])
+  @@index([relatedWorkProjectId])
+  @@index([status])
 }
 
 model ProjectCopyVersion {
@@ -622,6 +760,7 @@ model MediaAsset {
   projectMedia  ProjectMedia[]
   deliveryPackageItems DeliveryPackageItem[]
   studioHeroFor StudioProject[] @relation("StudioProjectHero")
+  designCoverFor DesignProject[] @relation("DesignCover")
 
   @@index([kind])
 }
@@ -658,6 +797,8 @@ model StudioProject {
   summary          String?
   notes            String?
   isPublicReady    Boolean       @default(false)
+  /// DocumentTemplateType values that must be SIGNED before scheduling unlocks.
+  requireSignedDocumentTypes Json?
 
   // Studio OS finance fields (single-user operator tracking; no bank integrations).
   totalPrice       Decimal       @default(0) @db.Decimal(10, 2)
@@ -697,6 +838,12 @@ model StudioProject {
   heroStudioMediaId String?
   heroStudioMedia   StudioMedia? @relation("StudioProjectHeroStudioMedia", fields: [heroStudioMediaId], references: [id], onDelete: SetNull)
   gallery           Json         @default("[]")
+  /// Present gallery as a cinematic carousel (vs grid) on the public case study. Legacy — prefer galleryBlocks.
+  galleryCarouselEnabled Boolean @default(false)
+  /// Ordered carousel/grid blocks over the shared gallery pool.
+  galleryBlocks     Json         @default("[]")
+  /// Multi-story chapters (ordered blocks). Empty = classic CMS layout.
+  storyChapters     Json         @default("[]")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -719,6 +866,10 @@ model StudioProject {
   studioScheduleEvents    StudioScheduleEvent[]
   stageHistory            StudioProjectStageHistory[]
   studioNotifications    StudioNotification[]
+  generatedDocuments     GeneratedDocument[]
+  formSubmissions        FormSubmission[]
+  ledgerAdjustments      AccountingLedgerAdjustment[]
+  accountingNotes        AccountingNote[]
 
   @@index([published])
   @@index([featured])
@@ -876,6 +1027,11 @@ model StudioClient {
   emailThreads StudioEmailThread[]
   studioTasks  StudioTask[]
   studioScheduleEvents StudioScheduleEvent[]
+  generatedDocuments GeneratedDocument[]
+  formSubmissions    FormSubmission[]
+  expenses           StudioExpense[]
+  ledgerAdjustments  AccountingLedgerAdjustment[]
+  accountingNotes    AccountingNote[]
 
   @@index([companyName])
   @@index([isActive])
@@ -885,24 +1041,28 @@ model StudioClient {
 
 // Studio OS (internal) — manual payment tracking for a single operator.
 model StudioPayment {
-  id        String      @id @default(cuid())
-  projectId String
+  id           String              @id @default(cuid())
+  projectId    String
   /// When set, this payment is attributed to a specific invoice (in addition to project rollup).
-  invoiceId String?
-  amount    Decimal     @db.Decimal(10, 2)
-  date      DateTime    @default(now())
-  type      PaymentType @default(OTHER)
-  note      String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  invoiceId    String?
+  amount       Decimal             @db.Decimal(10, 2)
+  date         DateTime            @default(now())
+  type         PaymentType         @default(OTHER)
+  note         String?
+  recordStatus StudioPaymentStatus @default(COMPLETED)
+  paymentMethod String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
-  project StudioProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  invoice StudioInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  project         StudioProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invoice         StudioInvoice?    @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  accountingNotes AccountingNote[]
 
   @@index([date])
   @@index([projectId, date])
   @@index([type])
   @@index([invoiceId])
+  @@index([recordStatus])
 }
 
 model StudioServiceTemplate {
@@ -955,6 +1115,8 @@ model StudioInvoice {
   deliveryPackage DeliveryPackage? @relation(fields: [deliveryPackageId], references: [id], onDelete: SetNull)
   lineItems StudioInvoiceLineItem[]
   payments  StudioPayment[]
+  generatedDocuments GeneratedDocument[]
+  accountingNotes AccountingNote[]
 
   @@index([clientId])
   @@index([projectId])
@@ -1195,9 +1357,14 @@ model StudioInvoiceLineItemMedia {
 model StudioExpense {
   id                 String   @id @default(cuid())
   projectId          String?
+  studioClientId     String?
   amount             Decimal  @db.Decimal(10, 2)
   category           String
+  title              String?
+  vendor             String?
+  description        String?
   note               String?
+  paymentMethod      String?
   date               DateTime @default(now())
   receiptPath        String?
   receiptKey         String?
@@ -1206,11 +1373,15 @@ model StudioExpense {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  project StudioProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project           StudioProject?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  studioClient      StudioClient?        @relation(fields: [studioClientId], references: [id], onDelete: SetNull)
+  accountingNotes   AccountingNote[]
+  accountingReceipts AccountingReceipt[]
 
   @@index([date])
   @@index([projectId, date])
   @@index([category])
+  @@index([studioClientId])
 }
 
 // Studio OS (internal) — inbound lead tracking and conversion pointers.
@@ -1577,6 +1748,39 @@ model SiteSetting {
   updatedAt DateTime @updatedAt
 }
 
+/// Shared cross-instance API rate-limit counters (Neon-backed; Upstash preferred when configured).
+model RateLimitBucket {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+/// Site-wide background video catalog (BBH-style chrome; not Work/Gallery videos).
+model SiteBackgroundVideo {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique
+  storageKey    String
+  /// Optional lighter encode for future use; playback prefers storageKey in v1.
+  webStorageKey String?
+  posterKey     String?
+  sortOrder     Int      @default(0)
+  width         Int?
+  height        Int?
+  bytes         Int?
+  durationSec   Int?
+  enabled       Boolean  @default(true)
+  /// At most one row should be isActive=true for site-wide Live playback.
+  isActive      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isActive, enabled])
+  @@index([sortOrder])
+}
+
 model Inquiry {
   id          String   @id @default(cuid())
   name        String
@@ -1588,4 +1792,325 @@ model Inquiry {
   location    String?
   timeline    String?
   createdAt   DateTime @default(now())
+}
+
+// ─── Contracts & Forms Studio ───────────────────────────────────────────────
+
+model DocumentTemplate {
+  id             String               @id @default(cuid())
+  title          String
+  type           DocumentTemplateType @default(OTHER)
+  description    String?
+  contentHtml    String
+  contentJson    Json?
+  variables      Json                 @default("[]")
+  version        Int                  @default(1)
+  isActive       Boolean              @default(true)
+  createdByLabel String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  documents GeneratedDocument[]
+
+  @@index([type])
+  @@index([isActive])
+}
+
+model GeneratedDocument {
+  id                String                  @id @default(cuid())
+  templateId        String
+  studioClientId    String
+  studioProjectId   String?
+  studioInvoiceId   String?
+  title             String
+  status            GeneratedDocumentStatus @default(DRAFT)
+  contentHtml       String
+  variablesSnapshot Json                    @default("{}")
+  draftPdfKey       String?
+  signedPdfKey      String?
+  clientToken       String                  @unique
+  sentAt            DateTime?
+  viewedAt          DateTime?
+  signedAt          DateTime?
+  expiresAt         DateTime?
+  declinedAt        DateTime?
+  archivedAt        DateTime?
+  templateVersion   Int                     @default(1)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  template      DocumentTemplate    @relation(fields: [templateId], references: [id])
+  studioClient  StudioClient        @relation(fields: [studioClientId], references: [id])
+  studioProject StudioProject?      @relation(fields: [studioProjectId], references: [id], onDelete: SetNull)
+  studioInvoice StudioInvoice?      @relation(fields: [studioInvoiceId], references: [id], onDelete: SetNull)
+  signature     DocumentSignature?
+  auditLogs     DocumentAuditLog[]
+
+  @@index([studioClientId])
+  @@index([studioProjectId])
+  @@index([studioInvoiceId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([signedAt])
+  @@index([expiresAt])
+}
+
+model DocumentSignature {
+  id              String   @id @default(cuid())
+  documentId      String   @unique
+  signerName      String
+  signerEmail     String
+  consentAccepted Boolean
+  signedAt        DateTime @default(now())
+  ipAddress       String?
+  userAgent       String?
+  documentVersion Int
+  createdAt       DateTime @default(now())
+
+  document GeneratedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model FormTemplate {
+  id          String           @id @default(cuid())
+  title       String
+  type        FormTemplateType @default(OTHER)
+  description String?
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  fields      FormField[]
+  submissions FormSubmission[]
+
+  @@index([type])
+  @@index([isActive])
+}
+
+model FormField {
+  id                 String        @id @default(cuid())
+  formTemplateId     String
+  label              String
+  fieldType          FormFieldType @default(TEXT)
+  placeholder        String?
+  required           Boolean       @default(false)
+  options            Json?
+  sortOrder          Int           @default(0)
+  mapsToProjectField String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  formTemplate FormTemplate          @relation(fields: [formTemplateId], references: [id], onDelete: Cascade)
+  values       FormSubmissionValue[]
+
+  @@index([formTemplateId, sortOrder])
+}
+
+model FormSubmission {
+  id              String               @id @default(cuid())
+  formTemplateId  String
+  studioClientId  String
+  studioProjectId String?
+  status          FormSubmissionStatus @default(DRAFT)
+  submittedAt     DateTime?
+  clientToken     String               @unique
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  formTemplate  FormTemplate          @relation(fields: [formTemplateId], references: [id])
+  studioClient  StudioClient          @relation(fields: [studioClientId], references: [id])
+  studioProject StudioProject?        @relation(fields: [studioProjectId], references: [id], onDelete: SetNull)
+  values        FormSubmissionValue[]
+  auditLogs     DocumentAuditLog[]
+
+  @@index([studioClientId])
+  @@index([studioProjectId])
+  @@index([status])
+}
+
+model FormSubmissionValue {
+  id           String   @id @default(cuid())
+  submissionId String
+  fieldId      String
+  value        String
+  createdAt    DateTime @default(now())
+
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  field      FormField      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, fieldId])
+  @@index([submissionId, fieldId])
+}
+
+model DocumentAuditLog {
+  id               String   @id @default(cuid())
+  documentId       String?
+  formSubmissionId String?
+  actorType        String
+  action           String
+  metadata         Json?
+  ipAddress        String?
+  userAgent        String?
+  createdAt        DateTime @default(now())
+
+  document       GeneratedDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  formSubmission FormSubmission?    @relation(fields: [formSubmissionId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+  @@index([formSubmissionId, createdAt])
+  @@index([action, createdAt])
+}
+
+// ─── Accountant portal ───────────────────────────────────────────────────────
+
+model AccountantAccess {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  isActive        Boolean   @default(true)
+  accessExpiresAt DateTime?
+  lastLoginAt     DateTime?
+  totpSecret      String?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  createdBy         AccountantAccess?  @relation("AccountantCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAccountants AccountantAccess[] @relation("AccountantCreatedBy")
+  permissions       AccountantPermission?
+  notes             AccountingNote[]
+  receipts          AccountingReceipt[]
+  documents         AccountingDocument[]
+  auditLogs         AccountantAuditLog[]
+
+  @@index([isActive])
+  @@index([accessExpiresAt])
+}
+
+model AccountantPermission {
+  id                       String  @id @default(cuid())
+  accountantAccessId       String  @unique
+  canViewInvoices          Boolean @default(true)
+  canViewPayments          Boolean @default(true)
+  canViewExpenses          Boolean @default(true)
+  canViewTransactions      Boolean @default(true)
+  canUploadReceipts        Boolean @default(true)
+  canExportReports         Boolean @default(true)
+  canDownloadDocuments     Boolean @default(true)
+  canAddAccountingNotes    Boolean @default(true)
+  canViewProjectFinancials Boolean @default(false)
+  canEditExpenseCategories Boolean @default(false)
+  canCreateExpenses        Boolean @default(false)
+  canEditExpenses          Boolean @default(false)
+
+  accountantAccess AccountantAccess @relation(fields: [accountantAccessId], references: [id], onDelete: Cascade)
+}
+
+model AccountingLedgerAdjustment {
+  id              String   @id @default(cuid())
+  ledgerType      String
+  amount          Decimal  @db.Decimal(10, 2)
+  description     String
+  category        String?
+  transactionDate DateTime @default(now())
+  studioProjectId String?
+  studioClientId  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  studioProject   StudioProject?   @relation(fields: [studioProjectId], references: [id], onDelete: SetNull)
+  studioClient    StudioClient?    @relation(fields: [studioClientId], references: [id], onDelete: SetNull)
+  accountingNotes AccountingNote[]
+
+  @@index([transactionDate])
+  @@index([studioProjectId])
+  @@index([studioClientId])
+  @@index([ledgerType])
+}
+
+model AccountingNote {
+  id                 String                   @id @default(cuid())
+  body               String
+  authorType         AccountingNoteAuthorType
+  accountantAccessId String?
+  isOwnerActor       Boolean                  @default(false)
+  studioInvoiceId    String?
+  studioExpenseId    String?
+  studioPaymentId    String?
+  studioProjectId    String?
+  studioClientId     String?
+  ledgerAdjustmentId String?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  accountantAccess AccountantAccess?            @relation(fields: [accountantAccessId], references: [id], onDelete: SetNull)
+  studioInvoice    StudioInvoice?               @relation(fields: [studioInvoiceId], references: [id], onDelete: Cascade)
+  studioExpense    StudioExpense?               @relation(fields: [studioExpenseId], references: [id], onDelete: Cascade)
+  studioPayment    StudioPayment?               @relation(fields: [studioPaymentId], references: [id], onDelete: Cascade)
+  studioProject    StudioProject?               @relation(fields: [studioProjectId], references: [id], onDelete: Cascade)
+  studioClient     StudioClient?                @relation(fields: [studioClientId], references: [id], onDelete: Cascade)
+  ledgerAdjustment AccountingLedgerAdjustment?  @relation(fields: [ledgerAdjustmentId], references: [id], onDelete: Cascade)
+
+  @@index([studioInvoiceId])
+  @@index([studioExpenseId])
+  @@index([studioPaymentId])
+  @@index([studioProjectId])
+  @@index([studioClientId])
+  @@index([createdAt])
+}
+
+model AccountingReceipt {
+  id                     String   @id @default(cuid())
+  fileName               String
+  r2Key                  String   @unique
+  mimeType               String
+  sizeBytes              Int
+  studioExpenseId        String?
+  uploadedByAccountantId String?
+  createdAt              DateTime @default(now())
+
+  studioExpense          StudioExpense?     @relation(fields: [studioExpenseId], references: [id], onDelete: SetNull)
+  uploadedByAccountant   AccountantAccess?  @relation(fields: [uploadedByAccountantId], references: [id], onDelete: SetNull)
+
+  @@index([studioExpenseId])
+  @@index([uploadedByAccountantId])
+  @@index([createdAt])
+}
+
+model AccountingDocument {
+  id                      String    @id @default(cuid())
+  title                   String
+  kind                    String
+  dateRangeStart          DateTime?
+  dateRangeEnd            DateTime?
+  r2Key                   String?
+  mimeType                String    @default("text/csv")
+  sizeBytes               Int?
+  generatedByAccountantId String?
+  createdAt               DateTime  @default(now())
+
+  generatedByAccountant AccountantAccess? @relation(fields: [generatedByAccountantId], references: [id], onDelete: SetNull)
+
+  @@index([kind])
+  @@index([createdAt])
+}
+
+model AccountantAuditLog {
+  id                String   @id @default(cuid())
+  actorType         String
+  actorAccountantId String?
+  actorOwner        Boolean  @default(false)
+  action            String
+  entityType        String?
+  entityId          String?
+  metadata          Json?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime @default(now())
+
+  actorAccountant AccountantAccess? @relation(fields: [actorAccountantId], references: [id], onDelete: SetNull)
+
+  @@index([actorAccountantId, createdAt])
+  @@index([action, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }

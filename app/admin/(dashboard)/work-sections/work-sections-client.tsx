@@ -167,7 +167,7 @@ export default function WorkSectionsClient({ initialServices }: { initialService
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Link href={liveHref} className="btn btn-ghost" target="_blank">
+          <Link href={liveHref} className="btn btn-ghost">
             View live
           </Link>
           <Link href={`/admin/work/${selected.id}`} className="btn btn-ghost">
@@ -240,7 +240,7 @@ export default function WorkSectionsClient({ initialServices }: { initialService
           <span>
             <strong className="text-white">Show related services section</strong>
             <span className="mt-1 block text-sm text-white/60">
-              Displays the cross-link block above the &ldquo;Next step&rdquo; CTA on this project page.
+              Displays the related-services cross-link block near the end of this project page.
             </span>
           </span>
         </label>

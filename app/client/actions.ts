@@ -3,6 +3,11 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { resolveClientAccessCode } from "@/lib/client-access";
+import {
+  CLIENT_GALLERY_SESSION_MAX_AGE_SEC,
+  createClientGallerySessionToken,
+} from "@/lib/client-gallery-session-token";
+import { shouldUseSecureCookies } from "@/lib/cookie-secure";
 
 export type ClientAccessState = {
   error?: string;
@@ -23,28 +28,24 @@ export async function clientAccessAction(
   }
   const entry = resolved.access;
 
+  const sessionToken = createClientGallerySessionToken(entry.id);
+  if (!sessionToken) {
+    return { error: "Unable to create access session." };
+  }
+
   const jar = await cookies();
-  jar.set("client_access", "true", {
+  const cookieBase = {
     httpOnly: true,
     path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-  jar.set("client_gallery", entry.gallerySlug, {
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-  jar.set("client_access_id", entry.id, {
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7,
-  });
+    sameSite: "lax" as const,
+    secure: shouldUseSecureCookies(),
+    maxAge: CLIENT_GALLERY_SESSION_MAX_AGE_SEC,
+  };
+
+  jar.set("client_access", "true", cookieBase);
+  jar.set("client_gallery", entry.gallerySlug, cookieBase);
+  jar.set("client_access_session", sessionToken, cookieBase);
+  jar.set("client_access_id", "", { ...cookieBase, maxAge: 0 });
 
   redirect(`/client/${entry.gallerySlug}`);
 }

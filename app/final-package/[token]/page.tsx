@@ -33,6 +33,9 @@ export default async function FinalPackagePage({
     },
   });
   if (!project) notFound();
+  if (project.finalPackageExpiresAt && project.finalPackageExpiresAt.getTime() < Date.now()) {
+    notFound();
+  }
 
   const invoice = project.attachedInvoiceId
     ? await prisma.studioInvoice.findUnique({

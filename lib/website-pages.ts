@@ -71,7 +71,7 @@ export function blankBlock(type: WebsiteBlockType = "text", label = "Content blo
     items:
       type === "stats"
         ? [
-            { title: "500+", body: "Projects", meta: "Delivered since 2019" },
+            { title: "NJ / NYC", body: "Metro focus", meta: "Tri-State commercial work" },
             { title: "48hr", body: "Response time", meta: "Initial inquiry" },
           ]
         : type === "cards" || type === "list"
@@ -166,7 +166,7 @@ export const CORE_WEBSITE_PAGES: WebsitePage[] = [
         type: "stats",
         label: "Credibility stats",
         items: [
-          { title: "500+", body: "Projects", meta: "Delivered since 2019" },
+          { title: "NJ / NYC", body: "Metro focus", meta: "Tri-State commercial work" },
           { title: "48hr", body: "Response time", meta: "Initial inquiry" },
           { title: "5-7", body: "Proof days", meta: "Standard turnaround" },
           { title: "10-14", body: "Final days", meta: "Full delivery" },
@@ -235,7 +235,7 @@ export const CORE_WEBSITE_PAGES: WebsitePage[] = [
         type: "stats",
         label: "Credibility stats",
         items: [
-          { title: "500+", body: "Projects", meta: "Delivered since 2019" },
+          { title: "NJ / NYC", body: "Metro focus", meta: "Tri-State commercial work" },
           { title: "48hr", body: "Response time", meta: "Initial inquiry" },
           { title: "5-7", body: "Proof days", meta: "Standard turnaround" },
           { title: "10-14", body: "Final days", meta: "Full delivery" },

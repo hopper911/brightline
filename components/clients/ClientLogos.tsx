@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CLIENTS } from "@/lib/clients";
+import { externalLinkProps } from "@/lib/external-link";
 
 export default function ClientLogos() {
   return (
@@ -9,8 +10,7 @@ export default function ClientLogos() {
           <Link
             key={client.name}
             href={client.url}
-            target="_blank"
-            rel="noopener noreferrer"
+            {...externalLinkProps(client.url)}
             className="text-xs uppercase tracking-[0.28em] text-black/50 hover:text-black/80 transition-colors"
             aria-label={client.name}
           >

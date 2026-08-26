@@ -66,6 +66,9 @@ html {
 
 body {
   margin: 0;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
   background:
     radial-gradient(1200px 800px at 30% 0%, rgba(255, 255, 255, 0.06), transparent 60%),
     radial-gradient(900px 700px at 90% 30%, rgba(255, 255, 255, 0.04), transparent 55%),
@@ -110,36 +113,160 @@ img {
 [data-image-guard] img,
 [data-image-guard] video,
 [data-image-guard] picture,
-[data-image-guard] .yarl__slide_image,
-[data-image-guard] .yarl__slide_image img {
+[data-image-guard] canvas {
   -webkit-user-drag: none;
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
-  -webkit-touch-callout: none;
+  -webkit-touch-callout: none !important;
+  touch-action: manipulation;
 }
 
-[data-image-guard] .image-guard-overlay {
+/* Don't break Leaflet map tiles with image-guard rules. */
+[data-image-guard] .leaflet-container img,
+[data-image-guard] .leaflet-tile-container img,
+[data-image-guard] .leaflet-marker-icon {
+  -webkit-user-drag: auto;
+  touch-action: auto;
+  pointer-events: auto;
+}
+
+/* Gallery / carousel wrappers only — do NOT set position on .yarl__* (breaks lightbox sizing). */
+[data-image-guard] .image-guard-overlay,
+[data-image-guard] .image-guard-stage {
   position: relative;
+  -webkit-touch-callout: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
 [data-image-guard] .image-guard-overlay img,
-[data-image-guard] .image-guard-overlay video {
+[data-image-guard] .image-guard-overlay video,
+[data-image-guard] .image-guard-overlay picture,
+[data-image-guard] .image-guard-overlay canvas,
+[data-image-guard] .image-guard-stage img,
+[data-image-guard] .image-guard-stage video,
+[data-image-guard] .image-guard-stage picture,
+[data-image-guard] .image-guard-stage canvas {
   pointer-events: none;
+  -webkit-touch-callout: none !important;
 }
 
-[data-image-guard] .image-guard-overlay::after {
+/*
+ * Transparent hit layer so long-press / right-click targets the wrapper, not the bitmap.
+ * Carousel controls must sit above this (z-index ≥ 10).
+ */
+[data-image-guard] .image-guard-overlay::after,
+[data-image-guard] .image-guard-stage::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 2;
+  background: transparent;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: pan-y pinch-zoom;
 }
 
-/* Admin left rail: thin scrollbar on desktop scroll region only */
+/* Lightbox: protect without changing layout / pan / zoom. */
+[data-image-guard] .yarl__container,
+[data-image-guard] .yarl__slide,
+[data-image-guard] .yarl__slide_image,
+[data-image-guard] .yarl__slide img {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Restore pan / pinch inside lightbox (overrides global touch-action: manipulation). */
+[data-image-guard] .yarl__container,
+[data-image-guard] .yarl__slide,
+[data-image-guard] .yarl__slide img,
+[data-image-guard] .yarl__slide_image,
+[data-image-guard] .yarl__slide_image img {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+/* Hide download UI if a lightbox plugin adds one. */
+[data-image-guard] .yarl__button[title*="Download"],
+[data-image-guard] .yarl__button[title*="download"],
+[data-image-guard] .yarl__button[aria-label*="Download"],
+[data-image-guard] .yarl__button[aria-label*="download"] {
+  display: none !important;
+}
+
+/* ============================================================================
+ * ADMIN SIDEBAR SCROLL — PERMANENT LOCK. Do not change.
+ *
+ * Root cause: Lenis on operator routes steals wheel events → rail won’t scroll.
+ * Keep Lenis disabled on /admin|/studio|/accountant (`app/providers.tsx`).
+ * Keep `data-lenis-prevent` on `.admin-nav-scroll` in AdminNav.tsx.
+ *
+ * Desktop (lg+): outer shell is a fixed dvh column with overflow hidden; only
+ * `.admin-nav-scroll` scrolls. Using !important so utility classes cannot break it.
+ * Mobile: horizontal chip strip on `.admin-nav-scroll`.
+ *
+ * Rule: `.cursor/rules/admin-sidebar-scroll.mdc`
+ * ============================================================================ */
+.admin-nav-shell {
+  /* mobile top bar defaults come from Tailwind on the element */
+}
+
+.admin-nav-scroll {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 @media (min-width: 1024px) {
+  .admin-nav-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    width: 16rem !important; /* w-64 */
+    height: 100vh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .admin-nav-brand {
+    flex: 0 0 auto !important;
+  }
+
   .admin-nav-scroll {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    /* Critical: 1 1 0% + min-height 0 so the column gets a bounded height */
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    height: auto !important;
+    gap: 0 !important;
+    padding-bottom: 2rem !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+    /* Lenis: keep native wheel/touch scroll inside the rail */
+    touch-action: pan-y;
   }
 
   .admin-nav-scroll::-webkit-scrollbar {
@@ -157,6 +284,10 @@ img {
 
   .admin-nav-scroll::-webkit-scrollbar-thumb:hover {
     background-color: rgba(255, 255, 255, 0.35);
+  }
+
+  .admin-nav-link {
+    flex-shrink: 0;
   }
 }
 
@@ -287,10 +418,32 @@ img {
   gap: 0.5rem;
   border-radius: 999px;
   padding: 0.8rem 1.6rem;
+  min-height: 44px;
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: var(--ls-caps);
   transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+/* Keep CTA rows aligned and wrapping cleanly on narrow viewports. */
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+@media (max-width: 767px) {
+  .btn {
+    min-height: 44px;
+    padding: 0.85rem 1.35rem;
+  }
+
+  .btn-row > .btn,
+  .btn-row > a.btn {
+    flex: 1 1 auto;
+    min-width: min(100%, 10.5rem);
+  }
 }
 
 .motion-fast {
@@ -621,6 +774,43 @@ summary:focus-visible {
   color: var(--color-text-subtle);
 }
 
+/* Homepage recent-project card labels — keep tracking readable on long titles. */
+.showcase-label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1.45;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.showcase-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.showcase-card-copy--featured {
+  gap: 0.65rem;
+  padding: 1.35rem 1.35rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+@media (min-width: 768px) {
+  .showcase-card-copy--featured {
+    padding: 1.5rem 1.6rem 1.7rem;
+    gap: 0.7rem;
+  }
+}
+
+.showcase-card-copy--overlay {
+  gap: 0.45rem;
+  padding: 3.25rem 1.1rem 1.15rem;
+}
+
 .panel {
   border-radius: 1rem;
   border: 1px solid var(--color-border);
@@ -752,3 +942,138 @@ h3 {
     transform: none !important;
   }
 }
+
+/* Travel itinerary map (Leaflet + dark CARTO tiles) */
+.travel-map-stage {
+  overflow: hidden !important;
+  contain: layout paint style;
+  clip-path: inset(0);
+}
+
+.travel-itinerary-map.leaflet-container,
+.leaflet-container.travel-itinerary-map {
+  background: #0a0a0a;
+  font: inherit;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
+}
+
+.travel-map-stage .leaflet-pane,
+.travel-map-stage .leaflet-map-pane,
+.travel-map-stage .leaflet-tile-pane,
+.travel-map-stage .leaflet-overlay-pane,
+.travel-map-stage .leaflet-shadow-pane,
+.travel-map-stage .leaflet-marker-pane,
+.travel-map-stage .leaflet-tooltip-pane,
+.travel-map-stage .leaflet-popup-pane {
+  /* Keep panes inside the clipped stage — do not escape over the stop list */
+  max-height: 100%;
+}
+
+.travel-map-stage .leaflet-control-container {
+  z-index: 5 !important;
+}
+
+/*
+ * Tailwind Preflight sets img { max-width: 100%; height: auto }, which scatters Leaflet tiles.
+ * Restore Leaflet’s expected tile sizing.
+ */
+.leaflet-container img.leaflet-tile,
+.leaflet-container .leaflet-tile,
+.leaflet-tile-container img,
+.leaflet-layer img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-container .leaflet-marker-icon,
+.leaflet-container .leaflet-marker-shadow {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.55) !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  font-size: 10px !important;
+  border: 0 !important;
+}
+
+.leaflet-control-attribution a {
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+
+.leaflet-control-zoom a {
+  background: rgba(12, 12, 12, 0.92) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  width: 30px !important;
+  height: 30px !important;
+  line-height: 28px !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: rgba(28, 28, 28, 0.98) !important;
+  color: #fff !important;
+}
+
+.brightline-map-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+.brightline-map-pin__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: #f3efe6;
+  color: #0a0a0a;
+  font: 600 11px/1 system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 0 0 3px rgba(0, 0, 0, 0.55),
+    0 10px 24px rgba(0, 0, 0, 0.5);
+}
+
+.leaflet-popup-content-wrapper {
+  background: #121212 !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55) !important;
+}
+
+.leaflet-popup-tip {
+  background: #121212 !important;
+}
+
+.leaflet-popup-content {
+  margin: 10px 12px !important;
+}
+
+.leaflet-popup-close-button {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.brightline-map-popup__title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #f5f5f5;
+}
+
+.brightline-map-popup__meta {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.55);
+}
+

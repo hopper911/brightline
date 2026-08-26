@@ -10,6 +10,7 @@ import { getPublicR2Url } from "@/lib/r2";
 
 type HomeHeroProps = {
   featuredImage?: { url: string; alt: string } | null;
+  showDesignPath?: boolean;
 };
 
 const BLUR_DATA =
@@ -31,7 +32,7 @@ function getHeroPosterUrl(): string | null {
   return key ? getPublicR2Url(key) : null;
 }
 
-export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
+export default function HomeHero({ featuredImage = null, showDesignPath = false }: HomeHeroProps) {
   const videoUrl = getHeroVideoUrl();
   const posterUrl = getHeroPosterUrl();
 
@@ -46,22 +47,22 @@ export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
       </div>
       <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-4 pb-16 pt-16 md:flex-row md:items-center md:pt-24">
         <div className="max-w-xl space-y-6">
-          <motion.p initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: "easeOut" }}>
+          <motion.p initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }}>
             <span className="text-xs uppercase tracking-[0.35em] text-white/65">{BRAND.name}</span>
           </motion.p>
           <motion.h1
-            initial={{ opacity: 0, y: 30 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, ease: "easeOut", delay: 0.1 }}
+            transition={{ duration: 0.55, ease: "easeOut", delay: 0.05 }}
           >
             <span className="font-display text-3xl md:text-5xl leading-[1.05] text-white heading-hover">
               Visuals designed to perform.
             </span>
           </motion.h1>
           <motion.p
-            initial={{ opacity: 0, y: 24 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.75, ease: "easeOut", delay: 0.2 }}
+            transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
           >
             <span className="text-sm md:text-base text-white/80">
               Premium photography with structured delivery—assets prepared for web, search, and social, not just the
@@ -69,38 +70,46 @@ export default function HomeHero({ featuredImage = null }: HomeHeroProps) {
             </span>
           </motion.p>
           <motion.div
-            initial={{ opacity: 0, y: 18 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut", delay: 0.35 }}
+            transition={{ duration: 0.45, ease: "easeOut", delay: 0.15 }}
           >
-            <div className="flex flex-wrap gap-4">
+            <div className="btn-row">
               <MagneticButton href="/work" className="btn btn-primary">
-                View work
+                {showDesignPath ? "View Photography" : "View work"}
               </MagneticButton>
-              <PrimaryCTA service="general" className="btn btn-ghost">
-                Discuss a project
-              </PrimaryCTA>
+              {showDesignPath ? (
+                <MagneticButton href="/design" className="btn btn-ghost">
+                  Explore Design Work
+                </MagneticButton>
+              ) : (
+                <PrimaryCTA service="general" className="btn btn-ghost">
+                  Discuss a project
+                </PrimaryCTA>
+              )}
             </div>
           </motion.div>
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, ease: "easeOut", delay: 0.45 }}
+            transition={{ duration: 0.45, ease: "easeOut", delay: 0.2 }}
           >
-            <div className="flex items-center gap-6 text-xs uppercase tracking-[0.32em] text-white/60">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.65rem] uppercase tracking-[0.22em] text-white/60 sm:tracking-[0.28em]">
               {BRAND.contact.locations.map((location) => (
-                <span key={location}>{location}</span>
+                <span key={location} className="whitespace-nowrap">
+                  {location}
+                </span>
               ))}
             </div>
           </motion.div>
         </div>
         <motion.div
           style={{ scale }}
-          initial={{ opacity: 0, y: 30 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, ease: "easeOut", delay: 0.2 }}
+          transition={{ duration: 0.55, ease: "easeOut", delay: 0.1 }}
         >
-          <div className="relative h-[420px] w-full max-w-xl overflow-hidden rounded-[32px] border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)] image-guard-overlay">
+          <div className="relative h-[min(420px,70vw)] w-full max-w-xl overflow-hidden rounded-[32px] border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)] image-guard-overlay">
           {videoUrl ? (
             <>
               <video

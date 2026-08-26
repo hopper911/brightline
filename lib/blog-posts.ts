@@ -1,160 +1,83 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import {
+  normalizePosts,
+  type BlogPost,
+} from "@/lib/blog-post-model";
 
-export type BlogPostStatus = "DRAFT" | "PUBLISHED";
+export type {
+  BlogPostStatus,
+  BlogGalleryImage,
+  BlogBeforeAfterPlacement,
+  BlogBeforeAfter,
+  BlogCaseStudySections,
+  BlogPostVideo,
+  BlogPostVideoProvider,
+  BlogSectionId,
+  BlogSocialImages,
+  BlogCanvaDesigns,
+  BlogShareCaptions,
+  BlogMediaKitAsset,
+  BlogPostFormat,
+  BlogTravelItineraryDay,
+  BlogTravelMapStop,
+  BlogTravelSections,
+  BlogGoogleReview,
+  BlogPost,
+} from "@/lib/blog-post-model";
 
-export type BlogGalleryImage = {
-  url: string;
-  alt: string;
-};
-
-export type BlogPost = {
-  id: string;
-  slug: string;
-  title: string;
-  excerpt: string;
-  body: string;
-  coverImageUrl: string;
-  coverImageAlt: string;
-  galleryImages: BlogGalleryImage[];
-  author: string;
-  tags: string[];
-  seoTitle: string;
-  seoDescription: string;
-  status: BlogPostStatus;
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+export {
+  blankBeforeAfter,
+  cleanBeforeAfter,
+  hasBeforeAfter,
+  blankCaseStudy,
+  cleanCaseStudy,
+  blankSocialImages,
+  blankCanvaDesigns,
+  blankShareCaptions,
+  cleanSocialImages,
+  cleanCanvaDesigns,
+  cleanShareCaptions,
+  cleanMediaKitAssets,
+  blankTravel,
+  cleanTravel,
+  cleanTravelMapStops,
+  blankGoogleReview,
+  cleanGoogleReview,
+  hasGoogleReview,
+  hasTravelMap,
+  cleanBlogPostFormat,
+  isTravelPost,
+  extractYouTubeId,
+  extractInstagramPermalink,
+  getCaseStudyVideoProvider,
+  hasCaseStudyBrief,
+  hasCaseStudyProblem,
+  hasCaseStudySolution,
+  hasCaseStudyVideo,
+  hasCaseStudyAiVideo,
+  blankBlogPostVideo,
+  cleanBlogPostVideos,
+  migrateLegacyCaseStudyVideos,
+  isRenderableBlogVideo,
+  hasBlogVideos,
+  youtubeWatchUrl,
+  detectBlogVideoProviderFromUrl,
+  defaultSectionOrder,
+  cleanSectionOrder,
+  resolveSectionOrder,
+  JOURNAL_SECTION_ORDER,
+  TRAVEL_SECTION_ORDER,
+  BLOG_SECTION_LABELS,
+  blankBlogPost,
+  blankTravelPost,
+  normalizeBlogPost,
+  normalizePosts,
+  formatBlogDate,
+  slugifyBlog,
+} from "@/lib/blog-post-model";
 
 const BLOG_POSTS_SETTING_KEY = "blog_posts:v1";
-
-function slugify(input: string) {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
-
-function newId() {
-  return `post_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function cleanString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function cleanTags(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    if (typeof value === "string") {
-      return value
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean)
-        .slice(0, 12);
-    }
-    return [];
-  }
-  return value
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
-    .filter(Boolean)
-    .slice(0, 12);
-}
-
-function cleanGalleryImages(value: unknown): BlogGalleryImage[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as Record<string, unknown>;
-      const url = cleanString(row.url);
-      if (!url) return null;
-      return {
-        url,
-        alt: cleanString(row.alt),
-      };
-    })
-    .filter((item): item is BlogGalleryImage => Boolean(item))
-    .slice(0, 120);
-}
-
-export function blankBlogPost(title = "Untitled post"): BlogPost {
-  const now = new Date().toISOString();
-  const slug = slugify(title) || "untitled-post";
-  return {
-    id: newId(),
-    slug,
-    title,
-    excerpt: "",
-    body: "",
-    coverImageUrl: "",
-    coverImageAlt: "",
-    galleryImages: [],
-    author: "BRIGHTLINE",
-    tags: [],
-    seoTitle: "",
-    seoDescription: "",
-    status: "DRAFT",
-    publishedAt: null,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-export function normalizeBlogPost(input: unknown): BlogPost | null {
-  if (!input || typeof input !== "object") return null;
-  const row = input as Record<string, unknown>;
-  const title = cleanString(row.title) || "Untitled post";
-  const slug = slugify(cleanString(row.slug) || title);
-  if (!slug) return null;
-
-  const status = row.status === "PUBLISHED" ? "PUBLISHED" : "DRAFT";
-  const createdAt =
-    typeof row.createdAt === "string" && row.createdAt.trim()
-      ? row.createdAt.trim()
-      : new Date().toISOString();
-  const publishedAt =
-    typeof row.publishedAt === "string" && row.publishedAt.trim() ? row.publishedAt.trim() : null;
-
-  return {
-    id: cleanString(row.id) || newId(),
-    slug,
-    title,
-    excerpt: cleanString(row.excerpt),
-    body: cleanString(row.body),
-    coverImageUrl: cleanString(row.coverImageUrl),
-    coverImageAlt: cleanString(row.coverImageAlt),
-    galleryImages: cleanGalleryImages(row.galleryImages),
-    author: cleanString(row.author) || "BRIGHTLINE",
-    tags: cleanTags(row.tags),
-    seoTitle: cleanString(row.seoTitle),
-    seoDescription: cleanString(row.seoDescription),
-    status,
-    publishedAt: status === "PUBLISHED" ? publishedAt ?? createdAt : publishedAt,
-    createdAt,
-    updatedAt:
-      typeof row.updatedAt === "string" && row.updatedAt.trim() ? row.updatedAt.trim() : createdAt,
-  };
-}
-
-function normalizePosts(input: unknown): BlogPost[] {
-  if (!Array.isArray(input)) return [];
-  const seen = new Set<string>();
-  return input
-    .map(normalizeBlogPost)
-    .filter((post): post is BlogPost => {
-      if (!post || seen.has(post.slug)) return false;
-      seen.add(post.slug);
-      return true;
-    })
-    .sort((a, b) => {
-      const aTime = Date.parse(a.publishedAt ?? a.updatedAt);
-      const bTime = Date.parse(b.publishedAt ?? b.updatedAt);
-      return bTime - aTime;
-    });
-}
 
 export async function getBlogPosts(): Promise<BlogPost[]> {
   try {
@@ -169,16 +92,76 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
   }
 }
 
+function isJournalFormat(post: BlogPost) {
+  return post.format !== "travel";
+}
+
+function isTravelFormat(post: BlogPost) {
+  return post.format === "travel";
+}
+
+/** Published journal posts for /blog (excludes travel format). */
 export const getPublishedBlogPosts = cache(async () => {
   const posts = await getBlogPosts();
-  return posts.filter((post) => post.status === "PUBLISHED");
+  return posts.filter(
+    (post) =>
+      post.status === "PUBLISHED" &&
+      post.showInJournal !== false &&
+      isJournalFormat(post)
+  );
 });
 
+/** Published travel posts for /travel. */
+export const getPublishedTravelPosts = cache(async () => {
+  const posts = await getBlogPosts();
+  return posts.filter(
+    (post) =>
+      post.status === "PUBLISHED" &&
+      post.showInTravel !== false &&
+      isTravelFormat(post)
+  );
+});
+
+export const getHomepageJournalPosts = cache(async (limit = 3) => {
+  const posts = await getBlogPosts();
+  return posts
+    .filter(
+      (post) =>
+        post.status === "PUBLISHED" && post.featureOnHome && isJournalFormat(post)
+    )
+    .slice(0, Math.max(1, limit));
+});
+
+export const getCaseStudyJournalPosts = cache(async () => {
+  const posts = await getBlogPosts();
+  return posts.filter(
+    (post) =>
+      post.status === "PUBLISHED" &&
+      post.featureInCaseStudies &&
+      isJournalFormat(post)
+  );
+});
+
+/** Any published post by slug (journal or travel) — for redirects / lookup. */
 export const getPublishedBlogPostBySlug = cache(async (slug: string) => {
-  const normalized = slugify(slug);
-  const posts = await getPublishedBlogPosts();
+  const { slugifyBlog } = await import("@/lib/blog-post-model");
+  const normalized = slugifyBlog(slug);
+  const posts = await getBlogPosts();
+  return posts.find((post) => post.status === "PUBLISHED" && post.slug === normalized) ?? null;
+});
+
+export const getPublishedTravelPostBySlug = cache(async (slug: string) => {
+  const { slugifyBlog } = await import("@/lib/blog-post-model");
+  const normalized = slugifyBlog(slug);
+  const posts = await getPublishedTravelPosts();
   return posts.find((post) => post.slug === normalized) ?? null;
 });
+
+/** Any post by id (draft or published) — admin preview. */
+export async function getBlogPostById(id: string): Promise<BlogPost | null> {
+  const posts = await getBlogPosts();
+  return posts.find((post) => post.id === id) ?? null;
+}
 
 export async function saveBlogPosts(input: unknown): Promise<BlogPost[]> {
   const posts = normalizePosts(input);
@@ -188,15 +171,4 @@ export async function saveBlogPosts(input: unknown): Promise<BlogPost[]> {
     create: { key: BLOG_POSTS_SETTING_KEY, value: JSON.stringify(posts) },
   });
   return posts;
-}
-
-export function formatBlogDate(iso: string | null | undefined) {
-  if (!iso) return "";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
 }

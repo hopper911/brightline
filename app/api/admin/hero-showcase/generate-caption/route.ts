@@ -5,7 +5,7 @@ import {
   generateShowcaseCaption,
   parseGenerateShowcaseCaptionInput,
 } from "@/lib/ai/generateShowcaseCaption";
-import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   if (denied) return denied;
 
   const ip = getClientIp(req);
-  if (isRateLimited(ip)) {
+  if (await isRateLimitedAsync(ip)) {
     return jsonErr("Too many caption requests. Try again shortly.", 429);
   }
 

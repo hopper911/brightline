@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { getClientIp, isRateLimited } from "@/lib/permissions/rate-limit";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { generateDeliveryRecommendations } from "@/lib/ai/generateDeliveryRecommendations";
 import { prisma } from "@/lib/prisma";
 
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   if (!(await authorizeAdminRequest(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
   }
-  if (isRateLimited(getClientIp(req))) {
+  if (await isRateLimitedAsync(getClientIp(req))) {
     return NextResponse.json({ ok: false, error: "Too many delivery recommendation requests." }, { status: 429 });
   }
 
@@ -34,6 +34,7 @@ export async function POST(req: Request) {
     const origin = new URL(req.url).origin;
     const result = await generateDeliveryRecommendations({
       projectId,
+      origin,
       projectContext:
         obj.projectContext && typeof obj.projectContext === "object" && !Array.isArray(obj.projectContext)
           ? (obj.projectContext as Record<string, unknown>)

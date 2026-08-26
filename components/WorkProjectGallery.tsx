@@ -6,6 +6,7 @@ import Lightbox from "yet-another-react-lightbox";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import "yet-another-react-lightbox/styles.css";
 import Reveal from "@/components/Reveal";
+import ImageCarousel from "@/components/ImageCarousel";
 import VideoEmbed from "@/components/VideoEmbed";
 import { getPublicR2Url } from "@/lib/r2";
 
@@ -47,6 +48,10 @@ type WorkProjectGalleryProps = {
   projectLocation?: string | null;
   media: ProjectMediaItem[];
   heroMediaId?: string | null;
+  /** When true, images render as a cinematic carousel instead of the 2-column grid. */
+  carouselEnabled?: boolean;
+  /** When true, only render VIDEO items (images handled by GalleryBlocks). */
+  videosOnly?: boolean;
 };
 
 const BLUR_DATA =
@@ -105,6 +110,8 @@ export default function WorkProjectGallery({
   projectLocation,
   media,
   heroMediaId,
+  carouselEnabled = false,
+  videosOnly = false,
 }: WorkProjectGalleryProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -121,15 +128,91 @@ export default function WorkProjectGallery({
     return !!url && (url.startsWith("http") || url.startsWith("/"));
   });
 
+  const videoItems = galleryMedia.filter(
+    (item) =>
+      item.media.kind === "VIDEO" &&
+      (item.media.providerId || item.media.keyFull)
+  );
+
   const slides = imageItems
     .map((item, idx) => {
       const key = item.media.keyFull ?? item.media.keyThumb ?? "";
       const src = getPublicR2Url(key);
       if (!src || (!src.startsWith("http") && !src.startsWith("/"))) return null;
       const fallbackAlt = getFallbackAlt(projectTitle, projectLocation, idx + 1);
-      return { src, alt: item.media.alt ?? fallbackAlt };
+      return {
+        src,
+        alt: item.media.alt ?? fallbackAlt,
+        width: item.media.width ?? null,
+        height: item.media.height ?? null,
+      };
     })
-    .filter((s): s is { src: string; alt: string } => s !== null);
+    .filter((s): s is NonNullable<typeof s> => s !== null);
+
+  function renderVideoBlocks() {
+    if (videoItems.length === 0) return null;
+    return (
+      <div className={`${carouselEnabled && slides.length > 0 ? "mt-6" : ""} grid gap-6 sm:grid-cols-2`}>
+        {videoItems.map(({ media: m, sortOrder }, galleryIdx) => {
+          const altText = m.alt ?? projectTitle;
+          return m.providerId ? (
+            <Reveal key={`${m.id}-${sortOrder}`}>
+              <VideoEmbed
+                providerId={m.providerId}
+                posterKey={m.posterKey ?? undefined}
+                title={altText}
+              />
+            </Reveal>
+          ) : m.keyFull ? (
+            <Reveal key={`${m.id}-${sortOrder}-${galleryIdx}`}>
+              <R2VideoBlock
+                keyFull={m.keyFull}
+                posterKey={m.keyThumb ?? m.posterKey ?? undefined}
+                alt={altText}
+                width={m.width}
+                height={m.height}
+              />
+            </Reveal>
+          ) : null;
+        })}
+      </div>
+    );
+  }
+
+  if (videosOnly) {
+    return renderVideoBlocks();
+  }
+
+  if (carouselEnabled && slides.length > 0) {
+    return (
+      <>
+        <Reveal className="mt-6">
+          <ImageCarousel
+            slides={slides}
+            onSlideClick={(i) => {
+              setLightboxIndex(i);
+              setLightboxOpen(true);
+            }}
+          />
+        </Reveal>
+        {renderVideoBlocks()}
+        <Lightbox
+          plugins={[Zoom]}
+          open={lightboxOpen}
+          close={() => setLightboxOpen(false)}
+          index={lightboxIndex}
+          slides={slides.map(({ src, alt }) => ({ src, alt }))}
+          carousel={{ imageFit: "contain" }}
+          zoom={{
+            maxZoomPixelRatio: 2,
+            zoomInMultiplier: 2,
+            doubleClickMaxStops: 2,
+            scrollToZoom: true,
+          }}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -217,7 +300,7 @@ export default function WorkProjectGallery({
           open={lightboxOpen}
           close={() => setLightboxOpen(false)}
           index={lightboxIndex}
-          slides={slides}
+          slides={slides.map(({ src, alt }) => ({ src, alt }))}
           carousel={{ imageFit: "contain" }}
           zoom={{
             maxZoomPixelRatio: 2,

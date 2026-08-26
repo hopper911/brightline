@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 /** Default OG image when no route-specific asset exists. */
 export async function GET() {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveDeliverablePackageItem } from "@/lib/client-api/delivery-package";
+import { rejectIfTokenDownloadLimited } from "@/lib/client-token-rate-limit";
 import { signGet } from "@/lib/storage-r2";
 import { signPublicR2Get } from "@/lib/storage-r2-public";
 import { isPublicMediaKey } from "@/lib/media-key-access";
@@ -20,6 +21,12 @@ export async function GET(
   context: { params: Promise<{ accessToken: string; itemId: string }> }
 ) {
   const { accessToken, itemId } = await context.params;
+  const limited = await rejectIfTokenDownloadLimited(req, accessToken, "package-item-preview", {
+    max: 240,
+    windowMs: 60 * 60_000,
+  });
+  if (limited) return limited;
+
   const resolved = await resolveDeliverablePackageItem(accessToken, itemId);
   if (!resolved.ok) {
     return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 });
@@ -38,7 +45,7 @@ export async function GET(
     res.headers.set("Cache-Control", "private, max-age=120");
     return res;
   } catch (e) {
-    console.error("PACKAGE_PREVIEW_SIGN_ERROR", e);
-    return NextResponse.json({ ok: false, error: "Media temporarily unavailable." }, { status: 503 });
+    const message = e instanceof Error ? e.message : "Preview failed.";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

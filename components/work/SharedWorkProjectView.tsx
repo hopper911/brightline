@@ -1,7 +1,9 @@
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
+import PublicInlineVideo from "@/components/PublicInlineVideo";
 import { extractPrototypeUrl } from "@/lib/dual-brand/case-study-template";
 import { mirotechSiteOrigin } from "@/lib/mirotech-site";
+import { isVideoMediaKey } from "@/lib/portfolio-web-full";
 import { getPublicR2Url } from "@/lib/r2";
 
 export type SharedWorkProjectViewModel = {
@@ -38,6 +40,15 @@ function resolveHeroSrc(value?: string | null): string {
   return getPublicR2Url(v.replace(/^\/+/, ""));
 }
 
+function heroPosterSrc(heroRef?: string | null): string | undefined {
+  const raw = heroRef?.trim() || "";
+  if (!raw || !isVideoMediaKey(raw)) return undefined;
+  if (/-poster\.(webp|png)/i.test(raw)) return resolveHeroSrc(raw);
+  const poster = raw.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, "-poster.webp");
+  if (poster !== raw) return resolveHeroSrc(poster);
+  return undefined;
+}
+
 /**
  * Brightline “shared collaboration” case study body (used by public + admin preview).
  * Keeps photo narrative; product depth lives on Mirotech — companion band links out.
@@ -50,14 +61,16 @@ export default function SharedWorkProjectView({
   previewBanner?: boolean;
 }) {
   const narrative = project.photoNarrative;
-  const hero = resolveHeroSrc(project.heroImage || project.thumbnailImage);
+  const heroRef = project.heroImage || project.thumbnailImage || "";
+  const hero = resolveHeroSrc(heroRef);
+  const heroIsVideo = Boolean(hero && isVideoMediaKey(heroRef));
   const hasNarrative = Boolean(
     narrative?.overview?.trim() || narrative?.approach?.trim() || narrative?.notes?.trim()
   );
   const hasDesign = Boolean(project.challenge?.trim() || project.outcome?.trim());
   const metaBits = [
     narrative?.location?.trim() || null,
-    project.year != null ? String(project.year) : null,
+    project.year != null && project.year > 0 ? String(project.year) : null,
     project.role?.trim() || null,
     project.disciplines?.slice(0, 3).join(" · ") || null,
   ].filter(Boolean);
@@ -104,12 +117,23 @@ export default function SharedWorkProjectView({
 
           {hero ? (
             <Reveal className="mt-10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={hero}
-                alt={project.title}
-                className="w-full rounded-xl border border-white/10 object-cover"
-              />
+              {heroIsVideo ? (
+                <PublicInlineVideo
+                  src={hero}
+                  poster={heroPosterSrc(heroRef)}
+                  alt={project.title}
+                  className="aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black"
+                  videoClassName="h-full w-full object-cover"
+                  hideControlsMobile={false}
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={hero}
+                  alt={project.title}
+                  className="w-full rounded-xl border border-white/10 object-cover"
+                />
+              )}
             </Reveal>
           ) : null}
 

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { CSSProperties } from "react";
+import { headers } from "next/headers";
 import { Inter, Montserrat } from "next/font/google";
 import Providers from "./providers";
 import Analytics from "../components/Analytics";
@@ -127,10 +128,14 @@ export default async function RootLayout({
     designSettings.enabled && designSettings.showInFooter
       ? { label: designSettings.navLabel || "Design", href: "/design" as const }
       : null;
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <html lang="en" className={`${inter.variable} ${montserrat.variable}`}>
       <body className="antialiased" style={themeStyle}>
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
         <Providers>
           <AppShell
             siteNav={mergedNav}
@@ -141,7 +146,7 @@ export default async function RootLayout({
             {children}
           </AppShell>
         </Providers>
-        <Analytics />
+        <Analytics nonce={nonce} />
       </body>
     </html>
   );

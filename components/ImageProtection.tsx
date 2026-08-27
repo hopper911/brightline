@@ -159,11 +159,12 @@ export default function ImageProtection() {
         return;
       }
 
-      // Direct bitmap target outside lightbox: stop iOS callout.
+      // Direct bitmap target outside lightbox: stop iOS callout (skip interactive video wrappers).
       if (
         (target instanceof HTMLImageElement || target instanceof HTMLVideoElement) &&
         event.cancelable
       ) {
+        if (target.closest("[data-allow-save]")) return;
         event.preventDefault();
         return;
       }

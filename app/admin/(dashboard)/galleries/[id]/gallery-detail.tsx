@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GalleryStatus, GalleryType } from "@prisma/client";
 import { DeliveryEmailTemplate } from "@/components/delivery/DeliveryEmailTemplate";
-import R2BrowserModal from "@/components/admin/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "@/components/admin/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
 
 type GalleryImage = {
@@ -249,7 +250,8 @@ export default function GalleryDetail({ initialGallery }: { initialGallery: Gall
   );
 
   const attachR2Keys = useCallback(
-    async (keys: string[]) => {
+    async (picks: R2BrowserPick[]) => {
+      const keys = picks.map(pickToStoredMediaRef);
       setR2Busy(true);
       setError(null);
       try {
@@ -1382,6 +1384,8 @@ export default function GalleryDetail({ initialGallery }: { initialGallery: Gall
         isOpen={r2Open}
         onClose={() => setR2Open(false)}
         onAddKeys={attachR2Keys}
+        mediaRoot="portfolio"
+        initialPortfolioFolder="all"
         initialCustomPrefix={`client-galleries/${gallery.id}/`}
       />
     </div>

@@ -10,6 +10,7 @@ import {
   parentPrefixFromKey,
   rewriteR2KeyReferences,
 } from "@/lib/admin-r2-manager";
+import { rewriteMirotechCmsKeyReferences } from "@/lib/admin-r2-mirotech-cms-rewrite";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { moveObject } from "@/lib/storage-r2";
 import { normalizeR2VaultId } from "@/lib/r2-vaults";
@@ -25,16 +26,16 @@ export async function POST(req: Request) {
   }
   const originDenied = assertSameOriginAdminMutation(req);
   if (originDenied) return originDenied;
-  if (await isRateLimitedAsync(getClientIp(req), { scope: "r2-move", max: 80, windowMs: 60 * 60_000 })) {
+  if (await isRateLimitedAsync(getClientIp(req), { scope: "r2-move", max: 5000, windowMs: 60 * 60_000 })) {
     return NextResponse.json({ ok: false, error: "Too many move requests." }, { status: 429 });
   }
 
   let body: {
     items?: MoveItem[];
-    /** Move keys into destinationPrefix keeping filenames */
     keys?: string[];
     destinationPrefix?: string;
     vault?: string;
+    skipCmsRewrite?: boolean;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -81,18 +82,34 @@ export async function POST(req: Request) {
       }
     }
 
-    const results: Array<{ from: string; to: string; dbUpdates: number; error?: string }> = [];
+    const results: Array<{
+      from: string;
+      to: string;
+      dbUpdates: number;
+      cmsUpdates: number;
+      error?: string;
+    }> = [];
     for (const item of items) {
       try {
         await moveObject(item.from, item.to, vault);
         const dbUpdates =
           vault === "brightline" ? await rewriteR2KeyReferences(item.from, item.to) : 0;
-        results.push({ from: item.from, to: item.to, dbUpdates });
+        let cmsUpdates = 0;
+        if (!body.skipCmsRewrite) {
+          try {
+            const cmsResult = await rewriteMirotechCmsKeyReferences(item.from, item.to);
+            cmsUpdates = cmsResult.cmsUpdates;
+          } catch (cmsErr) {
+            console.error("MIROTECH_CMS_REWRITE_ERROR", cmsErr);
+          }
+        }
+        results.push({ from: item.from, to: item.to, dbUpdates, cmsUpdates });
       } catch (err) {
         results.push({
           from: item.from,
           to: item.to,
           dbUpdates: 0,
+          cmsUpdates: 0,
           error: err instanceof Error ? err.message : "Move failed",
         });
       }

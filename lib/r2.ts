@@ -55,12 +55,28 @@ export function extractPublicMediaKey(stored: string): string | null {
   return key || null;
 }
 
+/** Mirotech CMS CDN — must not be rewritten to Brightline `/api/media/public`. */
+export function isMirotechSitePublicUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    const h = u.hostname.toLowerCase();
+    return h === "media.mirotech.solutions" || h.endsWith(".mirotech.solutions");
+  } catch {
+    return false;
+  }
+}
+
 /** Canonical browser URL for a stored media reference. */
 export function resolveStoredMediaUrl(stored: string | null | undefined): string {
   if (!stored?.trim()) return "";
   const raw = stored.trim();
   if (raw.startsWith("blob:") || raw.startsWith("data:")) return raw;
   if (raw.startsWith("/") && !raw.startsWith("/api/media/public")) return raw;
+
+  // Pass through Mirotech site CDN URLs — they live in a separate R2 bucket.
+  if (/^https?:\/\//i.test(raw) && isMirotechSitePublicUrl(raw)) {
+    return raw;
+  }
 
   const key = extractPublicMediaKey(raw);
   if (!key) {

@@ -8,6 +8,7 @@ import "yet-another-react-lightbox/styles.css";
 import Reveal from "@/components/Reveal";
 import ImageCarousel from "@/components/ImageCarousel";
 import VideoEmbed from "@/components/VideoEmbed";
+import PublicInlineVideo from "@/components/PublicInlineVideo";
 import { getPublicR2Url } from "@/lib/r2";
 
 type MediaAsset = {
@@ -80,15 +81,15 @@ function R2VideoBlock({
     <div
       className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black image-guard-overlay"
       style={style}
+      data-allow-save
     >
-      <video
+      <PublicInlineVideo
         src={src}
         poster={poster}
-        controls
-        playsInline
-        draggable={false}
-        className="h-full w-full object-cover"
-        aria-label={alt}
+        alt={alt}
+        loop={false}
+        autoPlay={false}
+        videoClassName="h-full w-full object-cover"
       />
     </div>
   );

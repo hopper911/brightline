@@ -5,9 +5,31 @@
  *
  * Prefer full when attaching or displaying so CMS never stretches thumbs full-bleed.
  */
+
+const VIDEO_MEDIA_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
+
+/** True when the stored ref points at video (not an image hero). */
+export function isVideoMediaKey(keyOrUrl: string): boolean {
+  const raw = keyOrUrl.trim();
+  if (!raw) return false;
+  const decoded = decodeURIComponent(raw);
+  if (VIDEO_MEDIA_EXT.test(decoded)) return true;
+  if (/\/web_video\//i.test(decoded)) return true;
+  try {
+    const u = new URL(decoded, "https://local.invalid");
+    const key = u.searchParams.get("key") ?? "";
+    if (key && (/\/web_video\//i.test(key) || VIDEO_MEDIA_EXT.test(key))) return true;
+    if (VIDEO_MEDIA_EXT.test(u.pathname)) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
 export function preferPortfolioWebFullKey(keyOrUrl: string): string {
   const raw = keyOrUrl.trim();
   if (!raw) return raw;
+  if (isVideoMediaKey(raw)) return raw;
 
   // Absolute / relative URLs that embed the R2 key in ?key=
   if (/^https?:\/\//i.test(raw) || raw.startsWith("/")) {

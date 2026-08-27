@@ -8,5 +8,7 @@ export const metadata = {
 };
 
 export default function AdminImagePortPage() {
-  redirect("/admin/r2?vault=brightline&prefix=portfolio/arc/web_full/");
+  redirect(
+    "/admin/r2?vault=brightline&view=brightline-all-media&kind=image&upload=1&root=portfolio&quality=web_full"
+  );
 }

@@ -6,6 +6,7 @@ import {
   assertR2ManagerKeyAllowed,
   cleanR2Key,
   findR2KeyUsage,
+  forceDetachR2KeyDbOperations,
   invalidateReferencedR2KeyCache,
 } from "@/lib/admin-r2-manager";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
@@ -80,51 +81,7 @@ export async function POST(req: Request) {
       }
 
       if (body.force && referenced.length) {
-        await prisma.$transaction(
-          keys.flatMap((key) => [
-            prisma.mediaAsset.updateMany({ where: { keyFull: key }, data: { keyFull: null } }),
-            prisma.mediaAsset.updateMany({ where: { keyThumb: key }, data: { keyThumb: null } }),
-            prisma.mediaAsset.updateMany({ where: { posterKey: key }, data: { posterKey: null } }),
-            prisma.galleryImage.updateMany({ where: { storageKey: key }, data: { storageKey: null } }),
-            prisma.galleryImage.updateMany({
-              where: { lowResStorageKey: key },
-              data: { lowResStorageKey: null },
-            }),
-            prisma.galleryVideo.updateMany({ where: { storageKey: key }, data: { storageKey: null } }),
-            prisma.galleryVideo.updateMany({ where: { posterKey: key }, data: { posterKey: null } }),
-            prisma.deliveryPackageItem.updateMany({
-              where: { storageKey: key },
-              data: { storageKey: null },
-            }),
-            prisma.portfolioProject.updateMany({
-              where: { coverStorageKey: key },
-              data: { coverStorageKey: null },
-            }),
-            prisma.portfolioImage.updateMany({ where: { storageKey: key }, data: { storageKey: null } }),
-            prisma.siteBackgroundVideo.updateMany({
-              where: { webStorageKey: key },
-              data: { webStorageKey: null },
-            }),
-            prisma.siteBackgroundVideo.updateMany({
-              where: { posterKey: key },
-              data: { posterKey: null },
-            }),
-            prisma.designProject.updateMany({ where: { ogImageKey: key }, data: { ogImageKey: null } }),
-            prisma.studioInvoice.updateMany({
-              where: { pdfStorageKey: key },
-              data: { pdfStorageKey: null },
-            }),
-            prisma.studioExpense.updateMany({ where: { receiptKey: key }, data: { receiptKey: null } }),
-            prisma.generatedDocument.updateMany({
-              where: { draftPdfKey: key },
-              data: { draftPdfKey: null },
-            }),
-            prisma.generatedDocument.updateMany({
-              where: { signedPdfKey: key },
-              data: { signedPdfKey: null },
-            }),
-          ])
-        );
+        await prisma.$transaction(keys.flatMap((key) => forceDetachR2KeyDbOperations(key)));
       }
 
       const result = await deleteObjects(keys, vault);

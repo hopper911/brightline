@@ -1,406 +1,517 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { PILLAR_SLUGS, PILLARS } from "@/lib/portfolioPillars";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import R2FolderPreviewThumb from "@/components/admin/R2FolderPreviewThumb";
 import {
-  MIROTECH_CATEGORIES,
-  segmentsForRoot,
-} from "@/lib/t9-media-segments";
+  ALL_MIROTECH_MEDIA_PREFIX,
+  BROWSE_LIBRARY_GROUP_LABELS,
+  browseBreadcrumbs,
+  browseLibraryRoots,
+  browsePreviewUrl,
+  defaultFolderForRoot,
+  filterBrowsePicks,
+  folderSegmentLabel,
+  isAllMirotechMediaPrefix,
+  preferredQualityChildPrefix,
+  type BrowseLibraryGroup,
+  type PortfolioFolderFilter,
+  type R2BrowserPick,
+} from "@/lib/r2-browser-prefixes";
+import type { R2VaultId } from "@/lib/r2-vaults-shared";
 import type { T9MediaRoot } from "@/lib/t9-media-root";
-
-function getImageUrl(key: string): string {
-  if (!key) return "";
-  const clean = key.replace(/^\/+/, "");
-  if (clean.startsWith("client-galleries/")) {
-    return `/api/admin/media/sign?key=${encodeURIComponent(clean)}`;
-  }
-  return `/api/media/public?key=${encodeURIComponent(clean)}`;
-}
 
 const MEDIA_EXT = /\.(jpg|jpeg|png|webp|gif|avif|mp4|webm|mov|m4v)$/i;
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
-
-/** Brightline T9 pillar codes */
-const T9_PILLAR_CODES = ["arc", "cam", "cor"] as const;
-
-type PortfolioFolderFilter = "all" | "web_full" | "web_thumb" | "web_video";
-
-function segmentCodesForRoot(mediaRoot: T9MediaRoot): readonly string[] {
-  return mediaRoot === "mirotech" ? MIROTECH_CATEGORIES : T9_PILLAR_CODES;
-}
-
-function resolveR2Folder(mediaRoot: T9MediaRoot, pillar: string): string {
-  if (pillar === "all") return "all";
-  if (mediaRoot === "mirotech") return pillar;
-  return PILLAR_TO_R2_FOLDER[pillar] ?? pillar;
-}
-
-function portfolioListPrefixes(
-  mediaRoot: T9MediaRoot,
-  pillar: string,
-  r2Folder: string,
-  folderFilter: PortfolioFolderFilter
-): string[] {
-  const codes = segmentCodesForRoot(mediaRoot);
-  if (folderFilter === "all") {
-    if (pillar === "all") return [mediaRoot];
-    return [`${mediaRoot}/${r2Folder}`];
-  }
-  if (pillar === "all") {
-    return codes.map((code) => `${mediaRoot}/${code}/${folderFilter}`);
-  }
-  return [`${mediaRoot}/${r2Folder}/${folderFilter}`];
-}
-
-/** Maps portfolio pillar slugs to the 3-letter R2 folder names */
-const PILLAR_TO_R2_FOLDER: Record<string, string> = {
-  architecture: "arc",
-  advertising: "cam",
-  corporate: "cor",
-};
 
 function isVideoKey(key: string): boolean {
   return VIDEO_EXT.test(key);
 }
 
-/** Cap eager preview requests so /api/media/public is not flooded. */
 const PAGE_SIZE = 60;
+
+export type { R2BrowserPick };
+
+type NavLocation = {
+  /** null = library home */
+  prefix: string | null;
+  vault: R2VaultId;
+};
+
+type ListedFolder = {
+  prefix: string;
+  vault: R2VaultId;
+  label: string;
+  description?: string;
+  previewUrls?: string[];
+  previewKind?: "image" | "video" | "empty";
+  group?: BrowseLibraryGroup;
+  special?: "all-mirotech-media";
+};
 
 type R2BrowserModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onAddKeys: (keys: string[]) => Promise<void>;
-  /** When "single", only one selection is used; button says "Use as hero" */
+  onAddKeys: (picks: R2BrowserPick[]) => Promise<void>;
   mode?: "multiple" | "single";
-  /** When provided, enables "This project" source to browse R2 */
   projectId?: string;
   pillarSlug?: string;
-  /** When provided with projectId, uses portfolio/{pillarSlug}/{projectSlug}/ for "This project" */
   projectSlug?: string;
-  /** When the modal opens, switch to Custom source with this prefix (e.g. client-galleries/{id}/). */
   initialCustomPrefix?: string;
-  /** Prefer a T9 portfolio subfolder when Source is Portfolio (e.g. web_video for video picks). */
   initialPortfolioFolder?: PortfolioFolderFilter;
-  /** T9 vault root — Brightline `portfolio/` or Mirotech sibling `mirotech/`. */
   mediaRoot?: T9MediaRoot;
+  /** Primary action label when mode is single */
+  confirmLabel?: string;
 };
+
+function pickId(pick: R2BrowserPick): string {
+  return `${pick.vault}:${pick.key}`;
+}
+
+function vaultBadge(folder: ListedFolder) {
+  if (folder.special === "all-mirotech-media") {
+    return (
+      <span className="mt-1 inline-block rounded bg-violet-500/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-violet-300/90">
+        Unified
+      </span>
+    );
+  }
+  if (folder.vault === "mirotech-site") {
+    return (
+      <span className="mt-1 inline-block rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-emerald-300/90">
+        CMS bucket
+      </span>
+    );
+  }
+  if (folder.prefix.startsWith("portfolio/")) {
+    return (
+      <span className="mt-1 inline-block rounded bg-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-white/50">
+        Portfolio
+      </span>
+    );
+  }
+  if (folder.prefix.startsWith("mirotech/")) {
+    return (
+      <span className="mt-1 inline-block rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-sky-300/90">
+        T9
+      </span>
+    );
+  }
+  return null;
+}
 
 export default function R2BrowserModal({
   isOpen,
   onClose,
   onAddKeys,
   mode = "multiple",
-  projectId,
-  pillarSlug = "architecture",
-  projectSlug,
   initialCustomPrefix,
   initialPortfolioFolder,
   mediaRoot: mediaRootProp = "portfolio",
+  confirmLabel,
 }: R2BrowserModalProps) {
   const [mediaRoot, setMediaRoot] = useState<T9MediaRoot>(mediaRootProp);
-  const [pillar, setPillar] = useState<string>(pillarSlug);
-  const [source, setSource] = useState<"portfolio" | "project" | "custom">(
-    projectId ? "portfolio" : "portfolio"
+  const [qualityFilter, setQualityFilter] = useState<PortfolioFolderFilter>(() =>
+    defaultFolderForRoot(mediaRootProp, initialPortfolioFolder)
   );
-  const [customPrefix, setCustomPrefix] = useState("");
-  /** T9 layout: {root}/{arc|cam|cor}/web_full|web_thumb|web_video — default full so CMS heroes aren't 800px thumbs. */
-  const [portfolioFolder, setPortfolioFolder] = useState<PortfolioFolderFilter>(
-    initialPortfolioFolder ?? "web_full"
-  );
-  const [keys, setKeys] = useState<string[]>([]);
-  /** How many listed keys to render as previews (avoids media-public rate-limit flood). */
+  const [nav, setNav] = useState<NavLocation | null>(null);
+  const [folders, setFolders] = useState<ListedFolder[]>([]);
+  const [libraryPreviews, setLibraryPreviews] = useState<
+    Record<string, { previewUrls: string[]; previewKind: "image" | "video" | "empty" }>
+  >({});
+  const [picks, setPicks] = useState<R2BrowserPick[]>([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [, setErrorDetails] = useState<{
-    timestamp: string;
-    status: number;
-    error: string;
-    code?: string;
-    details?: Record<string, unknown>;
-  } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState(false);
-  const [lastFailureDetails, setLastFailureDetails] = useState<{
-    error: string;
-    timestamp: string;
-    prefix: string;
-    environment: string;
-    status?: number;
-    code?: string;
-    details?: Record<string, unknown>;
-  } | null>(null);
+  const [nextToken, setNextToken] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [scrollState, setScrollState] = useState({ top: 0, height: 0, scrollHeight: 0, clientHeight: 0 });
 
-  useEffect(() => {
-    if (!isOpen || !initialCustomPrefix?.trim()) return;
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setSource("custom");
-      const p = initialCustomPrefix.trim().replace(/^\//, "");
-      setCustomPrefix(p.endsWith("/") ? p : `${p}/`);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, initialCustomPrefix]);
+  const libraryRoots = useMemo(() => browseLibraryRoots(mediaRoot), [mediaRoot]);
+  const atLibraryHome = nav === null || nav.prefix === null;
+  const inAllMirotech = isAllMirotechMediaPrefix(nav?.prefix);
+  const crumbs = useMemo(
+    () =>
+      browseBreadcrumbs(
+        atLibraryHome ? null : inAllMirotech ? null : nav?.prefix ?? null,
+        mediaRoot === "mirotech" ? "Mirotech library" : "Portfolio library"
+      ).concat(
+        inAllMirotech
+          ? [{ label: "All Mirotech media", prefix: ALL_MIROTECH_MEDIA_PREFIX }]
+          : []
+      ),
+    [atLibraryHome, nav?.prefix, mediaRoot, inAllMirotech]
+  );
 
-  useEffect(() => {
-    if (!isOpen || !initialPortfolioFolder) return;
-    setPortfolioFolder(initialPortfolioFolder);
-  }, [isOpen, initialPortfolioFolder]);
+  const resetToLibrary = useCallback(() => {
+    setNav(null);
+    setFolders([]);
+    setPicks([]);
+    setSelected(new Set());
+    setSearch("");
+    setError("");
+    setNextToken(null);
+    setVisibleCount(PAGE_SIZE);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
     setMediaRoot(mediaRootProp);
-  }, [isOpen, mediaRootProp]);
+    setQualityFilter(defaultFolderForRoot(mediaRootProp, initialPortfolioFolder));
+    resetToLibrary();
+  }, [isOpen, mediaRootProp, initialPortfolioFolder, resetToLibrary]);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || !isOpen) return;
-    const update = () => {
-      setScrollState({
-        top: el.scrollTop,
-        height: el.clientHeight,
-        scrollHeight: el.scrollHeight,
-        clientHeight: el.clientHeight,
-      });
-    };
-    update();
-    el.addEventListener("scroll", update);
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", update);
-      ro.disconnect();
-    };
-  }, [isOpen, loading, keys]);
+    if (!isOpen || !initialCustomPrefix?.trim()) return;
+    const p = initialCustomPrefix.trim().replace(/^\//, "");
+    const prefix = p.endsWith("/") ? p : `${p}/`;
+    if (isAllMirotechMediaPrefix(prefix)) {
+      setNav({ prefix: ALL_MIROTECH_MEDIA_PREFIX, vault: "brightline" });
+      return;
+    }
+    const vault: R2VaultId =
+      prefix.startsWith("projects/") ||
+      prefix.startsWith("journal/") ||
+      prefix.startsWith("resume/") ||
+      (prefix.startsWith("site/") && mediaRootProp === "mirotech")
+        ? "mirotech-site"
+        : "brightline";
+    setNav({ prefix, vault });
+  }, [isOpen, initialCustomPrefix, mediaRootProp]);
 
-  const handleScrollbarTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = scrollRef.current;
-    if (!el || scrollState.scrollHeight <= scrollState.clientHeight) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = (e.clientY - rect.top) / rect.height;
-    el.scrollTop = ratio * (scrollState.scrollHeight - scrollState.clientHeight);
-  };
-
-  const handleScrollbarThumbMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const el = scrollRef.current;
-    if (!el) return;
-    const startY = e.clientY;
-    const startTop = el.scrollTop;
-    const move = (ev: MouseEvent) => {
-      const trackH = scrollState.height;
-      const thumbH = Math.max(20, (trackH * scrollState.clientHeight) / scrollState.scrollHeight);
-      const maxScroll = scrollState.scrollHeight - scrollState.clientHeight;
-      const delta = ev.clientY - startY;
-      const scrollDelta = (delta / (trackH - thumbH)) * maxScroll;
-      el.scrollTop = Math.max(0, Math.min(maxScroll, startTop + scrollDelta));
-    };
-    const up = () => {
-      document.removeEventListener("mousemove", move);
-      document.removeEventListener("mouseup", up);
-    };
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup", up);
-  };
-
-  const r2Folder = resolveR2Folder(mediaRoot, pillar);
-  const vaultLabel = mediaRoot === "mirotech" ? "Mirotech" : "Portfolio";
-
-  const effectivePrefix =
-    source === "portfolio"
-      ? pillar === "all"
-        ? mediaRoot
-        : `${mediaRoot}/${r2Folder}`
-      : source === "project" && projectId
-        ? projectSlug
-          ? `portfolio/${pillarSlug}/${projectSlug}`
-          : `work/${pillarSlug}/${projectId}`
-        : customPrefix.trim();
-
+  // Library-home folder previews (batch, mixed vaults)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !atLibraryHome) return;
     let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setError("");
-      setErrorDetails(null);
-      setKeys([]);
-      setVisibleCount(PAGE_SIZE);
-      setSelected(new Set());
-      setLastFailureDetails(null);
-      if (source === "custom" && !customPrefix.trim()) return;
-      async function load() {
-      setLoading(true);
-      const env =
-        typeof window !== "undefined" && window.location?.hostname === "localhost"
-          ? "local"
-          : "deployed";
-      const timestamp = new Date().toISOString();
+    const foldersToSample = libraryRoots.filter((r) => !r.special);
+    if (!foldersToSample.length) return;
 
-      const normalizeListPrefix = (p: string) => {
-        const t = p.trim().replace(/^\//, "");
-        return t.endsWith("/") ? t : `${t}/`;
-      };
-
-      let prefixes: string[];
-      if (source === "portfolio") {
-        prefixes = portfolioListPrefixes(mediaRoot, pillar, r2Folder, portfolioFolder).map(
-          normalizeListPrefix
-        );
-      } else {
-        prefixes = [normalizeListPrefix(effectivePrefix)];
-      }
-      const prefixLabel = prefixes.join(" | ");
-
+    void (async () => {
       try {
-        const verifyRes = await fetch("/api/admin/r2-verify", {
+        const res = await fetch("/api/admin/r2/folder-previews", {
+          method: "POST",
           credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            folders: foldersToSample.map((r) => ({ prefix: r.prefix, vault: r.vault })),
+          }),
         });
-        const verifyData = (await verifyRes.json().catch(() => ({}))) as {
+        const data = (await res.json().catch(() => ({}))) as {
           ok?: boolean;
-          connected?: boolean;
-          error?: string;
-          hint?: string;
+          folders?: Array<{
+            prefix: string;
+            vault?: string;
+            previewUrls?: string[];
+            previewKind?: "image" | "video" | "empty";
+          }>;
         };
-        if (!verifyRes.ok) {
-          const msg = [verifyData.error, verifyData.hint].filter(Boolean).join(" ");
-          setError(msg || "R2 storage not configured.");
-          setKeys([]);
-          setLoading(false);
-          return;
-        }
-
-        const merged = new Set<string>();
-        for (const prefix of prefixes) {
-          const res = await fetch("/api/admin/r2-list", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prefix, maxKeys: 1000 }),
-          });
-          let data: {
-            ok?: boolean;
-            keys?: string[];
-            error?: string;
-            code?: string;
-            details?: Record<string, unknown>;
+        if (cancelled || !res.ok || !data.folders) return;
+        const map: Record<string, { previewUrls: string[]; previewKind: "image" | "video" | "empty" }> =
+          {};
+        for (const f of data.folders) {
+          const key = `${f.vault ?? "brightline"}:${f.prefix}`;
+          map[key] = {
+            previewUrls: f.previewUrls ?? [],
+            previewKind: f.previewKind ?? "empty",
           };
-          try {
-            data = (await res.json()) as typeof data;
-          } catch {
-            data = { error: "Invalid response from server." };
-          }
-          if (!res.ok) {
-            const errorMessage = data.error ?? "Failed to list";
-            const detailsPayload = {
-              timestamp,
-              status: res.status,
-              error: errorMessage,
-              ...(data.code && { code: data.code }),
-              ...(data.details && Object.keys(data.details).length > 0 && { details: data.details }),
-            };
-            setErrorDetails(detailsPayload);
-            setLastFailureDetails({
-              error: errorMessage,
-              timestamp,
-              prefix: prefixLabel,
-              environment: env,
-              status: res.status,
-              ...(data.code && { code: data.code }),
-              ...(data.details && { details: data.details }),
-            });
-            setError(errorMessage);
-            setKeys([]);
-            setLoading(false);
-            return;
-          }
-          for (const k of data.keys ?? []) {
-            merged.add(k);
-          }
         }
+        setLibraryPreviews(map);
+      } catch {
+        /* non-blocking */
+      }
+    })();
 
-        const raw = Array.from(merged);
-        raw.sort((a, b) => a.localeCompare(b));
-        const mediaKeys = raw.filter((k) => MEDIA_EXT.test(k));
-        setKeys(mediaKeys);
-        setVisibleCount(PAGE_SIZE);
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "Failed to load";
-        setErrorDetails({
-          timestamp,
-          status: 0,
-          error: message,
-          details: { exception: e instanceof Error ? e.name : String(e) },
-        });
-        setLastFailureDetails({
-          error: message,
-          timestamp,
-          prefix: prefixLabel,
-          environment: env,
-          status: 0,
-          details: { exception: e instanceof Error ? e.name : String(e) },
-        });
-        setError(message);
-        setKeys([]);
-      } finally {
-        setLoading(false);
-      }
-      }
-      void load();
-    });
     return () => {
       cancelled = true;
     };
-  }, [
-    isOpen,
-    pillar,
-    source,
-    customPrefix,
-    effectivePrefix,
-    pillarSlug,
-    projectId,
-    projectSlug,
-    portfolioFolder,
-    r2Folder,
-    mediaRoot,
-  ]);
+  }, [isOpen, atLibraryHome, libraryRoots]);
 
-  function toggleSelection(key: string) {
+  const loadAllMirotechMedia = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    setPicks([]);
+    setFolders([]);
+    setSelected(new Set());
+    setVisibleCount(PAGE_SIZE);
+    setNextToken(null);
+    try {
+      const res = await fetch("/api/admin/r2/tools", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "mirotech-all-media", maxKeys: 2000, kind: "all" }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        objects?: Array<{ key: string; sourceVault?: R2VaultId; kind?: string }>;
+      };
+      if (!res.ok || data.ok !== true) {
+        setError(typeof data.error === "string" ? data.error : "Failed to load Mirotech media.");
+        return;
+      }
+      const mediaPicks: R2BrowserPick[] = (data.objects ?? [])
+        .map((o) => ({
+          key: o.key.replace(/^\/+/, ""),
+          vault: (o.sourceVault === "mirotech-site" ? "mirotech-site" : "brightline") as R2VaultId,
+        }))
+        .filter((p) => MEDIA_EXT.test(p.key));
+      setPicks(mediaPicks);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load Mirotech media.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadFolder = useCallback(
+    async (location: NavLocation, appendToken?: string | null) => {
+      if (!location.prefix || isAllMirotechMediaPrefix(location.prefix)) return;
+      const appending = Boolean(appendToken);
+      if (appending) setLoadingMore(true);
+      else {
+        setLoading(true);
+        setError("");
+        setPicks([]);
+        setFolders([]);
+        setSelected(new Set());
+        setVisibleCount(PAGE_SIZE);
+      }
+
+      try {
+        const prefix = location.prefix;
+        const res = await fetch("/api/admin/r2/list", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prefix,
+            maxKeys: 80,
+            vault: location.vault,
+            ...(appendToken ? { continuationToken: appendToken } : {}),
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          error?: string;
+          folders?: Array<{
+            prefix: string;
+            previewUrls?: string[];
+            previewKind?: "image" | "video" | "empty";
+          }>;
+          objects?: Array<{ key: string; name?: string; previewUrl?: string; kind?: string }>;
+          nextContinuationToken?: string | null;
+        };
+
+        if (!res.ok) {
+          if (
+            location.vault === "mirotech-site" &&
+            (res.status === 503 ||
+              (typeof data.error === "string" &&
+                data.error.toLowerCase().includes("not configured")))
+          ) {
+            setError("Mirotech CMS bucket is not configured on this environment.");
+            setFolders([]);
+            setPicks([]);
+            return;
+          }
+          setError(data.error ?? "Failed to list folder.");
+          return;
+        }
+
+        const childFolders: ListedFolder[] = (data.folders ?? []).map((f) => ({
+          prefix: f.prefix,
+          vault: location.vault,
+          label: folderSegmentLabel(f.prefix),
+          previewUrls: f.previewUrls,
+          previewKind: f.previewKind,
+        }));
+
+        const mediaPicks: R2BrowserPick[] = (data.objects ?? [])
+          .map((o) => ({ key: o.key.replace(/^\/+/, ""), vault: location.vault }))
+          .filter((p) => MEDIA_EXT.test(p.key));
+
+        if (appending) {
+          setPicks((prev) => {
+            const seen = new Set(prev.map(pickId));
+            const next = [...prev];
+            for (const p of mediaPicks) {
+              if (!seen.has(pickId(p))) next.push(p);
+            }
+            return next;
+          });
+        } else {
+          setFolders(childFolders);
+          setPicks(mediaPicks);
+        }
+        setNextToken(data.nextContinuationToken ?? null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load folder.");
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!isOpen || !nav?.prefix) return;
+    if (isAllMirotechMediaPrefix(nav.prefix)) {
+      void loadAllMirotechMedia();
+      return;
+    }
+    void loadFolder(nav);
+  }, [isOpen, nav, loadFolder, loadAllMirotechMedia]);
+
+  async function enterFolder(folder: ListedFolder) {
+    setSearch("");
+    if (folder.special === "all-mirotech-media" || isAllMirotechMediaPrefix(folder.prefix)) {
+      setNav({ prefix: ALL_MIROTECH_MEDIA_PREFIX, vault: "brightline" });
+      return;
+    }
+    let prefix = folder.prefix;
+    const preferred = preferredQualityChildPrefix(prefix, qualityFilter);
+    if (preferred) {
+      try {
+        const probe = await fetch("/api/admin/r2/list", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prefix: preferred,
+            maxKeys: 20,
+            vault: folder.vault,
+          }),
+        });
+        if (probe.ok) {
+          const probeData = (await probe.json()) as {
+            objects?: unknown[];
+            folders?: unknown[];
+          };
+          if ((probeData.objects?.length ?? 0) > 0 || (probeData.folders?.length ?? 0) > 0) {
+            prefix = preferred;
+          }
+        }
+      } catch {
+        /* stay on parent prefix */
+      }
+    }
+    setNav({ prefix, vault: folder.vault });
+  }
+
+  function goBreadcrumb(prefix: string | null) {
+    setSearch("");
+    if (prefix === null || isAllMirotechMediaPrefix(prefix)) {
+      if (isAllMirotechMediaPrefix(prefix)) {
+        setNav({ prefix: ALL_MIROTECH_MEDIA_PREFIX, vault: "brightline" });
+        return;
+      }
+      resetToLibrary();
+      return;
+    }
+    const vault: R2VaultId =
+      prefix.startsWith("projects/") ||
+      prefix.startsWith("journal/") ||
+      prefix.startsWith("resume/") ||
+      (prefix.startsWith("site/") && mediaRoot === "mirotech")
+        ? "mirotech-site"
+        : "brightline";
+    setNav({ prefix, vault });
+  }
+
+  const q = search.trim().toLowerCase();
+  const filteredFolders = useMemo(() => {
+    const source: ListedFolder[] = atLibraryHome
+      ? libraryRoots.map((r) => {
+          const previewKey = `${r.vault}:${r.prefix}`;
+          const preview = libraryPreviews[previewKey];
+          return {
+            prefix: r.prefix,
+            vault: r.vault,
+            label: r.label,
+            description: r.description,
+            group: r.group,
+            special: r.special,
+            previewUrls: preview?.previewUrls ?? [],
+            previewKind: preview?.previewKind ?? (r.special ? "empty" : "empty"),
+          };
+        })
+      : folders;
+    if (!q) return source;
+    return source.filter(
+      (f) =>
+        f.label.toLowerCase().includes(q) ||
+        f.prefix.toLowerCase().includes(q) ||
+        (f.description?.toLowerCase().includes(q) ?? false)
+    );
+  }, [atLibraryHome, libraryRoots, folders, q, libraryPreviews]);
+
+  const folderGroups = useMemo(() => {
+    if (!atLibraryHome || mediaRoot !== "mirotech") {
+      return [{ group: null as BrowseLibraryGroup | null, folders: filteredFolders }];
+    }
+    const order: BrowseLibraryGroup[] = ["portfolio", "t9", "cms", "all"];
+    return order
+      .map((group) => ({
+        group,
+        folders: filteredFolders.filter((f) => f.group === group),
+      }))
+      .filter((g) => g.folders.length > 0);
+  }, [atLibraryHome, mediaRoot, filteredFolders]);
+
+  const filteredPicks = useMemo(() => {
+    let list = picks;
+    if (qualityFilter !== "all") {
+      const inQuality =
+        Boolean(nav?.prefix) &&
+        !inAllMirotech &&
+        (nav!.prefix!.includes("/web_full/") ||
+          nav!.prefix!.includes("/web_thumb/") ||
+          nav!.prefix!.includes("/web_video/"));
+      if (!inQuality) {
+        list = filterBrowsePicks(list, qualityFilter, mediaRoot);
+      }
+    }
+    if (!q) return list;
+    return list.filter((p) => p.key.toLowerCase().includes(q));
+  }, [picks, q, qualityFilter, nav, mediaRoot, inAllMirotech]);
+
+  function toggleSelection(pick: R2BrowserPick) {
+    const id = pickId(pick);
     setSelected((prev) => {
       const next = new Set(prev);
       if (mode === "single") {
-        if (next.has(key)) next.clear();
-        else return new Set([key]);
+        if (next.has(id)) next.clear();
+        else return new Set([id]);
       }
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
 
-  function toggleAll() {
-    const visible = keys.slice(0, visibleCount);
-    if (selected.size >= visible.length && visible.every((k) => selected.has(k))) {
+  function toggleAllVisible() {
+    const visible = filteredPicks.slice(0, visibleCount);
+    const ids = visible.map(pickId);
+    if (ids.length > 0 && ids.every((id) => selected.has(id))) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(visible));
+      setSelected(new Set(ids));
     }
   }
 
   async function handleAddSelected() {
-    const toAdd = Array.from(selected);
+    const toAdd = filteredPicks.filter((p) => selected.has(pickId(p)));
     if (toAdd.length === 0) return;
-    const keysToUse = mode === "single" ? (toAdd.slice(0, 1)) : toAdd;
+    const picksToUse = mode === "single" ? toAdd.slice(0, 1) : toAdd;
     setAdding(true);
     setError("");
     try {
-      await onAddKeys(keysToUse);
+      await onAddKeys(picksToUse);
       setSelected(new Set());
       onClose();
     } catch (e) {
@@ -412,18 +523,65 @@ export default function R2BrowserModal({
 
   if (!isOpen) return null;
 
+  const vaultLabel = mediaRoot === "mirotech" ? "Mirotech" : "Brightline";
+  const isCmsFolder =
+    Boolean(nav?.prefix) &&
+    !inAllMirotech &&
+    (nav?.vault === "mirotech-site" ||
+      nav?.prefix?.startsWith("projects/") ||
+      nav?.prefix?.startsWith("journal/") ||
+      nav?.prefix?.startsWith("resume/"));
+
+  function renderFolderCard(f: ListedFolder) {
+    return (
+      <button
+        key={`${f.vault}:${f.prefix}`}
+        type="button"
+        onClick={() => void enterFolder(f)}
+        className="group flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] text-left transition hover:border-white/25 hover:bg-white/[0.06]"
+      >
+        <div className="p-2 pb-0">
+          {f.special === "all-mirotech-media" ? (
+            <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-violet-400/30 bg-violet-500/10 text-[0.65rem] uppercase tracking-[0.2em] text-violet-200/80">
+              All media
+            </div>
+          ) : (
+            <R2FolderPreviewThumb
+              folder={{
+                previewUrls: f.previewUrls ?? [],
+                previewKind: f.previewKind,
+              }}
+            />
+          )}
+        </div>
+        <span className="min-w-0 flex-1 px-3 pb-3 pt-2">
+          <span className="block truncate text-sm font-medium text-white">{f.label}</span>
+          <span className="mt-0.5 block truncate font-mono text-[11px] text-white/35">
+            {f.description ?? f.prefix}
+          </span>
+          {vaultBadge(f)}
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:bg-black/60 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="r2-browser-title"
     >
-      <div className="flex h-[90vh] max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0b0e12] shadow-xl">
+      <div className="flex h-[100dvh] w-full max-h-[100dvh] flex-col overflow-hidden border-white/10 bg-[#0b0e12] shadow-xl sm:h-[90vh] sm:max-h-[90vh] sm:max-w-5xl sm:rounded-xl sm:border">
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <h2 id="r2-browser-title" className="font-display text-lg text-white">
-            Browse R2
-          </h2>
+          <div>
+            <h2 id="r2-browser-title" className="font-display text-lg text-white">
+              Browse R2
+            </h2>
+            <p className="mt-0.5 text-xs text-white/45">
+              {vaultLabel} · open a folder to find images and videos
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -434,287 +592,269 @@ export default function R2BrowserModal({
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 border-b border-white/10 px-4 py-2">
+        <div className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-2.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-white/50">Vault:</span>
+            <span className="text-xs text-white/50">Vault</span>
             <select
               value={mediaRoot}
               onChange={(e) => {
                 const next = e.target.value as T9MediaRoot;
                 setMediaRoot(next);
-                setPillar(next === "mirotech" ? "product" : pillarSlug);
+                setQualityFilter(defaultFolderForRoot(next, initialPortfolioFolder));
+                resetToLibrary();
               }}
               className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
-              aria-label="T9 media vault"
+              aria-label="Media vault"
             >
               <option value="portfolio">Brightline portfolio</option>
               <option value="mirotech">Mirotech</option>
             </select>
-            {projectId ? (
-              <>
-                <span className="text-xs text-white/50">Source:</span>
-                <select
-                  value={source}
-                  onChange={(e) => setSource(e.target.value as "portfolio" | "project" | "custom")}
-                  className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
-                >
-                  <option value="portfolio">{vaultLabel} (T9 uploads)</option>
-                  <option value="project">This project</option>
-                  <option value="custom">Custom prefix</option>
-                </select>
-              </>
-            ) : (
-              <>
-                <span className="text-xs text-white/50">Source:</span>
-                <select
-                  value={source}
-                  onChange={(e) => setSource(e.target.value as "portfolio" | "project" | "custom")}
-                  className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
-                >
-                  <option value="portfolio">{vaultLabel}</option>
-                  <option value="custom">Custom prefix</option>
-                </select>
-              </>
-            )}
-            {source === "portfolio" && (
-              <>
-                <select
-                  value={pillar}
-                  onChange={(e) => setPillar(e.target.value)}
-                  className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
-                  aria-label={mediaRoot === "mirotech" ? "Work category" : "Portfolio section"}
-                >
-                  <option value="all">
-                    {mediaRoot === "mirotech" ? "All categories" : "All pillars"}
-                  </option>
-                  {mediaRoot === "mirotech"
-                    ? segmentsForRoot("mirotech").map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                          {opt.label}
-                        </option>
-                      ))
-                    : PILLAR_SLUGS.map((slug) => (
-                        <option key={slug} value={slug}>
-                          {PILLARS.find((p) => p.slug === slug)?.label ?? slug}
-                        </option>
-                      ))}
-                </select>
-                <span className="text-xs text-white/50">Folder:</span>
-                <select
-                  value={portfolioFolder}
-                  onChange={(e) => setPortfolioFolder(e.target.value as PortfolioFolderFilter)}
-                  className="max-w-[11rem] rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white sm:max-w-none"
-                  aria-label="T9 R2 subfolder"
-                  title="T9 uploads: web_full / web_thumb (Image Port) and web_video (Video Port) under each pillar"
-                >
-                  <option value="all">All (mixed)</option>
-                  <option value="web_full">web_full — full size</option>
-                  <option value="web_thumb">web_thumb — thumbnails</option>
-                  <option value="web_video">web_video — Video Port</option>
-                </select>
-              </>
-            )}
-            {source === "custom" && (
-              <input
-                type="text"
-                value={customPrefix}
-                onChange={(e) => setCustomPrefix(e.target.value)}
-                placeholder={
-                  mediaRoot === "mirotech" ? `${mediaRoot}/product/web_full` : `${mediaRoot}/arc/web_full`
-                }
-                className="min-w-[200px] rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm font-mono text-white placeholder:text-white/40"
-              />
-            )}
+            <span className="text-xs text-white/50">Prefer</span>
+            <select
+              value={qualityFilter}
+              onChange={(e) => setQualityFilter(e.target.value as PortfolioFolderFilter)}
+              className="rounded border border-white/20 bg-black/40 px-2 py-1.5 text-sm text-white"
+              aria-label="Preferred quality folder"
+              title="When opening a pillar folder, jump into this quality subfolder if present. CMS bucket keys ignore Prefer."
+            >
+              <option value="all">Any quality</option>
+              <option value="web_full">web_full</option>
+              <option value="web_thumb">web_thumb</option>
+              <option value="web_video">web_video</option>
+            </select>
           </div>
-          <button
-            type="button"
-            onClick={toggleAll}
-            className="text-sm text-white/70 hover:text-white"
-          >
-            {(() => {
-              const visible = keys.slice(0, visibleCount);
-              const allVisibleSelected =
-                visible.length > 0 && visible.every((k) => selected.has(k));
-              return allVisibleSelected ? "Deselect all" : "Select all";
-            })()}
-          </button>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={atLibraryHome ? "Filter folders…" : "Filter this folder…"}
+            className="min-w-[12rem] flex-1 rounded border border-white/15 bg-black/40 px-3 py-1.5 text-sm text-white placeholder:text-white/35"
+          />
+          {!atLibraryHome && filteredPicks.length > 0 ? (
+            <button
+              type="button"
+              onClick={toggleAllVisible}
+              className="text-sm text-white/70 hover:text-white"
+            >
+              Select visible
+            </button>
+          ) : null}
         </div>
+
+        <nav
+          className="flex flex-wrap items-center gap-1 border-b border-white/5 px-4 py-2 text-xs"
+          aria-label="Folder path"
+        >
+          {crumbs.map((c, i) => {
+            const isLast = i === crumbs.length - 1;
+            return (
+              <span key={`${c.label}-${i}`} className="flex items-center gap-1">
+                {i > 0 ? <span className="text-white/25">/</span> : null}
+                {isLast ? (
+                  <span className="font-medium text-white/90">{c.label}</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => goBreadcrumb(c.prefix)}
+                    className="text-white/50 hover:text-white"
+                  >
+                    {c.label}
+                  </button>
+                )}
+              </span>
+            );
+          })}
+        </nav>
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div
-            id="r2-browser-scroll-area-admin"
             ref={scrollRef}
-            className="r2-modal-scroll h-[50vh] min-h-0 flex-1 overflow-x-hidden overflow-y-scroll p-4"
+            className="r2-modal-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:h-auto"
           >
-            {error && (
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <p className="text-sm text-red-400" role="alert">
+            {error ? (
+              <p className="mb-4 text-sm text-red-400" role="alert">
                 {error}
               </p>
-              {lastFailureDetails && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const text = JSON.stringify(
-                      {
-                        error: lastFailureDetails.error,
-                        timestamp: lastFailureDetails.timestamp,
-                        prefix: lastFailureDetails.prefix,
-                        environment: lastFailureDetails.environment,
-                        ...(lastFailureDetails.status !== undefined && { status: lastFailureDetails.status }),
-                        ...(lastFailureDetails.code && { code: lastFailureDetails.code }),
-                        ...(lastFailureDetails.details && { details: lastFailureDetails.details }),
-                        hint: "Paste into docs/r2-browser-verification-result.md and check server logs for R2_LIST_ERROR",
-                      },
-                      null,
-                      2
-                    );
-                    void navigator.clipboard.writeText(text);
-                  }}
-                  className="rounded border border-white/20 bg-white/5 px-2 py-1 text-xs text-white/80 hover:bg-white/10 hover:text-white"
-                >
-                  Copy error details
-                </button>
-              )}
-            </div>
-          )}
-          {loading ? (
-            <p className="text-sm text-white/50">Loading…</p>
-          ) : keys.length === 0 && !error ? (
-            <p className="text-sm text-white/50">
-              No media found in this folder.
-              {source === "portfolio" && portfolioFolder !== "all" ? (
-                <> Try &quot;All (mixed)&quot; if files use a different path.</>
-              ) : null}
-              {source === "portfolio" && pillar !== "all" && portfolioFolder === "all" ? (
-                <> Use Folder → web_full, web_thumb, or web_video to filter T9 exports.</>
-              ) : null}
-              {source === "custom" ? (
-                <> Try prefixes like <code>site/</code>, <code>studio/</code>, <code>portfolio/</code>, <code>mirotech/</code>, <code>work/</code>, or <code>client-galleries/…</code> for gallery delivery.</>
-              ) : null}
-            </p>
-          ) : keys.length > 0 ? (
-            <>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-5">
-              {keys.slice(0, visibleCount).map((key) => {
-                const isSelected = selected.has(key);
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => toggleSelection(key)}
-                    className={`relative aspect-square overflow-hidden rounded-lg border-2 transition-colors ${
-                      isSelected ? "border-white ring-2 ring-white/30" : "border-white/10 hover:border-white/30"
-                    }`}
-                  >
-                    {isVideoKey(key) ? (
-                      <video
-                        src={getImageUrl(key)}
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element -- dynamic R2 URLs
-                      <img
-                        src={getImageUrl(key)}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        className="h-full w-full object-cover"
-                      />
-                    )}
-                    {isSelected && (
-                      <span className="absolute right-2 top-2 rounded bg-white/90 px-1.5 py-0.5 text-xs font-medium text-black">
-                        ✓
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            {visibleCount < keys.length ? (
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                <p className="text-xs text-white/45">
-                  Showing {visibleCount} of {keys.length}
-                </p>
-                <button
-                  type="button"
-                  className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-white/80 hover:bg-white/10 hover:text-white"
-                  onClick={() => setVisibleCount((n) => Math.min(n + PAGE_SIZE, keys.length))}
-                >
-                  Load more
-                </button>
-              </div>
-            ) : keys.length > PAGE_SIZE ? (
-              <p className="mt-4 text-center text-xs text-white/40">
-                Showing all {keys.length}
-              </p>
             ) : null}
-            </>
-          ) : null}
+
+            {loading ? (
+              <p className="text-sm text-white/50">Loading…</p>
+            ) : (
+              <>
+                {atLibraryHome
+                  ? folderGroups.map((g) => (
+                      <section key={g.group ?? "default"} className="mb-6">
+                        <h3 className="mb-3 text-[10px] font-medium uppercase tracking-[0.22em] text-white/40">
+                          {g.group ? BROWSE_LIBRARY_GROUP_LABELS[g.group] : "Libraries"}
+                        </h3>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                          {g.folders.map(renderFolderCard)}
+                        </div>
+                      </section>
+                    ))
+                  : filteredFolders.length > 0
+                    ? (
+                        <section className="mb-6">
+                          <h3 className="mb-3 text-[10px] font-medium uppercase tracking-[0.22em] text-white/40">
+                            Folders
+                          </h3>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                            {filteredFolders.map(renderFolderCard)}
+                          </div>
+                        </section>
+                      )
+                    : null}
+
+                {!atLibraryHome ? (
+                  <section>
+                    <div className="mb-3 flex items-baseline justify-between gap-2">
+                      <h3 className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/40">
+                        Files
+                        {filteredPicks.length > 0
+                          ? ` · ${Math.min(visibleCount, filteredPicks.length)} of ${filteredPicks.length}`
+                          : ""}
+                      </h3>
+                    </div>
+                    {filteredPicks.length === 0 && filteredFolders.length === 0 ? (
+                      <div className="space-y-2 text-sm text-white/45">
+                        <p>No media in this folder.</p>
+                        {isCmsFolder ? (
+                          <p>
+                            CMS bucket folders are often sparse — most Mirotech case-study images live under{" "}
+                            <strong className="font-normal text-white/70">Portfolio</strong> or{" "}
+                            <strong className="font-normal text-white/70">T9 Mirotech</strong>. Use{" "}
+                            <strong className="font-normal text-white/70">All Mirotech media</strong> from the
+                            library, or Prefer → <code className="text-white/60">Any quality</code>.
+                          </p>
+                        ) : qualityFilter !== "all" ? (
+                          <p>
+                            Try Prefer → Any quality, or open a{" "}
+                            <code className="text-white/60">web_full</code> /{" "}
+                            <code className="text-white/60">web_video</code> subfolder.
+                          </p>
+                        ) : (
+                          <p>Go up a level or pick another library folder.</p>
+                        )}
+                      </div>
+                    ) : filteredPicks.length === 0 ? (
+                      <p className="text-sm text-white/40">Open a subfolder above to view files.</p>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                          {filteredPicks.slice(0, visibleCount).map((pick) => {
+                            const id = pickId(pick);
+                            const isSelected = selected.has(id);
+                            const preview = browsePreviewUrl(pick);
+                            return (
+                              <button
+                                key={id}
+                                type="button"
+                                onClick={() => toggleSelection(pick)}
+                                className={`relative aspect-square overflow-hidden rounded-lg border-2 transition-colors ${
+                                  isSelected
+                                    ? "border-white ring-2 ring-white/30"
+                                    : "border-white/10 hover:border-white/30"
+                                }`}
+                                title={`${pick.vault}: ${pick.key}`}
+                              >
+                                {isVideoKey(pick.key) ? (
+                                  // eslint-disable-next-line jsx-a11y/media-has-caption
+                                  <video
+                                    src={preview}
+                                    muted
+                                    playsInline
+                                    preload="metadata"
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={preview}
+                                    alt=""
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="h-full w-full object-cover"
+                                  />
+                                )}
+                                {pick.vault === "mirotech-site" ? (
+                                  <span className="absolute left-1 top-1 rounded bg-black/70 px-1 py-0.5 text-[9px] uppercase tracking-wide text-white/80">
+                                    CMS
+                                  </span>
+                                ) : null}
+                                {isSelected ? (
+                                  <span className="absolute right-2 top-2 rounded bg-white/90 px-1.5 py-0.5 text-xs font-medium text-black">
+                                    ✓
+                                  </span>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                          {visibleCount < filteredPicks.length ? (
+                            <button
+                              type="button"
+                              className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-white/80 hover:bg-white/10 hover:text-white"
+                              onClick={() =>
+                                setVisibleCount((n) => Math.min(n + PAGE_SIZE, filteredPicks.length))
+                              }
+                            >
+                              Show more
+                            </button>
+                          ) : null}
+                          {nextToken && !inAllMirotech ? (
+                            <button
+                              type="button"
+                              disabled={loadingMore}
+                              className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-50"
+                              onClick={() => {
+                                if (!nav?.prefix) return;
+                                void loadFolder(nav, nextToken);
+                              }}
+                            >
+                              {loadingMore ? "Loading…" : "Load more from R2"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </>
+                    )}
+                  </section>
+                ) : filteredFolders.length === 0 ? (
+                  <p className="text-sm text-white/45">
+                    {q ? "No folders match your filter." : "No libraries available for this vault."}
+                  </p>
+                ) : null}
+              </>
+            )}
           </div>
-          {scrollState.scrollHeight > scrollState.clientHeight ? (
-            <div
-              className="relative flex h-[50vh] w-3 shrink-0 flex-col py-2 pr-2"
-              role="scrollbar"
-              aria-controls="r2-browser-scroll-area-admin"
-              aria-valuenow={
-                scrollState.clientHeight > 0 && scrollState.scrollHeight > scrollState.clientHeight
-                  ? Math.round(
-                      (scrollState.top / (scrollState.scrollHeight - scrollState.clientHeight)) * 100
-                    )
-                  : 0
-              }
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <div
-                className="absolute inset-x-0 top-2 bottom-2 cursor-pointer rounded-full bg-white/10 transition-colors hover:bg-white/20"
-                onClick={handleScrollbarTrackClick}
-              />
-              <div
-                className="absolute left-0.5 right-0.5 rounded-full bg-white/45 transition-colors hover:bg-white/65"
-                style={{
-                  height: `${Math.max(
-                    24,
-                    (scrollState.height * scrollState.clientHeight) / scrollState.scrollHeight
-                  )}px`,
-                  top: `${
-                    scrollState.scrollHeight > scrollState.clientHeight
-                      ? 8 +
-                        (scrollState.top / (scrollState.scrollHeight - scrollState.clientHeight)) *
-                          (scrollState.height - 16 - Math.max(24, (scrollState.height * scrollState.clientHeight) / scrollState.scrollHeight))
-                      : 8
-                  }px`,
-                }}
-                onMouseDown={handleScrollbarThumbMouseDown}
-              />
-            </div>
-          ) : null}
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-white/10 px-4 py-3">
+        <div className="shrink-0 flex items-center justify-between gap-2 border-t border-white/10 bg-[#0b0e12] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
-            onClick={onClose}
-            className="btn btn-ghost text-sm"
+            onClick={resetToLibrary}
+            className="text-xs uppercase tracking-[0.16em] text-white/45 hover:text-white/80"
+            disabled={atLibraryHome}
           >
-            Cancel
+            {atLibraryHome ? "" : "← Library"}
           </button>
-          <button
-            type="button"
-            onClick={handleAddSelected}
-            disabled={adding || selected.size === 0}
-            className="btn btn-primary text-sm"
-          >
-            {adding
-              ? "…"
-              : mode === "single"
-                ? (selected.size > 0 ? "Use as hero" : "Use as hero")
-                : `Add ${selected.size} selected`}
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={onClose} className="btn btn-ghost text-sm">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleAddSelected}
+              disabled={adding || selected.size === 0}
+              className="btn btn-primary text-sm"
+            >
+              {adding
+                ? "…"
+                : mode === "single"
+                  ? confirmLabel ?? "Use selected"
+                  : `Add ${selected.size} selected`}
+            </button>
+          </div>
         </div>
       </div>
     </div>

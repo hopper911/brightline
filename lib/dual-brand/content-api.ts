@@ -17,6 +17,8 @@ export type DualBrandWorkProject = {
   disciplines: string[];
   heroImage?: string;
   thumbnailImage?: string;
+  backgroundMedia?: string;
+  backgroundPoster?: string;
   featured: boolean;
   sortOrder: number;
   brightlineExternalId?: string;
@@ -93,27 +95,22 @@ function authHeaders(): HeadersInit {
 }
 
 export async function fetchDualBrandWork(): Promise<DualBrandWorkProject[]> {
-  try {
-    const res = await fetch(`${baseUrl()}/api/content/v1/work?site=BRIGHTLINE`, {
-      headers: authHeaders(),
-      // Publish toggles must apply immediately — do not serve a stale Brightline Work grid.
-      cache: "no-store",
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { projects?: DualBrandWorkProject[] };
-    return Array.isArray(data.projects) ? data.projects : [];
-  } catch {
-    return [];
-  }
+  return fetchWorkList("BRIGHTLINE");
 }
 
 export async function fetchDualBrandWorkBySlug(
   slug: string
 ): Promise<DualBrandWorkProject | null> {
+  return fetchWorkBySlug("BRIGHTLINE", slug);
+}
+
+async function fetchWorkBySlug(
+  site: "MIROTECH" | "BRIGHTLINE",
+  slug: string
+): Promise<DualBrandWorkProject | null> {
   try {
     const res = await fetch(
-      `${baseUrl()}/api/content/v1/work/${encodeURIComponent(slug)}?site=BRIGHTLINE`,
+      `${baseUrl()}/api/content/v1/work/${encodeURIComponent(slug)}?site=${site}`,
       {
         headers: authHeaders(),
         cache: "no-store",
@@ -128,11 +125,42 @@ export async function fetchDualBrandWorkBySlug(
   }
 }
 
-export async function fetchDualBrandJournal(): Promise<DualBrandJournalPost[]> {
+async function fetchWorkList(site: "MIROTECH" | "BRIGHTLINE"): Promise<DualBrandWorkProject[]> {
   try {
-    const res = await fetch(`${baseUrl()}/api/content/v1/journal?site=BRIGHTLINE`, {
+    const res = await fetch(`${baseUrl()}/api/content/v1/work?site=${site}`, {
       headers: authHeaders(),
-      next: { revalidate: 60 },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { projects?: DualBrandWorkProject[] };
+    return Array.isArray(data.projects) ? data.projects : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Published Work case studies on mirotech.solutions. */
+export async function fetchMirotechSiteWork(): Promise<DualBrandWorkProject[]> {
+  return fetchWorkList("MIROTECH");
+}
+
+export async function fetchMirotechSiteWorkBySlug(
+  slug: string
+): Promise<DualBrandWorkProject | null> {
+  return fetchWorkBySlug("MIROTECH", slug);
+}
+
+export async function fetchDualBrandJournal(): Promise<DualBrandJournalPost[]> {
+  return fetchJournalList("BRIGHTLINE");
+}
+
+async function fetchJournalList(site: "MIROTECH" | "BRIGHTLINE"): Promise<DualBrandJournalPost[]> {
+  try {
+    const res = await fetch(`${baseUrl()}/api/content/v1/journal?site=${site}`, {
+      headers: authHeaders(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) return [];
     const data = (await res.json()) as { posts?: DualBrandJournalPost[] };
@@ -140,6 +168,11 @@ export async function fetchDualBrandJournal(): Promise<DualBrandJournalPost[]> {
   } catch {
     return [];
   }
+}
+
+/** Published journal posts on mirotech.solutions. */
+export async function fetchMirotechSiteJournal(): Promise<DualBrandJournalPost[]> {
+  return fetchJournalList("MIROTECH");
 }
 
 export async function fetchDualBrandJournalBySlug(

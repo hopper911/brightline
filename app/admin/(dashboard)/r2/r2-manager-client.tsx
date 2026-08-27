@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import R2VideoEncodePanel from "@/components/admin/R2VideoEncodePanel";
+import R2FolderPreviewThumb from "@/components/admin/R2FolderPreviewThumb";
 import { externalLinkProps } from "@/lib/external-link";
 import type { R2VaultId } from "@/lib/r2-vaults-shared";
 import {
@@ -12,6 +13,20 @@ import {
   isR2VaultId,
 } from "@/lib/r2-vaults-shared";
 import { isT9WebVideoPrefix } from "@/lib/video-port/parse-prefix";
+import {
+  R2_UPLOAD_ACCEPT,
+  defaultUploadDestination,
+  detectUploadFileKind,
+  formatUploadDestinationLabel,
+  loadUploadDestinationFromSession,
+  normalizeUploadDestination,
+  parseUploadDestinationFromSearch,
+  resolveUploadPrefix,
+  saveUploadDestinationToSession,
+  type R2UploadDestination,
+} from "@/lib/r2-upload-destination";
+import { browseLibraryRoots } from "@/lib/r2-browser-prefixes";
+import R2UploadDestinationPanel from "./r2-upload-destination-panel";
 
 type Root = { id: string; label: string; prefix: string };
 
@@ -33,6 +48,9 @@ type R2Object = {
   previewUrl: string;
   pairKey: string | null;
   pairPresent: boolean;
+  sourceVault?: R2VaultId;
+  sourceLabel?: string;
+  dbReferenced?: boolean;
 };
 
 type Usage = {
@@ -67,6 +85,16 @@ type KindFilter = "all" | "image" | "video" | "other";
 type ViewMode = "grid" | "list";
 type ToolOp = "orphans" | "pairs" | "summary" | "duplicates" | "heavy";
 
+type UnifiedMediaView = "brightline-all-media" | "mirotech-all-media";
+type BrowseMode = "all-media" | "folder";
+
+type UploadProgressItem = {
+  id: string;
+  name: string;
+  status: "queued" | "uploading" | "compacting" | "encoding" | "done" | "error";
+  error?: string;
+};
+
 const PAGE_SIZE = 60;
 const SINGLE_PUT_MAX = 3.5 * 1024 * 1024;
 
@@ -90,44 +118,6 @@ function folderLabel(prefix: string): string {
   return parts[parts.length - 1] || prefix;
 }
 
-function FolderPreviewThumb({ folder }: { folder: FolderPreview }) {
-  const urls = folder.previewUrls.slice(0, 4);
-  if (urls.length === 0) {
-    return (
-      <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-white/15 bg-white/[0.03] text-[0.65rem] uppercase tracking-[0.2em] text-white/40">
-        {folder.previewKind === "video" ? "Video" : "Empty"}
-      </div>
-    );
-  }
-  if (folder.previewKind === "video") {
-    return (
-      <div className="relative aspect-square overflow-hidden rounded-lg bg-black/60">
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <video src={urls[0]} muted playsInline preload="metadata" className="h-full w-full object-cover" />
-      </div>
-    );
-  }
-  if (urls.length === 1) {
-    return (
-      <div className="aspect-square overflow-hidden rounded-lg bg-black/60">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={urls[0]} alt="" className="h-full w-full object-cover" loading="lazy" />
-      </div>
-    );
-  }
-  return (
-    <div
-      className={`grid aspect-square gap-0.5 overflow-hidden rounded-lg bg-black/60 ${
-        urls.length === 2 ? "grid-cols-2 grid-rows-1" : "grid-cols-2 grid-rows-2"
-      }`}
-    >
-      {urls.map((url) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={url} src={url} alt="" className="h-full w-full object-cover" loading="lazy" />
-      ))}
-    </div>
-  );
-}
 
 async function readJson(res: Response): Promise<Record<string, unknown>> {
   try {
@@ -249,15 +239,20 @@ async function uploadDirectToVault(file: File, destPrefix: string, vault: R2Vaul
   }
 }
 
-async function uploadCompactFile(file: File, destPrefix: string, vault: R2VaultId) {
+async function uploadCompactFile(
+  file: File,
+  destPrefix: string,
+  vault: R2VaultId,
+  opts?: { root?: string; segment?: string }
+) {
   if (vault === "mirotech-site") {
     await uploadDirectToVault(file, destPrefix, vault);
     return;
   }
   const isVideo = /^video\//i.test(file.type) || /\.(mp4|webm|mov|m4v)$/i.test(file.name);
-  if (isVideo && file.size > SINGLE_PUT_MAX) {
+  if (isVideo) {
     throw new Error(
-      "Videos over 3.5MB need Encode video (1080p H.264). Use Upload & encode video above."
+      "Videos must use Encode (web_video). Pick files after setting Folder to web_video."
     );
   }
   if (file.size <= SINGLE_PUT_MAX) {
@@ -278,6 +273,8 @@ async function uploadCompactFile(file: File, destPrefix: string, vault: R2VaultI
   }
 
   const contentType = file.type || "image/jpeg";
+  const segment = opts?.segment || "arc";
+  const root = opts?.root || "portfolio";
   const initRes = await fetch("/api/admin/image-port/multipart/init", {
     method: "POST",
     credentials: "include",
@@ -285,7 +282,8 @@ async function uploadCompactFile(file: File, destPrefix: string, vault: R2VaultI
     body: JSON.stringify({
       fileName: file.name,
       contentType,
-      pillar: "arc",
+      pillar: segment,
+      root,
       bytes: file.size,
     }),
   });
@@ -365,14 +363,30 @@ function normalizePrefixParam(raw: string): string {
   return cleaned.endsWith("/") ? cleaned : `${cleaned}/`;
 }
 
+function unifiedViewForVault(vault: R2VaultId): UnifiedMediaView {
+  return vault === "mirotech-site" ? "mirotech-all-media" : "brightline-all-media";
+}
+
 function buildR2Href(
   vault: R2VaultId,
   prefix: string,
   kind: KindFilter,
-  encode: boolean
+  encode: boolean,
+  options?: { unifiedView?: UnifiedMediaView; folderMode?: boolean }
 ): string {
   const params = new URLSearchParams();
+  if (options?.unifiedView) {
+    params.set("view", options.unifiedView);
+    if (options.unifiedView === "mirotech-all-media") {
+      params.set("vault", "mirotech-site");
+    }
+    if (kind !== "all") params.set("kind", kind);
+    if (encode) params.set("mode", "encode");
+    const qs = params.toString();
+    return qs ? `/admin/r2?${qs}` : "/admin/r2";
+  }
   if (vault !== "brightline") params.set("vault", vault);
+  if (options?.folderMode || prefix) params.set("view", "folder");
   const cleanPrefix = prefix.replace(/^\/+/, "").replace(/\/$/, "");
   if (cleanPrefix) params.set("prefix", `${cleanPrefix}/`);
   if (kind !== "all") params.set("kind", kind);
@@ -381,29 +395,62 @@ function buildR2Href(
   return qs ? `/admin/r2?${qs}` : "/admin/r2";
 }
 
+function parentPrefixForObjectKey(key: string): string {
+  const clean = key.replace(/^\/+/, "");
+  const idx = clean.lastIndexOf("/");
+  if (idx <= 0) return "";
+  return `${clean.slice(0, idx + 1)}`;
+}
+
 export default function R2ManagerClient({
   initialPrefix = "",
   initialVault = "brightline",
   initialMode,
   initialKindFilter: initialKind = "all",
+  initialView,
+  initialUploadOpen = false,
+  initialUploadDest,
 }: {
   initialPrefix?: string;
   initialVault?: R2VaultId;
   initialMode?: "encode";
   initialKindFilter?: KindFilter;
+  initialView?: UnifiedMediaView | "folder";
+  initialUploadOpen?: boolean;
+  initialUploadDest?: Partial<R2UploadDestination>;
 }) {
   const router = useRouter();
   const normalizedInitialPrefix = normalizePrefixParam(initialPrefix);
-  const inferredVault = inferVaultFromPrefix(normalizedInitialPrefix);
-  const resolvedInitialVault: R2VaultId =
-    inferredVault ?? (isR2VaultId(initialVault) ? initialVault : "brightline");
+  const resolvedInitialVault: R2VaultId = (() => {
+    if (initialView === "mirotech-all-media") return "mirotech-site";
+    if (initialView === "brightline-all-media") return "brightline";
+    const inferredVault = inferVaultFromPrefix(normalizedInitialPrefix);
+    if (inferredVault) return inferredVault;
+    return isR2VaultId(initialVault) ? initialVault : "brightline";
+  })();
 
   const [prefix, setPrefix] = useState(normalizedInitialPrefix);
   const [vault, setVault] = useState<R2VaultId>(resolvedInitialVault);
   const vaultRef = useRef<R2VaultId>(resolvedInitialVault);
   vaultRef.current = vault;
+  const initialBrowseMode: BrowseMode =
+    initialView === "folder" ? "folder" : "all-media";
+  const [browseMode, setBrowseMode] = useState<BrowseMode>(initialBrowseMode);
+  const [allMediaBrowse, setAllMediaBrowse] = useState(initialBrowseMode === "all-media");
   const [siteWideBrowse, setSiteWideBrowse] = useState(false);
   const [encodeOpen, setEncodeOpen] = useState(initialMode === "encode");
+  const [uploadDest, setUploadDest] = useState<R2UploadDestination>(() =>
+    normalizeUploadDestination(
+      {
+        ...defaultUploadDestination(initialKind === "video" ? "video" : "image"),
+        ...initialUploadDest,
+      },
+      initialKind === "video" ? "video" : "all"
+    )
+  );
+  const [destSheetOpen, setDestSheetOpen] = useState(initialUploadOpen);
+  const [encodeSeedFiles, setEncodeSeedFiles] = useState<File[] | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressItem[]>([]);
   const [roots, setRoots] = useState<Root[]>([]);
   const [folders, setFolders] = useState<FolderPreview[]>([]);
   const [objects, setObjects] = useState<R2Object[]>([]);
@@ -412,6 +459,10 @@ export default function R2ManagerClient({
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [nextToken, setNextToken] = useState<string | null>(null);
+  const [allMediaHasMore, setAllMediaHasMore] = useState(false);
+  const [allMediaOffset, setAllMediaOffset] = useState(0);
+  const ALL_MEDIA_PAGE = 200;
+  const ALL_MEDIA_SCAN_MAX = 5000;
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [view, setView] = useState<ViewMode>("grid");
   const [qualityFilter, setQualityFilter] = useState<QualityFilter>("all");
@@ -440,13 +491,38 @@ export default function R2ManagerClient({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingMore = useRef(false);
+  const allMediaOffsetRef = useRef(0);
 
   const syncUrl = useCallback(
-    (nextVault: R2VaultId, nextPrefix: string, kind: KindFilter, encode: boolean) => {
-      router.replace(buildR2Href(nextVault, nextPrefix, kind, encode), { scroll: false });
+    (
+      nextVault: R2VaultId,
+      nextPrefix: string,
+      kind: KindFilter,
+      encode: boolean,
+      options?: { unifiedView?: UnifiedMediaView; folderMode?: boolean }
+    ) => {
+      router.replace(buildR2Href(nextVault, nextPrefix, kind, encode, options), { scroll: false });
     },
     [router]
   );
+
+  const loadSummary = useCallback(async (forVault?: R2VaultId) => {
+    try {
+      const v = forVault ?? vaultRef.current;
+      const res = await fetch("/api/admin/r2/tools", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "summary", vault: v }),
+      });
+      const data = (await res.json()) as { ok?: boolean; summary?: SummaryRow[] };
+      if (res.ok && data.ok) {
+        setSummary(data.summary ?? []);
+      }
+    } catch {
+      /* non-blocking */
+    }
+  }, []);
 
   const crumbs = useMemo(() => {
     if (!prefix) return [{ label: "Root", prefix: "" }];
@@ -482,6 +558,8 @@ export default function R2ManagerClient({
     async (nextPrefix: string, token?: string | null, append = false) => {
       if (append) loadingMore.current = true;
       setSiteWideBrowse(false);
+      setAllMediaBrowse(false);
+      setBrowseMode("folder");
       setLoading(true);
       setError("");
       try {
@@ -500,6 +578,7 @@ export default function R2ManagerClient({
           ok?: boolean;
           error?: string;
           warning?: string;
+          vault?: R2VaultId;
           prefixes?: string[];
           folders?: FolderPreview[];
           objects?: R2Object[];
@@ -507,9 +586,13 @@ export default function R2ManagerClient({
           nextContinuationToken?: string | null;
         };
         if (!res.ok || !data.ok) throw new Error(data.error || "List failed");
+        if (data.vault && isR2VaultId(data.vault) && data.vault !== vaultRef.current) {
+          setVault(data.vault);
+          vaultRef.current = data.vault;
+        }
         setPrefix(nextPrefix);
         if (!append) {
-          syncUrl(vaultRef.current, nextPrefix, kindFilter, encodeOpen);
+          syncUrl(vaultRef.current, nextPrefix, kindFilter, encodeOpen, { folderMode: true });
         }
         if (data.roots) setRoots(data.roots);
         const nextFolders =
@@ -544,14 +627,130 @@ export default function R2ManagerClient({
     [encodeOpen, kindFilter, loadUsed, syncUrl]
   );
 
+  const loadAllMedia = useCallback(
+    async (kind: KindFilter = "all", forVault?: R2VaultId, append = false) => {
+      const v = forVault ?? vaultRef.current;
+      const op = v === "mirotech-site" ? "mirotech-all-media" : "brightline-all-media";
+      const unifiedView = unifiedViewForVault(v);
+      const offset = append ? allMediaOffsetRef.current : 0;
+      setAllMediaBrowse(true);
+      setBrowseMode("all-media");
+      setSiteWideBrowse(false);
+      if (!append) {
+        setLoading(true);
+        setAllMediaOffset(0);
+        allMediaOffsetRef.current = 0;
+        setAllMediaHasMore(false);
+      } else {
+        loadingMore.current = true;
+      }
+      setError("");
+      setPrefix("");
+      setFolders([]);
+      setKindFilter(kind);
+      if (!append) {
+        syncUrl(v, "", kind, encodeOpen, { unifiedView });
+      }
+      try {
+        const mediaKind = kind === "other" ? "all" : kind;
+        const res = await fetch("/api/admin/r2/tools", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            op,
+            maxKeys: ALL_MEDIA_SCAN_MAX,
+            kind: mediaKind,
+            vault: v,
+            offset,
+            limit: ALL_MEDIA_PAGE,
+          }),
+        });
+        const data = (await res.json()) as {
+          ok?: boolean;
+          error?: string;
+          objects?: R2Object[];
+          truncated?: boolean;
+          cmsReferenced?: number;
+          dbReferenced?: number;
+          bucketScanAdded?: number;
+          totalSorted?: number;
+          hasMore?: boolean;
+        };
+        if (!res.ok || !data.ok) throw new Error(data.error || "Media scan failed");
+        const incoming = data.objects ?? [];
+        setObjects((prev) => (append ? [...prev, ...incoming] : incoming));
+        setNextToken(null);
+        if (!append) {
+          setSelected(new Set());
+          setUsedMap({});
+        }
+        const nextOffset = offset + incoming.length;
+        setAllMediaOffset(nextOffset);
+        allMediaOffsetRef.current = nextOffset;
+        setAllMediaHasMore(Boolean(data.hasMore));
+        setOrderedKeys((prev) =>
+          append ? [...prev, ...incoming.map((o) => o.key)] : incoming.map((o) => o.key)
+        );
+        const dbN = data.dbReferenced ?? data.cmsReferenced ?? 0;
+        const bucketN = data.bucketScanAdded ?? 0;
+        const totalN = data.totalSorted ?? incoming.length;
+        const dbLabel =
+          v === "mirotech-site"
+            ? "referenced on mirotech.solutions"
+            : "referenced in Brightline CMS/DB";
+        setStatus(
+          `Showing ${append ? nextOffset : incoming.length} of ${totalN} (newest first)${data.truncated ? " · scan capped" : ""}: ${dbN} ${dbLabel}${bucketN > 0 ? ` (+ ${bucketN} from bucket scan)` : ""}.`
+        );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Media scan failed");
+        if (!append) setObjects([]);
+      } finally {
+        setLoading(false);
+        loadingMore.current = false;
+      }
+    },
+    [encodeOpen, syncUrl]
+  );
+
+  const enterFolderBrowse = useCallback(
+    (nextPrefix = "", nextVault?: R2VaultId) => {
+      const normalized = normalizePrefixParam(nextPrefix);
+      const inferredVault = inferVaultFromPrefix(normalized);
+      let targetVault = nextVault ?? vaultRef.current;
+      if (normalized && inferredVault) {
+        if (!nextVault || inferredVault !== nextVault) {
+          targetVault = inferredVault;
+        }
+      }
+      if (targetVault !== vaultRef.current) {
+        setVault(targetVault);
+        vaultRef.current = targetVault;
+      }
+      setAllMediaBrowse(false);
+      setBrowseMode("folder");
+      setSiteWideBrowse(false);
+      void loadSummary(vaultRef.current);
+      void load(normalized);
+    },
+    [load, loadSummary]
+  );
+
+  const mirotechLibraryRoots = useMemo(
+    () => browseLibraryRoots("mirotech").filter((r) => !r.special),
+    []
+  );
+
   const loadSiteVideos = useCallback(async () => {
+    setAllMediaBrowse(false);
+    setBrowseMode("folder");
     setSiteWideBrowse(true);
     setKindFilter("video");
     setLoading(true);
     setError("");
     setPrefix("");
     setFolders([]);
-    syncUrl(vaultRef.current, "", "video", encodeOpen);
+    syncUrl(vaultRef.current, "", "video", encodeOpen, { folderMode: true });
     try {
       const res = await fetch("/api/admin/r2/tools", {
         method: "POST",
@@ -589,13 +788,39 @@ export default function R2ManagerClient({
   }, [encodeOpen, loadUsed, syncUrl]);
 
   useEffect(() => {
-    if (initialKind === "video" && !normalizedInitialPrefix) {
+    if (initialBrowseMode === "all-media") {
+      void loadAllMedia(initialKind);
+    } else if (initialKind === "video" && !normalizedInitialPrefix) {
       void loadSiteVideos();
     } else {
       void load(normalizedInitialPrefix || "");
+      void loadSummary(resolvedInitialVault);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (Object.keys(initialUploadDest ?? {}).length > 0) return;
+    const stored = loadUploadDestinationFromSession();
+    if (stored) setUploadDest(stored);
+  }, [initialUploadDest]);
+
+  useEffect(() => {
+    saveUploadDestinationToSession(uploadDest);
+  }, [uploadDest]);
+
+  function openInSourceVault(item: R2Object) {
+    if (!item.sourceVault) return;
+    const destPrefix = parentPrefixForObjectKey(item.key);
+    setVault(item.sourceVault);
+    vaultRef.current = item.sourceVault;
+    setAllMediaBrowse(false);
+    setBrowseMode("folder");
+    setSiteWideBrowse(false);
+    setSummary(null);
+    void load(destPrefix || defaultPrefixForVault(item.sourceVault));
+    void loadSummary(item.sourceVault);
+  }
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -603,14 +828,19 @@ export default function R2ManagerClient({
     const io = new IntersectionObserver(
       (entries) => {
         if (!entries[0]?.isIntersecting) return;
-        if (!nextToken || loading || loadingMore.current) return;
+        if (loading || loadingMore.current) return;
+        if (allMediaBrowse && allMediaHasMore) {
+          void loadAllMedia(kindFilter, vaultRef.current, true);
+          return;
+        }
+        if (!nextToken) return;
         void load(prefix, nextToken, true);
       },
       { rootMargin: "400px" }
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [load, prefix, nextToken, loading]);
+  }, [allMediaBrowse, allMediaHasMore, kindFilter, load, loadAllMedia, prefix, nextToken, loading]);
 
   const filteredFolders = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -631,7 +861,7 @@ export default function R2ManagerClient({
       .filter((o) => {
         if (qualityFilter !== "all" && o.quality !== qualityFilter) return false;
         if (kindFilter !== "all" && o.kind !== kindFilter) return false;
-        if (q && !o.name.toLowerCase().includes(q) && !o.key.toLowerCase().includes(q)) return false;
+        if (q && !o.name.toLowerCase().includes(q) && !o.key.toLowerCase().includes(q) && !(o.sourceLabel?.toLowerCase().includes(q))) return false;
         return true;
       });
   }, [objects, orderedKeys, qualityFilter, kindFilter, search]);
@@ -817,30 +1047,152 @@ export default function R2ManagerClient({
 
   async function uploadFiles(files: FileList | null) {
     if (!files?.length) return;
-    if (!prefix) {
-      setError("Open a folder before uploading.");
+
+    // Mirotech CMS vault: folder-browse upload (not the T9 destination panel).
+    if (vaultRef.current === "mirotech-site") {
+      if (!prefix) {
+        setError("Open a folder before uploading to Mirotech site.");
+        return;
+      }
+      setBusy(true);
+      setError("");
+      let okCount = 0;
+      try {
+        for (const file of Array.from(files)) {
+          await uploadCompactFile(file, prefix, "mirotech-site");
+          okCount += 1;
+        }
+        setStatus(`Uploaded ${okCount} file(s) to Mirotech site.`);
+        await load(prefix);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Upload failed");
+      } finally {
+        setBusy(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
       return;
     }
+
+    const list = Array.from(files);
+    const images: File[] = [];
+    const videos: File[] = [];
+    const rejected: string[] = [];
+    for (const file of list) {
+      const kind = detectUploadFileKind(file);
+      if (kind === "image") images.push(file);
+      else if (kind === "video") videos.push(file);
+      else {
+        rejected.push(
+          /\.(heic|heif)$/i.test(file.name)
+            ? `${file.name}: HEIC is not supported — export JPEG/PNG/WebP first.`
+            : `${file.name}: unsupported type.`
+        );
+      }
+    }
+    if (rejected.length) {
+      setError(rejected.slice(0, 3).join(" "));
+    } else {
+      setError("");
+    }
+
+    if (videos.length) {
+      const videoDest = normalizeUploadDestination(uploadDest, "video");
+      setUploadDest(videoDest);
+      setEncodeOpen(true);
+      setEncodeSeedFiles(videos);
+      setStatus(
+        `Encoding ${videos.length} video(s) → ${formatUploadDestinationLabel(videoDest)}`
+      );
+    }
+
+    if (!images.length) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const imageDest = normalizeUploadDestination(
+      {
+        ...uploadDest,
+        quality: uploadDest.quality === "web_video" ? "web_full" : uploadDest.quality,
+      },
+      "image"
+    );
+    if (imageDest.quality !== uploadDest.quality && !videos.length) {
+      setUploadDest(imageDest);
+    }
+    const destPrefix = resolveUploadPrefix(imageDest);
+    const progressItems: UploadProgressItem[] = images.map((file, i) => ({
+      id: `${Date.now()}-${i}`,
+      name: file.name,
+      status: "queued" as const,
+    }));
+    setUploadProgress(progressItems);
     setBusy(true);
-    setError("");
     let okCount = 0;
     try {
-      for (const file of Array.from(files)) {
-        await uploadCompactFile(file, prefix, vaultRef.current);
-        okCount += 1;
+      for (let i = 0; i < images.length; i++) {
+        const file = images[i]!;
+        const itemId = progressItems[i]!.id;
+        setUploadProgress((prev) =>
+          prev.map((p) =>
+            p.id === itemId
+              ? { ...p, status: file.size > SINGLE_PUT_MAX ? "uploading" : "compacting" }
+              : p
+          )
+        );
+        try {
+          await uploadCompactFile(file, destPrefix, "brightline", {
+            root: imageDest.root,
+            segment: imageDest.segment,
+          });
+          okCount += 1;
+          setUploadProgress((prev) =>
+            prev.map((p) => (p.id === itemId ? { ...p, status: "done" } : p))
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Upload failed";
+          setUploadProgress((prev) =>
+            prev.map((p) =>
+              p.id === itemId ? { ...p, status: "error", error: message } : p
+            )
+          );
+          throw err;
+        }
       }
       setStatus(
-        vaultRef.current === "mirotech-site"
-          ? `Uploaded ${okCount} file(s) to Mirotech site.`
-          : `Uploaded ${okCount} compact file(s). JPEG/PNG converted to WebP.`
+        `Uploaded ${okCount} compact image(s) → ${formatUploadDestinationLabel(imageDest)}`
       );
-      await load(prefix);
+      if (allMediaBrowse) {
+        void loadAllMedia(kindFilter);
+      } else if (prefix) {
+        await load(prefix);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setBusy(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  }
+
+  function requestUploadPick() {
+    if (vaultRef.current === "mirotech-site") {
+      if (!prefix) {
+        setError("Open a folder before uploading to Mirotech site.");
+        return;
+      }
+      fileInputRef.current?.click();
+      return;
+    }
+    // Dest is always complete once defaults apply — on mobile open sheet if user wants guided flow
+    // when they haven't confirmed; desktop picks immediately.
+    const isNarrow =
+      typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+    if (isNarrow && !destSheetOpen) {
+      setDestSheetOpen(true);
+      return;
+    }
+    fileInputRef.current?.click();
   }
 
   async function runTool(op: ToolOp) {
@@ -853,7 +1205,7 @@ export default function R2ManagerClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           op,
-          prefix: prefix || (vaultRef.current === "mirotech-site" ? "projects/" : "portfolio/"),
+          prefix: prefix || (vaultRef.current === "mirotech-site" ? "site/" : "portfolio/"),
           maxKeys: 3000,
           vault: vaultRef.current,
         }),
@@ -940,6 +1292,7 @@ export default function R2ManagerClient({
                   if (opt.id === vault) return;
                   setVault(opt.id);
                   vaultRef.current = opt.id;
+                  setPrefix("");
                   setSummary(null);
                   setOrphanKeys(null);
                   setHeavyItems(null);
@@ -948,10 +1301,40 @@ export default function R2ManagerClient({
                   setPreview(null);
                   setStatus("");
                   setSiteWideBrowse(false);
-                  void load(defaultPrefixForVault(opt.id));
+                  void loadAllMedia("all", opt.id);
+                  void loadSummary(opt.id);
                 }}
                 className={`rounded-full px-3 py-1.5 text-xs uppercase tracking-[0.14em] disabled:opacity-40 ${
                   vault === opt.id
+                    ? "bg-white/15 text-white"
+                    : "text-white/55 hover:text-white"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-full border border-white/15 p-0.5">
+            {(
+              [
+                { id: "all-media" as const, label: "All media" },
+                { id: "folder" as const, label: "By folder" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                disabled={busy || loading}
+                onClick={() => {
+                  if (opt.id === browseMode) return;
+                  if (opt.id === "all-media") {
+                    void loadAllMedia(kindFilter);
+                  } else {
+                    enterFolderBrowse(prefix || defaultPrefixForVault(vault));
+                  }
+                }}
+                className={`rounded-full px-3 py-1.5 text-xs uppercase tracking-[0.14em] disabled:opacity-40 ${
+                  browseMode === opt.id
                     ? "bg-white/15 text-white"
                     : "text-white/55 hover:text-white"
                 }`}
@@ -976,28 +1359,156 @@ export default function R2ManagerClient({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={busy || !prefix}
-            onClick={() => fileInputRef.current?.click()}
+            disabled={busy || (vault === "mirotech-site" && !prefix)}
+            onClick={() => requestUploadPick()}
           >
-            {vault === "mirotech-site" ? "Upload" : "Upload compact"}
+            Upload
           </button>
           <input
             ref={fileInputRef}
             type="file"
             multiple
             className="hidden"
-            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+            accept={R2_UPLOAD_ACCEPT}
             onChange={(e) => void uploadFiles(e.target.files)}
           />
         </div>
       </div>
 
+      {vault === "brightline" ? (
+        <button
+          type="button"
+          className="fixed bottom-5 right-4 z-40 rounded-full border border-white/20 bg-white px-5 py-3 text-xs font-medium uppercase tracking-[0.16em] text-black shadow-lg md:hidden disabled:opacity-40"
+          disabled={busy}
+          onClick={() => requestUploadPick()}
+        >
+          Upload
+        </button>
+      ) : null}
+
+      {vault === "brightline" ? (
+        <div className="mt-4 space-y-3">
+          <R2UploadDestinationPanel
+            value={uploadDest}
+            onChange={setUploadDest}
+            sheetOpen={destSheetOpen}
+            onSheetOpenChange={setDestSheetOpen}
+            onReadyToPick={() => fileInputRef.current?.click()}
+            disabled={busy}
+          />
+          {uploadProgress.length > 0 ? (
+            <ul className="rounded border border-white/10 bg-black/30 px-3 py-2 text-xs text-white/60">
+              {uploadProgress.map((item) => (
+                <li key={item.id} className="flex justify-between gap-2 py-0.5">
+                  <span className="truncate">{item.name}</span>
+                  <span className="shrink-0 uppercase tracking-[0.12em] text-white/40">
+                    {item.status}
+                    {item.error ? `: ${item.error}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {status.includes("compact image") || status.includes("Encoding") ? (
+            <button
+              type="button"
+              className="text-xs uppercase tracking-[0.14em] text-white/50 hover:text-white"
+              onClick={() => {
+                const p = resolveUploadPrefix(
+                  status.includes("Encoding")
+                    ? normalizeUploadDestination(uploadDest, "video")
+                    : normalizeUploadDestination(
+                        {
+                          ...uploadDest,
+                          quality:
+                            uploadDest.quality === "web_video" ? "web_full" : uploadDest.quality,
+                        },
+                        "image"
+                      )
+                );
+                enterFolderBrowse(p);
+              }}
+            >
+              View folder
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {vault === "brightline" && encodeOpen ? (
-        <R2VideoEncodePanel
-          inline
-          prefix={prefix}
-          onEncoded={() => void load(prefix)}
-        />
+        <div className="mt-4">
+          <R2VideoEncodePanel
+            inline
+            prefix={resolveUploadPrefix(normalizeUploadDestination(uploadDest, "video"))}
+            seedFiles={encodeSeedFiles}
+            onSeedConsumed={() => setEncodeSeedFiles(null)}
+            onEncoded={() =>
+              allMediaBrowse ? void loadAllMedia(kindFilter) : void load(prefix)
+            }
+          />
+        </div>
+      ) : null}
+
+      {vault === "mirotech-site" && browseMode === "folder" ? (
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/65">
+          Mirotech site media spans three locations:{" "}
+          <strong className="font-normal text-white/85">CMS bucket</strong> (
+          <code className="text-xs">site/backgrounds/</code>,{" "}
+          <code className="text-xs">projects/</code>),{" "}
+          <strong className="font-normal text-white/85">Brightline portfolio</strong> (
+          <code className="text-xs">portfolio/arc|cam|cor/</code> — most case-study galleries and
+          videos), and{" "}
+          <strong className="font-normal text-white/85">T9 port</strong> (
+          <code className="text-xs">mirotech/</code>). Use{" "}
+          <button
+            type="button"
+            className="text-white underline hover:text-white/90"
+            onClick={() => void loadAllMedia("all")}
+          >
+            All Mirotech site media
+          </button>{" "}
+          to load CMS-referenced assets first, or browse{" "}
+          <button
+            type="button"
+            className="text-white underline hover:text-white/90"
+            onClick={() => {
+              setVault("brightline");
+              vaultRef.current = "brightline";
+              enterFolderBrowse("portfolio/cor/");
+            }}
+          >
+            Brightline → portfolio/cor/
+          </button>
+          .
+        </div>
+      ) : null}
+
+      {vault === "brightline" && browseMode === "folder" ? (
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/65">
+          Brightline media spans portfolio pillars (
+          <code className="text-xs">portfolio/arc|cam|cor/</code>), T9 port (
+          <code className="text-xs">mirotech/</code>), site backgrounds, client galleries, work CMS,
+          and studio assets. Use{" "}
+          <button
+            type="button"
+            className="text-white underline hover:text-white/90"
+            onClick={() => void loadAllMedia("all")}
+          >
+            All Brightline media
+          </button>{" "}
+          to load DB-referenced assets first, then bucket scan.
+        </div>
+      ) : null}
+
+      {allMediaBrowse ? (
+        <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm text-white/70">
+          Unified browse — {vault === "mirotech-site"
+            ? "keys referenced on mirotech.solutions plus bucket scan (CMS bucket, portfolio pillars, T9 port)"
+            : "keys referenced in Brightline CMS/DB plus bucket scan (portfolio, T9, backgrounds, galleries, work, studio)"}
+          . Sorted by <strong className="font-normal text-white/90">modified date</strong> (newest first).
+          Scroll to load older batches. Click a source badge to open the file in the correct vault. Items marked{" "}
+          <strong className="font-normal text-white/90">In CMS</strong> came from the reference pass.
+        </div>
       ) : null}
 
       {vault === "brightline" && prefix.startsWith("site/backgrounds/") ? (
@@ -1014,25 +1525,62 @@ export default function R2ManagerClient({
         <button
           type="button"
           className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.16em] disabled:opacity-40 ${
-            kindFilter === "video"
+            allMediaBrowse
+              ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
+              : "border-white/15 text-white/70 hover:border-white/35 hover:text-white"
+          }`}
+          disabled={busy}
+          onClick={() => void loadAllMedia(kindFilter)}
+        >
+          {vault === "mirotech-site" ? "All Mirotech site media" : "All Brightline media"}
+        </button>
+        <button
+          type="button"
+          className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.16em] disabled:opacity-40 ${
+            allMediaBrowse && kindFilter === "image"
               ? "border-white/40 bg-white/10 text-white"
               : "border-white/15 text-white/70 hover:border-white/35 hover:text-white"
           }`}
           disabled={busy}
           onClick={() => {
-            if (kindFilter === "video" && (siteWideBrowse || !prefix)) {
-              setKindFilter("all");
-              setSiteWideBrowse(false);
-              syncUrl(vaultRef.current, prefix, "all", encodeOpen);
-              if (!prefix) void load("");
+            if (allMediaBrowse && kindFilter === "image") {
+              void loadAllMedia("all");
               return;
             }
-            if (!prefix) {
+            void loadAllMedia("image");
+          }}
+        >
+          Images
+        </button>
+        <button
+          type="button"
+          className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.16em] disabled:opacity-40 ${
+            (allMediaBrowse && kindFilter === "video") || (kindFilter === "video" && siteWideBrowse)
+              ? "border-white/40 bg-white/10 text-white"
+              : "border-white/15 text-white/70 hover:border-white/35 hover:text-white"
+          }`}
+          disabled={busy}
+          onClick={() => {
+            if (allMediaBrowse && kindFilter === "video") {
+              void loadAllMedia("all");
+              return;
+            }
+            if (kindFilter === "video" && siteWideBrowse) {
+              setKindFilter("all");
+              setSiteWideBrowse(false);
+              if (browseMode === "all-media") {
+                void loadAllMedia("all");
+              } else {
+                syncUrl(vaultRef.current, prefix, "all", encodeOpen, { folderMode: true });
+                if (prefix) void load(prefix);
+              }
+              return;
+            }
+            if (browseMode === "folder" && !prefix) {
               void loadSiteVideos();
               return;
             }
-            setKindFilter("video");
-            syncUrl(vaultRef.current, prefix, "video", encodeOpen);
+            void loadAllMedia("video");
           }}
         >
           Videos
@@ -1071,7 +1619,7 @@ export default function R2ManagerClient({
             <button
               key={row.id}
               type="button"
-              onClick={() => void load(row.prefix)}
+              onClick={() => enterFolderBrowse(row.prefix)}
               className="rounded-xl border border-white/10 bg-black/40 p-4 text-left hover:border-white/25"
             >
               <p className="text-[0.65rem] uppercase tracking-[0.2em] text-white/40">{row.label}</p>
@@ -1169,7 +1717,7 @@ export default function R2ManagerClient({
           <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1">
             <button
               type="button"
-              onClick={() => void load("")}
+              onClick={() => enterFolderBrowse("")}
               className={`block w-full rounded-lg px-3 py-2 text-left text-sm ${
                 !prefix ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
               }`}
@@ -1182,7 +1730,7 @@ export default function R2ManagerClient({
                 <button
                   key={r.id}
                   type="button"
-                  onClick={() => void load(r.prefix)}
+                  onClick={() => enterFolderBrowse(r.prefix)}
                   className={`block w-full rounded-lg px-3 py-2 text-left text-sm ${
                     prefix === r.prefix || prefix.startsWith(r.prefix)
                       ? "bg-white/10 text-white"
@@ -1198,25 +1746,67 @@ export default function R2ManagerClient({
                 </button>
               );
             })}
+            {vault === "mirotech-site" ? (
+              <>
+                <p className="mt-4 shrink-0 text-[0.65rem] uppercase tracking-[0.22em] text-white/40">
+                  Brightline siblings
+                </p>
+                {mirotechLibraryRoots
+                  .filter((r) => r.vault === "brightline")
+                  .map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => enterFolderBrowse(r.prefix, "brightline")}
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm text-white/60 hover:bg-white/5 hover:text-white"
+                    >
+                      <span className="block truncate">{r.label}</span>
+                      <span className="mt-0.5 block text-[0.65rem] text-white/35">
+                        {r.group === "t9" ? "T9" : "Portfolio"} · {r.prefix}
+                      </span>
+                    </button>
+                  ))}
+              </>
+            ) : null}
           </div>
         </aside>
 
         <section className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
             <span className="rounded-full border border-white/15 px-2 py-0.5 uppercase tracking-[0.14em] text-white/70">
-              {vault === "mirotech-site" ? "Mirotech site bucket" : "Brightline bucket"}
+              {allMediaBrowse
+                ? vault === "mirotech-site"
+                  ? "Mirotech unified"
+                  : "Brightline unified"
+                : vault === "mirotech-site"
+                  ? "Mirotech site bucket"
+                  : "Brightline bucket"}
             </span>
-            {siteWideBrowse ? (
+            {allMediaBrowse ? (
+              <span className="text-white/60">
+                {vault === "mirotech-site" ? "All Mirotech site media" : "All Brightline media"}
+              </span>
+            ) : siteWideBrowse ? (
               <span className="text-white/60">Site-wide video browse</span>
             ) : null}
-            {crumbs.map((c, i) => (
-              <span key={c.prefix || "root"} className="flex items-center gap-2">
-                {i > 0 ? <span>/</span> : null}
-                <button type="button" className="hover:text-white" onClick={() => void load(c.prefix)}>
-                  {c.label}
-                </button>
-              </span>
-            ))}
+            {vault === "mirotech-site" && allMediaBrowse ? (
+              <Link
+                href="/admin/mirotech-media"
+                className="rounded-full border border-white/20 px-2 py-0.5 text-[0.65rem] uppercase tracking-wider text-white/70 hover:border-white/40 hover:text-white"
+              >
+                Command center
+              </Link>
+            ) : null}
+            {!allMediaBrowse
+              ? crumbs.map((c, i) => (
+                  <span key={c.prefix || "root"} className="flex items-center gap-2">
+                    {i > 0 ? <span>/</span> : null}
+                    <button type="button" className="hover:text-white" onClick={() => void load(c.prefix)}>
+                      {c.label}
+                    </button>
+                  </span>
+                ))
+              : null}
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -1266,7 +1856,13 @@ export default function R2ManagerClient({
             >
               List
             </button>
-            <button type="button" className="btn btn-ghost" onClick={() => void load(prefix)}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() =>
+                allMediaBrowse ? void loadAllMedia(kindFilter) : void load(prefix)
+              }
+            >
               Refresh
             </button>
           </div>
@@ -1346,10 +1942,10 @@ export default function R2ManagerClient({
                         <button
                           key={f.prefix}
                           type="button"
-                          onClick={() => void load(f.prefix)}
+                          onClick={() => enterFolderBrowse(f.prefix)}
                           className="overflow-hidden rounded-xl border border-white/10 bg-black/40 p-4 text-left transition hover:border-white/30 hover:bg-white/[0.06]"
                         >
-                          <FolderPreviewThumb folder={f} />
+                          <R2FolderPreviewThumb folder={f} />
                           <p className="mt-3 truncate text-sm text-white">{folderLabel(f.prefix)}/</p>
                           <p className="mt-1 text-[0.65rem] text-white/40">
                             {stats
@@ -1390,15 +1986,33 @@ export default function R2ManagerClient({
                               <span className="block text-center text-[10px] text-white">✓</span>
                             ) : null}
                           </button>
-                          <span
-                            className={`absolute right-2 top-2 z-10 rounded-full px-2 py-0.5 text-[0.55rem] uppercase tracking-wider ${
-                              usedMap[o.key]
-                                ? "bg-emerald-500/25 text-emerald-100"
-                                : "bg-white/10 text-white/50"
-                            }`}
-                          >
-                            {usedMap[o.key] ? "Used" : "Unused"}
-                          </span>
+                          {allMediaBrowse && o.dbReferenced ? (
+                            <span className="absolute right-2 top-2 z-10 rounded-full bg-emerald-500/25 px-2 py-0.5 text-[0.55rem] uppercase tracking-wider text-emerald-100">
+                              In CMS
+                            </span>
+                          ) : !allMediaBrowse ? (
+                            <span
+                              className={`absolute right-2 top-2 z-10 rounded-full px-2 py-0.5 text-[0.55rem] uppercase tracking-wider ${
+                                usedMap[o.key]
+                                  ? "bg-emerald-500/25 text-emerald-100"
+                                  : "bg-white/10 text-white/50"
+                              }`}
+                            >
+                              {usedMap[o.key] ? "Used" : "Unused"}
+                            </span>
+                          ) : null}
+                          {allMediaBrowse && o.sourceLabel ? (
+                            <button
+                              type="button"
+                              className="absolute bottom-[4.5rem] left-2 z-10 max-w-[calc(100%-1rem)] truncate rounded-full bg-black/75 px-2 py-0.5 text-[0.55rem] text-white/85 ring-1 ring-white/15 hover:bg-black/90"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openInSourceVault(o);
+                              }}
+                            >
+                              {o.sourceLabel}
+                            </button>
+                          ) : null}
                           <button type="button" className="block w-full text-left" onClick={() => void openUsage(o)}>
                             <div className="aspect-square bg-black/60">
                               {o.kind === "image" ? (
@@ -1408,6 +2022,15 @@ export default function R2ManagerClient({
                                   alt=""
                                   className="h-full w-full object-cover"
                                   loading="lazy"
+                                />
+                              ) : o.kind === "video" ? (
+                                // eslint-disable-next-line jsx-a11y/media-has-caption
+                                <video
+                                  src={o.previewUrl}
+                                  muted
+                                  playsInline
+                                  preload="metadata"
+                                  className="h-full w-full object-cover"
                                 />
                               ) : (
                                 <div className="flex h-full items-center justify-center text-xs uppercase tracking-wider text-white/35">
@@ -1439,7 +2062,8 @@ export default function R2ManagerClient({
                           <tr>
                             <th className="px-3 py-2"> </th>
                             <th className="px-3 py-2">Name</th>
-                            <th className="px-3 py-2">Status</th>
+                            {allMediaBrowse ? <th className="px-3 py-2">Source</th> : null}
+                            {!allMediaBrowse ? <th className="px-3 py-2">Status</th> : null}
                             <th className="px-3 py-2">Quality</th>
                             <th className="px-3 py-2">Size</th>
                           </tr>
@@ -1468,9 +2092,26 @@ export default function R2ManagerClient({
                                   {o.name}
                                 </button>
                               </td>
-                              <td className="px-3 py-2 text-xs text-white/45">
-                                {usedMap[o.key] ? "Used" : "Unused"}
-                              </td>
+                              {allMediaBrowse ? (
+                                <td className="px-3 py-2">
+                                  {o.sourceLabel ? (
+                                    <button
+                                      type="button"
+                                      className="text-xs text-white/70 hover:text-white hover:underline"
+                                      onClick={() => openInSourceVault(o)}
+                                    >
+                                      {o.sourceLabel}
+                                    </button>
+                                  ) : (
+                                    "—"
+                                  )}
+                                </td>
+                              ) : null}
+                              {!allMediaBrowse ? (
+                                <td className="px-3 py-2 text-xs text-white/45">
+                                  {usedMap[o.key] ? "Used" : "Unused"}
+                                </td>
+                              ) : null}
                               <td className="px-3 py-2">
                                 <span
                                   className={`rounded-full px-2 py-0.5 text-[0.55rem] uppercase tracking-wider ring-1 ${qualityBadgeClass(

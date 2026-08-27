@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import R2BrowserModal from "@/components/admin/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "@/components/admin/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 
 type Client = { id: string; name: string };
 type Project = { id: string; title: string };
@@ -130,8 +131,8 @@ export default function AdminGalleriesPage() {
     return data.url;
   }
 
-  async function handleR2CoverKeys(keys: string[]) {
-    const key = keys[0]?.replace(/^\/+/, "");
+  async function handleR2CoverKeys(picks: R2BrowserPick[]) {
+    const key = picks[0] ? pickToStoredMediaRef(picks[0]).replace(/^\/+/, "") : "";
     if (!key) return;
     const url = await resolvePublicUrl(key);
     if (r2CoverTarget === "editCover") {
@@ -869,7 +870,10 @@ export default function AdminGalleriesPage() {
         isOpen={Boolean(r2CoverTarget)}
         onClose={() => setR2CoverTarget(null)}
         mode="single"
+        mediaRoot="portfolio"
+        initialPortfolioFolder="all"
         initialCustomPrefix="client-galleries/"
+        confirmLabel="Use as cover"
         onAddKeys={handleR2CoverKeys}
       />
     </div>

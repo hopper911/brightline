@@ -26,7 +26,7 @@ export type HubProject = {
   slug: string;
   subtitle?: string | null;
   summary: string;
-  year: number;
+  year: number | null;
   status: string;
   categories: string[];
   disciplines: string[];

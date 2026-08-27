@@ -6,7 +6,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import type { PillarConfig } from "@/lib/portfolioPillars";
 import type { WorkSection } from "@prisma/client";
 import { getCropSafeMediaUrl, getPublicR2Url } from "@/lib/r2";
-import R2BrowserModal from "@/components/admin/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "@/components/admin/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 import ImageCropModal from "@/components/admin/ImageCropModal";
 import AiEditableField from "@/components/admin/AiEditableField";
 import GalleryBlocksEditor from "@/components/admin/GalleryBlocksEditor";
@@ -1362,8 +1363,9 @@ export default function AdminWorkEditPage() {
     }
   }
 
-  async function handleAddKeysFromR2(keys: string[]) {
+  async function handleAddKeysFromR2(picks: R2BrowserPick[]) {
     setSaveError("");
+    const keys = picks.map(pickToStoredMediaRef);
     const first = keys[0]?.trim();
     if (r2BrowserTarget === "backgroundMedia") {
       if (first) {
@@ -3684,9 +3686,22 @@ export default function AdminWorkEditPage() {
           onClose={() => setR2BrowserTarget(null)}
           onAddKeys={handleAddKeysFromR2}
           mode={r2BrowserTarget === "gallery" ? "multiple" : "single"}
+          mediaRoot="portfolio"
+          initialPortfolioFolder={
+            r2BrowserTarget === "backgroundMedia" ? "web_video" : "web_full"
+          }
           projectId={id}
           pillarSlug={pillarSlug}
           projectSlug={project?.slug}
+          confirmLabel={
+            r2BrowserTarget === "gallery"
+              ? undefined
+              : r2BrowserTarget === "backgroundPoster"
+                ? "Use as poster"
+                : r2BrowserTarget === "backgroundMedia"
+                  ? "Use as background"
+                  : "Use selected"
+          }
         />
 
         {imageCropModal ? (

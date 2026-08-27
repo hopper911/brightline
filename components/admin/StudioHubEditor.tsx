@@ -7,7 +7,8 @@ import HubCaseStudySectionsEditor, {
   normalizeHubSections,
   type HubCaseStudySectionsEditorHandle,
 } from "@/components/admin/HubCaseStudySectionsEditor";
-import R2BrowserModal from "@/components/admin/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "@/components/admin/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 import {
   caseStudyModeFromCategories,
   extractPrototypeUrl,
@@ -28,7 +29,14 @@ import {
   writeStoredAiVoice,
   type SectionCopyTone,
 } from "@/lib/dual-brand/section-copy-tone";
+import { uploadEncodedVideoPort, uploadVideoPortPoster } from "@/lib/admin/video-port-client-upload";
 import { preferPortfolioWebFullKey } from "@/lib/portfolio-web-full";
+import {
+  defaultSegmentForRoot,
+  isValidSegment,
+  MIROTECH_CATEGORIES,
+} from "@/lib/t9-media-segments";
+import { encodeVideoPortWebMp4 } from "@/lib/video-port/encode-web-mp4";
 import { normalizePortfolioVideoKey } from "@/lib/video-port/keys";
 import { getPublicR2Url } from "@/lib/r2";
 
@@ -251,6 +259,35 @@ function mediaPreviewSrc(value: string) {
   return getPublicR2Url(v.replace(/^\/+/, ""));
 }
 
+function looksLikeVideo(value: string): boolean {
+  const decoded = decodeURIComponent(value.trim());
+  try {
+    const parsed = new URL(decoded, "https://brightline.local");
+    const key = parsed.searchParams.get("key") ?? "";
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(key || parsed.pathname);
+  } catch {
+    return /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(decoded);
+  }
+}
+
+function inferMirotechUploadSegment(categoriesCsv: string): string {
+  const cats = splitCsv(categoriesCsv).map((c) => c.toLowerCase().trim());
+  for (const id of MIROTECH_CATEGORIES) {
+    if (cats.includes(id)) return id;
+    if (cats.some((c) => c.includes(id))) return id;
+  }
+  return defaultSegmentForRoot("mirotech");
+}
+
+function heroPosterPreviewSrc(videoRef: string): string {
+  if (!looksLikeVideo(videoRef)) return "";
+  const raw = videoRef.trim();
+  if (/-poster\.(webp|png)/i.test(raw)) return mediaPreviewSrc(raw);
+  const poster = raw.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, "-poster.webp");
+  if (poster !== raw) return mediaPreviewSrc(poster);
+  return "";
+}
+
 export default function StudioHubEditor({ initial }: Props) {
   const router = useRouter();
   const [id, setId] = useState(initial?.id || "");
@@ -258,7 +295,10 @@ export default function StudioHubEditor({ initial }: Props) {
   const [slug, setSlug] = useState(initial?.slug || "");
   const [summary, setSummary] = useState(initial?.summary || "");
   const [subtitle, setSubtitle] = useState(initial?.subtitle || "");
-  const [year, setYear] = useState(initial?.year || new Date().getFullYear());
+  const [year, setYear] = useState<number | null>(() => {
+    const y = initial?.year;
+    return y != null && y > 0 ? y : null;
+  });
   const [status, setStatus] = useState(initial?.status || "DRAFT");
   const [categories, setCategories] = useState((initial?.categories || []).join(", "));
   const [caseStudyMode, setCaseStudyMode] = useState<CaseStudyMode>(() =>
@@ -397,8 +437,13 @@ export default function StudioHubEditor({ initial }: Props) {
   const [platformsCsv, setPlatformsCsv] = useState(() =>
     (initial?.platforms || []).filter((p) => !/^https?:\/\//i.test(p)).join(", ")
   );
+  const [heroUploadBusy, setHeroUploadBusy] = useState(false);
+  const [heroFieldError, setHeroFieldError] = useState("");
+  const heroVideoInputRef = useRef<HTMLInputElement>(null);
+
   const [r2PickTarget, setR2PickTarget] = useState<
     | "hero"
+    | "hero-video"
     | "thumb"
     | "blogHero"
     | "blogHeroBl"
@@ -425,6 +470,44 @@ export default function StudioHubEditor({ initial }: Props) {
     setAiNotes((prev) => ({ ...prev, [key]: value }));
   }
 
+  async function uploadHeroVideo(file: File) {
+    const segment = inferMirotechUploadSegment(categories);
+    if (!isValidSegment("mirotech", segment)) {
+      const msg = "Pick a Mirotech category (e.g. product, editorial) before uploading video.";
+      setHeroFieldError(msg);
+      setError(msg);
+      return;
+    }
+    setHeroUploadBusy(true);
+    setHeroFieldError("");
+    setError("");
+    setMessage("Encoding hero video…");
+    try {
+      const encoded = await encodeVideoPortWebMp4(file, (p) => {
+        setMessage(p.message || "Encoding hero video…");
+      });
+      setMessage("Uploading hero video…");
+      const { videoKey, posterKey } = await uploadEncodedVideoPort(
+        encoded.videoBlob,
+        segment,
+        "mirotech",
+        true
+      );
+      if (encoded.posterBlob && posterKey) {
+        await uploadVideoPortPoster(encoded.posterBlob, posterKey);
+      }
+      setHeroImage(normalizePortfolioVideoKey(videoKey));
+      setMessage("Hero video uploaded.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Hero video upload failed.";
+      setHeroFieldError(msg);
+      setError(msg);
+      setMessage("");
+    } finally {
+      setHeroUploadBusy(false);
+    }
+  }
+
   function projectCopyBrief() {
     return {
       projectTitle: title.trim() || undefined,
@@ -437,7 +520,7 @@ export default function StudioHubEditor({ initial }: Props) {
         photoNotes.trim(),
         disciplines.trim() ? `Disciplines: ${disciplines}` : "",
         tools.trim() ? `Tools: ${tools}` : "",
-        year ? `Year: ${year}` : "",
+        year != null && year > 0 ? `Year: ${year}` : "",
       ]
         .filter(Boolean)
         .join("\n"),
@@ -1208,7 +1291,7 @@ export default function StudioHubEditor({ initial }: Props) {
       slug: slug || slugifyLocal(title),
       subtitle,
       summary,
-      year: Number(year) || new Date().getFullYear(),
+      year: year != null && year > 0 ? year : null,
       status,
       categories: syncCategoriesWithCaseStudyMode(categories, caseStudyMode),
       disciplines: splitCsv(disciplines),
@@ -1568,12 +1651,31 @@ export default function StudioHubEditor({ initial }: Props) {
           </label>
           <label className="block text-sm text-white/70">
             Year
-            <input
-              type="number"
-              className="mt-1 w-full rounded-lg border border-white/15 bg-black/50 px-3 py-2 text-white"
-              value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
-            />
+            <div className="mt-1 flex gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                className="flex-1 rounded-lg border border-white/15 bg-black/50 px-3 py-2 text-white"
+                value={year == null ? "" : String(year)}
+                placeholder="Leave blank to hide on Mirotech"
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^\d]/g, "");
+                  if (!raw) {
+                    setYear(null);
+                    return;
+                  }
+                  const n = Number(raw);
+                  setYear(Number.isFinite(n) ? n : null);
+                }}
+              />
+              <button
+                type="button"
+                className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white/70 hover:bg-white/5"
+                onClick={() => setYear(null)}
+              >
+                Clear
+              </button>
+            </div>
           </label>
           <label className="block text-sm text-white/70">
             Work status
@@ -1668,14 +1770,29 @@ export default function StudioHubEditor({ initial }: Props) {
           </label>
           <div className="block text-sm text-white/70 md:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span>Hero image</span>
+              <span>Hero image / video</span>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   className="rounded-md border border-white/20 bg-white/5 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/80 hover:bg-white/10"
                   onClick={() => setR2PickTarget("hero")}
                 >
-                  Browse R2
+                  Browse image
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-white/20 bg-white/5 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/80 hover:bg-white/10"
+                  onClick={() => setR2PickTarget("hero-video")}
+                >
+                  Browse video
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-white/20 bg-white/5 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/80 hover:bg-white/10 disabled:opacity-40"
+                  disabled={heroUploadBusy || saving}
+                  onClick={() => heroVideoInputRef.current?.click()}
+                >
+                  {heroUploadBusy ? "Uploading…" : "Upload video"}
                 </button>
                 {heroImage.trim() ? (
                   <button
@@ -1688,27 +1805,58 @@ export default function StudioHubEditor({ initial }: Props) {
                 ) : null}
               </div>
             </div>
+            <input
+              ref={heroVideoInputRef}
+              type="file"
+              accept="video/*,.mp4,.webm,.mov,.m4v"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void uploadHeroVideo(f);
+                e.target.value = "";
+              }}
+            />
             {heroImage.trim() ? (
               <div className="mt-2 flex items-start gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={mediaPreviewSrc(heroImage)}
-                  alt=""
-                  className="h-20 w-32 rounded-lg border border-white/10 object-cover"
-                />
+                {looksLikeVideo(heroImage) ? (
+                  <video
+                    src={mediaPreviewSrc(heroImage)}
+                    poster={heroPosterPreviewSrc(heroImage) || undefined}
+                    className="h-20 w-32 rounded-lg border border-white/10 object-cover bg-black"
+                    muted
+                    playsInline
+                    controls
+                    preload="metadata"
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={mediaPreviewSrc(heroImage)}
+                    alt=""
+                    className="h-20 w-32 rounded-lg border border-white/10 object-cover"
+                  />
+                )}
                 <p className="min-w-0 flex-1 break-all font-mono text-[0.7rem] text-white/45">
                   {heroImage}
                 </p>
               </div>
             ) : (
-              <p className="mt-2 text-xs text-white/40">Select from R2 or paste a key / URL below.</p>
+              <p className="mt-2 text-xs text-white/40">
+                Browse image or video from R2, upload a video, or paste a key / URL below.
+              </p>
             )}
             <input
               className="mt-2 w-full rounded-lg border border-white/15 bg-black/50 px-3 py-2 font-mono text-sm text-white"
               value={heroImage}
-              onChange={(e) => setHeroImage(e.target.value)}
+              onChange={(e) => {
+                setHeroImage(e.target.value);
+                setHeroFieldError("");
+              }}
               placeholder="R2 key or https://…"
             />
+            {heroFieldError ? (
+              <p className="mt-2 text-xs text-rose-300">{heroFieldError}</p>
+            ) : null}
           </div>
           <div className="block text-sm text-white/70 md:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2532,19 +2680,39 @@ export default function StudioHubEditor({ initial }: Props) {
             : "single"
         }
         initialPortfolioFolder={
-          r2PickTarget &&
-          typeof r2PickTarget === "object" &&
-          (r2PickTarget.kind === "section-video" ||
-            r2PickTarget.kind === "section-video-poster")
+          r2PickTarget === "hero-video" ||
+          (r2PickTarget &&
+            typeof r2PickTarget === "object" &&
+            (r2PickTarget.kind === "section-video" ||
+              r2PickTarget.kind === "section-video-poster"))
             ? "web_video"
-            : undefined
+            : r2PickTarget === "hero" ||
+                r2PickTarget === "thumb" ||
+                r2PickTarget === "blogHero" ||
+                r2PickTarget === "blogHeroBl" ||
+                (r2PickTarget != null &&
+                  typeof r2PickTarget === "object" &&
+                  (r2PickTarget.kind === "section-image" ||
+                    r2PickTarget.kind === "section-gallery"))
+              ? "web_full"
+              : undefined
         }
         mediaRoot="mirotech"
-        onAddKeys={async (keys) => {
+        confirmLabel={
+          r2PickTarget === "hero"
+            ? "Use as hero image"
+            : r2PickTarget === "hero-video"
+              ? "Use as hero video"
+            : r2PickTarget === "thumb"
+              ? "Use as thumbnail"
+              : undefined
+        }
+        onAddKeys={async (picks: R2BrowserPick[]) => {
           if (!r2PickTarget) return;
-          const cleaned = keys
-            .map((k) => {
-              const raw = k.replace(/^\/+/, "").trim();
+          const cleaned = picks
+            .map((pick) => {
+              const raw = pickToStoredMediaRef(pick);
+              if (pick.vault === "mirotech-site") return raw;
               if (
                 r2PickTarget &&
                 typeof r2PickTarget === "object" &&
@@ -2553,11 +2721,29 @@ export default function StudioHubEditor({ initial }: Props) {
               ) {
                 return normalizePortfolioVideoKey(raw);
               }
-              return preferPortfolioWebFullKey(raw);
+              if (
+                r2PickTarget === "hero-video" ||
+                (r2PickTarget === "hero" && looksLikeVideo(raw))
+              ) {
+                return normalizePortfolioVideoKey(raw);
+              }
+              if (
+                r2PickTarget === "hero" ||
+                r2PickTarget === "thumb" ||
+                r2PickTarget === "blogHero" ||
+                r2PickTarget === "blogHeroBl" ||
+                (r2PickTarget != null &&
+                  typeof r2PickTarget === "object" &&
+                  (r2PickTarget.kind === "section-image" ||
+                    r2PickTarget.kind === "section-gallery"))
+              ) {
+                return preferPortfolioWebFullKey(raw);
+              }
+              return raw;
             })
             .filter(Boolean);
           if (cleaned.length === 0) return;
-          if (r2PickTarget === "hero") setHeroImage(cleaned[0]);
+          if (r2PickTarget === "hero" || r2PickTarget === "hero-video") setHeroImage(cleaned[0]);
           else if (r2PickTarget === "thumb") setThumbnailImage(cleaned[0]);
           else if (r2PickTarget === "blogHero") setBlogHero(cleaned[0]);
           else if (r2PickTarget === "blogHeroBl") setBlogHeroBl(cleaned[0]);

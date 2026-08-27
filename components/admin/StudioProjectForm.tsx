@@ -12,7 +12,8 @@ import type { PillarConfig } from "@/lib/portfolioPillars";
 import { getCropSafeMediaUrl, getPublicR2Url } from "@/lib/r2";
 import { slugify } from "@/lib/slugify";
 import ImageCropModal from "@/components/admin/ImageCropModal";
-import R2BrowserModal from "@/components/admin/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "@/components/admin/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 import GalleryBlocksEditor from "@/components/admin/GalleryBlocksEditor";
 import StoryChaptersEditor from "@/components/admin/StoryChaptersEditor";
 import {
@@ -533,8 +534,8 @@ export default function StudioProjectForm({ projectId }: Props) {
     }
   }
 
-  async function attachR2Keys(keys: string[], setFirstAsHero: boolean) {
-    if (!projectId || keys.length === 0) return;
+  async function attachR2Keys(picks: R2BrowserPick[], setFirstAsHero: boolean) {
+    if (!projectId || picks.length === 0) return;
     setStatus("saving");
     setError("");
     try {
@@ -543,7 +544,7 @@ export default function StudioProjectForm({ projectId }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studioProjectId: projectId,
-          keys,
+          items: picks.map((p) => ({ key: p.key, vault: p.vault })),
           setFirstAsHero,
         }),
       });
@@ -702,8 +703,10 @@ export default function StudioProjectForm({ projectId }: Props) {
     });
   }
 
-  async function addGeneratorImagesFromR2(keys: string[]) {
-    const imageKeys = keys.filter((k) => GENERATOR_IMAGE_EXT.test(k));
+  async function addGeneratorImagesFromR2(picks: R2BrowserPick[]) {
+    const imageKeys = picks
+      .map(pickToStoredMediaRef)
+      .filter((k) => GENERATOR_IMAGE_EXT.test(k));
     const urls = imageKeys.map((k) => getPublicR2Url(k.replace(/^\/+/, ""))).filter(Boolean);
     if (urls.length === 0) {
       setR2GeneratorOpen(false);
@@ -1273,24 +1276,34 @@ export default function StudioProjectForm({ projectId }: Props) {
         isOpen={r2HeroOpen}
         onClose={() => setR2HeroOpen(false)}
         mode="single"
-        onAddKeys={async (keys) => {
-          await attachR2Keys(keys.slice(0, 1), true);
+        mediaRoot="portfolio"
+        initialPortfolioFolder="web_full"
+        confirmLabel="Use as hero"
+        onAddKeys={async (picks) => {
+          await attachR2Keys(picks.slice(0, 1), true);
         }}
       />
       <R2BrowserModal
         isOpen={r2GalleryOpen}
         onClose={() => setR2GalleryOpen(false)}
         mode="multiple"
-        onAddKeys={async (keys) => {
-          await attachR2Keys(keys, false);
+        mediaRoot="portfolio"
+        initialPortfolioFolder="web_full"
+        onAddKeys={async (picks) => {
+          await attachR2Keys(picks, false);
         }}
       />
       <R2BrowserModal
         isOpen={r2BackgroundTarget !== null}
         onClose={() => setR2BackgroundTarget(null)}
         mode="single"
-        onAddKeys={async (keys) => {
-          const key = keys[0]?.trim();
+        mediaRoot="portfolio"
+        initialPortfolioFolder={
+          r2BackgroundTarget === "backgroundMedia" ? "web_video" : "web_full"
+        }
+        confirmLabel="Use selected"
+        onAddKeys={async (picks) => {
+          const key = picks[0] ? pickToStoredMediaRef(picks[0]) : "";
           if (key && r2BackgroundTarget === "backgroundMedia") {
             setBackgroundMediaUrl(key);
             await saveBackgroundSettings(key, backgroundPosterUrl);
@@ -1320,11 +1333,13 @@ export default function StudioProjectForm({ projectId }: Props) {
         isOpen={r2GeneratorOpen}
         onClose={() => setR2GeneratorOpen(false)}
         mode="multiple"
+        mediaRoot="portfolio"
+        initialPortfolioFolder="web_full"
         projectId={projectId}
         pillarSlug={workPillar || "architecture"}
         projectSlug={computedSlug}
-        onAddKeys={async (keys) => {
-          await addGeneratorImagesFromR2(keys);
+        onAddKeys={async (picks) => {
+          await addGeneratorImagesFromR2(picks);
         }}
       />
 

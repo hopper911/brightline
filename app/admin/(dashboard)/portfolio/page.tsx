@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import R2BrowserModal from "@/components/admin/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "@/components/admin/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 
 type UploadUrlResponse = { url: string } | { error: string };
 
@@ -249,7 +250,8 @@ export default function AdminPortfolioPage() {
     return data.url;
   }
 
-  async function onR2CoverKeys(keys: string[]) {
+  async function onR2CoverKeys(picks: R2BrowserPick[]) {
+    const keys = picks.map(pickToStoredMediaRef);
     const k = keys[0]?.replace(/^\/+/, "");
     if (!k) return;
     const url = await resolvePublicUrl(k);
@@ -257,7 +259,8 @@ export default function AdminPortfolioPage() {
     setCoverUrl(url);
   }
 
-  async function onR2GalleryKeys(keys: string[]) {
+  async function onR2GalleryKeys(picks: R2BrowserPick[]) {
+    const keys = picks.map(pickToStoredMediaRef);
     const resolved = await Promise.all(
       keys.map(async (raw) => {
         const storageKey = raw.replace(/^\/+/, "");
@@ -972,16 +975,21 @@ export default function AdminPortfolioPage() {
         isOpen={r2CoverOpen}
         onClose={() => setR2CoverOpen(false)}
         mode="single"
-        onAddKeys={async (keys) => {
-          await onR2CoverKeys(keys);
+        mediaRoot="portfolio"
+        initialPortfolioFolder="web_full"
+        confirmLabel="Use as cover"
+        onAddKeys={async (picks) => {
+          await onR2CoverKeys(picks);
         }}
       />
       <R2BrowserModal
         isOpen={r2GalleryOpen}
         onClose={() => setR2GalleryOpen(false)}
         mode="multiple"
-        onAddKeys={async (keys) => {
-          await onR2GalleryKeys(keys);
+        mediaRoot="portfolio"
+        initialPortfolioFolder="web_full"
+        onAddKeys={async (picks) => {
+          await onR2GalleryKeys(picks);
         }}
       />
     </div>

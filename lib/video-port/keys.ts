@@ -56,7 +56,8 @@ export function isVideoPortVideoKey(key: string): boolean {
   const mirotechSeg = segmentPatternForRoot("mirotech", true);
   return (
     new RegExp(`^portfolio\\/${portfolioSeg}\\/web_video\\/.+\\.mp4$`).test(clean) ||
-    new RegExp(`^mirotech\\/${mirotechSeg}\\/web_video\\/.+\\.mp4$`).test(clean)
+    new RegExp(`^mirotech\\/${mirotechSeg}\\/web_video\\/.+\\.mp4$`).test(clean) ||
+    new RegExp(`^mirotech\\/portfolio\\/${portfolioSeg}\\/web_video\\/.+\\.mp4$`).test(clean)
   );
 }
 
@@ -72,20 +73,37 @@ export function normalizePortfolioVideoKey(keyOrUrl: string): string {
 
   const apply = (key: string): string => {
     const clean = key.replace(/^\/+/, "");
-    const m = clean.match(
+    const legacy = clean.match(
       new RegExp(
         `^(portfolio\\/${portfolioSeg}|mirotech\\/${mirotechSeg})\\/web_video\\/([^/?#]+?)(\\.(mp4|webm|mov|m4v|webp|png|jpe?g))?$`,
         "i"
       )
     );
-    if (!m) return clean;
-    const prefix = `${m[1]}/web_video/`;
-    const stem = m[2]!.replace(/[^a-zA-Z0-9._-]+/g, "");
-    if (!stem) return clean;
-    const ext = m[3];
-    if (ext) return `${prefix}${stem}${ext.toLowerCase()}`;
-    if (/-poster$/i.test(stem)) return `${prefix}${stem}.webp`;
-    return `${prefix}${stem}.mp4`;
+    if (legacy) {
+      const prefix = `${legacy[1]}/web_video/`;
+      const stem = legacy[2]!.replace(/[^a-zA-Z0-9._-]+/g, "");
+      if (!stem) return clean;
+      const ext = legacy[3];
+      if (ext) return `${prefix}${stem}${ext.toLowerCase()}`;
+      if (/-poster$/i.test(stem)) return `${prefix}${stem}.webp`;
+      return `${prefix}${stem}.mp4`;
+    }
+    const reorg = clean.match(
+      new RegExp(
+        `^mirotech\\/portfolio\\/(${portfolioSeg})\\/web_video\\/([^/?#]+?)(\\.(mp4|webm|mov|m4v|webp|png|jpe?g))?$`,
+        "i"
+      )
+    );
+    if (reorg) {
+      const prefix = `mirotech/portfolio/${reorg[1]}/web_video/`;
+      const stem = reorg[2]!.replace(/[^a-zA-Z0-9._-]+/g, "");
+      if (!stem) return clean;
+      const ext = reorg[3];
+      if (ext) return `${prefix}${stem}${ext.toLowerCase()}`;
+      if (/-poster$/i.test(stem)) return `${prefix}${stem}.webp`;
+      return `${prefix}${stem}.mp4`;
+    }
+    return clean;
   };
 
   if (/^https?:\/\//i.test(raw) || raw.startsWith("/")) {

@@ -10,6 +10,7 @@ export {
   MIROTECH_SITE_ALLOWED_PREFIXES,
   MIROTECH_SITE_ROOTS,
   normalizeR2VaultId,
+  resolveVaultForListPrefix,
   R2_VAULT_IDS,
   type R2VaultId,
   type R2VaultRoot,

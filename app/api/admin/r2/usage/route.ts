@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { assertR2ManagerKeyAllowed, findR2KeyUsage } from "@/lib/admin-r2-manager";
+import { findMirotechCmsRefsForKey } from "@/lib/admin-r2-mirotech-audit";
 import { normalizeR2VaultId } from "@/lib/r2-vaults";
 
 export const runtime = "nodejs";
@@ -20,6 +21,7 @@ export async function GET(req: Request) {
 
   try {
     assertR2ManagerKeyAllowed(key, vault);
+    const cmsRefs = await findMirotechCmsRefsForKey(key);
     if (vault !== "brightline") {
       return NextResponse.json({
         ok: true,
@@ -30,13 +32,22 @@ export async function GET(req: Request) {
           galleryVideos: [],
           deliveryItems: [],
           other: [],
-          totalRefs: 0,
+          totalRefs: cmsRefs.length,
         },
+        cmsRefs,
         vault,
       });
     }
     const usage = await findR2KeyUsage(key);
-    return NextResponse.json({ ok: true, usage, vault });
+    return NextResponse.json({
+      ok: true,
+      usage: {
+        ...usage,
+        totalRefs: usage.totalRefs + cmsRefs.length,
+      },
+      cmsRefs,
+      vault,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Usage lookup failed.";
     const status =

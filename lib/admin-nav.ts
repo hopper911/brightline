@@ -15,6 +15,9 @@ export type AdminNavGroup = {
 
 export const ADMIN_NAV_SETTING_KEY = "admin_navigation:v1";
 
+/** Removed from sidebar — use R2 storage instead. */
+export const DEPRECATED_ADMIN_NAV_ITEM_IDS = new Set(["image_port", "video_port"]);
+
 export const DEFAULT_ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   {
     id: "operate",
@@ -45,18 +48,6 @@ export const DEFAULT_ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { id: "studio_cms", label: "Studio CMS", href: "/admin/studio-cms", visible: true },
       { id: "studio_delivery", label: "Studio delivery", href: "/admin/projects", visible: true },
       { id: "portfolio", label: "Portfolio", href: "/admin/portfolio", visible: true },
-      {
-        id: "image_port",
-        label: "Image Port",
-        href: "/admin/r2?vault=brightline&prefix=portfolio/arc/web_full/",
-        visible: true,
-      },
-      {
-        id: "video_port",
-        label: "Video Port",
-        href: "/admin/r2?mode=encode&vault=brightline&prefix=portfolio/arc/web_video/",
-        visible: true,
-      },
     ],
   },
   {
@@ -134,8 +125,14 @@ export const DEFAULT_ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         visible: true,
       },
       {
+        id: "mirotech_media_command",
+        label: "Media command center",
+        href: "/admin/mirotech-media",
+        visible: true,
+      },
+      {
         id: "mirotech_media",
-        label: "Media",
+        label: "Media (Mirotech site)",
         href: "/api/admin/mirotech/handoff?next=/admin/media",
         visible: true,
       },
@@ -219,7 +216,7 @@ function normalizeGroup(input: unknown, fallback: AdminNavGroup): AdminNavGroup 
   for (const entry of rawItems) {
     if (!entry || typeof entry !== "object") continue;
     const rid = typeof (entry as { id?: unknown }).id === "string" ? String((entry as { id: string }).id).trim() : "";
-    if (!rid || defaultIds.has(rid)) continue;
+    if (!rid || defaultIds.has(rid) || DEPRECATED_ADMIN_NAV_ITEM_IDS.has(rid)) continue;
     items.push(
       normalizeItem(entry, {
         id: rid,

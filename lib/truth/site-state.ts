@@ -17,7 +17,7 @@ export const SITE_STATE = Object.freeze({
     runtime: "Node 20 / Vercel",
     data: "Prisma + Neon Postgres",
     media: "Cloudflare R2",
-    edgeGate: "proxy.ts (admin / studio / accountant CSRF + admin session)",
+    edgeGate: "proxy.ts (CSP nonce + admin/studio/accountant CSRF + admin session)",
   }),
   publicSurfaces: Object.freeze([
     "Marketing home and pillar Work case studies",
@@ -44,12 +44,13 @@ export const SITE_STATE = Object.freeze({
   }),
   securityBaseline: Object.freeze({
     edgeCsrf: "rejectCrossSiteMutation on /api/admin, /api/studio, /api/accountant (login exempt)",
+    csp: "Per-request script nonce + strict-dynamic via proxy.ts; style-src still allows unsafe-inline",
     ssrf: "assertPublicHttpUrlResolved + fetchTrustedImageBytes / trustedImageToDataUrl for outbound image fetches",
     uploads: "MIME allowlist; never image/svg+xml or HTML",
     tokens: "Package + final-package rate limits; finalPackageExpiresAt on new tokens",
     sheet: "Never overwrite Google Sheet formula cells (Brightline Image Uploads)",
   }),
   deferredNotBaseline: Object.freeze([
-    "Full CSP nonce migration (unsafe-inline / unsafe-eval still required by Next today)",
+    "style-src without unsafe-inline (requires removing framework/inline style attributes)",
   ]),
 } as const);

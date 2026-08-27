@@ -40,7 +40,8 @@ import {
   formatBlogDate,
   slugifyBlog,
 } from "@/lib/blog-post-model";
-import R2BrowserModal from "../work/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "../work/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 
 function newGalleryImageId() {
   return `img_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -989,7 +990,8 @@ export default function BlogAdminClient({
     }
   }
 
-  async function useR2Keys(keys: string[]) {
+  async function useR2Keys(picks: R2BrowserPick[]) {
+    const keys = picks.map(pickToStoredMediaRef);
     if (!selected) return;
     const urls = keys.map(getPublicR2Url).filter(Boolean);
     if (urls.length === 0) return;
@@ -1115,6 +1117,8 @@ export default function BlogAdminClient({
         onClose={() => setR2Target(null)}
         onAddKeys={useR2Keys}
         mode={r2Target === "gallery" || r2Target === "googleReviewLibrary" ? "multiple" : "single"}
+        mediaRoot="portfolio"
+        initialPortfolioFolder="web_full"
       />
 
       <div className="flex flex-wrap items-end justify-between gap-4">

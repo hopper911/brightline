@@ -1,1 +1,1 @@
-export { default } from "@/components/admin/R2BrowserModal";
+export { default, type R2BrowserPick } from "@/components/admin/R2BrowserModal";

@@ -8,7 +8,8 @@ import {
   WORK_SECTIONS,
   isDualBrandHub,
 } from "@/lib/portfolioPillars";
-import R2BrowserModal from "../work/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "../work/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 
 const SECTION_LABELS: Record<string, string> = {
   ACD: "Advertising / campaign (ACD)",
@@ -386,9 +387,12 @@ export default function WorkPillarsClient({ initialPillars }: Props) {
           r2Index != null && sorted[r2Index]?.slug ? sorted[r2Index]!.slug : "architecture"
         }
         mode="single"
-        onAddKeys={async (keys) => {
-          if (r2Index === null || !keys[0]) return;
-          updateAt(r2Index, { coverImageKey: keys[0] });
+        mediaRoot="portfolio"
+        initialPortfolioFolder="web_full"
+        confirmLabel="Use as cover"
+        onAddKeys={async (picks) => {
+          if (r2Index === null || !picks[0]) return;
+          updateAt(r2Index, { coverImageKey: pickToStoredMediaRef(picks[0]) });
           setR2Index(null);
         }}
       />

@@ -184,6 +184,9 @@ export type R2VideoEncodePanelProps = {
   embedded?: boolean;
   /** Skip inner collapse chrome — parent controls visibility */
   inline?: boolean;
+  /** Files to queue automatically (e.g. from R2 hub Upload picker) */
+  seedFiles?: File[] | null;
+  onSeedConsumed?: () => void;
   onEncoded?: (videoKey: string) => void;
 };
 
@@ -192,6 +195,8 @@ export default function R2VideoEncodePanel({
   defaultOpen = false,
   embedded = false,
   inline = false,
+  seedFiles = null,
+  onSeedConsumed,
   onEncoded,
 }: R2VideoEncodePanelProps) {
   const parsed = parseT9WebVideoPrefix(prefix);
@@ -225,7 +230,12 @@ export default function R2VideoEncodePanel({
     }
   }, [prefix]);
 
+  // Only reset segment when the user changes Destination root via the select
+  // (not when prefix sync updates mediaRoot).
+  const userRootChangeRef = useRef(false);
   useEffect(() => {
+    if (!userRootChangeRef.current) return;
+    userRootChangeRef.current = false;
     setSegment(defaultSegmentForRoot(mediaRoot));
   }, [mediaRoot]);
 
@@ -382,6 +392,11 @@ export default function R2VideoEncodePanel({
   }, []);
 
   useEffect(() => {
+    if (!seedFiles?.length) return;
+    void addFiles(seedFiles).then(() => onSeedConsumed?.());
+  }, [seedFiles, addFiles, onSeedConsumed]);
+
+  useEffect(() => {
     if (!autoStartRef.current) return;
     if (!queue.some((q) => q.status === "queued")) return;
     autoStartRef.current = false;
@@ -413,6 +428,7 @@ export default function R2VideoEncodePanel({
               disabled={busy}
               onChange={(e) => {
               const next = e.target.value as T9MediaRoot;
+              userRootChangeRef.current = true;
               setMediaRoot(next);
               setSegment(defaultSegmentForRoot(next));
             }}

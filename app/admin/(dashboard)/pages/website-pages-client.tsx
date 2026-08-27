@@ -7,7 +7,8 @@ import type { SiteTheme } from "@/lib/site-theme";
 import type { SiteNavItem } from "@/lib/site-nav";
 import type { PillarConfig } from "@/lib/portfolioPillars";
 import { getPublicR2Url } from "@/lib/r2";
-import R2BrowserModal from "../work/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "../work/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 
 const BLOCK_TYPES: WebsiteBlockType[] = ["hero", "gallery", "stats", "text", "cards", "list", "cta", "contactForm"];
 
@@ -243,7 +244,8 @@ export default function WebsitePagesClient({
     });
   }
 
-  async function useR2Keys(keys: string[]) {
+  async function useR2Keys(picks: R2BrowserPick[]) {
+    const keys = picks.map(pickToStoredMediaRef);
     if (!r2Target) return;
     const urls = keys.map(getPublicR2Url).filter(Boolean);
     if (urls.length === 0) return;
@@ -534,6 +536,8 @@ export default function WebsitePagesClient({
         onClose={() => setR2Target(null)}
         onAddKeys={useR2Keys}
         mode={r2Target?.kind === "itemMedia" ? "multiple" : "single"}
+        mediaRoot="portfolio"
+        initialPortfolioFolder="web_full"
       />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

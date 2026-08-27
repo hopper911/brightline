@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Service } from "@/app/services/data";
 import { getPublicR2Url } from "@/lib/r2";
-import R2BrowserModal from "../work/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "../work/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 
 type Props = {
   initialServices: Service[];
@@ -207,7 +208,8 @@ export default function ServicePagesClient({ initialServices }: Props) {
     updateSelected({ pricing: { ...selected.pricing, ...patch } });
   }
 
-  async function useR2Keys(keys: string[]) {
+  async function useR2Keys(picks: R2BrowserPick[]) {
+    const keys = picks.map(pickToStoredMediaRef);
     if (!selected || !r2Target) return;
     const urls = keys.map(getPublicR2Url).filter(Boolean);
     if (urls.length === 0) return;
@@ -239,7 +241,8 @@ export default function ServicePagesClient({ initialServices }: Props) {
     });
   }
 
-  async function useBackgroundR2Key(keys: string[]) {
+  async function useBackgroundR2Key(picks: R2BrowserPick[]) {
+    const keys = picks.map(pickToStoredMediaRef);
     if (!selected || !r2BackgroundTarget) return;
     const url = keys.map(getPublicR2Url).find(Boolean);
     if (!url) return;
@@ -352,12 +355,19 @@ export default function ServicePagesClient({ initialServices }: Props) {
         onClose={() => setR2Target(null)}
         onAddKeys={useR2Keys}
         mode={r2Target === "proofImages" || r2Target === "caseStudies" ? "multiple" : "single"}
+        mediaRoot="portfolio"
+        initialPortfolioFolder="web_full"
       />
       <R2BrowserModal
         isOpen={r2BackgroundTarget !== null}
         onClose={() => setR2BackgroundTarget(null)}
         onAddKeys={useBackgroundR2Key}
         mode="single"
+        mediaRoot="portfolio"
+        initialPortfolioFolder={
+          r2BackgroundTarget === "backgroundMedia" ? "web_video" : "web_full"
+        }
+        confirmLabel="Use selected"
       />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

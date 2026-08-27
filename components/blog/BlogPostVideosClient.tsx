@@ -1,6 +1,7 @@
 "use client";
 
 import VideoEmbed from "@/components/VideoEmbed";
+import PublicInlineVideo from "@/components/PublicInlineVideo";
 import InstagramEmbed from "@/components/blog/InstagramEmbed";
 import {
   extractInstagramPermalink,
@@ -70,15 +71,14 @@ export default function BlogPostVideosClient({
           if (!video.r2Key.trim()) return null;
           return (
             <div key={video.id}>
-              <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-black image-guard-overlay">
-                <video
-                  controls
-                  playsInline
-                  preload="metadata"
-                  className="aspect-video w-full object-cover"
+              <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-black image-guard-overlay" data-allow-save>
+                <PublicInlineVideo
                   src={getPublicR2Url(video.r2Key)}
                   poster={thumbnailUrl || undefined}
-                  aria-label={caption}
+                  alt={caption}
+                  loop={false}
+                  autoPlay={false}
+                  videoClassName="aspect-video w-full object-cover"
                 />
               </div>
               <VideoCaption text={video.caption} />

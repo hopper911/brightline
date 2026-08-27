@@ -39,7 +39,9 @@ export default function AppShell({
       <ImageProtection />
       <div className="relative z-10">
         <Navbar links={siteNav} />
-        <PageTransition>{children}</PageTransition>
+        <main id="main-content">
+          <PageTransition>{children}</PageTransition>
+        </main>
         <Footer designLink={designFooter} ctaImageUrl={siteTheme.footerCtaImageUrl} />
       </div>
     </SiteBackgroundLayer>

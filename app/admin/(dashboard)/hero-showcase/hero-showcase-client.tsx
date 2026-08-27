@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { WebsiteBlock, WebsiteBlockItem, WebsitePage } from "@/lib/website-pages";
 import { getPublicR2Url } from "@/lib/r2";
-import R2BrowserModal from "../work/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "../work/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 
 const MAX_SHOWCASE_ITEMS = 3;
 
@@ -171,7 +172,8 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
     });
   }
 
-  async function useR2Keys(keys: string[]) {
+  async function useR2Keys(picks: R2BrowserPick[]) {
+    const keys = picks.map(pickToStoredMediaRef);
     if (!r2Target || !heroBlock) return;
     const url = keys.map(getPublicR2Url).filter(Boolean)[0];
     if (!url) return;
@@ -357,6 +359,9 @@ export default function HeroShowcaseClient({ initialPages }: { initialPages: Web
         onClose={() => setR2Target(null)}
         onAddKeys={useR2Keys}
         mode="single"
+        mediaRoot="portfolio"
+        initialPortfolioFolder="web_full"
+        confirmLabel="Use selected"
       />
 
       <div className="flex flex-wrap items-end justify-between gap-4">

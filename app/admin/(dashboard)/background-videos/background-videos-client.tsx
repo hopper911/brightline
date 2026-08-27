@@ -11,7 +11,8 @@ import {
   youtubeStudioUploadUrl,
 } from "@/lib/site-background-share";
 import { encodeBackgroundWebMp4, readVideoFileMeta } from "@/lib/encode-background-web";
-import R2BrowserModal from "../work/R2BrowserModal";
+import R2BrowserModal, { type R2BrowserPick } from "../work/R2BrowserModal";
+import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 import PageAssignmentsPanel from "./page-assignments-panel";
 
 export type BgVideoRow = {
@@ -781,9 +782,20 @@ export default function BackgroundVideosClient({
         isOpen={r2Target != null}
         onClose={() => setR2Target(null)}
         mode="single"
+        mediaRoot="portfolio"
         initialCustomPrefix="site/backgrounds/"
-        onAddKeys={async (keys) => {
-          const key = keys[0];
+        initialPortfolioFolder="all"
+        confirmLabel={
+          r2Target === "storage"
+            ? "Use as master"
+            : r2Target === "web"
+              ? "Use as web encode"
+              : r2Target === "poster"
+                ? "Use as poster"
+                : "Use selected"
+        }
+        onAddKeys={async (picks) => {
+          const key = picks[0] ? pickToStoredMediaRef(picks[0]) : "";
           if (!key) return;
           if (r2Target === "storage") setStorageKey(key);
           if (r2Target === "poster") setPosterKey(key);

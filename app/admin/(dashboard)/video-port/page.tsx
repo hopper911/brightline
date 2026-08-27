@@ -8,5 +8,7 @@ export const metadata = {
 };
 
 export default function AdminVideoPortPage() {
-  redirect("/admin/r2?mode=encode&vault=brightline&prefix=portfolio/arc/web_video/");
+  redirect(
+    "/admin/r2?vault=brightline&view=brightline-all-media&kind=video&mode=encode&upload=1&root=portfolio&quality=web_video"
+  );
 }

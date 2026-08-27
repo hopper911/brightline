@@ -170,6 +170,21 @@ img {
   touch-action: pan-y pinch-zoom;
 }
 
+/* Allow tap-to-play / native controls on intentional video wrappers. */
+[data-image-guard] .image-guard-overlay[data-allow-save]::after,
+[data-image-guard] .image-guard-overlay[data-allow-save] video {
+  pointer-events: auto;
+  display: block;
+}
+
+[data-image-guard] .image-guard-overlay[data-allow-save]::after {
+  display: none;
+}
+
+[data-image-guard] .image-guard-overlay[data-allow-save] video {
+  pointer-events: auto;
+}
+
 /* Lightbox: protect without changing layout / pan / zoom. */
 [data-image-guard] .yarl__container,
 [data-image-guard] .yarl__slide,
@@ -637,6 +652,25 @@ a {
 
 a:hover {
   color: var(--color-text);
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -100%;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  min-height: 44px;
+  background: #fff;
+  color: #0b0e12;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 1rem;
 }
 
 a:focus-visible,

@@ -27,17 +27,6 @@ const r2PublicBase =
 // during build trace collection on large local workspaces.
 const tracingRoot = __dirname;
 
-const connectSrcParts = [
-  "'self'",
-  "https://plausible.io",
-  "https://api.resend.com",
-  // Direct browser PUTs to signed R2 upload URLs (admin media / backgrounds)
-  "https://*.r2.cloudflarestorage.com",
-  "https://*.r2.dev",
-  // ffmpeg.wasm core (admin background web encode)
-  "https://cdn.jsdelivr.net",
-];
-
 const nextConfig: NextConfig = {
   outputFileTracingRoot: tracingRoot,
   turbopack: {
@@ -138,32 +127,9 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // CSP is set per-request in proxy.ts (script nonce + strict-dynamic).
         source: "/:path*",
         headers: [
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "base-uri 'self'",
-              "object-src 'none'",
-              "form-action 'self'",
-              // Next.js requires unsafe-eval/inline today; prefer nonces in a future CSP pass.
-              "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' https://plausible.io blob:",
-              // ffmpeg.wasm: module worker + blob workers (Video Port / background encode)
-              "worker-src 'self' blob:",
-              "child-src 'self' blob:",
-              "style-src 'self' 'unsafe-inline'",
-              "font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com",
-              // Public marketing images may be absolute https (R2 / media proxy / YT thumbs).
-              "img-src 'self' data: blob: https:",
-              "media-src 'self' data: blob: https://*.r2.cloudflarestorage.com https://*.r2.dev https://brightlinephotography.com https://*.brightlinephotography.com https://www.youtube-nocookie.com",
-              `connect-src ${connectSrcParts.join(" ")}`,
-              "manifest-src 'self'",
-              "frame-src 'self' https://www.youtube-nocookie.com https://www.instagram.com https://instagram.com https://calendly.com https://*.calendly.com https://www.google.com https://maps.google.com https://maps.googleapis.com",
-              "frame-ancestors 'self'",
-              "upgrade-insecure-requests",
-            ].join("; "),
-          },
           { key: "X-Content-Type-Options", value: "nosniff" },
           {
             key: "Referrer-Policy",

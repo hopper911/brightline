@@ -225,7 +225,13 @@ function pickAllowlisted(
 export function sanitizeHubProjectPayload(
   body: Record<string, unknown>
 ): Record<string, unknown> {
-  return pickAllowlisted(body, HUB_PROJECT_KEYS);
+  const out = pickAllowlisted(body, HUB_PROJECT_KEYS);
+  if ("year" in out) {
+    const y = out.year;
+    if (y === null || y === "" || y === 0) out.year = null;
+    else if (typeof y === "number" && (!Number.isFinite(y) || y <= 0)) out.year = null;
+  }
+  return out;
 }
 
 export function sanitizeHubBlogPayload(body: Record<string, unknown>): Record<string, unknown> {

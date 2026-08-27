@@ -11,12 +11,13 @@ import {
   previewUrlForKey,
   qualityLabel,
   formatBytes,
+  isValidR2FolderPrefix,
   rootsForVault,
   sampleFolderPreviews,
   type FolderPreview,
 } from "@/lib/admin-r2-manager";
-import { normalizeR2VaultId, type R2VaultId } from "@/lib/r2-vaults";
-import { listObjectsDelimited } from "@/lib/storage-r2";
+import { normalizeR2VaultId, resolveVaultForListPrefix, type R2VaultId } from "@/lib/r2-vaults";
+import { sortMediaByLastModified } from "@/lib/admin-r2-unified-media-sort";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,6 +76,7 @@ async function withFolderPreviews(
 }> {
   const allowed = prefixes
     .map((p) => normalizePrefix(p))
+    .filter((p) => isValidR2FolderPrefix(p))
     .filter((p) => {
       try {
         assertR2ManagerKeyAllowed(p, vault);
@@ -108,9 +110,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Invalid JSON." }, { status: 400 });
   }
 
-  const vault = normalizeR2VaultId(body.vault);
-  const roots = rootsForVault(vault);
   const rawPrefix = (body.prefix ?? "").trim();
+  const vault = resolveVaultForListPrefix(rawPrefix, normalizeR2VaultId(body.vault));
+  const roots = rootsForVault(vault);
   const maxKeys = Math.min(typeof body.maxKeys === "number" ? body.maxKeys : 60, 200);
 
   // Root: favorites + discovered allowlisted top-level prefixes
@@ -124,7 +126,9 @@ export async function POST(req: Request) {
           maxKeys: 200,
           vault,
         });
-        discovered = listed.prefixes.filter((p) => isR2ManagerKeyAllowed(p, vault));
+        discovered = listed.prefixes.filter(
+          (p) => isR2ManagerKeyAllowed(p, vault) && isValidR2FolderPrefix(p)
+        );
       } catch (err) {
         console.error("R2_MANAGER_ROOT_DISCOVER_ERROR", err);
       }
@@ -201,9 +205,10 @@ export async function POST(req: Request) {
     });
 
     const keySet = new Set(listed.objects.map((o) => o.key));
-    const objects = mapObjects(listed.objects, keySet, vault);
+    const objects = sortMediaByLastModified(mapObjects(listed.objects, keySet, vault));
     const childPrefixes = listed.prefixes
       .map((p) => normalizePrefix(p))
+      .filter((p) => isValidR2FolderPrefix(p))
       .filter((p) => {
         try {
           assertR2ManagerKeyAllowed(p, vault);

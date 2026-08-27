@@ -1,4 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import {
+  collectReferencedKeySet,
+  findAssetRefsForKey,
+  invalidateAssetRefCache,
+  type AssetRef,
+} from "@/lib/asset-health/registry";
 import { collectKeysFromUnknown, looksLikeR2Key } from "@/lib/admin-r2-hygiene";
 import {
   ADMIN_SIGNABLE_EXTRA_PREFIXES,
@@ -18,17 +24,32 @@ import { listObjectsDelimited } from "@/lib/storage-r2";
 
 /** Roots shown in the R2 manager sidebar (Brightline vault). */
 export const R2_MANAGER_ROOTS: readonly R2VaultRoot[] = [
-  { id: "portfolio", label: "Portfolio", prefix: "portfolio/" },
-  { id: "mirotech", label: "Mirotech media", prefix: "mirotech/" },
+  { id: "portfolio-arc", label: "Portfolio · arc", prefix: "portfolio/arc/" },
+  { id: "portfolio-cam", label: "Portfolio · cam", prefix: "portfolio/cam/" },
+  { id: "portfolio-cor", label: "Portfolio · cor", prefix: "portfolio/cor/" },
+  { id: "portfolio", label: "Portfolio (all)", prefix: "portfolio/" },
+  { id: "mirotech", label: "Mirotech T9 port", prefix: "mirotech/" },
   { id: "client-galleries", label: "Client galleries", prefix: "client-galleries/" },
   { id: "work", label: "Work", prefix: "work/" },
   { id: "studio", label: "Studio", prefix: "studio/" },
   { id: "site", label: "Site", prefix: "site/" },
+  { id: "bg-full", label: "Backgrounds (master)", prefix: "site/backgrounds/full/" },
+  { id: "bg-web", label: "Backgrounds (web)", prefix: "site/backgrounds/web/" },
+  { id: "bg-posters", label: "Backgrounds (posters)", prefix: "site/backgrounds/posters/" },
   { id: "delivery", label: "Delivery", prefix: "delivery/" },
   { id: "journal", label: "Journal", prefix: "journal/" },
   { id: "accounting", label: "Accounting", prefix: "accounting/" },
   { id: "tmp", label: "Temp uploads", prefix: "tmp/" },
 ] as const;
+
+/** Reject malformed folder prefixes from list UI (e.g. undefined/ from bad uploads). */
+export function isValidR2FolderPrefix(prefix: string): boolean {
+  const clean = normalizePrefix(prefix).replace(/\/$/, "");
+  if (!clean) return true;
+  const segment = clean.split("/").pop() ?? "";
+  if (!segment || segment === "undefined" || segment === "null") return false;
+  return /^[a-z0-9][a-z0-9._-]*$/i.test(segment);
+}
 
 /** Allowed prefixes for list/upload/delete/move (Brightline vault security boundary). */
 export const R2_MANAGER_ALLOWED_PREFIXES = [
@@ -281,8 +302,71 @@ export type R2KeyUsage = {
   totalRefs: number;
 };
 
+function assetRefsToR2KeyUsage(key: string, refs: AssetRef[]): R2KeyUsage {
+  const clean = cleanR2Key(key);
+  const brightlineRefs = refs.filter((r) => r.source === "brightline-db");
+  const usage: R2KeyUsage = {
+    key: clean,
+    mediaAssets: [],
+    galleryImages: [],
+    galleryVideos: [],
+    deliveryItems: [],
+    other: [],
+    totalRefs: brightlineRefs.length,
+  };
+
+  for (const ref of brightlineRefs) {
+    switch (ref.entityType) {
+      case "MediaAsset": {
+        const field =
+          ref.field === "keyThumb" || ref.field === "posterKey" ? ref.field : "keyFull";
+        usage.mediaAssets.push({
+          id: ref.entityId,
+          field,
+          projectIds: [],
+        });
+        break;
+      }
+      case "GalleryImage": {
+        const field =
+          ref.field === "lowResStorageKey" ? "lowResStorageKey" : "storageKey";
+        usage.galleryImages.push({
+          id: ref.entityId,
+          galleryId: "",
+          field,
+          galleryTitle: null,
+        });
+        break;
+      }
+      case "GalleryVideo": {
+        const field = ref.field === "posterKey" ? "posterKey" : "storageKey";
+        usage.galleryVideos.push({
+          id: ref.entityId,
+          galleryId: "",
+          galleryTitle: null,
+          field,
+        });
+        break;
+      }
+      case "DeliveryPackageItem":
+        usage.deliveryItems.push({ id: ref.entityId, deliveryPackageId: "" });
+        break;
+      default:
+        usage.other.push({
+          source: ref.entityType,
+          id: ref.entityId,
+          field: ref.field,
+        });
+    }
+  }
+
+  return usage;
+}
+
 export async function findR2KeyUsage(key: string): Promise<R2KeyUsage> {
   const clean = cleanR2Key(key);
+  const registryRefs = await findAssetRefsForKey(clean);
+  const registryUsage = assetRefsToR2KeyUsage(clean, registryRefs);
 
   const [
     fullAssets,
@@ -299,6 +383,8 @@ export async function findR2KeyUsage(key: string): Promise<R2KeyUsage> {
     studioMediaThumb,
     siteBg,
     designOg,
+    workBackgrounds,
+    workBackgroundPosters,
     invoices,
     expenses,
     documents,
@@ -369,6 +455,14 @@ export async function findR2KeyUsage(key: string): Promise<R2KeyUsage> {
       }),
       prisma.designProject.findMany({
         where: { ogImageKey: clean },
+        select: { id: true },
+      }),
+      prisma.workProject.findMany({
+        where: { backgroundMediaUrl: clean },
+        select: { id: true },
+      }),
+      prisma.workProject.findMany({
+        where: { backgroundPosterUrl: clean },
         select: { id: true },
       }),
       prisma.studioInvoice.findMany({
@@ -463,6 +557,16 @@ export async function findR2KeyUsage(key: string): Promise<R2KeyUsage> {
       return fields;
     }),
     ...designOg.map((r) => ({ source: "DesignProject", id: r.id, field: "ogImageKey" })),
+    ...workBackgrounds.map((r) => ({
+      source: "WorkProject",
+      id: r.id,
+      field: "backgroundMediaUrl",
+    })),
+    ...workBackgroundPosters.map((r) => ({
+      source: "WorkProject",
+      id: r.id,
+      field: "backgroundPosterUrl",
+    })),
     ...invoices.map((r) => ({ source: "StudioInvoice", id: r.id, field: "pdfStorageKey" })),
     ...expenses.map((r) => ({ source: "StudioExpense", id: r.id, field: "receiptKey" })),
     ...documents.flatMap((r) => {
@@ -473,20 +577,79 @@ export async function findR2KeyUsage(key: string): Promise<R2KeyUsage> {
     }),
   ];
 
-  return {
+  const merged: R2KeyUsage = {
     key: clean,
-    mediaAssets,
-    galleryImages,
-    galleryVideos: galleryVideosMapped,
-    deliveryItems,
-    other,
-    totalRefs:
-      mediaAssets.length +
-      galleryImages.length +
-      galleryVideosMapped.length +
-      deliveryItems.length +
-      other.length,
+    mediaAssets: [...registryUsage.mediaAssets, ...mediaAssets],
+    galleryImages: [...registryUsage.galleryImages, ...galleryImages],
+    galleryVideos: [...registryUsage.galleryVideos, ...galleryVideosMapped],
+    deliveryItems: [...registryUsage.deliveryItems, ...deliveryItems],
+    other: [...registryUsage.other, ...other],
+    totalRefs: 0,
   };
+
+  merged.totalRefs =
+    merged.mediaAssets.length +
+    merged.galleryImages.length +
+    merged.galleryVideos.length +
+    merged.deliveryItems.length +
+    merged.other.length;
+
+  return merged;
+}
+
+/**
+ * Prisma ops to detach a deleted R2 key from Brightline DB during force delete.
+ * Required key columns (GalleryVideo.storageKey, SiteBackgroundVideo.storageKey,
+ * StudioMedia.r2KeyFull) delete the row instead of nulling the field.
+ */
+export function forceDetachR2KeyDbOperations(key: string) {
+  const clean = cleanR2Key(key);
+  return [
+    prisma.mediaAsset.updateMany({ where: { keyFull: clean }, data: { keyFull: null } }),
+    prisma.mediaAsset.updateMany({ where: { keyThumb: clean }, data: { keyThumb: null } }),
+    prisma.mediaAsset.updateMany({ where: { posterKey: clean }, data: { posterKey: null } }),
+    prisma.galleryImage.updateMany({ where: { storageKey: clean }, data: { storageKey: null } }),
+    prisma.galleryImage.updateMany({
+      where: { lowResStorageKey: clean },
+      data: { lowResStorageKey: null },
+    }),
+    prisma.galleryVideo.deleteMany({ where: { storageKey: clean } }),
+    prisma.galleryVideo.updateMany({ where: { posterKey: clean }, data: { posterKey: null } }),
+    prisma.deliveryPackageItem.updateMany({
+      where: { storageKey: clean },
+      data: { storageKey: null },
+    }),
+    prisma.portfolioProject.updateMany({
+      where: { coverStorageKey: clean },
+      data: { coverStorageKey: null },
+    }),
+    prisma.portfolioImage.updateMany({ where: { storageKey: clean }, data: { storageKey: null } }),
+    prisma.studioMedia.deleteMany({ where: { r2KeyFull: clean } }),
+    prisma.studioMedia.updateMany({ where: { r2KeyThumb: clean }, data: { r2KeyThumb: null } }),
+    prisma.siteBackgroundVideo.deleteMany({ where: { storageKey: clean } }),
+    prisma.siteBackgroundVideo.updateMany({
+      where: { webStorageKey: clean },
+      data: { webStorageKey: null },
+    }),
+    prisma.siteBackgroundVideo.updateMany({
+      where: { posterKey: clean },
+      data: { posterKey: null },
+    }),
+    prisma.designProject.updateMany({ where: { ogImageKey: clean }, data: { ogImageKey: null } }),
+    prisma.studioInvoice.updateMany({
+      where: { pdfStorageKey: clean },
+      data: { pdfStorageKey: null },
+    }),
+    prisma.studioExpense.updateMany({ where: { receiptKey: clean }, data: { receiptKey: null } }),
+    prisma.generatedDocument.updateMany({
+      where: { draftPdfKey: clean },
+      data: { draftPdfKey: null },
+    }),
+    prisma.generatedDocument.updateMany({
+      where: { signedPdfKey: clean },
+      data: { signedPdfKey: null },
+    }),
+  ];
 }
 
 /** Rewrite all DB references from oldKey → newKey. */
@@ -529,122 +692,21 @@ export async function rewriteR2KeyReferences(oldKey: string, newKey: string): Pr
     }),
   ]);
 
-  referencedCache = null;
+  invalidateReferencedR2KeyCache();
   return results.reduce((sum, r) => sum + r.count, 0);
 }
 
-let referencedCache: { at: number; set: Set<string> } | null = null;
-
-function addKey(set: Set<string>, value: string | null | undefined) {
-  if (looksLikeR2Key(value)) set.add(value.trim().replace(/^\/+/, ""));
-}
-
-/** Collect all known R2 keys referenced in the database (for orphan scan). */
+/** Collect all known R2 keys referenced in CMS + Brightline DB (for orphan scan). */
 export async function collectReferencedR2Keys(): Promise<Set<string>> {
-  const [
-    assets,
-    galleryImages,
-    galleryVideos,
-    deliveryItems,
-    portfolioProjects,
-    portfolioImages,
-    studioMedia,
-    siteBg,
-    designProjects,
-    invoices,
-    expenses,
-    documents,
-    workProjects,
-    settings,
-  ] = await Promise.all([
-    prisma.mediaAsset.findMany({
-      select: { keyFull: true, keyThumb: true, posterKey: true },
-    }),
-    prisma.galleryImage.findMany({
-      select: { storageKey: true, lowResStorageKey: true },
-    }),
-    prisma.galleryVideo.findMany({
-      select: { storageKey: true, posterKey: true },
-    }),
-    prisma.deliveryPackageItem.findMany({
-      select: { storageKey: true },
-    }),
-    prisma.portfolioProject.findMany({ select: { coverStorageKey: true } }),
-    prisma.portfolioImage.findMany({ select: { storageKey: true } }),
-    prisma.studioMedia.findMany({ select: { r2KeyFull: true, r2KeyThumb: true } }),
-    prisma.siteBackgroundVideo.findMany({
-      select: { storageKey: true, webStorageKey: true, posterKey: true },
-    }),
-    prisma.designProject.findMany({ select: { ogImageKey: true, specimenBlocks: true } }),
-    prisma.studioInvoice.findMany({ select: { pdfStorageKey: true } }),
-    prisma.studioExpense.findMany({ select: { receiptKey: true } }),
-    prisma.generatedDocument.findMany({ select: { draftPdfKey: true, signedPdfKey: true } }),
-    prisma.workProject.findMany({
-      select: { backgroundMediaUrl: true, backgroundPosterUrl: true },
-    }),
-    prisma.siteSetting.findMany({ select: { value: true } }),
-  ]);
-
-  const set = new Set<string>();
-  for (const a of assets) {
-    addKey(set, a.keyFull);
-    addKey(set, a.keyThumb);
-    addKey(set, a.posterKey);
-  }
-  for (const g of galleryImages) {
-    addKey(set, g.storageKey);
-    addKey(set, g.lowResStorageKey);
-  }
-  for (const v of galleryVideos) {
-    addKey(set, v.storageKey);
-    addKey(set, v.posterKey);
-  }
-  for (const d of deliveryItems) addKey(set, d.storageKey);
-  for (const p of portfolioProjects) addKey(set, p.coverStorageKey);
-  for (const p of portfolioImages) addKey(set, p.storageKey);
-  for (const m of studioMedia) {
-    addKey(set, m.r2KeyFull);
-    addKey(set, m.r2KeyThumb);
-  }
-  for (const b of siteBg) {
-    addKey(set, b.storageKey);
-    addKey(set, b.webStorageKey);
-    addKey(set, b.posterKey);
-  }
-  for (const d of designProjects) {
-    addKey(set, d.ogImageKey);
-    collectKeysFromUnknown(d.specimenBlocks, set);
-  }
-  for (const i of invoices) addKey(set, i.pdfStorageKey);
-  for (const e of expenses) addKey(set, e.receiptKey);
-  for (const d of documents) {
-    addKey(set, d.draftPdfKey);
-    addKey(set, d.signedPdfKey);
-  }
-  for (const w of workProjects) {
-    addKey(set, w.backgroundMediaUrl);
-    addKey(set, w.backgroundPosterUrl);
-  }
-  for (const s of settings) {
-    if (!s.value) continue;
-    try {
-      collectKeysFromUnknown(JSON.parse(s.value), set);
-    } catch {
-      addKey(set, s.value);
-    }
-  }
-  return set;
+  return collectReferencedKeySet();
 }
 
 export async function collectReferencedR2KeysCached(ttlMs = 30_000): Promise<Set<string>> {
-  if (referencedCache && Date.now() - referencedCache.at < ttlMs) return referencedCache.set;
-  const set = await collectReferencedR2Keys();
-  referencedCache = { at: Date.now(), set };
-  return set;
+  return collectReferencedKeySet(ttlMs);
 }
 
 export function invalidateReferencedR2KeyCache() {
-  referencedCache = null;
+  invalidateAssetRefCache();
 }
 
 export function qualityLabel(q: R2Quality): string {

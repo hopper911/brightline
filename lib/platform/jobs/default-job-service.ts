@@ -22,6 +22,7 @@ import { registerDefaultJobHandlers } from "@/lib/platform/jobs/register-default
 import { resolveDefaultJobProvider } from "@/lib/platform/jobs/resolve-job-provider";
 import { assertSafeJobPayload } from "@/lib/platform/jobs/payload-security";
 import {
+  PUBLISHING_MIROTECH_HUB_PATCH_JOB,
   PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB,
   assertValidEnqueueInput,
   type EnqueueJobInput,
@@ -35,6 +36,9 @@ function nowIso(): string {
 
 function maxAttemptsForJobType(type: string): number {
   if (type === PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB) {
+    return MAX_PUBLISHING_JOB_ATTEMPTS;
+  }
+  if (type === PUBLISHING_MIROTECH_HUB_PATCH_JOB) {
     return MAX_PUBLISHING_JOB_ATTEMPTS;
   }
   return 3;

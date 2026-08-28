@@ -2,10 +2,11 @@ import "server-only";
 
 import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
 import type { PlatformContext } from "@/lib/platform/context/types";
+import { PublishingJobExecutionError } from "@/lib/platform/jobs/handlers/publishing-job-errors";
 import type { JobHandler } from "@/lib/platform/jobs/job-handler-registry";
 import type { JobProvider } from "@/lib/platform/jobs/job-provider";
 import {
-  parsePublishingMirotechJournalSyncPayload,
+  parsePublishingMirotechHubPatchPayload,
   type PublishingJobResult,
 } from "@/lib/platform/jobs/publishing-payload";
 import type { JobRecord } from "@/lib/platform/jobs/types";
@@ -13,18 +14,27 @@ import { defaultPublishingService } from "@/lib/platform/publishing/default-publ
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { isPublishingError } from "@/lib/platform/publishing/errors";
 
-import { PublishingJobExecutionError } from "@/lib/platform/jobs/handlers/publishing-job-errors";
+async function storePublishingJobResult(
+  provider: JobProvider | undefined,
+  job: JobRecord,
+  result: PublishingJobResult
+): Promise<void> {
+  if (!provider) return;
+  await provider.update(job.id, {
+    payload: { ...job.payload, result },
+  });
+}
 
 /**
- * Worker handler — trusted system publish after admin-authorized enqueue (Phase 7B).
- * Mirotech journal ingest upserts by brightlinePostId; safe for at-least-once execution.
+ * Worker handler — Mirotech Studio Hub project PATCH (Phase 7C).
+ * Uses hubPatch from job payload; idempotent via contentVersion hash.
  */
-export function createPublishingMirotechJournalSyncHandler(
+export function createPublishingMirotechHubPatchHandler(
   publishingService: DefaultPublishingService = defaultPublishingService,
   provider?: JobProvider
 ): JobHandler {
   return async (context: PlatformContext, job: JobRecord) => {
-    const parsed = parsePublishingMirotechJournalSyncPayload(job.payload);
+    const parsed = parsePublishingMirotechHubPatchPayload(job.payload);
     const resource = { type: parsed.source.type, id: parsed.source.id };
 
     await recordAuditSafely({
@@ -46,12 +56,14 @@ export function createPublishingMirotechJournalSyncHandler(
         source: parsed.source,
         target: parsed.target,
         operation: parsed.operation,
+        hubPatch: parsed.hubPatch,
       });
 
-      if (publishResult.outcome === "completed") {
+      if (publishResult.outcome === "completed" && publishResult.hubProject) {
         result = {
           ok: true,
-          resourceId: publishResult.resourceId ?? null,
+          resourceId: publishResult.resourceId ?? parsed.source.id,
+          hubProject: publishResult.hubProject as Record<string, unknown>,
         };
         await recordAuditSafely({
           context,
@@ -65,7 +77,7 @@ export function createPublishingMirotechJournalSyncHandler(
           },
         });
       } else {
-        const error = publishResult.message || "Mirotech publish failed";
+        const error = publishResult.message || "Hub patch publish failed";
         result = { ok: false, error };
         await recordAuditSafely({
           context,
@@ -74,11 +86,7 @@ export function createPublishingMirotechJournalSyncHandler(
           resource,
           metadata: { target: parsed.target, error, jobId: job.id },
         });
-        if (provider) {
-          await provider.update(job.id, {
-            payload: { ...job.payload, result },
-          });
-        }
+        await storePublishingJobResult(provider, job, result);
         throw new PublishingJobExecutionError(error);
       }
     } catch (error) {
@@ -89,7 +97,7 @@ export function createPublishingMirotechJournalSyncHandler(
         ? error.message
         : error instanceof Error
           ? error.message
-          : "Mirotech publish failed";
+          : "Hub patch publish failed";
       result = { ok: false, error: message };
       await recordAuditSafely({
         context,
@@ -98,20 +106,12 @@ export function createPublishingMirotechJournalSyncHandler(
         resource,
         metadata: { target: parsed.target, error: message, jobId: job.id },
       });
-      if (provider) {
-        await provider.update(job.id, {
-          payload: { ...job.payload, result },
-        });
-      }
+      await storePublishingJobResult(provider, job, result);
       throw new PublishingJobExecutionError(message);
     }
 
-    if (provider) {
-      await provider.update(job.id, {
-        payload: { ...job.payload, result },
-      });
-    }
+    await storePublishingJobResult(provider, job, result);
   };
 }
 
-export const runPublishingMirotechJournalSyncJob = createPublishingMirotechJournalSyncHandler();
+export const runPublishingMirotechHubPatchJob = createPublishingMirotechHubPatchHandler();

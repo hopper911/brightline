@@ -16,6 +16,7 @@ export {
   JOB_STATUSES,
   PLATFORM_HEALTH_TEST_JOB,
   PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB,
+  PUBLISHING_MIROTECH_HUB_PATCH_JOB,
   PLATFORM_JOB_TYPE_PATTERN,
   assertValidEnqueueInput,
   isJobStatus,
@@ -29,6 +30,9 @@ export {
 } from "@/lib/platform/jobs/types";
 export { assertSafeJobPayload } from "@/lib/platform/jobs/payload-security";
 export {
+  buildPublishingMirotechHubPatchIdempotencyKey,
+  hashPublishingContentVersion,
+  publishingHubPatchJobPayload,
   MAX_PUBLISHING_JOB_ATTEMPTS,
   buildPublishingMirotechJournalIdempotencyKey,
   publishingJobPayload,

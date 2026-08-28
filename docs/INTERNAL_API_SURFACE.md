@@ -59,6 +59,7 @@ Auth: [`requireProjectsApiAuth`](../lib/api/automation-auth.ts) — **admin sess
 | Method | Path | Auth |
 |--------|------|------|
 | GET | `/api/cron/followups` | `Authorization: Bearer <CRON_SECRET>` (or allowed in non-production when unset — see route) |
+| GET | `/api/cron/platform-jobs` | `Authorization: Bearer <CRON_SECRET>` — drains pending platform jobs (flag-gated) |
 
 ## Optional future: `/api/internal/v1`
 

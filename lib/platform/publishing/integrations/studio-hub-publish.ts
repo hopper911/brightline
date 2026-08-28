@@ -9,6 +9,7 @@ import { isPlatformFeatureEnabled } from "@/lib/platform/features";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { defaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { isPublishingError } from "@/lib/platform/publishing/errors";
+import { jobPlatformPatchStudioHubProject } from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
 
 const MIROTECH_TARGET = "mirotech-site" as const;
 
@@ -84,6 +85,9 @@ export async function resolveStudioHubProjectPatch(
 ): Promise<HubProject> {
   if (!isPlatformFeatureEnabled("publishing")) {
     return legacyPatchStudioHubProject(id, payload);
+  }
+  if (isPlatformFeatureEnabled("jobs")) {
+    return jobPlatformPatchStudioHubProject(id, payload, { actor: options?.actor });
   }
   return platformPatchStudioHubProject(id, payload, options?.publishingService, options?.actor);
 }

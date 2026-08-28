@@ -11,7 +11,12 @@ vi.mock("@/lib/platform/audit/record-safely", () => ({
   recordAuditSafely: vi.fn().mockResolvedValue({ ok: true, skipped: true }),
 }));
 
+vi.mock("@/lib/platform/publishing/integrations/studio-hub-async-publish", () => ({
+  jobPlatformPatchStudioHubProject: vi.fn(),
+}));
+
 import { updateHubBlog, updateHubProject } from "@/lib/dual-brand/studio-hub";
+import { jobPlatformPatchStudioHubProject } from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
 import {
   legacyPatchStudioHubBlog,
   legacyPatchStudioHubProject,
@@ -22,16 +27,20 @@ import type { DefaultPublishingService } from "@/lib/platform/publishing/default
 const hubProject = { id: "hub-1", title: "Case Study", slug: "case-study" };
 
 describe("studio hub publish integration", () => {
-  const savedFlag = process.env.PLATFORM_PUBLISHING_ENABLED;
+  const savedPublishing = process.env.PLATFORM_PUBLISHING_ENABLED;
+  const savedJobs = process.env.PLATFORM_JOBS_ENABLED;
 
   beforeEach(() => {
     vi.mocked(updateHubProject).mockReset();
     vi.mocked(updateHubBlog).mockReset();
+    vi.mocked(jobPlatformPatchStudioHubProject).mockReset();
   });
 
   afterEach(() => {
-    if (savedFlag === undefined) delete process.env.PLATFORM_PUBLISHING_ENABLED;
-    else process.env.PLATFORM_PUBLISHING_ENABLED = savedFlag;
+    if (savedPublishing === undefined) delete process.env.PLATFORM_PUBLISHING_ENABLED;
+    else process.env.PLATFORM_PUBLISHING_ENABLED = savedPublishing;
+    if (savedJobs === undefined) delete process.env.PLATFORM_JOBS_ENABLED;
+    else process.env.PLATFORM_JOBS_ENABLED = savedJobs;
   });
 
   it("legacy project patch delegates to updateHubProject", async () => {
@@ -50,6 +59,7 @@ describe("studio hub publish integration", () => {
 
   it("resolveStudioHubProjectPatch uses platform when flag on", async () => {
     process.env.PLATFORM_PUBLISHING_ENABLED = "true";
+    delete process.env.PLATFORM_JOBS_ENABLED;
     const publishingService = {
       publish: vi.fn().mockResolvedValue({
         outcome: "completed",
@@ -65,6 +75,18 @@ describe("studio hub publish integration", () => {
     );
     expect(publishingService.publish).toHaveBeenCalled();
     expect(updateHubProject).not.toHaveBeenCalled();
+    expect(result.id).toBe("hub-1");
+  });
+
+  it("resolveStudioHubProjectPatch uses job path when publishing and jobs enabled", async () => {
+    process.env.PLATFORM_PUBLISHING_ENABLED = "true";
+    process.env.PLATFORM_JOBS_ENABLED = "true";
+    vi.mocked(jobPlatformPatchStudioHubProject).mockResolvedValue(hubProject as never);
+
+    const result = await resolveStudioHubProjectPatch("hub-1", { status: "PUBLISHED" });
+    expect(jobPlatformPatchStudioHubProject).toHaveBeenCalledWith("hub-1", { status: "PUBLISHED" }, {
+      actor: undefined,
+    });
     expect(result.id).toBe("hub-1");
   });
 

@@ -7,6 +7,7 @@ import type { PlatformAuditActor } from "@/lib/platform/audit/types";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
 import type { DefaultJobService } from "@/lib/platform/jobs/default-job-service";
 import { defaultJobService } from "@/lib/platform/jobs/default-job-service";
+import { awaitPlatformJobs } from "@/lib/platform/jobs/drain-platform-jobs";
 import {
   buildPublishingMirotechJournalIdempotencyKey,
   publishingJobPayload,
@@ -115,8 +116,11 @@ export async function jobPlatformSyncBlogPostsMirotech(
       continue;
     }
 
-    if (finalJob.status === "PENDING" || finalJob.status === "FAILED") {
-      finalJob = await jobService.runJob(context, enqueued.jobId);
+    await awaitPlatformJobs([enqueued.jobId], { jobService });
+    finalJob = await jobService.getStatus(context, enqueued.jobId);
+    if (!finalJob) {
+      results.push({ postId: post.id, ok: false, error: "Publishing job not found after drain." });
+      continue;
     }
 
     const outcome = syncResultFromJob(post.id, finalJob.payload as Record<string, unknown>);

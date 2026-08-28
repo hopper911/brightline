@@ -122,3 +122,15 @@ export async function updatePlatformJob(
     return null;
   }
 }
+
+export async function listRunnablePlatformJobs(
+  limit: number,
+  client: PrismaClient = prisma
+): Promise<JobRecord[]> {
+  const rows = await client.platformJob.findMany({
+    where: { status: { in: ["PENDING", "FAILED"] } },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+  return rows.map(rowToJobRecord);
+}

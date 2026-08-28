@@ -159,19 +159,31 @@ No existing route checks this flag in 7A.
 
 **Job type:** `publishing.mirotech.journal.sync`
 
-**Flags (both required for async path):** `PLATFORM_JOBS_ENABLED` + `PLATFORM_PUBLISHING_ENABLED`
+## Phase 7C — cron drain + Studio Hub async (implemented)
 
-**Transition adapter:** Enqueues durable Postgres jobs, then **drains inline** in the same admin PATCH request so `{ posts, mirotechSync }` response shape is unchanged. Future cron drain can replace inline `runJob` without UI changes.
+**Cron:** `GET /api/cron/platform-jobs` every 5 minutes (`CRON_SECRET`), max 20 jobs/run.
+
+**Shared drain:** `drainPlatformJobs()` / `awaitPlatformJobs()` — used by request adapters and cron.
+
+**Studio Hub workflow:** `PATCH /api/admin/studio-hub/[id]` → `resolveStudioHubProjectPatch` when both flags on.
+
+**Job type:** `publishing.mirotech.hub.patch` (payload: ContentRef + contentVersion hash + sanitized `hubPatch`).
+
+**Blog async path:** refactored to use `awaitPlatformJobs()` instead of direct `runJob()` calls.
+
+**Flags (both required for async paths):** `PLATFORM_JOBS_ENABLED` + `PLATFORM_PUBLISHING_ENABLED`
+
+**Transition adapter:** Enqueues Postgres jobs, then drains via shared runner in the same request so admin UI response shapes stay unchanged. Cron clears stragglers and retries.
 
 **Idempotency key:** `{jobType}:{tenant}:{contentType}:{id}:{target}:{operation}:{contentVersion}` — reuses COMPLETED jobs; FAILED jobs retry via same key.
 
 **Max attempts:** 3 per publishing job.
 
-## Future (Phase 7C+)
+## Future (Phase 7D+)
 
-1. Cron drain route `/api/cron/platform-jobs` (guarded like followups cron) — replace inline drain
-2. Optional admin poll UI when response returns `accepted` only
-3. Next job types: `publishing.mirotech.hub.patch` (Studio Hub)
+1. Optional admin poll UI when response returns `accepted` only (true fire-and-forget)
+2. Hub journal PATCH async (`dual-brand-journal`)
+3. Remove inline drain once UI tolerates async responses
 
 See [ADR-007](./ADR-007-publishing-service.md) — `accepted` outcome still available for true fire-and-forget responses later.
 

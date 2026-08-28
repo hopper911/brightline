@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/followups",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/platform-jobs",
+      "schedule": "*/5 * * * *"
     }
   ],
   "redirects": [

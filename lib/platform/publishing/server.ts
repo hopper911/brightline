@@ -10,6 +10,11 @@ export {
 } from "@/lib/platform/publishing/integrations/blog-mirotech-sync";
 export { jobPlatformSyncBlogPostsMirotech } from "@/lib/platform/publishing/integrations/blog-mirotech-async-sync";
 export {
+  createPublishingMirotechJournalSyncHandler,
+  runPublishingMirotechJournalSyncJob,
+} from "@/lib/platform/jobs/handlers/publishing-mirotech-journal-sync";
+export { jobPlatformPatchStudioHubProject } from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
+export {
   legacyPatchStudioHubBlog,
   legacyPatchStudioHubProject,
   platformPatchStudioHubBlog,

@@ -18,9 +18,13 @@ export const PLATFORM_HEALTH_TEST_JOB = "platform.health.test" as const;
 /** Brightline blog → Mirotech journal sync (Phase 7B). */
 export const PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB = "publishing.mirotech.journal.sync" as const;
 
+/** Mirotech Studio Hub case study PATCH → remote CMS (Phase 7C). */
+export const PUBLISHING_MIROTECH_HUB_PATCH_JOB = "publishing.mirotech.hub.patch" as const;
+
 export type KnownPlatformJobType =
   | typeof PLATFORM_HEALTH_TEST_JOB
-  | typeof PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB;
+  | typeof PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB
+  | typeof PUBLISHING_MIROTECH_HUB_PATCH_JOB;
 
 /** Serializable job input — IDs and references only; validated by payload-security. */
 export type JobPayload = Readonly<Record<string, unknown>>;

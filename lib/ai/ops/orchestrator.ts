@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import type OpenAI from "openai";
-import { apiLog } from "@/lib/observability/log";
+import { platformLog } from "@/lib/observability/platform-log";
 import { prisma } from "@/lib/prisma";
 import { runChatCompletion } from "@/lib/ai/runtime";
 import type { AiInvocationMeta, ChatCompletionBody } from "./types";
@@ -85,8 +85,14 @@ export async function runAiChatCompletion(
           },
         })
         .catch((e) =>
-          apiLog("ai.ops", "warn", "AiInvocation persist failed", {
-            error: e instanceof Error ? e.message : String(e),
+          platformLog({
+            severity: "warn",
+            service: "platform",
+            action: "ai.ops",
+            message: "AiInvocation persist failed",
+            meta: {
+              error: e instanceof Error ? e.message : String(e),
+            },
           })
         );
     }

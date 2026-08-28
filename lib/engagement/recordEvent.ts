@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { apiLog } from "@/lib/observability/log";
+import { platformLog } from "@/lib/observability/platform-log";
 
 export type EngagementSurface = "delivery_package" | "client_gallery";
 
@@ -37,8 +37,14 @@ export function recordEngagementEvent(data: {
       },
     })
     .catch((err) =>
-      apiLog("engagement", "warn", "EngagementEvent insert failed", {
-        error: err instanceof Error ? err.message : String(err),
+      platformLog({
+        severity: "warn",
+        service: "platform",
+        action: "engagement",
+        message: "EngagementEvent insert failed",
+        meta: {
+          error: err instanceof Error ? err.message : String(err),
+        },
       })
     );
 }

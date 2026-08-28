@@ -95,7 +95,7 @@
 | `legacyPatch*` in `studio-hub-publish.ts` | **B** | PublishingService | Default prod path | Hub PATCH | Flag off | ≥2 wk | Medium |
 | `lib/platform/publishing/mirotech/journal-ingest.ts` | **A** | **Owner** — not legacy | All sync paths delegate here | Blog + scripts | N/A | N/A | **High — must stay** |
 | `lib/platform/publishing/mirotech/hub-remote-write.ts` | **A** | **Owner** | Hub HTTP writes | Hub + R2 rewrite | N/A | N/A | **High** |
-| `lib/dual-brand/sync-journal.ts` | **D** | Import `journal-ingest` directly | Thin re-export shim | `blog-mirotech-sync` legacy branch | Restore shim file | After publishing flag stable | Low |
+| `lib/dual-brand/sync-journal.ts` | **~~D~~ REMOVED 11B** | Import `journal-ingest` directly | Was thin re-export shim | `blog-mirotech-sync` legacy branch | Restore from git `06f593a^` | After publishing flag stable | Low |
 | `studio-hub.ts` write re-exports | **E** | `hub-remote-write` | Facade; callers vary | Hub admin, R2 rewrite | N/A | Map all callers | Medium |
 | `app/api/admin/studio-hub` POST → `createHubProject` | **A** | PublishingService (not migrated) | Explicit remaining legacy | Hub create | N/A | After 6D completion | Medium |
 | `lib/admin-r2-mirotech-cms-rewrite.ts` | **A** | PublishingService (intentionally unmigrated) | Ops batch | R2 reorg | N/A | Low priority | Medium |
@@ -144,7 +144,7 @@
 | `PLATFORM_AUDIT_ENABLED` | off | off | Yes — audit writes skipped | Yes — until audit write cutover |
 | `LEGACY_ADMIN_HANDOFF_ENABLED` | **on** | on (default) | Yes — handoff route → SSO redirect | Yes — until SSO replaces handoff |
 
-**Deprecated API:** `platformFeatures` alias in `features.ts` — **D** after grep cleanup.
+**Deprecated API:** `platformFeatures` alias in `features.ts` — **~~D~~ REMOVED 11B** (use `getPlatformFeatures()`).
 
 ---
 
@@ -197,10 +197,10 @@
 
 | Order | Candidate | Class today | Action |
 | --- | --- | --- | --- |
-| 1 | `lib/dual-brand/sync-journal.ts` shim | **D** | Redirect imports to `journal-ingest`; delete shim |
-| 2 | `lib/observability/log.ts` `apiLog` wrapper | **D** | Migrate ~6 callers to `platformLog`; delete wrapper |
+| ~~1~~ | ~~`lib/dual-brand/sync-journal.ts` shim~~ | **REMOVED 11B** | Done — imports → `journal-ingest` |
+| ~~2~~ | ~~`lib/observability/log.ts` `apiLog` wrapper~~ | **REMOVED 11B** | Done — 6 callers → `platformLog` |
 | 3 | `@deprecated` types in `platform/services/types.ts`, `content/types.ts`, `publishing/types.ts` | **D** | Type cleanup only |
-| 4 | `platformFeatures` deprecated alias | **D** | Replace usages with `getPlatformFeatures()` |
+| ~~4~~ | ~~`platformFeatures` deprecated alias~~ | **REMOVED 11B** | Done — barrel + test updated |
 | 5 | Dual-path **legacy branches** in six upload/sign routes | **B→D** | Remove legacy branch after `PLATFORM_MEDIA_ENABLED` stable |
 | 6 | `legacySyncBlogPostsMirotech` / `legacyPatch*` branches | **B→D** | Remove after `PLATFORM_PUBLISHING_ENABLED` stable |
 
@@ -241,7 +241,7 @@
 1. **Enable flags in staging** — one domain at a time (content → media → publishing → jobs → audit)
 2. **Collect evidence** — `GET /api/admin/platform/metrics`, audit events, manual publish smoke
 3. **Backfill assets** — registry before retiring R2 scan for Studio media
-4. **First deletion PR** — shims + deprecated types only (batch 1 above)
+4. **~~First deletion PR~~ — shims + deprecated types only (batch 1 above)** — **Phase 11B complete** (3 shims/aliases removed; type cleanup deferred to 11C)
 5. **Second deletion PR** — dual-path legacy branches after ≥2 week prod flag
 6. **Handoff retirement** — only after SSO metrics stable and `LEGACY_ADMIN_HANDOFF_ENABLED=false` trial
 7. **Admin route consolidation** — link-only until editors move to Studio (separate phase)

@@ -19,7 +19,7 @@ import type {
  * Methods represent domain intentions justified by current cross-brand workflows:
  * - dual-brand work/journal reads (`lib/dual-brand/content-api.ts`)
  * - Studio Hub distribution status (`lib/dual-brand/studio-hub.ts`)
- * - Brightline journal → Mirotech sync metadata (`lib/dual-brand/sync-journal.ts`)
+ * - Brightline journal → Mirotech sync metadata (`lib/platform/publishing/mirotech/journal-ingest.ts`)
  */
 export interface ContentService {
   /**

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { guardProjectsApiJson } from "@/lib/api/guards";
 import { listStudioProjectsForAdmin } from "@/lib/studio/studio-project-cms";
-import { apiLog } from "@/lib/observability/log";
+import { platformLog } from "@/lib/observability/platform-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,14 +40,26 @@ export async function GET(req: Request) {
       limit: Number.isFinite(limit) ? limit : undefined,
       offset: Number.isFinite(offset) ? offset : undefined,
     });
-    apiLog("api.projects.list", "info", "ok", {
-      count: rows.length,
-      hasMore,
+    platformLog({
+      severity: "info",
+      service: "platform",
+      action: "api.projects.list",
+      message: "ok",
+      meta: {
+        count: rows.length,
+        hasMore,
+      },
     });
     return jsonNoStore({ ok: true, projects: rows, hasMore });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to list projects.";
-    apiLog("api.projects.list", "error", "failed", { message: msg });
+    platformLog({
+      severity: "error",
+      service: "platform",
+      action: "api.projects.list",
+      message: "failed",
+      meta: { message: msg },
+    });
     return jsonNoStore({ ok: false, error: msg }, { status: 500 });
   }
 }

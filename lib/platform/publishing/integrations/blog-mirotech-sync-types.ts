@@ -1,4 +1,4 @@
-import type { MirotechJournalSyncResult } from "@/lib/dual-brand/sync-journal";
+import type { MirotechJournalSyncResult } from "@/lib/platform/publishing/mirotech/journal-ingest";
 import type { BlogPost } from "@/lib/blog-post-model";
 
 export type BlogMirotechSyncResultItem = MirotechJournalSyncResult | {

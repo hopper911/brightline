@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/dual-brand/sync-journal", () => ({
+vi.mock("@/lib/platform/publishing/mirotech/journal-ingest", () => ({
   syncBlogPostsToMirotech: vi.fn(),
 }));
 
@@ -15,7 +15,7 @@ vi.mock("@/lib/platform/publishing/integrations/blog-mirotech-async-sync", () =>
 }));
 
 import { blankBlogPost, type BlogPost } from "@/lib/blog-post-model";
-import { syncBlogPostsToMirotech } from "@/lib/dual-brand/sync-journal";
+import { syncBlogPostsToMirotech } from "@/lib/platform/publishing/mirotech/journal-ingest";
 import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
 import { jobPlatformSyncBlogPostsMirotech } from "@/lib/platform/publishing/integrations/blog-mirotech-async-sync";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";

@@ -16,7 +16,7 @@ import type { PublishRequest, PublishResult } from "@/lib/platform/publishing/ty
  * Methods represent domain intentions justified by current workflows:
  * - Brightline Prisma/SiteSetting publish toggles + revalidatePath
  * - Studio Hub HTTP writes (`lib/dual-brand/studio-hub.ts`)
- * - Blog → Mirotech journal sync (`lib/dual-brand/sync-journal.ts`)
+ * - Blog → Mirotech journal sync (`lib/platform/publishing/mirotech/journal-ingest.ts`)
  *
  * Phase 6A: contract only. Legacy admin routes remain authoritative.
  *

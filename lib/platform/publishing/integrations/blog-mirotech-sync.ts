@@ -1,8 +1,8 @@
 import "server-only";
 
 import type { BlogPost } from "@/lib/blog-post-model";
-import type { MirotechJournalSyncResult } from "@/lib/dual-brand/sync-journal";
-import { syncBlogPostsToMirotech } from "@/lib/dual-brand/sync-journal";
+import type { MirotechJournalSyncResult } from "@/lib/platform/publishing/mirotech/journal-ingest";
+import { syncBlogPostsToMirotech } from "@/lib/platform/publishing/mirotech/journal-ingest";
 import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
 import type { PlatformAuditActor } from "@/lib/platform/audit/types";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";

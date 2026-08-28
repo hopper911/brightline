@@ -49,31 +49,3 @@ export function getPlatformFeatures(): PlatformFeatures {
 export function isPlatformFeatureEnabled(key: PlatformFeatureKey): boolean {
   return getPlatformFeatures()[key];
 }
-
-/** @deprecated Use getPlatformFeatures — alias for migration program naming. */
-export const platformFeatures = {
-  get content() {
-    return isPlatformFeatureEnabled("content");
-  },
-  get media() {
-    return isPlatformFeatureEnabled("media");
-  },
-  get assets() {
-    return isPlatformFeatureEnabled("assets");
-  },
-  get assetRead() {
-    return isPlatformFeatureEnabled("assetRead");
-  },
-  get publishing() {
-    return isPlatformFeatureEnabled("publishing");
-  },
-  get identity() {
-    return isPlatformFeatureEnabled("identity");
-  },
-  get jobs() {
-    return isPlatformFeatureEnabled("jobs");
-  },
-  get audit() {
-    return isPlatformFeatureEnabled("audit");
-  },
-};

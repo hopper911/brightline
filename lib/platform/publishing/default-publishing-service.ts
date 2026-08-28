@@ -17,7 +17,7 @@ import { assertValidPublishRequest } from "@/lib/platform/publishing/types";
  * **Authorization boundary:** assumes the caller (admin route, automation handler)
  * has already verified operator identity. This service does NOT call authorizeAdminRequest.
  *
- * No consumer migration in 6B — legacy routes call sync-journal directly.
+ * Legacy blog sync routes use `blog-mirotech-sync` integration (journal-ingest under the hood).
  */
 export class DefaultPublishingService implements PublishingService {
   constructor(

@@ -2,7 +2,6 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import {
   getPlatformFeatures,
   isPlatformFeatureEnabled,
-  platformFeatures,
 } from "@/lib/platform/features";
 
 const ENV_KEYS = [
@@ -45,7 +44,7 @@ describe("platform feature flags", () => {
       jobs: false,
       audit: false,
     });
-    expect(platformFeatures.content).toBe(false);
+    expect(isPlatformFeatureEnabled("content")).toBe(false);
     expect(isPlatformFeatureEnabled("media")).toBe(false);
   });
 

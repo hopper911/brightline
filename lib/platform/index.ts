@@ -17,7 +17,6 @@ export type {
 export {
   getPlatformFeatures,
   isPlatformFeatureEnabled,
-  platformFeatures,
   type PlatformFeatureKey,
   type PlatformFeatures,
 } from "@/lib/platform/features";

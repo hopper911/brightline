@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireProjectsApiAuth } from "@/lib/api/automation-auth";
-import { apiLog } from "@/lib/observability/log";
+import { platformLog } from "@/lib/observability/platform-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,11 +40,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: 'Missing string field "event".' }, { status: 400 });
   }
 
-  apiLog("studio_automation_event", "info", "received", {
-    event,
-    idempotencyKey: b.idempotencyKey ?? null,
-    entityType: b.entity?.type ?? null,
-    entityId: b.entity?.id ?? null,
+  platformLog({
+    severity: "info",
+    service: "platform",
+    action: "studio_automation_event",
+    message: "received",
+    meta: {
+      event,
+      idempotencyKey: b.idempotencyKey ?? null,
+      entityType: b.entity?.type ?? null,
+      entityId: b.entity?.id ?? null,
+    },
   });
 
   return NextResponse.json({

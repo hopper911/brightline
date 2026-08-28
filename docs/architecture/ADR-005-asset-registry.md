@@ -117,6 +117,22 @@ Future phases:
 2. Wire `resolveDomainMedia` into public delivery behind `PLATFORM_ASSET_READ_ENABLED`
 3. Never auto-link entire tables without dry-run approval
 
+### Asset read cutover (Phase 4D)
+
+First read surface: **admin `GET /api/admin/portfolio`** — enriches image delivery `url` when `PLATFORM_ASSET_READ_ENABLED` is on.
+
+| Principle | Implementation |
+| --- | --- |
+| Coverage gate | `npm run assets:coverage` before enabling flag |
+| Resolution | `resolveDomainMedia` → `MediaService.getAssetUrl` |
+| Fallback | Mandatory legacy path on missing asset, tenant mismatch, conflict |
+| Tenant | Brightline domain rows reject Mirotech assets |
+| Batch reads | `findPlatformAssetsByIds` preload — no N+1 registry lookups |
+| Flag default | **off** — production enable is manual |
+| Observability | `[platform-asset-read]` log counters |
+
+See `docs/architecture/asset-read-cutover-runbook.md`.
+
 ### Failure consistency
 
 | Scenario | Behavior |

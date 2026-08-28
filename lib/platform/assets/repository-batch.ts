@@ -65,3 +65,23 @@ export async function findPlatformAssetsByObjectKeys(
   }
   return out;
 }
+
+/** Batch lookup by platform asset id (Phase 4D list reads). */
+export async function findPlatformAssetsByIds(
+  assetIds: string[],
+  client: PrismaClient = prisma
+): Promise<Map<string, PlatformAssetRecord>> {
+  const uniqueIds = [...new Set(assetIds.map((id) => id.trim()).filter(Boolean))];
+  if (uniqueIds.length === 0) return new Map();
+
+  const rows = await client.platformAsset.findMany({
+    where: { id: { in: uniqueIds } },
+    include: assetInclude,
+  });
+
+  const out = new Map<string, PlatformAssetRecord>();
+  for (const row of rows) {
+    out.set(row.id, mapRow(row));
+  }
+  return out;
+}

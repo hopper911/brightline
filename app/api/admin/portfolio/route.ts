@@ -4,6 +4,7 @@ import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { normalizeProjectSlug } from "@/lib/slugify";
 import { createStudioProjectRecord } from "@/lib/studio/studio-project-cms";
 import { getPublicR2Url } from "@/lib/r2";
+import { enrichPortfolioProjectsForAdminRead } from "@/lib/platform/assets/integrations/portfolio-image-delivery";
 import { lookupPlatformAssetIdsForBrightlineKeys } from "@/lib/platform/assets/integrations/portfolio-image-asset-link";
 import { getWorkPillarList } from "@/lib/work-pillar-settings";
 
@@ -88,7 +89,9 @@ export async function GET(req: Request) {
       orderBy: { updatedAt: "desc" },
     });
 
-    return noStoreJson({ ok: true, projects });
+    const enriched = await enrichPortfolioProjectsForAdminRead(projects);
+
+    return noStoreJson({ ok: true, projects: enriched });
   } catch (err: unknown) {
     console.error("PORTFOLIO_GET_ERROR", { route: ROUTE, err });
     const message = err instanceof Error ? err.message : "Failed to load projects.";

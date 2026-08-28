@@ -10,6 +10,10 @@ vi.mock("@/lib/platform/assets/repository", () => ({
   findPlatformAssetById: mockFindAssetById,
 }));
 
+vi.mock("@/lib/platform/assets/read-observability", () => ({
+  recordAssetReadMetric: vi.fn(),
+}));
+
 import { resolveDomainMedia } from "@/lib/platform/assets/resolve-domain-media";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
 
@@ -47,6 +51,7 @@ describe("resolveDomainMedia", () => {
     process.env[ENV_KEY] = "true";
     mockFindAssetById.mockResolvedValue({
       id: "asset-1",
+      tenantSlug: "brightline",
       vault: "brightline",
       objectKey: "portfolio/arc/photo.webp",
     });
@@ -85,6 +90,7 @@ describe("resolveDomainMedia", () => {
     process.env[ENV_KEY] = "true";
     mockFindAssetById.mockResolvedValue({
       id: "asset-1",
+      tenantSlug: "brightline",
       vault: "brightline",
       objectKey: "portfolio/arc/a.webp",
     });
@@ -107,6 +113,7 @@ describe("resolveDomainMedia", () => {
     process.env[ENV_KEY] = "true";
     mockFindAssetById.mockResolvedValue({
       id: "asset-1",
+      tenantSlug: "brightline",
       vault: "brightline",
       objectKey: "portfolio/arc/photo.webp",
     });
@@ -122,5 +129,28 @@ describe("resolveDomainMedia", () => {
 
     expect(result.source).toBe("asset");
     expect(result.conflict).toBeUndefined();
+  });
+
+  it("falls back to legacy on tenant mismatch", async () => {
+    process.env[ENV_KEY] = "true";
+    mockFindAssetById.mockResolvedValue({
+      id: "asset-1",
+      tenantSlug: "mirotech",
+      vault: "mirotech-site",
+      objectKey: "projects/a.webp",
+    });
+
+    const result = await resolveDomainMedia(
+      {
+        assetId: "asset-1",
+        legacyReference: "portfolio/arc/photo.webp",
+      },
+      context,
+      { lookupAssetById: mockFindAssetById }
+    );
+
+    expect(result.source).toBe("legacy");
+    expect(result.fallbackReason).toBe("tenant_mismatch");
+    expect(result.objectRef?.objectKey).toBe("portfolio/arc/photo.webp");
   });
 });

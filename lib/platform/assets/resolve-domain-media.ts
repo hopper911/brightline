@@ -1,5 +1,5 @@
 /**
- * Transitional domain media resolver (Phase 4C).
+ * Transitional domain media resolver (Phase 4C–4D).
  * Asset-first when PLATFORM_ASSET_READ_ENABLED; legacy fallback always available.
  */
 
@@ -8,6 +8,7 @@ import type { PlatformAssetRecord } from "@/lib/platform/assets/types";
 import { resolveStorageReferenceFromStoredValue } from "@/lib/platform/assets/backfill/resolve-candidate-key";
 import type { PlatformContext } from "@/lib/platform/context/types";
 import { isPlatformFeatureEnabled } from "@/lib/platform/features";
+import { recordAssetReadMetric } from "@/lib/platform/assets/read-observability";
 import type { MediaObjectRef } from "@/lib/platform/media/types";
 
 export type DomainMediaInput = {
@@ -28,10 +29,12 @@ export type ResolveDomainMediaResult = {
   objectRef: MediaObjectRef | null;
   source: "legacy" | "asset" | null;
   conflict?: DomainMediaConflict;
+  fallbackReason?: "flag_off" | "no_asset_id" | "asset_missing" | "tenant_mismatch" | "storage_conflict";
 };
 
 export type ResolveDomainMediaDeps = {
   lookupAssetById?: (assetId: string) => Promise<PlatformAssetRecord | null>;
+  preloadedAssets?: Map<string, PlatformAssetRecord>;
 };
 
 function logDomainMediaConflict(conflict: DomainMediaConflict): void {
@@ -54,42 +57,70 @@ function storageRefsMatch(a: MediaObjectRef, b: MediaObjectRef): boolean {
   return a.vault === b.vault && a.objectKey === b.objectKey;
 }
 
+async function lookupAsset(
+  assetId: string,
+  deps?: ResolveDomainMediaDeps
+): Promise<PlatformAssetRecord | null> {
+  const preloaded = deps?.preloadedAssets?.get(assetId);
+  if (preloaded) return preloaded;
+  const lookup = deps?.lookupAssetById ?? findPlatformAssetById;
+  return lookup(assetId);
+}
+
 /**
  * Resolve a domain row's media to a storage object ref.
  * Flag off → legacy only. Flag on → asset when present; legacy fallback; conflict prefers legacy.
  */
 export async function resolveDomainMedia(
   input: DomainMediaInput,
-  _context: PlatformContext,
+  context: PlatformContext,
   deps?: ResolveDomainMediaDeps
 ): Promise<ResolveDomainMediaResult> {
   const expectVault = input.expectVault ?? "brightline";
-  const lookup = deps?.lookupAssetById ?? findPlatformAssetById;
   const legacyRef = legacyObjectRef(input.legacyReference, expectVault);
 
   if (!isPlatformFeatureEnabled("assetRead")) {
     return legacyRef
-      ? { objectRef: legacyRef, source: "legacy" }
+      ? { objectRef: legacyRef, source: "legacy", fallbackReason: "flag_off" }
       : { objectRef: null, source: null };
   }
 
   const assetId = input.assetId?.trim() || null;
   if (!assetId) {
-    return legacyRef
-      ? { objectRef: legacyRef, source: "legacy" }
-      : { objectRef: null, source: null };
+    if (legacyRef) {
+      recordAssetReadMetric("assetFallbackLegacy", "no_asset_id");
+      return { objectRef: legacyRef, source: "legacy", fallbackReason: "no_asset_id" };
+    }
+    return { objectRef: null, source: null };
   }
 
-  const asset = await lookup(assetId);
+  const asset = await lookupAsset(assetId, deps);
   if (!asset) {
-    return legacyRef
-      ? { objectRef: legacyRef, source: "legacy" }
-      : { objectRef: null, source: null };
+    if (legacyRef) {
+      recordAssetReadMetric("assetMissing", `assetId=${assetId}`);
+      recordAssetReadMetric("assetFallbackLegacy", "asset_missing");
+      return { objectRef: legacyRef, source: "legacy", fallbackReason: "asset_missing" };
+    }
+    recordAssetReadMetric("assetMissing", `assetId=${assetId} no_legacy`);
+    return { objectRef: null, source: null, fallbackReason: "asset_missing" };
+  }
+
+  if (asset.tenantSlug !== context.tenant.slug) {
+    recordAssetReadMetric(
+      "assetTenantMismatch",
+      `assetId=${assetId} assetTenant=${asset.tenantSlug} domainTenant=${context.tenant.slug}`
+    );
+    if (legacyRef) {
+      recordAssetReadMetric("assetFallbackLegacy", "tenant_mismatch");
+      return { objectRef: legacyRef, source: "legacy", fallbackReason: "tenant_mismatch" };
+    }
+    return { objectRef: null, source: null, fallbackReason: "tenant_mismatch" };
   }
 
   const assetRef: MediaObjectRef = { vault: asset.vault, objectKey: asset.objectKey };
 
   if (!legacyRef) {
+    recordAssetReadMetric("assetReadSuccess", `assetId=${assetId}`);
     return { objectRef: assetRef, source: "asset" };
   }
 
@@ -101,9 +132,16 @@ export async function resolveDomainMedia(
       message: `Asset ${assetId} (${asset.objectKey}) disagrees with legacy (${legacyRef.objectKey}); using legacy.`,
     };
     logDomainMediaConflict(conflict);
-    return { objectRef: legacyRef, source: "legacy", conflict };
+    recordAssetReadMetric("assetFallbackLegacy", "storage_conflict");
+    return {
+      objectRef: legacyRef,
+      source: "legacy",
+      conflict,
+      fallbackReason: "storage_conflict",
+    };
   }
 
+  recordAssetReadMetric("assetReadSuccess", `assetId=${assetId}`);
   return { objectRef: assetRef, source: "asset" };
 }
 

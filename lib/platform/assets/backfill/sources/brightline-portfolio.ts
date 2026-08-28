@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import type { AssetBackfillCollectionResult } from "@/lib/platform/assets/backfill/types";
 import { inferMimeTypeFromFilename } from "@/lib/platform/assets/backfill/infer-mime";
 import { resolveStorageReferenceFromStoredValue } from "@/lib/platform/assets/backfill/resolve-candidate-key";
+import {
+  fetchPublishedPortfolioCovers,
+  fetchPublishedPortfolioImages,
+  type BrightlinePortfolioBackfillQuery,
+} from "@/lib/platform/assets/backfill/sources/brightline-portfolio-queries";
 
-export type BrightlinePortfolioBackfillQuery = {
-  limit?: number;
-  cursor?: string;
-  recordId?: string;
-};
+export type { BrightlinePortfolioBackfillQuery };
 
 const SOURCE = "brightline-portfolio" as const;
 
@@ -63,6 +64,20 @@ function tryPushCandidate(
   });
 }
 
+function storedFieldForImage(image: {
+  storageKey: string | null;
+  fullUrl: string | null;
+  url: string;
+}): { field: string; stored: string | null | undefined } {
+  if (image.storageKey?.trim()) {
+    return { field: "storageKey", stored: image.storageKey };
+  }
+  if (image.fullUrl?.trim()) {
+    return { field: "fullUrl", stored: image.fullUrl };
+  }
+  return { field: "url", stored: image.url };
+}
+
 /** Database-driven candidates from published legacy portfolio rows. */
 export async function collectBrightlinePortfolioCandidates(
   query: BrightlinePortfolioBackfillQuery,
@@ -75,32 +90,18 @@ export async function collectBrightlinePortfolioCandidates(
   };
   const seenKeys = new Set<string>();
 
-  const imageWhere = {
-    project: { published: true },
-    ...(query.recordId
-      ? { OR: [{ id: query.recordId }, { projectId: query.recordId }] }
-      : {}),
-    ...(query.cursor ? { id: { gt: query.cursor } } : {}),
-  };
-
-  const images = await client.portfolioImage.findMany({
-    where: imageWhere,
-    orderBy: { id: "asc" },
-    take: query.limit,
-    include: {
-      project: { select: { id: true, slug: true, published: true } },
-    },
-  });
+  const images = await fetchPublishedPortfolioImages(client, query);
 
   for (const image of images) {
     result.rowsExamined += 1;
+    const { field, stored } = storedFieldForImage(image);
     tryPushCandidate(result, seenKeys, {
       recordId: image.id,
       recordType: "PortfolioImage",
-      field: "storageKey",
-      stored: image.storageKey ?? image.fullUrl ?? image.url,
-      projectId: image.project.id,
-      projectSlug: image.project.slug,
+      field,
+      stored,
+      projectId: image.projectId,
+      projectSlug: image.projectSlug,
     });
   }
 
@@ -112,26 +113,15 @@ export async function collectBrightlinePortfolioCandidates(
     query.limit !== undefined ? Math.max(0, query.limit - images.length) : undefined;
   if (remaining === 0) return result;
 
-  const coverWhere = {
-    published: true,
-    OR: [{ coverStorageKey: { not: null } }, { coverUrl: { not: null } }],
-    ...(query.recordId ? { id: query.recordId } : {}),
-    ...(query.cursor ? { id: { gt: query.cursor } } : {}),
-  };
-
-  const projects = await client.portfolioProject.findMany({
-    where: coverWhere,
-    orderBy: { id: "asc" },
-    take: remaining,
-    select: { id: true, slug: true, coverStorageKey: true, coverUrl: true },
-  });
+  const projects = await fetchPublishedPortfolioCovers(client, query, remaining);
 
   for (const project of projects) {
     result.rowsExamined += 1;
+    const field = project.coverStorageKey?.trim() ? "coverStorageKey" : "coverUrl";
     tryPushCandidate(result, seenKeys, {
       recordId: project.id,
       recordType: "PortfolioProject",
-      field: "coverStorageKey",
+      field,
       stored: project.coverStorageKey ?? project.coverUrl,
       projectId: project.id,
       projectSlug: project.slug,

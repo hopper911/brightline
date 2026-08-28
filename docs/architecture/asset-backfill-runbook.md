@@ -100,6 +100,7 @@ Failures list record ids — not signed URLs or secrets.
 
 | Symptom | Likely cause |
 | --- | --- |
+| `PortfolioImage.storageKey does not exist` | Dev DB behind migrations — backfill uses schema-aware raw SQL; run `npm run db:migrate` to sync |
 | `missingBucketConfig` | `R2_BUCKET` / vault creds missing in env |
 | High `invalidReference` | Rows store page paths, external URLs, or empty keys |
 | `conflicts` | Object already registered under another tenant (investigate before force) |

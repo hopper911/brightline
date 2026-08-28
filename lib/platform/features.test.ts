@@ -2,18 +2,11 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import {
   getPlatformFeatures,
   isPlatformFeatureEnabled,
+  parsePlatformEnvFlag,
+  PLATFORM_FEATURE_ENV_KEYS,
 } from "@/lib/platform/features";
 
-const ENV_KEYS = [
-  "PLATFORM_CONTENT_ENABLED",
-  "PLATFORM_MEDIA_ENABLED",
-  "PLATFORM_ASSET_REGISTRY_ENABLED",
-  "PLATFORM_ASSET_READ_ENABLED",
-  "PLATFORM_PUBLISHING_ENABLED",
-  "PLATFORM_IDENTITY_ENABLED",
-  "PLATFORM_JOBS_ENABLED",
-  "PLATFORM_AUDIT_ENABLED",
-] as const;
+const ENV_KEYS = Object.values(PLATFORM_FEATURE_ENV_KEYS);
 
 describe("platform feature flags", () => {
   const saved: Record<string, string | undefined> = {};
@@ -54,5 +47,13 @@ describe("platform feature flags", () => {
     expect(getPlatformFeatures().media).toBe(true);
     expect(getPlatformFeatures().jobs).toBe(true);
     expect(getPlatformFeatures().content).toBe(false);
+  });
+
+  it("parsePlatformEnvFlag honors defaultWhenUnset", () => {
+    delete process.env.PLATFORM_CONTENT_ENABLED;
+    expect(parsePlatformEnvFlag("PLATFORM_CONTENT_ENABLED")).toBe(false);
+    expect(parsePlatformEnvFlag("PLATFORM_CONTENT_ENABLED", true)).toBe(true);
+    process.env.PLATFORM_CONTENT_ENABLED = "false";
+    expect(parsePlatformEnvFlag("PLATFORM_CONTENT_ENABLED", true)).toBe(false);
   });
 });

@@ -17,14 +17,16 @@ export type {
 export {
   getPlatformFeatures,
   isPlatformFeatureEnabled,
+  LEGACY_HANDOFF_FLAG,
+  parsePlatformEnvFlag,
+  PLATFORM_FEATURE_ENV_KEYS,
+  PLATFORM_FLAG_REGISTRY,
   type PlatformFeatureKey,
   type PlatformFeatures,
+  type PlatformFlagCategory,
 } from "@/lib/platform/features";
 export type {
-  PlatformAssetRef,
-  PlatformContentRef,
   PlatformMediaService,
   PlatformPublishTarget,
   PlatformPublishingService,
-  PlatformSignedUrlOptions,
 } from "@/lib/platform/services/types";

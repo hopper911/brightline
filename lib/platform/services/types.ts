@@ -5,7 +5,6 @@
  * Publishing types moved to lib/platform/publishing/ (Phase 6A).
  */
 
-import type { TenantSlug } from "@/lib/platform/tenants";
 import type {
   RecordPlatformAuditInput,
   RecordPlatformAuditResult,
@@ -16,24 +15,7 @@ export type {
   PlatformMediaAssetRef,
 } from "@/lib/platform/media/types";
 
-/** @deprecated Use PlatformMediaAssetRef — Phase 1A shape kept for transitional imports. */
-export type PlatformAssetRef = {
-  tenantSlug: TenantSlug;
-  objectKey: string;
-  vault?: "brightline" | "mirotech-site";
-};
-
-/** @deprecated Superseded by MediaUploadRequest / createDownloadUrl in MediaService (Phase 3A). */
-export type PlatformSignedUrlOptions = {
-  tenantSlug: TenantSlug;
-  objectKey: string;
-  expiresInSeconds?: number;
-};
-
-export type {
-  ContentRef,
-  PlatformContentRef,
-} from "@/lib/platform/content/types";
+export type { ContentRef } from "@/lib/platform/content/types";
 export type { ContentService, PlatformContentService } from "@/lib/platform/content/content-service";
 
 export type {

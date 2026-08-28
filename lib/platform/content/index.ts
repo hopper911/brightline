@@ -53,5 +53,4 @@ export {
   type ContentRef,
   type ContentReferenceSummary,
   type ContentType,
-  type PlatformContentRef,
 } from "@/lib/platform/content/types";

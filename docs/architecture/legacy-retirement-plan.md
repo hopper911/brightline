@@ -144,7 +144,9 @@
 | `PLATFORM_AUDIT_ENABLED` | off | off | Yes — audit writes skipped | Yes — until audit write cutover |
 | `LEGACY_ADMIN_HANDOFF_ENABLED` | **on** | on (default) | Yes — handoff route → SSO redirect | Yes — until SSO replaces handoff |
 
-**Deprecated API:** `platformFeatures` alias in `features.ts` — **~~D~~ REMOVED 11B** (use `getPlatformFeatures()`).
+**Deprecated API:** `platformFeatures` alias — **REMOVED 11B** (use `getPlatformFeatures()`).
+
+**Deprecated type barrel exports** (`PlatformAssetRef`, `PlatformSignedUrlOptions`, public `PlatformContentRef`) — **REMOVED 11C** (canonical types remain: `PlatformMediaAssetRef`, `ContentRef`).
 
 ---
 
@@ -199,7 +201,7 @@
 | --- | --- | --- | --- |
 | ~~1~~ | ~~`lib/dual-brand/sync-journal.ts` shim~~ | **REMOVED 11B** | Done — imports → `journal-ingest` |
 | ~~2~~ | ~~`lib/observability/log.ts` `apiLog` wrapper~~ | **REMOVED 11B** | Done — 6 callers → `platformLog` |
-| 3 | `@deprecated` types in `platform/services/types.ts`, `content/types.ts`, `publishing/types.ts` | **D** | Type cleanup only |
+| ~~3~~ | `@deprecated` types in `platform/services/types.ts`, `content/index.ts` barrel | **REMOVED 11C** | Barrel exports removed; `ContentRef` / mappers kept |
 | ~~4~~ | ~~`platformFeatures` deprecated alias~~ | **REMOVED 11B** | Done — barrel + test updated |
 | 5 | Dual-path **legacy branches** in six upload/sign routes | **B→D** | Remove legacy branch after `PLATFORM_MEDIA_ENABLED` stable |
 | 6 | `legacySyncBlogPostsMirotech` / `legacyPatch*` branches | **B→D** | Remove after `PLATFORM_PUBLISHING_ENABLED` stable |
@@ -242,9 +244,10 @@
 2. **Collect evidence** — `GET /api/admin/platform/metrics`, audit events, manual publish smoke
 3. **Backfill assets** — registry before retiring R2 scan for Studio media
 4. **~~First deletion PR~~ — shims + deprecated types only (batch 1 above)** — **Phase 11B complete** (3 shims/aliases removed; type cleanup deferred to 11C)
-5. **Second deletion PR** — dual-path legacy branches after ≥2 week prod flag
-6. **Handoff retirement** — only after SSO metrics stable and `LEGACY_ADMIN_HANDOFF_ENABLED=false` trial
-7. **Admin route consolidation** — link-only until editors move to Studio (separate phase)
+5. **Phase 11C** — flag inventory consolidated in `lib/platform/features.ts`; **no PLATFORM_* env vars removed** (dual paths active); dead deprecated barrel exports removed
+6. **Second deletion PR** — dual-path legacy branches after ≥2 week prod flag
+7. **Handoff retirement** — only after SSO metrics stable and `LEGACY_ADMIN_HANDOFF_ENABLED=false` trial
+8. **Admin route consolidation** — link-only until editors move to Studio (separate phase)
 
 ---
 

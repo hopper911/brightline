@@ -102,6 +102,32 @@ Never paste production secrets into tickets, chat, or Git.
 
 ---
 
+## Platform migration flags
+
+Architecture strangler toggles live in `lib/platform/features.ts` (`PLATFORM_FEATURE_ENV_KEYS`). **All default off when unset** — legacy paths remain production default until each domain is cut over.
+
+| Env var | Purpose | Category |
+| --- | --- | --- |
+| `PLATFORM_CONTENT_ENABLED` | ContentService reads (Studio content, work preview) | Migration-only |
+| `PLATFORM_MEDIA_ENABLED` | MediaService upload/sign strangler | Migration-only |
+| `PLATFORM_ASSET_REGISTRY_ENABLED` | Asset registry + Studio media list | Migration-only |
+| `PLATFORM_ASSET_READ_ENABLED` | Asset-first portfolio read | Migration-only |
+| `PLATFORM_PUBLISHING_ENABLED` | PublishingService blog/hub sync | Migration-only |
+| `PLATFORM_IDENTITY_ENABLED` | PlatformUser bridge + SSO | Migration-only |
+| `PLATFORM_JOBS_ENABLED` | Async platform jobs + cron drain | Migration-only |
+| `PLATFORM_AUDIT_ENABLED` | Platform audit writes + Studio activity | Migration-only |
+| `LEGACY_ADMIN_HANDOFF_ENABLED` | ho1 handoff tokens (default **on** when unset) | Emergency fallback |
+
+**Vercel:** set flags in the project Environment Variables UI for Production / Preview as needed. Never commit real values.
+
+**Rollback:** set any `PLATFORM_*` flag to `false` or remove it — legacy branch runs again. For handoff, unset or set `LEGACY_ADMIN_HANDOFF_ENABLED=true`.
+
+**Do not remove** these env vars while dual-path code remains (Phase 11A audit). See `docs/architecture/legacy-retirement-plan.md`.
+
+Permanent product toggles (not migration flags): `AI_OPS_UNIFIED`, `SENTRY_ENABLE`, `PLATFORM_SSO_NONCE_STORE` (dev convenience).
+
+---
+
 ## What the deploy script checks
 
 `scripts/deploy-prod.sh` (via `npm run deploy:prod`):

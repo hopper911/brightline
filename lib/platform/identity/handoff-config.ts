@@ -3,13 +3,9 @@
  * Defaults ON so existing nav keeps working when unset.
  */
 
-function parseEnvFlag(name: string, defaultWhenUnset: boolean): boolean {
-  const raw = process.env[name]?.trim().toLowerCase();
-  if (!raw) return defaultWhenUnset;
-  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
-}
+import { LEGACY_HANDOFF_FLAG, parsePlatformEnvFlag } from "@/lib/platform/features";
 
 /** When false, Brightline must not mint new ho1 handoff tokens (SSO preferred). */
 export function isLegacyAdminHandoffEnabled(): boolean {
-  return parseEnvFlag("LEGACY_ADMIN_HANDOFF_ENABLED", true);
+  return parsePlatformEnvFlag(LEGACY_HANDOFF_FLAG.env, LEGACY_HANDOFF_FLAG.defaultWhenUnset);
 }

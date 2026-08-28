@@ -70,6 +70,8 @@ Only after you have **production** connection strings from Neon (and you underst
 
 This repository’s **`deploy:check`** does not load `.env` on purpose, so you must **export** variables in the shell if you want the checker to run `migrate status` against a specific database.
 
+**Platform migration flags** (`PLATFORM_*`, `LEGACY_ADMIN_HANDOFF_ENABLED`) are documented in [deployment.md](./deployment.md#platform-migration-flags). Defaults preserve legacy behavior; no flags were removed in Phase 11C.
+
 ---
 
 ## Full gated release (git + migrate + Vercel)

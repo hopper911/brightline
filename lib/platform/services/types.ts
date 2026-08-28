@@ -52,6 +52,15 @@ export type {
   PlatformJobService,
   JobService,
 } from "@/lib/platform/jobs";
+export type {
+  IdentityService,
+  LegacyIdentityInput,
+  PlatformIdentityService,
+  PlatformMembershipRecord,
+  PlatformMembershipRole,
+  PlatformUserRecord,
+  PlatformUserStatus,
+} from "@/lib/platform/identity";
 
 /** Operational audit trail (implementation: `platformAuditService`). */
 export interface PlatformAuditService {

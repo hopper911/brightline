@@ -5,6 +5,7 @@ export * from "@/lib/platform/media";
 export * from "@/lib/platform/content";
 export * from "@/lib/platform/publishing";
 export * from "@/lib/platform/jobs";
+export * from "@/lib/platform/identity";
 export type {
   MediaReference,
   PlatformAssetRecord,

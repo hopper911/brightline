@@ -2132,6 +2132,7 @@ model PlatformTenant {
   auditEvents PlatformAuditEvent[]
   assets      PlatformAsset[]
   jobs        PlatformJob[]
+  memberships PlatformMembership[]
 
   @@map("platform_tenants")
 }
@@ -2211,4 +2212,64 @@ model PlatformJob {
   @@index([tenantSlug, status, createdAt])
   @@index([type, status])
   @@map("platform_jobs")
+}
+
+enum PlatformUserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum PlatformMembershipRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+/// Central platform user identity (Phase 8A) — additive; legacy auth unchanged.
+model PlatformUser {
+  id        String             @id @default(cuid())
+  email     String?            @unique
+  name      String?
+  status    PlatformUserStatus @default(ACTIVE)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  memberships PlatformMembership[]
+  legacyLinks PlatformLegacyIdentityLink[]
+
+  @@map("platform_users")
+}
+
+/// Tenant membership — one PlatformUser may belong to brightline and mirotech.
+model PlatformMembership {
+  id        String                 @id @default(cuid())
+  userId    String
+  tenantId  String
+  role      PlatformMembershipRole @default(VIEWER)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  user   PlatformUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant PlatformTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+  @@index([tenantId, role])
+  @@map("platform_memberships")
+}
+
+/// Optional bridge from legacy auth identities to PlatformUser (explicit opt-in).
+model PlatformLegacyIdentityLink {
+  id          String   @id @default(cuid())
+  userId      String
+  legacyKind  String
+  legacyRefId String?
+  createdAt   DateTime @default(now())
+
+  user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([legacyKind, legacyRefId])
+  @@index([userId])
+  @@map("platform_legacy_identity_links")
 }

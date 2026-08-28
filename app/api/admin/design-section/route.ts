@@ -4,6 +4,7 @@ import {
   getDesignSectionSettings,
   saveDesignSectionSettings,
 } from "@/lib/design-section-settings";
+import { auditDesignSectionSettingsSaved } from "@/lib/platform/audit/integrations/design-section-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,5 +28,6 @@ export async function PUT(req: Request) {
     return NextResponse.json({ ok: false, error: "Invalid JSON." }, { status: 400 });
   }
   const settings = await saveDesignSectionSettings(body);
+  await auditDesignSectionSettingsSaved(body);
   return NextResponse.json({ ok: true, settings });
 }

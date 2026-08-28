@@ -3,6 +3,8 @@ export {
   auditService,
   platformAuditService,
 } from "@/lib/platform/audit/audit-service";
+export { recordAuditSafely } from "@/lib/platform/audit/record-safely";
+export { auditDesignSectionSettingsSaved } from "@/lib/platform/audit/integrations/design-section-settings";
 export { insertPlatformAuditEvent } from "@/lib/platform/audit/repository";
 export { sanitizeAuditMetadata } from "@/lib/platform/audit/sanitize-metadata";
 export {

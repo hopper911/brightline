@@ -90,10 +90,27 @@ No automatic purge in Phase 2A. Future phases may add TTL/archival policy per te
 
 ## Future use
 
-- Phase 2B: instrument **one** controlled workflow
 - Jobs/agents: `actorType: AGENT` with scoped `actorId`
 - Admin read API behind platform permissions (later)
 - Correlation IDs in metadata (later, optional)
+
+## First production integration (Phase 2B)
+
+| Item | Choice |
+| --- | --- |
+| **Workflow** | `PUT /api/admin/design-section` — saves Brightline Design section CMS settings (`SiteSetting` key `design_section:v1`) |
+| **Why** | Admin-authenticated, non-destructive metadata update; no media, auth, publishing, payments, or client access; clear success boundary via `saveDesignSectionSettings()` |
+| **Integration point** | `app/api/admin/design-section/route.ts` — audit runs **after** successful save |
+| **Helper** | `auditDesignSectionSettingsSaved()` in `lib/platform/audit/integrations/design-section-settings.ts` |
+| **Tenant** | `createPlatformContextForTenant('brightline')` — design section is Brightline public chrome |
+| **Actor** | `SYSTEM` (cookie admin has no stable user id yet; attribution improves in identity phase) |
+| **Action** | `site_setting.updated` |
+| **Resource** | `{ type: 'site_setting', id: 'design_section:v1' }` |
+| **Metadata** | `{ source: 'admin', route, changedFields }` — field names only, no full settings body |
+| **Failure behavior** | `recordAuditSafely()` — business PUT still returns `{ ok: true, settings }`; audit errors logged to stderr |
+| **Flag** | Writes only when `PLATFORM_AUDIT_ENABLED=true` (default off in production) |
+
+Business behavior is unchanged when audit is disabled or fails.
 
 ## Rollback
 
@@ -101,7 +118,7 @@ No automatic purge in Phase 2A. Future phases may add TTL/archival policy per te
 2. Drop `platform_audit_events` when no consumers depend on it
 3. Unset `PLATFORM_AUDIT_ENABLED` (already default off)
 
-No legacy routes call `platformAuditService` in Phase 2A.
+No legacy routes depended on `platformAuditService` before Phase 2B. Phase 2B adds a single optional call in the design-section admin route; remove that call to revert integration without dropping schema.
 
 ## References
 

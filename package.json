@@ -9,6 +9,7 @@
     "dev": "next dev --webpack",
     "build": "prisma generate && next build --webpack",
     "db:migrate": "node scripts/prisma-with-local-env.mjs migrate deploy",
+    "db:migrate:dev": "node scripts/prisma-with-dev-env.mjs migrate deploy",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -45,7 +46,8 @@
     "launch:journal:prod": "BRIGHTLINE_ENV=production npx tsx scripts/launch-journal.ts",
     "format:imported-journal": "npx tsx scripts/format-imported-journal.ts",
     "format:imported-journal:prod": "BRIGHTLINE_ENV=production npx tsx scripts/format-imported-journal.ts",
-    "assets:backfill": "npx tsx scripts/assets-backfill.ts"
+    "assets:backfill": "npx tsx scripts/assets-backfill.ts",
+    "assets:backfill:prod": "BRIGHTLINE_ENV=production npx tsx scripts/assets-backfill.ts"
   },
   "dependencies": {
     "@aws-crypto/crc32c": "^5.2.0",

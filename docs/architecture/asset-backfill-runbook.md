@@ -35,15 +35,41 @@ Legacy storage keys remain authoritative until a later phase wires optional `ass
 From `brightline/`:
 
 ```bash
-# Always dry-run first
+# Development database (.env.local / .env.development.local)
 npm run assets:backfill -- --source=brightline-portfolio --dry-run --limit=25
+
+# Production database — must match where you ran db:migrate
+npm run assets:backfill:prod -- --source=brightline-portfolio --dry-run --limit=25
+# or: BRIGHTLINE_ENV=production npm run assets:backfill -- ...
+```
+
+**Important:** `npm run db:migrate` loads `.env.production.local` and targets **production** Neon. For development schema:
+
+```bash
+npm run db:migrate:dev
+```
+
+Use `assets:backfill` (dev) or `assets:backfill:prod` (production) to match the database you migrated.
 
 # Execute small batch (staging/dev only until approved for production)
 npm run assets:backfill -- --source=brightline-portfolio --limit=25
 
 # Optional R2 existence check (adds remote HEAD per candidate)
 npm run assets:backfill -- --source=brightline-portfolio --dry-run --limit=25 --verify-storage
+
+# Phase 4C: link PortfolioImage.assetId to existing registry rows (after register pass)
+npm run assets:backfill -- --source=brightline-portfolio --link-domain --dry-run --limit=25
 ```
+
+### Phase 4C domain link (`--link-domain`)
+
+Run **after** a register pass created `platform_assets` rows:
+
+1. `--link-domain --dry-run` — reports `wouldLink` / `noAssetMatch` / `domainConflicts`
+2. `--link-domain` execute — sets `PortfolioImage.assetId` only; legacy `url`/`storageKey` untouched
+3. Re-run — expect `alreadyLinked` only
+
+Requires migration `20260828170000_portfolio_image_platform_asset`.
 
 ### Options
 

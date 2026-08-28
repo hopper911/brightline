@@ -20,3 +20,10 @@ export {
 } from "@/lib/platform/assets/types";
 
 export { PlatformAssetNotFoundError, resolveMediaReferenceToObjectRef } from "@/lib/platform/assets/resolve-reference";
+export {
+  portfolioImageLegacyReference,
+  resolveDomainMedia,
+  type DomainMediaConflict,
+  type DomainMediaInput,
+  type ResolveDomainMediaResult,
+} from "@/lib/platform/assets/resolve-domain-media";

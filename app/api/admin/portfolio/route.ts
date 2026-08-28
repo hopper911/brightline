@@ -4,6 +4,7 @@ import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { normalizeProjectSlug } from "@/lib/slugify";
 import { createStudioProjectRecord } from "@/lib/studio/studio-project-cms";
 import { getPublicR2Url } from "@/lib/r2";
+import { lookupPlatformAssetIdsForBrightlineKeys } from "@/lib/platform/assets/integrations/portfolio-image-asset-link";
 import { getWorkPillarList } from "@/lib/work-pillar-settings";
 
 export const runtime = "nodejs";
@@ -337,31 +338,47 @@ export async function PATCH(req: Request) {
     });
 
     if (body.images?.length) {
+      const updateKeys = body.images
+        .map((img) => img.storageKey?.trim())
+        .filter((k): k is string => Boolean(k));
+      const assetIdsByKey = await lookupPlatformAssetIdsForBrightlineKeys(updateKeys);
+
       await Promise.all(
-        body.images.map((img) =>
-          prisma.portfolioImage.update({
+        body.images.map((img) => {
+          const storageKey = img.storageKey?.trim() || undefined;
+          const assetId = storageKey ? assetIdsByKey.get(storageKey) ?? undefined : undefined;
+          return prisma.portfolioImage.update({
             where: { id: img.id },
             data: {
               alt: img.alt ?? undefined,
               sortOrder:
                 typeof img.sortOrder === "number" ? img.sortOrder : undefined,
-              storageKey: img.storageKey ?? undefined,
+              storageKey,
+              ...(assetId ? { assetId } : {}),
             },
-          })
-        )
+          });
+        })
       );
     }
 
     if (body.newImages?.length) {
+      const newKeys = body.newImages
+        .map((img) => img.storageKey?.trim())
+        .filter((k): k is string => Boolean(k));
+      const assetIdsByKey = await lookupPlatformAssetIdsForBrightlineKeys(newKeys);
+
       await prisma.portfolioImage.createMany({
         data: body.newImages.map((img, index) => {
-          const imageUrl = img.storageKey
-            ? getPublicR2Url(img.storageKey)
+          const storageKey = img.storageKey?.trim() || null;
+          const imageUrl = storageKey
+            ? getPublicR2Url(storageKey)
             : img.url || "";
+          const assetId = storageKey ? assetIdsByKey.get(storageKey) ?? null : null;
           return {
             projectId: project.id,
             url: imageUrl,
-            storageKey: img.storageKey ?? null,
+            storageKey,
+            assetId,
             alt: img.alt ?? null,
             sortOrder:
               typeof img.sortOrder === "number" ? img.sortOrder : index,

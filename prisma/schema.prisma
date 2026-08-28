@@ -287,10 +287,15 @@ model PortfolioImage {
   thumbUrl   String?
   fullUrl    String?
   storageKey String?
+  /// Optional platform asset registry link (Phase 4C). Legacy url/storageKey remain authoritative when unset or flag off.
+  assetId    String?
   alt        String?
   sortOrder  Int              @default(0)
   isHero     Boolean          @default(false)
   project    PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  platformAsset PlatformAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([assetId])
 }
 
 // Client portal
@@ -2156,6 +2161,7 @@ model PlatformAsset {
   updatedAt  DateTime                @updatedAt
 
   tenant PlatformTenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  portfolioImages PortfolioImage[]
 
   @@unique([provider, bucket, objectKey])
   @@index([tenantId, createdAt])

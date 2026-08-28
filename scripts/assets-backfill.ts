@@ -4,11 +4,28 @@
  * Usage:
  *   npm run assets:backfill -- --source=brightline-portfolio --dry-run --limit=25
  *
- * Does NOT move, rename, or delete R2 objects. Does NOT modify domain records.
+ * Does NOT move, rename, or delete R2 objects.
+ * Register mode does not change domain rows; --link-domain sets optional assetId only.
  */
 import "./load-cli-env";
 
+function logDatabaseTarget(): void {
+  const host = (() => {
+    try {
+      const url = process.env.DATABASE_URL?.trim();
+      if (!url) return "(DATABASE_URL unset)";
+      return new URL(url).host;
+    } catch {
+      return "(invalid DATABASE_URL)";
+    }
+  })();
+  const env =
+    process.env.BRIGHTLINE_ENV === "production" ? "production" : "development";
+  console.log(`[assets:backfill] database=${host} env=${env}`);
+}
+
 async function main() {
+  logDatabaseTarget();
   const {
     formatBackfillReport,
     runAssetBackfill,
@@ -25,7 +42,9 @@ async function main() {
 
   const options = parseAssetBackfillCliArgs(argv);
   const report = await runAssetBackfill(options);
-  console.log(formatBackfillReport(report));
+  if (!options.linkDomain) {
+    console.log(formatBackfillReport(report));
+  }
 
   const { prisma } = await import("@/lib/prisma");
   await prisma.$disconnect();

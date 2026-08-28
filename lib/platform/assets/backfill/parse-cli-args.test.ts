@@ -15,7 +15,16 @@ describe("parseAssetBackfillCliArgs", () => {
       cursor: undefined,
       recordId: undefined,
       verifyStorage: false,
+      linkDomain: false,
     });
+  });
+
+  it("parses link-domain flag", () => {
+    const parsed = parseAssetBackfillCliArgs([
+      "--source=brightline-portfolio",
+      "--link-domain",
+    ]);
+    expect(parsed.linkDomain).toBe(true);
   });
 
   it("honors DRY_RUN env", () => {

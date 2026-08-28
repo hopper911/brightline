@@ -28,6 +28,8 @@ export type AssetBackfillRunOptions = {
   cursor?: string;
   recordId?: string;
   verifyStorage?: boolean;
+  /** Phase 4C: link domain rows to existing platform_assets (no registry upsert). */
+  linkDomain?: boolean;
 };
 
 export type AssetBackfillFailure = {

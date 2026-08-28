@@ -60,6 +60,30 @@ export async function runAssetBackfill(
   options: AssetBackfillRunOptions,
   client: PrismaClient = prisma
 ): Promise<AssetBackfillReport> {
+  if (options.linkDomain) {
+    const { runBrightlinePortfolioImageAssetLink, formatDomainAssetLinkReport } =
+      await import("@/lib/platform/assets/backfill/link-brightline-portfolio-images");
+    if (options.source !== "brightline-portfolio") {
+      throw new Error("--link-domain is only supported for brightline-portfolio.");
+    }
+    const linkReport = await runBrightlinePortfolioImageAssetLink(options, client);
+    console.log(formatDomainAssetLinkReport(linkReport));
+    return {
+      ...createEmptyBackfillReport(options.source, options.dryRun),
+      examined: linkReport.examined,
+      skipped: linkReport.skipped,
+      invalidReference: linkReport.invalidReference,
+      conflicts: linkReport.domainConflicts,
+      errors: linkReport.errors,
+      failures: linkReport.failures.map((f) => ({
+        recordId: f.recordId,
+        recordType: f.recordType,
+        reason: f.reason === "domainConflict" ? "conflict" : "error",
+        message: f.message,
+      })),
+    };
+  }
+
   const report = createEmptyBackfillReport(options.source, options.dryRun);
 
   const collection = await collectBackfillCandidates(

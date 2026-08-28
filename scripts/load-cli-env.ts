@@ -11,8 +11,10 @@ import dotenv from "dotenv";
 const root = process.cwd();
 
 if (process.env.BRIGHTLINE_ENV === "production") {
-  dotenv.config({ path: path.join(root, ".env.production.local") });
+  // Match scripts/prisma-with-local-env.mjs (db:migrate) so CLI tools hit the same database.
   dotenv.config({ path: path.join(root, ".env") });
+  dotenv.config({ path: path.join(root, ".env.local"), override: true });
+  dotenv.config({ path: path.join(root, ".env.production.local"), override: true });
 } else {
   dotenv.config({ path: path.join(root, ".env") });
   dotenv.config({ path: path.join(root, ".env.local"), override: true });

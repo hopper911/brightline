@@ -7,6 +7,7 @@ export type PlatformFeatureKey =
   | "content"
   | "media"
   | "assets"
+  | "assetRead"
   | "publishing"
   | "identity"
   | "jobs"
@@ -18,6 +19,7 @@ const ENV_KEYS: Readonly<Record<PlatformFeatureKey, string>> = Object.freeze({
   content: "PLATFORM_CONTENT_ENABLED",
   media: "PLATFORM_MEDIA_ENABLED",
   assets: "PLATFORM_ASSET_REGISTRY_ENABLED",
+  assetRead: "PLATFORM_ASSET_READ_ENABLED",
   publishing: "PLATFORM_PUBLISHING_ENABLED",
   identity: "PLATFORM_IDENTITY_ENABLED",
   jobs: "PLATFORM_JOBS_ENABLED",
@@ -36,6 +38,7 @@ export function getPlatformFeatures(): PlatformFeatures {
     content: parseEnvFlag(ENV_KEYS.content),
     media: parseEnvFlag(ENV_KEYS.media),
     assets: parseEnvFlag(ENV_KEYS.assets),
+    assetRead: parseEnvFlag(ENV_KEYS.assetRead),
     publishing: parseEnvFlag(ENV_KEYS.publishing),
     identity: parseEnvFlag(ENV_KEYS.identity),
     jobs: parseEnvFlag(ENV_KEYS.jobs),
@@ -57,6 +60,9 @@ export const platformFeatures = {
   },
   get assets() {
     return isPlatformFeatureEnabled("assets");
+  },
+  get assetRead() {
+    return isPlatformFeatureEnabled("assetRead");
   },
   get publishing() {
     return isPlatformFeatureEnabled("publishing");

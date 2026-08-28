@@ -49,6 +49,7 @@ export function parseAssetBackfillCliArgs(argv: string[]): ParsedAssetBackfillCl
     cursor: readFlagValue(argv, "cursor"),
     recordId: readFlagValue(argv, "record-id"),
     verifyStorage: hasFlag(argv, "verify-storage"),
+    linkDomain: hasFlag(argv, "link-domain"),
   };
 }
 
@@ -65,9 +66,11 @@ Options:
   --cursor=<id>          Resume after domain record id
   --record-id=<id>       Restrict to one PortfolioImage or PortfolioProject id
   --verify-storage       HEAD each object in R2 before registering (optional)
+  --link-domain          Link PortfolioImage.assetId to existing registry rows (Phase 4C)
 
 Examples:
   npm run assets:backfill -- --source=brightline-portfolio --dry-run --limit=25
   npm run assets:backfill -- --source=brightline-portfolio --limit=25 --verify-storage
+  npm run assets:backfill -- --source=brightline-portfolio --link-domain --dry-run --limit=25
 `);
 }

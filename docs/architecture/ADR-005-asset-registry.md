@@ -95,11 +95,27 @@ Only **R2** is implemented. Enum allows future providers without pretending they
 9. **Audit summary** — single `asset.backfill.completed` event when audit flag is on (not per-row noise).
 10. **Rollback** — delete erroneous `platform_assets` rows or truncate table; domain and R2 unchanged.
 
+### Dual reference migration strategy (Phase 4C)
+
+First domain model: **`PortfolioImage`** — optional nullable `assetId` → `platform_assets`.
+
+| Principle | Implementation |
+| --- | --- |
+| Legacy retained | `url`, `storageKey`, `fullUrl` unchanged and still written |
+| Optional FK | `assetId String?` — never required |
+| Registry backfill | Phase 4B `--source=brightline-portfolio` registers storage objects |
+| Domain link backfill | `--link-domain` sets `assetId` via `findByStorageRef` when confident |
+| Read path | `resolveDomainMedia()` — asset-first only when `PLATFORM_ASSET_READ_ENABLED` |
+| Default reads | Flag **off** → legacy refs only (production unchanged) |
+| Conflict | Asset object ≠ legacy object → log warning, **use legacy** |
+| Dual-write | Admin portfolio save sets `assetId` when registry row already exists for `storageKey` |
+| No removal | Do not drop legacy columns until a much later phase |
+
 Future phases:
 
-1. Additional sources (`mirotech-cms-projects`, galleries, etc.)
-2. Optional dual-read (asset id + storage key) on migrated domain columns
-3. Never auto-register entire buckets in production without explicit approval
+1. Additional domain models (`mirotech-cms`, galleries)
+2. Wire `resolveDomainMedia` into public delivery behind `PLATFORM_ASSET_READ_ENABLED`
+3. Never auto-link entire tables without dry-run approval
 
 ### Failure consistency
 
@@ -118,9 +134,10 @@ Future phases:
 
 ## Rollback
 
-1. Set `PLATFORM_ASSET_REGISTRY_ENABLED=false`
-2. Drop `platform_assets` table (migration reverse) if needed — no legacy FKs
-3. Remove registry calls from MediaService — storage paths unchanged
+1. Set `PLATFORM_ASSET_REGISTRY_ENABLED=false` and `PLATFORM_ASSET_READ_ENABLED=false`
+2. Null `PortfolioImage.assetId` or drop FK column if needed — legacy URLs/keys unchanged
+3. Drop `platform_assets` table (migration reverse) if needed — optional FK only
+4. Remove registry calls from MediaService — storage paths unchanged
 
 ## References
 

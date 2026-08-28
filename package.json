@@ -44,7 +44,8 @@
     "launch:journal": "npx tsx scripts/launch-journal.ts",
     "launch:journal:prod": "BRIGHTLINE_ENV=production npx tsx scripts/launch-journal.ts",
     "format:imported-journal": "npx tsx scripts/format-imported-journal.ts",
-    "format:imported-journal:prod": "BRIGHTLINE_ENV=production npx tsx scripts/format-imported-journal.ts"
+    "format:imported-journal:prod": "BRIGHTLINE_ENV=production npx tsx scripts/format-imported-journal.ts",
+    "assets:backfill": "npx tsx scripts/assets-backfill.ts"
   },
   "dependencies": {
     "@aws-crypto/crc32c": "^5.2.0",

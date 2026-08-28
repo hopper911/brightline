@@ -82,9 +82,22 @@ Only **R2** is implemented. Enum allows future providers without pretending they
 
 **Phase 4A: zero backfill.** No R2 scan, no gallery/project/journal updates.
 
+**Phase 4B: controlled database-driven backfill** (see `docs/architecture/asset-backfill-runbook.md`):
+
+1. **Database-first** — domain tables (`PortfolioImage`, etc.) are the source of truth for *meaningful* objects; R2 bucket scans are avoided because buckets contain orphans, tmp uploads, and abandoned files.
+2. **One source per run** — initial source: `brightline-portfolio` (published legacy portfolio keys, Brightline tenant, PUBLIC when prefix policy allows).
+3. **Dry-run required first** — `--dry-run` / `DRY_RUN=1` reports counts without writes.
+4. **Idempotency** — `findPlatformAssetByStorageRef` + `upsertPlatformAssetFromStorageRef`; duplicate physical objects never create duplicate rows.
+5. **No domain mutation** — backfill populates `platform_assets` only; gallery/project/journal rows keep legacy storage keys.
+6. **Optional storage verify** — `--verify-storage` HEADs R2 per candidate; missing objects are skipped, not fatal.
+7. **Private/public safety** — non-public prefixes on published rows register as `PRIVATE` with ambiguity flagged; never default private media to PUBLIC.
+8. **CLI only** — `npm run assets:backfill`; no public API. Production runs require explicit human approval after dry-run review.
+9. **Audit summary** — single `asset.backfill.completed` event when audit flag is on (not per-row noise).
+10. **Rollback** — delete erroneous `platform_assets` rows or truncate table; domain and R2 unchanged.
+
 Future phases:
 
-1. Controlled backfill scripts with dry-run manifests
+1. Additional sources (`mirotech-cms-projects`, galleries, etc.)
 2. Optional dual-read (asset id + storage key) on migrated domain columns
 3. Never auto-register entire buckets in production without explicit approval
 

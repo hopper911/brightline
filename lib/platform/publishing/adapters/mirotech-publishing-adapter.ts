@@ -25,10 +25,8 @@ import type { PublishOperation, PublishRequest, PublishResult } from "@/lib/plat
  * Mirotech-site publishing adapter (Phase 6B).
  *
  * Wraps `syncBlogPostToMirotech` for Brightline blog-post → Mirotech journal ingest.
- * Does not emit audit events — legacy blog PATCH owns operator audit until cutover.
- *
  * Idempotency: **partially safe** — ingest upserts by `brightlinePostId` / `mirotechJournalId`.
- * Repeating the same sync with unchanged post is safe; hub POST create is out of scope here.
+ * Audit: emitted by `blog-mirotech-sync` integration when PLATFORM_PUBLISHING_ENABLED (not here).
  *
  * Authorization: caller must verify admin/automation auth before invoking PublishingService.
  */

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getBlogPosts, saveBlogPosts } from "@/lib/blog-posts";
-import { syncBlogPostsToMirotech } from "@/lib/dual-brand/sync-journal";
+import { resolveBlogPostsMirotechSync } from "@/lib/platform/publishing/integrations/blog-mirotech-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export async function PATCH(req: Request) {
 
     let mirotechSync: Array<{ postId: string; ok: boolean; error?: string }> = [];
     try {
-      const synced = await syncBlogPostsToMirotech(posts);
+      const synced = await resolveBlogPostsMirotechSync(posts);
       mirotechSync = synced.results.map((r) => ({
         postId: r.postId,
         ok: r.ok,

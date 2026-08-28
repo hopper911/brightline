@@ -192,12 +192,32 @@ Delete `lib/platform/publishing/` — nothing routes through it in Phase 6A.
 
 Flag `PLATFORM_PUBLISHING_ENABLED` not wired in 6B.
 
-## Recommended Phase 6C
+## Phase 6C — First publishing consumer cutover (2026-08-28)
 
-1. **First publish consumer cutover** — blog PATCH behind `PLATFORM_PUBLISHING_ENABLED`
-2. **BrightlinePublishingAdapter** — local SiteSetting revalidate + status
-3. **Hub dual-brand-work** publish path via `updateHubProject`
-4. **Publish audit** at service boundary when flag on (avoid duplicate with legacy)
+**Consumer:** Mirotech journal sync on `PATCH /api/admin/blog-posts` (after SiteSetting save).
+
+| | Legacy (flag off) | Platform (flag on) |
+| --- | --- | --- |
+| Auth | `authorizeAdminRequest` on route | Unchanged |
+| Trigger | After `saveBlogPosts` | Same |
+| Sync | `syncBlogPostsToMirotech(posts)` | `resolveBlogPostsMirotechSync` → `DefaultPublishingService` → `MirotechPublishingAdapter` |
+| Response | `{ ok, posts, mirotechSync }` | Same shape |
+| Revalidate | `revalidatePath` on blog/travel/sitemap | Unchanged (route-level) |
+| Audit | None | `publishing.started` / `completed` / `failed` when `PLATFORM_AUDIT_ENABLED` |
+| Double publish | N/A | Single branch in `resolveBlogPostsMirotechSync` |
+
+Flag: **`PLATFORM_PUBLISHING_ENABLED`** (default **off**). Production default: **legacy**.
+
+Release: deploy with flag off → verify legacy → enable in dev/staging → manual production enable → monitor → disable to rollback.
+
+Files: `integrations/blog-mirotech-sync.ts`, `app/api/admin/blog-posts/route.ts`.
+
+## Recommended Phase 6D
+
+1. **BrightlinePublishingAdapter** — blog local publish + revalidate extraction
+2. **Studio Hub** case study publish via `updateHubProject`
+3. **Automation** `/api/projects/publish` behind publishing service
+4. **Hub create idempotency** design
 
 ## Validation (Phase 6A)
 

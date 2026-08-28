@@ -88,7 +88,20 @@ See `lib/platform/media/media-service.ts` and `media-provider.ts`.
 
 ## Rollback
 
-Remove `lib/platform/media/` — no runtime wiring in 3A. No database changes to revert.
+1. Remove `lib/platform/media/server.ts` and provider/service implementation files
+2. Phase 3A types remain; no production routes import `defaultMediaService` in 3B
+3. No database changes to revert
+
+## Phase 3B implementation (2026-08-28)
+
+| Component | Role |
+| --- | --- |
+| `R2MediaProvider` | Wraps `lib/storage-r2.ts` (`signPut`, `signGet`, `headObject`) — reuses S3Client cache |
+| `DefaultMediaService` | Application layer; public keys → `/api/media/public`, private → presigned GET |
+| `lib/platform/media/server.ts` | Server-only exports + `defaultMediaService` singleton |
+| `verifyMediaProviderConfiguration()` | Dev smoke — credential check only, no writes |
+
+Import `@/lib/platform/media/server` in route handlers only. **No existing upload/delivery routes migrated in 3B.**
 
 ## References
 

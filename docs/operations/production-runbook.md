@@ -306,12 +306,7 @@ Use this sequence for production incidents:
 - Automatic backup schedule
 - Branching strategy for prod vs preview
 
-**Operator actions (Neon Dashboard):**
-
-1. Open the Neon project tied to production `DATABASE_URL`.
-2. Review **Branches**, **Restore**, **Backups** / **PITR** (availability depends on Neon plan — verify in console, do not assume).
-3. For logical mistakes: consider restore to new branch, validate, then swap connection strings in Vercel (maintenance window).
-4. For failed migration: fix forward with new migration after team review — avoid destructive SQL.
+**Operator path:** Neon Dashboard → verify available restore/branch features on **actual plan** → see [neon-database-recovery.md](./neon-database-recovery.md) for console audit worksheet and recovery scenarios.
 
 **Never on production without approval:** `prisma migrate reset`, `prisma db push`, manual `DROP TABLE`.
 
@@ -442,4 +437,5 @@ Full template: [.env.example](../../.env.example). Vercel-specific list: [DEPLOY
 | [alerting.md](./alerting.md) | Alert signals |
 | [publishing-cutover-runbook.md](../architecture/publishing-cutover-runbook.md) | Publishing flags |
 | [asset-backfill-runbook.md](../architecture/asset-backfill-runbook.md) | Asset registry |
+| [neon-database-recovery.md](./neon-database-recovery.md) | Neon console audit + PITR/branch recovery |
 | [PHASE-12C-operations-report.md](../architecture/PHASE-12C-operations-report.md) | Phase 12C summary |

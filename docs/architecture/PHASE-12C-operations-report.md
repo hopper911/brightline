@@ -64,7 +64,7 @@ Cross-reference: [alerting.md](../operations/alerting.md) for operational signal
 - PITR retention, backup schedule, branch naming for prod/preview
 - Automated restore runbooks in CI
 
-**Operator path:** Neon Dashboard → verify available restore/branch features on **actual plan** → restore to new branch or PITR if offered → validate → update Vercel `DATABASE_URL`/`DIRECT_URL` during maintenance window.
+**Operator path:** [neon-database-recovery.md](../operations/neon-database-recovery.md) — console audit worksheet, recovery scenarios A–E, connection swap procedure. PITR retention is **plan-specific** — operator must record in private ops notes, not git.
 
 **Prohibited without approval:** `migrate reset`, `db push`, destructive DDL on production.
 
@@ -109,7 +109,7 @@ Deleting `platform_assets` rows does not remove R2 objects; deleting R2 objects 
 
 | Gap | Impact |
 | --- | --- |
-| **No documented Neon PITR/backup procedure in repo** | DB restore depends on Neon console features not captured here |
+| **Neon PITR/branch procedure template** | **Partial** — [neon-database-recovery.md](../operations/neon-database-recovery.md) added; operator must complete private worksheet |
 | **No secondary R2 backup** | Object loss requires external exports |
 | **No automated migration rollback** | Bad DDL requires forward fix or Neon restore |
 | **Platform health route not on current prod** | `/api/platform/health` 404 until foundation deploy promoted |

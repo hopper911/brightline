@@ -43,6 +43,15 @@ export type {
   PublishResult,
   PublishingService,
 } from "@/lib/platform/publishing";
+export type {
+  EnqueueJobInput,
+  EnqueueJobResult,
+  JobPayload,
+  JobRecord,
+  JobStatus,
+  PlatformJobService,
+  JobService,
+} from "@/lib/platform/jobs";
 
 /** Operational audit trail (implementation: `platformAuditService`). */
 export interface PlatformAuditService {

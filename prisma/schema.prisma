@@ -2131,6 +2131,7 @@ model PlatformTenant {
 
   auditEvents PlatformAuditEvent[]
   assets      PlatformAsset[]
+  jobs        PlatformJob[]
 
   @@map("platform_tenants")
 }
@@ -2187,4 +2188,27 @@ model PlatformAuditEvent {
   @@index([resourceType, resourceId])
   @@index([createdAt])
   @@map("platform_audit_events")
+}
+
+/// Durable platform background jobs (Phase 7B).
+model PlatformJob {
+  id             String    @id @default(cuid())
+  tenantId       String?
+  tenantSlug     String
+  type           String
+  status         String
+  payload        Json
+  attempts       Int       @default(0)
+  idempotencyKey String?   @unique
+  errorSummary   String?
+  createdAt      DateTime  @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  failedAt       DateTime?
+
+  tenant PlatformTenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantSlug, status, createdAt])
+  @@index([type, status])
+  @@map("platform_jobs")
 }

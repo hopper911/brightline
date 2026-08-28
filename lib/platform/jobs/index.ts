@@ -15,6 +15,7 @@ export {
 export {
   JOB_STATUSES,
   PLATFORM_HEALTH_TEST_JOB,
+  PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB,
   PLATFORM_JOB_TYPE_PATTERN,
   assertValidEnqueueInput,
   isJobStatus,
@@ -27,7 +28,16 @@ export {
   type KnownPlatformJobType,
 } from "@/lib/platform/jobs/types";
 export { assertSafeJobPayload } from "@/lib/platform/jobs/payload-security";
+export {
+  MAX_PUBLISHING_JOB_ATTEMPTS,
+  buildPublishingMirotechJournalIdempotencyKey,
+  publishingJobPayload,
+  readPublishingJobResult,
+  type PublishingMirotechJournalSyncPayload,
+  type PublishingJobResult,
+} from "@/lib/platform/jobs/publishing-payload";
 export { MemoryJobProvider, memoryJobProvider } from "@/lib/platform/jobs/memory-job-provider";
+export { PrismaJobProvider, prismaJobProvider } from "@/lib/platform/jobs/prisma-job-provider";
 export {
   JobHandlerRegistry,
   defaultJobHandlerRegistry,

@@ -8,15 +8,13 @@ vi.mock("@/lib/platform/audit/record-safely", () => ({
 
 import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
-import { DefaultJobService } from "@/lib/platform/jobs/default-job-service";
+import { createMemoryJobService } from "@/lib/platform/jobs/default-job-service";
 import {
   JobForbiddenError,
   JobInvalidStateError,
   JobsDisabledError,
   JobPayloadError,
 } from "@/lib/platform/jobs/errors";
-import { JobHandlerRegistry } from "@/lib/platform/jobs/job-handler-registry";
-import { MemoryJobProvider } from "@/lib/platform/jobs/memory-job-provider";
 import { PLATFORM_HEALTH_TEST_JOB } from "@/lib/platform/jobs/types";
 
 const ENV_KEY = "PLATFORM_JOBS_ENABLED";
@@ -40,8 +38,7 @@ describe("DefaultJobService", () => {
 
   it("throws when platform jobs flag is off", async () => {
     process.env[ENV_KEY] = "false";
-    const provider = new MemoryJobProvider();
-    const service = new DefaultJobService(provider, new JobHandlerRegistry());
+    const service = createMemoryJobService();
 
     await expect(
       service.enqueue(createPlatformContextForTenant("brightline"), {
@@ -51,9 +48,7 @@ describe("DefaultJobService", () => {
   });
 
   it("enqueues, runs test job, and records audit events", async () => {
-    const provider = new MemoryJobProvider();
-    const registry = new JobHandlerRegistry();
-    const service = new DefaultJobService(provider, registry);
+    const service = createMemoryJobService();
     const context = createPlatformContextForTenant("brightline");
 
     const { jobId } = await service.enqueue(context, { type: PLATFORM_HEALTH_TEST_JOB });
@@ -70,8 +65,7 @@ describe("DefaultJobService", () => {
   });
 
   it("rejects cross-tenant status reads", async () => {
-    const provider = new MemoryJobProvider();
-    const service = new DefaultJobService(provider, new JobHandlerRegistry());
+    const service = createMemoryJobService();
     const brightline = createPlatformContextForTenant("brightline");
     const mirotech = createPlatformContextForTenant("mirotech");
 
@@ -81,7 +75,7 @@ describe("DefaultJobService", () => {
   });
 
   it("rejects unsafe payloads at enqueue", async () => {
-    const service = new DefaultJobService(new MemoryJobProvider(), new JobHandlerRegistry());
+    const service = createMemoryJobService();
     const context = createPlatformContextForTenant("brightline");
 
     await expect(
@@ -93,13 +87,31 @@ describe("DefaultJobService", () => {
   });
 
   it("cannot run a completed job twice", async () => {
-    const provider = new MemoryJobProvider();
-    const service = new DefaultJobService(provider, new JobHandlerRegistry());
+    const service = createMemoryJobService();
     const context = createPlatformContextForTenant("brightline");
 
     const { jobId } = await service.enqueue(context, { type: PLATFORM_HEALTH_TEST_JOB });
     await service.runJob(context, jobId);
 
     await expect(service.runJob(context, jobId)).rejects.toBeInstanceOf(JobInvalidStateError);
+  });
+
+  it("reuses completed idempotent jobs without creating duplicates", async () => {
+    const service = createMemoryJobService();
+    const context = createPlatformContextForTenant("brightline");
+
+    const first = await service.enqueue(context, {
+      type: PLATFORM_HEALTH_TEST_JOB,
+      idempotencyKey: "health-idem-1",
+    });
+    await service.runJob(context, first.jobId);
+
+    const second = await service.enqueue(context, {
+      type: PLATFORM_HEALTH_TEST_JOB,
+      idempotencyKey: "health-idem-1",
+    });
+
+    expect(second.reused).toBe(true);
+    expect(second.jobId).toBe(first.jobId);
   });
 });

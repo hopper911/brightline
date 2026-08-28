@@ -10,8 +10,13 @@ vi.mock("@/lib/platform/audit/record-safely", () => ({
   recordAuditSafely: vi.fn().mockResolvedValue({ ok: true, skipped: true }),
 }));
 
+vi.mock("@/lib/platform/publishing/integrations/blog-mirotech-async-sync", () => ({
+  jobPlatformSyncBlogPostsMirotech: vi.fn(),
+}));
+
 import { syncBlogPostsToMirotech } from "@/lib/dual-brand/sync-journal";
 import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
+import { jobPlatformSyncBlogPostsMirotech } from "@/lib/platform/publishing/integrations/blog-mirotech-async-sync";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import {
   legacySyncBlogPostsMirotech,
@@ -41,7 +46,8 @@ const samplePost = {
 };
 
 describe("blog mirotech sync integration", () => {
-  const savedFlag = process.env.PLATFORM_PUBLISHING_ENABLED;
+  const savedPublishing = process.env.PLATFORM_PUBLISHING_ENABLED;
+  const savedJobs = process.env.PLATFORM_JOBS_ENABLED;
 
   beforeEach(() => {
     vi.mocked(syncBlogPostsToMirotech).mockReset();
@@ -49,8 +55,10 @@ describe("blog mirotech sync integration", () => {
   });
 
   afterEach(() => {
-    if (savedFlag === undefined) delete process.env.PLATFORM_PUBLISHING_ENABLED;
-    else process.env.PLATFORM_PUBLISHING_ENABLED = savedFlag;
+    if (savedPublishing === undefined) delete process.env.PLATFORM_PUBLISHING_ENABLED;
+    else process.env.PLATFORM_PUBLISHING_ENABLED = savedPublishing;
+    if (savedJobs === undefined) delete process.env.PLATFORM_JOBS_ENABLED;
+    else process.env.PLATFORM_JOBS_ENABLED = savedJobs;
   });
 
   it("legacy path delegates to syncBlogPostsToMirotech", async () => {
@@ -73,8 +81,22 @@ describe("blog mirotech sync integration", () => {
     expect(syncBlogPostsToMirotech).toHaveBeenCalled();
   });
 
-  it("resolveBlogPostsMirotechSync uses platform when flag on", async () => {
+  it("resolveBlogPostsMirotechSync uses job path when publishing and jobs enabled", async () => {
     process.env.PLATFORM_PUBLISHING_ENABLED = "true";
+    process.env.PLATFORM_JOBS_ENABLED = "true";
+    vi.mocked(jobPlatformSyncBlogPostsMirotech).mockResolvedValue({
+      posts: [{ ...samplePost, mirotechJournalId: "job-j-1" }],
+      results: [{ postId: "post-1", ok: true, mirotechJournalId: "job-j-1" }],
+    });
+
+    const result = await resolveBlogPostsMirotechSync([samplePost]);
+    expect(jobPlatformSyncBlogPostsMirotech).toHaveBeenCalled();
+    expect(result.results[0]?.mirotechJournalId).toBe("job-j-1");
+  });
+
+  it("resolveBlogPostsMirotechSync uses platform sync when jobs disabled", async () => {
+    process.env.PLATFORM_PUBLISHING_ENABLED = "true";
+    delete process.env.PLATFORM_JOBS_ENABLED;
     const publishingService = {
       publish: vi.fn().mockResolvedValue({
         outcome: "completed",

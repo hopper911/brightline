@@ -15,7 +15,12 @@ export const PLATFORM_JOB_TYPE_PATTERN = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/;
 /** Development / test job — no production mutation (Phase 7A). */
 export const PLATFORM_HEALTH_TEST_JOB = "platform.health.test" as const;
 
-export type KnownPlatformJobType = typeof PLATFORM_HEALTH_TEST_JOB;
+/** Brightline blog → Mirotech journal sync (Phase 7B). */
+export const PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB = "publishing.mirotech.journal.sync" as const;
+
+export type KnownPlatformJobType =
+  | typeof PLATFORM_HEALTH_TEST_JOB
+  | typeof PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB;
 
 /** Serializable job input — IDs and references only; validated by payload-security. */
 export type JobPayload = Readonly<Record<string, unknown>>;
@@ -27,6 +32,7 @@ export type JobRecord = {
   status: JobStatus;
   payload: JobPayload;
   attempts: number;
+  idempotencyKey: string | null;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -37,10 +43,14 @@ export type JobRecord = {
 export type EnqueueJobInput = {
   type: string;
   payload?: JobPayload;
+  idempotencyKey?: string;
 };
 
 export type EnqueueJobResult = {
   jobId: string;
+  /** True when an existing idempotent job was returned without creating a duplicate. */
+  reused?: boolean;
+  status?: JobStatus;
 };
 
 export function isJobStatus(value: unknown): value is JobStatus {

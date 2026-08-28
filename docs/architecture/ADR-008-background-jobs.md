@@ -153,16 +153,27 @@ Uses `recordAuditSafely` — job failure must not break unrelated flows.
 
 No existing route checks this flag in 7A.
 
-## Future publishing migration (Phase 7B+)
+## Phase 7B — first async publishing workflow (implemented)
 
-1. Add `PostgresJobProvider` + cron drain route (guarded like followups cron)
-2. Extend `PublishingService` or integration layer:
-   - `publish` returns `{ outcome: "accepted", jobId }` when async
-   - Admin UI polls `JobService.getStatus`
-3. First real job types: `publishing.mirotech.journal.sync`, `publishing.mirotech.hub.patch`
-4. Keep sync path behind flag for rollback
+**Workflow:** Blog PATCH Mirotech journal sync (`resolveBlogPostsMirotechSync`) — same consumer as Phase 6C.
 
-See [ADR-007](./ADR-007-publishing-service.md) — `accepted` outcome reserved for this handoff.
+**Job type:** `publishing.mirotech.journal.sync`
+
+**Flags (both required for async path):** `PLATFORM_JOBS_ENABLED` + `PLATFORM_PUBLISHING_ENABLED`
+
+**Transition adapter:** Enqueues durable Postgres jobs, then **drains inline** in the same admin PATCH request so `{ posts, mirotechSync }` response shape is unchanged. Future cron drain can replace inline `runJob` without UI changes.
+
+**Idempotency key:** `{jobType}:{tenant}:{contentType}:{id}:{target}:{operation}:{contentVersion}` — reuses COMPLETED jobs; FAILED jobs retry via same key.
+
+**Max attempts:** 3 per publishing job.
+
+## Future (Phase 7C+)
+
+1. Cron drain route `/api/cron/platform-jobs` (guarded like followups cron) — replace inline drain
+2. Optional admin poll UI when response returns `accepted` only
+3. Next job types: `publishing.mirotech.hub.patch` (Studio Hub)
+
+See [ADR-007](./ADR-007-publishing-service.md) — `accepted` outcome still available for true fire-and-forget responses later.
 
 ## Consequences
 
@@ -174,8 +185,8 @@ See [ADR-007](./ADR-007-publishing-service.md) — `accepted` outcome reserved f
 
 **Negative**
 
-- In-memory provider is **not durable** across serverless cold starts — acceptable for 7A only
-- `runJob` is synchronous in-process until cron drain exists
+- Inline worker drain in admin PATCH preserves UI but is not yet fully fire-and-forget
+- Cron drain route deferred to Phase 7C
 
 ## Validation
 

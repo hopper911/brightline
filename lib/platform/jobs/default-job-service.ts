@@ -11,49 +11,73 @@ import {
   JobUnsupportedError,
 } from "@/lib/platform/jobs/errors";
 import {
+  JobHandlerRegistry,
   defaultJobHandlerRegistry,
-  type JobHandlerRegistry,
 } from "@/lib/platform/jobs/job-handler-registry";
 import type { JobProvider } from "@/lib/platform/jobs/job-provider";
 import type { JobService } from "@/lib/platform/jobs/job-service";
-import { memoryJobProvider } from "@/lib/platform/jobs/memory-job-provider";
+import { MemoryJobProvider } from "@/lib/platform/jobs/memory-job-provider";
+import { MAX_PUBLISHING_JOB_ATTEMPTS } from "@/lib/platform/jobs/publishing-payload";
+import { registerDefaultJobHandlers } from "@/lib/platform/jobs/register-default-handlers";
+import { resolveDefaultJobProvider } from "@/lib/platform/jobs/resolve-job-provider";
 import { assertSafeJobPayload } from "@/lib/platform/jobs/payload-security";
 import {
-  PLATFORM_HEALTH_TEST_JOB,
+  PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB,
   assertValidEnqueueInput,
   type EnqueueJobInput,
   type EnqueueJobResult,
   type JobRecord,
 } from "@/lib/platform/jobs/types";
-import { runPlatformHealthTestJob } from "@/lib/platform/jobs/handlers/platform-health-test";
 
 function nowIso(): string {
   return new Date().toISOString();
 }
 
-function registerDefaultHandlers(registry: JobHandlerRegistry): void {
-  if (!registry.has(PLATFORM_HEALTH_TEST_JOB)) {
-    registry.register(PLATFORM_HEALTH_TEST_JOB, runPlatformHealthTestJob);
+function maxAttemptsForJobType(type: string): number {
+  if (type === PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB) {
+    return MAX_PUBLISHING_JOB_ATTEMPTS;
   }
+  return 3;
 }
 
 /**
- * Default JobService — enqueue, status, and in-process execution (Phase 7A).
+ * Default JobService — enqueue, status, and worker execution (Phase 7A/7B).
  *
- * Gated by PLATFORM_JOBS_ENABLED. No production routes call this yet.
+ * Gated by PLATFORM_JOBS_ENABLED. Production consumers opt in via integration modules.
  */
 export class DefaultJobService implements JobService {
+  private readonly provider: JobProvider;
+
   constructor(
-    private readonly provider: JobProvider = memoryJobProvider,
+    provider: JobProvider = resolveDefaultJobProvider(),
     private readonly registry: JobHandlerRegistry = defaultJobHandlerRegistry
   ) {
-    registerDefaultHandlers(this.registry);
+    this.provider = provider;
+    registerDefaultJobHandlers(this.registry, this.provider);
   }
 
   async enqueue(context: PlatformContext, input: EnqueueJobInput): Promise<EnqueueJobResult> {
     this.assertEnabled();
     const valid = assertValidEnqueueInput(input);
     assertSafeJobPayload(valid.payload ?? {});
+
+    const idempotencyKey = input.idempotencyKey?.trim() || null;
+    if (idempotencyKey && this.provider.findByIdempotencyKey) {
+      const existing = await this.provider.findByIdempotencyKey(idempotencyKey);
+      if (existing) {
+        this.assertTenantAccess(context, existing);
+        if (existing.status === "FAILED") {
+          return { jobId: existing.id, reused: true, status: existing.status };
+        }
+        if (
+          existing.status === "PENDING" ||
+          existing.status === "RUNNING" ||
+          existing.status === "COMPLETED"
+        ) {
+          return { jobId: existing.id, reused: true, status: existing.status };
+        }
+      }
+    }
 
     const createdAt = nowIso();
     const record = await this.provider.create({
@@ -62,6 +86,7 @@ export class DefaultJobService implements JobService {
       status: "PENDING",
       payload: valid.payload ?? {},
       attempts: 0,
+      idempotencyKey,
       createdAt,
       startedAt: null,
       completedAt: null,
@@ -74,10 +99,10 @@ export class DefaultJobService implements JobService {
       actor: { type: "SYSTEM" },
       action: "job.created",
       resource: { type: "job", id: record.id },
-      metadata: { jobType: record.type },
+      metadata: { jobType: record.type, idempotencyKey },
     });
 
-    return { jobId: record.id };
+    return { jobId: record.id, status: "PENDING" };
   }
 
   async getStatus(context: PlatformContext, jobId: string): Promise<JobRecord | null> {
@@ -99,6 +124,13 @@ export class DefaultJobService implements JobService {
     if (existing.status !== "PENDING" && existing.status !== "FAILED") {
       throw new JobInvalidStateError(
         `Job ${jobId} is ${existing.status}; only PENDING or FAILED jobs can run.`
+      );
+    }
+
+    const maxAttempts = maxAttemptsForJobType(existing.type);
+    if (existing.attempts >= maxAttempts) {
+      throw new JobInvalidStateError(
+        `Job ${jobId} exceeded maximum attempts (${maxAttempts}).`
       );
     }
 
@@ -178,3 +210,8 @@ export class DefaultJobService implements JobService {
 }
 
 export const defaultJobService = new DefaultJobService();
+
+/** @internal Vitest helper — isolated in-memory job service. */
+export function createMemoryJobService(): DefaultJobService {
+  return new DefaultJobService(new MemoryJobProvider(), new JobHandlerRegistry());
+}

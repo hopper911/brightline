@@ -8,6 +8,7 @@ export {
   resolveBlogPostsMirotechSync,
   type BlogMirotechSyncOutcome,
 } from "@/lib/platform/publishing/integrations/blog-mirotech-sync";
+export { jobPlatformSyncBlogPostsMirotech } from "@/lib/platform/publishing/integrations/blog-mirotech-async-sync";
 export {
   legacyPatchStudioHubBlog,
   legacyPatchStudioHubProject,

@@ -10,11 +10,10 @@ import { isPlatformFeatureEnabled } from "@/lib/platform/features";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { defaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { isPublishingError } from "@/lib/platform/publishing/errors";
+import { jobPlatformSyncBlogPostsMirotech } from "@/lib/platform/publishing/integrations/blog-mirotech-async-sync";
+import type { BlogMirotechSyncOutcome } from "@/lib/platform/publishing/integrations/blog-mirotech-sync-types";
 
-export type BlogMirotechSyncOutcome = {
-  posts: BlogPost[];
-  results: MirotechJournalSyncResult[];
-};
+export type { BlogMirotechSyncOutcome } from "@/lib/platform/publishing/integrations/blog-mirotech-sync-types";
 
 const MIROTECH_TARGET = "mirotech-site" as const;
 
@@ -120,8 +119,10 @@ export async function platformSyncBlogPostsMirotech(
 }
 
 /**
- * Blog PATCH Mirotech journal sync (Phase 6C consumer).
- * Flag off → legacy `syncBlogPostsToMirotech`. Flag on → PublishingService (exactly one path).
+ * Blog PATCH Mirotech journal sync (Phase 6C consumer; Phase 7B async when jobs enabled).
+ * Flag off → legacy syncBlogPostsToMirotech.
+ * Publishing on, jobs off → synchronous PublishingService (6C).
+ * Publishing on, jobs on → enqueue + worker drain (7B); response shape unchanged for admin UI.
  */
 export async function resolveBlogPostsMirotechSync(
   posts: BlogPost[],
@@ -133,9 +134,12 @@ export async function resolveBlogPostsMirotechSync(
   if (!isPlatformFeatureEnabled("publishing")) {
     return legacySyncBlogPostsMirotech(posts);
   }
+  if (isPlatformFeatureEnabled("jobs")) {
+    return jobPlatformSyncBlogPostsMirotech(posts, { actor: options?.actor });
+  }
   return platformSyncBlogPostsMirotech(
     posts,
     options?.publishingService,
-    options?.actor ?? { type: "SYSTEM" }
+    options?.actor ?? { type: "USER" }
   );
 }

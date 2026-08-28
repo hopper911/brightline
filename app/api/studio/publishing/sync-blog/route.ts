@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { canPublishBrightlineJournal, canViewStudioPublishing } from "@/lib/studio/access";
 import { studioActorFromContext } from "@/lib/studio/publishing/actor";
 import { studioSyncBlogPostToMirotech } from "@/lib/studio/publishing/studio-publish-actions";
@@ -16,6 +17,16 @@ export async function POST(req: Request) {
   const context = await resolveStudioOpsContext(req);
   if (!context) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (
+    await isRateLimitedAsync(getClientIp(req), {
+      scope: "studio-publish-sync-blog",
+      max: 30,
+      windowMs: 60 * 60_000,
+    })
+  ) {
+    return NextResponse.json({ ok: false, error: "Too many requests." }, { status: 429 });
   }
 
   const legacyAdmin = context.subjectKind === "legacy_admin";

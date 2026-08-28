@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { isPlatformSsoEnabled } from "@/lib/platform/identity/sso/config";
 import {
   createPlatformStaffSessionToken,
@@ -21,6 +22,14 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   if (!isPlatformSsoEnabled()) {
     return NextResponse.json({ ok: false, error: "SSO disabled." }, { status: 503 });
+  }
+
+  const ip = getClientIp(req);
+  if (
+    (await isRateLimitedAsync(ip, { scope: "platform-sso-redeem", max: 20, windowMs: 15 * 60_000 })) ||
+    (await isRateLimitedAsync(ip, { scope: "platform-sso-redeem-burst", max: 5, windowMs: 60_000 }))
+  ) {
+    return NextResponse.json({ ok: false, error: "Too many requests." }, { status: 429 });
   }
 
   const url = new URL(req.url);

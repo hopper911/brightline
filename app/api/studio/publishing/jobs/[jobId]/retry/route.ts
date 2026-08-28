@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import {
   canRetryPublishingJob,
   canViewStudioPublishing,
@@ -29,6 +30,16 @@ export async function POST(req: Request, ctx: Ctx) {
   const context = await resolveStudioOpsContext(req);
   if (!context) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (
+    await isRateLimitedAsync(getClientIp(req), {
+      scope: "studio-publish-job-retry",
+      max: 40,
+      windowMs: 60 * 60_000,
+    })
+  ) {
+    return NextResponse.json({ ok: false, error: "Too many requests." }, { status: 429 });
   }
 
   const legacyAdmin = context.subjectKind === "legacy_admin";

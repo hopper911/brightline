@@ -207,14 +207,27 @@ Examples:
 - Two parallel paths until `PLATFORM_CONTENT_ENABLED` cutover (`dual-brand/*` + ContentService)
 - Cross-publish writes remain split across Studio Hub, blog sync, and future PublishingService
 
-## Recommended Phase 5B
+## Phase 5B — Mirotech content adapter (2026-08-28)
 
-1. **`DefaultContentService`** behind `PLATFORM_CONTENT_ENABLED` — delegate to providers
-2. **`MiroTechContentProvider`** — wrap `content-api.ts` for `dual-brand-work`, `dual-brand-journal`, `mirotech-journal`
-3. **`BrightlineContentProvider`** — read-only adapters for `work-project`, `blog-post`, `brightline-journal-sync`
-4. **Migrate one public read path** (e.g. `/work/shared/[slug]`) behind flag with legacy fallback
-5. **PublishingService sketch** — `publishHubProject`, `syncJournalPost` wrapping existing write clients (no route replacement)
-6. **Admin studio-hub API** — map Mirotech DTOs to platform types at boundary (reduce raw passthrough)
+Read-only **`MirotechContentAdapter`** implemented beside legacy routes (`PLATFORM_CONTENT_ENABLED` still off).
+
+| Content type | `ContentRef.id` | Legacy seam |
+| --- | --- | --- |
+| `mirotech-case-study` | public slug | `fetchMirotechSiteWorkBySlug()` |
+| `dual-brand-work` | hub project UUID | `getHubProject()` |
+
+Files: `lib/platform/content/adapters/mirotech-content-adapter.ts`, `integrations/map-mirotech-content.ts`, `dto/mirotech-case-study.ts`, `errors.ts`, `server.ts`.
+
+No public route or CMS handler migration in 5B.
+
+## Recommended Phase 5C
+
+1. **`DefaultContentService`** behind `PLATFORM_CONTENT_ENABLED` — registry + delegate to `mirotechContentAdapter`
+2. **`BrightlineContentProvider`** — read-only for `work-project`, `blog-post`, `brightline-journal-sync`
+3. **Migrate one public read path** (e.g. `/work/shared/[slug]`) behind flag with legacy fallback
+4. **Second Mirotech type (optional):** `mirotech-journal` read adapter
+5. **PublishingService sketch** — wrap Studio Hub + journal sync write clients
+6. **Admin studio-hub API** — map Mirotech DTOs to platform types at boundary
 
 ## Validation (Phase 5A)
 

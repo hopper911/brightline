@@ -1,6 +1,25 @@
 export type { ContentProvider, ContentProviderKind, ContentProviderRegistry } from "@/lib/platform/content/content-provider";
 export type { ContentService, PlatformContentService } from "@/lib/platform/content/content-service";
 export {
+  ContentConfigurationError,
+  ContentError,
+  ContentInvalidRefError,
+  ContentNotFoundError,
+  ContentTenantMismatchError,
+  ContentUnsupportedTypeError,
+  isContentError,
+  type ContentErrorCode,
+} from "@/lib/platform/content/errors";
+export type {
+  MirotechCaseStudySnapshot,
+  MirotechCaseStudyStatus,
+} from "@/lib/platform/content/dto/mirotech-case-study";
+export {
+  MIROTECH_ADAPTER_CONTENT_TYPES,
+  isMirotechAdapterContentType,
+  type MirotechAdapterContentType,
+} from "@/lib/platform/content/integrations/map-mirotech-content";
+export {
   assertValidContentRef,
   BRIGHTLINE_DOMAIN_CONTENT_TYPES,
   CONTENT_DISTRIBUTION_STATES,

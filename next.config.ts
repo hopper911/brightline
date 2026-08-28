@@ -92,8 +92,6 @@ const nextConfig: NextConfig = {
     return [
       { source: "/client_access", destination: "/client", permanent: true },
       { source: "/client-access", destination: "/client", permanent: true },
-      { source: "/admin/leads", destination: "/admin/studio-leads", permanent: true },
-      { source: "/admin/leads/:path*", destination: "/admin/studio-leads", permanent: true },
     ];
   },
   async headers() {

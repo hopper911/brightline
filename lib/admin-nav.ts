@@ -159,6 +159,7 @@ export const DEFAULT_ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     id: "legacy",
     label: "Legacy",
     items: [
+      { id: "leads", label: "Leads (legacy)", href: "/admin/leads", visible: true },
       { id: "tags", label: "Tags", href: "/admin/tags", visible: true },
       { id: "testimonials", label: "Testimonials", href: "/admin/testimonials", visible: true },
     ],

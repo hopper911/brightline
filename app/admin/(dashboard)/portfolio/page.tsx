@@ -509,8 +509,8 @@ export default function AdminPortfolioPage() {
         <Link href="/admin/clients" className="btn btn-ghost">
           Manage client access
         </Link>
-        <Link href="/admin/studio-leads" className="btn btn-ghost">
-          Studio leads
+        <Link href="/admin/leads" className="btn btn-ghost">
+          Leads
         </Link>
         <Link href="/admin/projects" className="btn btn-ghost">
           Studio CMS

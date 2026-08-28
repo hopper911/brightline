@@ -220,14 +220,26 @@ Files: `lib/platform/content/adapters/mirotech-content-adapter.ts`, `integration
 
 No public route or CMS handler migration in 5B.
 
-## Recommended Phase 5C
+## Phase 5C — Brightline content adapter (2026-08-28)
 
-1. **`DefaultContentService`** behind `PLATFORM_CONTENT_ENABLED` — registry + delegate to `mirotechContentAdapter`
-2. **`BrightlineContentProvider`** — read-only for `work-project`, `blog-post`, `brightline-journal-sync`
-3. **Migrate one public read path** (e.g. `/work/shared/[slug]`) behind flag with legacy fallback
-4. **Second Mirotech type (optional):** `mirotech-journal` read adapter
-5. **PublishingService sketch** — wrap Studio Hub + journal sync write clients
-6. **Admin studio-hub API** — map Mirotech DTOs to platform types at boundary
+Read-only **`BrightlineContentAdapter`** for public marketing metadata only (`PLATFORM_CONTENT_ENABLED` still off).
+
+| Content type | `ContentRef.id` | Excluded |
+| --- | --- | --- |
+| `work-project` | WorkProject cuid | delivery packages, final package tokens, client PDF ops, gallery data |
+| `portfolio-project` | PortfolioProject cuid | image URLs, access codes, studio/client linkage |
+
+Files: `lib/platform/content/adapters/brightline-content-adapter.ts`, `integrations/default-brightline-content-read.ts`, `dto/brightline-public-content.ts`.
+
+No public route migration in 5C.
+
+## Recommended Phase 5D
+
+1. **`DefaultContentService`** + provider registry behind `PLATFORM_CONTENT_ENABLED`
+2. **Flag-gated cutover** of one public read path (e.g. `/work/shared/[slug]` or work metadata lookup)
+3. **`mirotech-journal`** read adapter (optional second Mirotech type)
+4. **PublishingService** sketch — Studio Hub + journal sync write clients
+5. **Admin studio-hub API** — map DTOs at boundary instead of raw passthrough
 
 ## Validation (Phase 5A)
 

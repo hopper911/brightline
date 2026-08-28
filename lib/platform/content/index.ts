@@ -11,9 +11,19 @@ export {
   type ContentErrorCode,
 } from "@/lib/platform/content/errors";
 export type {
+  BrightlinePortfolioProjectSnapshot,
+  BrightlinePublicContentStatus,
+  BrightlineWorkProjectSnapshot,
+} from "@/lib/platform/content/dto/brightline-public-content";
+export type {
   MirotechCaseStudySnapshot,
   MirotechCaseStudyStatus,
 } from "@/lib/platform/content/dto/mirotech-case-study";
+export {
+  BRIGHTLINE_ADAPTER_CONTENT_TYPES,
+  isBrightlineAdapterContentType,
+  type BrightlineAdapterContentType,
+} from "@/lib/platform/content/integrations/map-brightline-content";
 export {
   MIROTECH_ADAPTER_CONTENT_TYPES,
   isMirotechAdapterContentType,

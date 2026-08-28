@@ -3,9 +3,15 @@
  */
 
 export {
+  BrightlineContentAdapter,
+  brightlineContentAdapter,
+} from "@/lib/platform/content/adapters/brightline-content-adapter";
+export {
   MirotechContentAdapter,
   mirotechContentAdapter,
 } from "@/lib/platform/content/adapters/mirotech-content-adapter";
+export { defaultBrightlineContentReadPort } from "@/lib/platform/content/integrations/default-brightline-content-read";
+export type { BrightlineContentReadPort } from "@/lib/platform/content/integrations/brightline-content-read-port";
 export { defaultMirotechContentReadPort } from "@/lib/platform/content/integrations/default-mirotech-content-read";
 export type { MirotechContentReadPort } from "@/lib/platform/content/integrations/mirotech-content-read-port";
 export {
@@ -18,6 +24,11 @@ export {
   isContentError,
   type ContentErrorCode,
 } from "@/lib/platform/content/errors";
+export type {
+  BrightlinePortfolioProjectSnapshot,
+  BrightlinePublicContentStatus,
+  BrightlineWorkProjectSnapshot,
+} from "@/lib/platform/content/dto/brightline-public-content";
 export type {
   MirotechCaseStudySnapshot,
   MirotechCaseStudyStatus,

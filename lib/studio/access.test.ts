@@ -5,6 +5,8 @@ import {
   canReadStudioMedia,
   canViewStudioPublishing,
   allowedPublishingTenants,
+  allowedAuditTenants,
+  canViewStudioActivity,
   canRetryPublishingJob,
   contentAdminEditHref,
   tenantRouteAllowed,
@@ -52,5 +54,20 @@ describe("studio access", () => {
   it("allows retry only with tenant publish permission", () => {
     expect(canRetryPublishingJob("brightline", ["brightline.journal.publish"], false)).toBe(true);
     expect(canRetryPublishingJob("mirotech", ["brightline.journal.publish"], false)).toBe(false);
+  });
+
+  it("scopes audit tenants by role permissions", () => {
+    const tenants = allowedAuditTenants(
+      [],
+      false,
+      [
+        { tenantSlug: "brightline", role: "ADMIN" },
+        { tenantSlug: "mirotech", role: "VIEWER" },
+      ]
+    );
+    expect(tenants).toEqual(["brightline"]);
+    expect(canViewStudioActivity([], false, [{ tenantSlug: "mirotech", role: "VIEWER" }])).toBe(
+      false
+    );
   });
 });

@@ -47,3 +47,13 @@ export function sanitizeAuditMetadata(
   }
   return out as Prisma.InputJsonValue;
 }
+
+/** Re-sanitize metadata for display (defense in depth for legacy rows). */
+export function sanitizeAuditMetadataForDisplay(
+  input: Record<string, unknown> | null | undefined
+): Record<string, unknown> | null {
+  if (!input || typeof input !== "object") return null;
+  const sanitized = sanitizeAuditMetadata(input);
+  if (!sanitized || typeof sanitized !== "object" || Array.isArray(sanitized)) return null;
+  return sanitized as Record<string, unknown>;
+}

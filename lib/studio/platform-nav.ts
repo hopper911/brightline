@@ -30,6 +30,12 @@ export const STUDIO_PLATFORM_NAV = [
     description: "Publish jobs and distribution status",
   },
   {
+    id: "activity",
+    label: "Activity",
+    href: "/studio/activity",
+    description: "Audit trail and system status",
+  },
+  {
     id: "ops",
     label: "Studio ops",
     href: "/studio/ops",

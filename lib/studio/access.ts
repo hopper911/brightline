@@ -1,5 +1,7 @@
 import type { PlatformPermission } from "@/lib/platform/authorization/permissions";
+import { permissionsForRole } from "@/lib/platform/authorization/role-permissions";
 import type { TenantSlug } from "@/lib/platform/tenants/types";
+import type { StudioOpsMembership } from "@/lib/studio/ops/types";
 
 export function studioLegacyAdminBypass(legacyAdmin: boolean): boolean {
   return legacyAdmin;
@@ -78,6 +80,41 @@ export function canRetryPublishingJob(
   if (legacyAdmin) return true;
   if (jobTenant === "brightline") return canPublishBrightlineJournal(permissions, false);
   return canPublishMirotechJournal(permissions, false);
+}
+
+export function canViewStudioActivity(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean,
+  memberships: StudioOpsMembership[]
+): boolean {
+  if (legacyAdmin) return true;
+  if (permissions.includes("platform.audit.read")) return true;
+  return allowedAuditTenants(permissions, false, memberships).length > 0;
+}
+
+/** Tenants whose audit stream the operator may view. */
+export function allowedAuditTenants(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean,
+  memberships: StudioOpsMembership[]
+): TenantSlug[] {
+  if (legacyAdmin) return memberships.map((m) => m.tenantSlug);
+  const allowed: TenantSlug[] = [];
+  for (const m of memberships) {
+    const rolePerms = permissionsForRole(m.tenantSlug, m.role);
+    if (rolePerms.includes("platform.audit.read")) {
+      allowed.push(m.tenantSlug);
+    }
+  }
+  // Active tenant permissions from identity service may include platform.audit.read
+  if (
+    permissions.includes("platform.audit.read") &&
+    memberships.length === 1 &&
+    !allowed.includes(memberships[0].tenantSlug)
+  ) {
+    allowed.push(memberships[0].tenantSlug);
+  }
+  return [...new Set(allowed)];
 }
 
 export function tenantRouteAllowed(

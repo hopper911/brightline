@@ -8,7 +8,7 @@ export { auditDesignSectionSettingsSaved } from "@/lib/platform/audit/integratio
 export { auditSiteMediaUploadUrlCreated } from "@/lib/platform/audit/integrations/site-media-upload-url";
 export { auditAdminMediaUploadUrlCreated } from "@/lib/platform/audit/integrations/admin-media-upload-url";
 export { auditAdminMediaPreviewUrlCreated } from "@/lib/platform/audit/integrations/admin-media-preview-url";
-export { insertPlatformAuditEvent } from "@/lib/platform/audit/repository";
+export { insertPlatformAuditEvent, listPlatformAuditEvents, findPlatformAuditEventById } from "@/lib/platform/audit/repository";
 export { sanitizeAuditMetadata } from "@/lib/platform/audit/sanitize-metadata";
 export {
   PLATFORM_AUDIT_ACTION_PATTERN,

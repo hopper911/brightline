@@ -126,6 +126,17 @@ Import `@/lib/platform/media/server` in route handlers only. **No existing uploa
 
 Shared: `createBrightlineUploadViaMediaService`, `adminMediaUploadUrlErrorMessage`. Mirotech vault, client gallery, and public `/api/media/public` untouched.
 
+## Phase 3E-1 implementation (2026-08-28)
+
+**Read-only operation:** `signGalleryAsset()` in `lib/gallery-delivery-assets.ts` — presigned GET for private `client-galleries/` keys used by admin gallery detail rendering (`getAdminGalleryDetail`).
+
+| Behavior | Detail |
+| --- | --- |
+| Flag | `PLATFORM_MEDIA_ENABLED` — default **off** (legacy `signGet`) |
+| Auth | Admin session required **before** `getAdminGalleryDetail` loads media URLs |
+| Parity | Same vault (`brightline`), object keys from DB (`storageKey` / `lowResStorageKey`), 3600s default expiry, `{ url, expiresIn }` shape |
+| Deferred | Client gallery route, downloads, uploads, deletion |
+
 ## References
 
 - [`media-current-state.md`](./media-current-state.md)

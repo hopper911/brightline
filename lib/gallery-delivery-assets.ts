@@ -1,5 +1,8 @@
 import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
+import { isPlatformFeatureEnabled } from "@/lib/platform/features";
+import { signGalleryAssetViaMediaService } from "@/lib/platform/media/integrations/gallery-asset-sign";
+import { defaultMediaService } from "@/lib/platform/media/server";
 import { getObjectBuffer, putObjectBuffer, signGet } from "@/lib/storage-r2";
 
 const LOW_RES_MAX_WIDTH = 2200;
@@ -59,5 +62,14 @@ export async function generateLowResForGalleryImage(imageId: string) {
 
 export async function signGalleryAsset(key: string | null | undefined, expiresIn = 3600) {
   if (!key) return null;
+
+  if (isPlatformFeatureEnabled("media")) {
+    return signGalleryAssetViaMediaService(defaultMediaService, {
+      objectKey: key,
+      expiresInSeconds: expiresIn,
+    });
+  }
+
+  // Legacy path — unchanged until full migration (Phase 3E-1 flag off by default).
   return signGet({ key, expiresIn });
 }

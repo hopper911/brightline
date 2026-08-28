@@ -1,6 +1,8 @@
 # ADR-010: Platform RBAC and Legacy Linking
 
-**Status:** Accepted  
+> **Superseded by** [ADR-010-rbac.md](./ADR-010-rbac.md) — this file retained for commit history links.
+
+**Status:** Superseded  
 **Date:** 2026-08-28  
 **Depends on:** [ADR-009](./ADR-009-central-identity.md)
 

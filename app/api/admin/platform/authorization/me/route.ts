@@ -4,39 +4,36 @@ import { defaultAuthorizationService } from "@/lib/platform/authorization/defaul
 import { isAuthorizationError } from "@/lib/platform/authorization/errors";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
 import { isPlatformFeatureEnabled } from "@/lib/platform/features";
-import { defaultIdentityService } from "@/lib/platform/identity/default-identity-service";
 import { resolvePlatformUserFromLegacySession } from "@/lib/platform/identity/legacy-resolver";
+import type { TenantSlug } from "@/lib/platform/tenants/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Admin identity probe — legacy admin cookie + optional platform RBAC dual-auth (Phase 8B).
- * Does NOT replace authorizeAdminRequest.
- */
+function parseTenantParam(url: URL): TenantSlug {
+  const raw = url.searchParams.get("tenant")?.trim().toLowerCase();
+  if (raw === "mirotech") return "mirotech";
+  return "brightline";
+}
+
+/** Effective permissions for legacy admin or mapped PlatformUser (dual-auth probe). */
 export async function GET(req: Request) {
   if (!(await authorizeAdminRequest(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const identityEnabled = isPlatformFeatureEnabled("identity");
-  if (!identityEnabled) {
+  if (!isPlatformFeatureEnabled("identity")) {
     return NextResponse.json({
       ok: true,
-      identityEnabled: false,
       rbacEnabled: false,
-      user: null,
-      memberships: [],
+      tenant: "brightline",
       permissions: [],
     });
   }
 
-  const context = createPlatformContextForTenant("brightline");
+  const tenant = parseTenantParam(new URL(req.url));
+  const context = createPlatformContextForTenant(tenant);
   const user = await resolvePlatformUserFromLegacySession(context, { kind: "admin_access" });
-  const memberships = user
-    ? await defaultIdentityService.getMemberships(context, user.id)
-    : [];
-
   const subject = user
     ? ({ kind: "user" as const, userId: user.id })
     : ({ kind: "legacy_admin" as const });
@@ -44,7 +41,7 @@ export async function GET(req: Request) {
   try {
     await defaultAuthorizationService.requirePermission({
       subject,
-      tenant: "brightline",
+      tenant,
       permission: "platform.identity.read",
     });
   } catch (error) {
@@ -54,18 +51,13 @@ export async function GET(req: Request) {
     throw error;
   }
 
-  const permissions = await defaultAuthorizationService.listPermissions({
-    subject,
-    tenant: "brightline",
-  });
+  const permissions = await defaultAuthorizationService.listPermissions({ subject, tenant });
 
   return NextResponse.json({
     ok: true,
-    identityEnabled: true,
     rbacEnabled: true,
-    rbacProbe: true,
-    user,
-    memberships,
+    tenant,
+    subjectKind: subject.kind,
     permissions,
   });
 }

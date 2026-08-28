@@ -17,7 +17,7 @@ import {
   findPlatformUserByLegacyLink,
   upsertPlatformMembership,
 } from "@/lib/platform/identity/repository";
-import { ensureAccountantPlatformUser } from "@/lib/platform/identity/link-legacy";
+import { ensureAccountantPlatformUser, ensureAdminPlatformUser } from "@/lib/platform/identity/link-legacy";
 
 const savedIdentity = process.env.PLATFORM_IDENTITY_ENABLED;
 
@@ -102,5 +102,54 @@ describe("ensureAccountantPlatformUser", () => {
     expect(result?.linked).toBe(true);
     expect(createPlatformUser).toHaveBeenCalled();
     expect(createPlatformLegacyIdentityLink).toHaveBeenCalled();
+  });
+});
+
+describe("ensureAdminPlatformUser", () => {
+  beforeEach(() => {
+    process.env.PLATFORM_IDENTITY_ENABLED = "true";
+    process.env.ADMIN_EMAIL = "ops@example.com";
+    vi.mocked(findPlatformUserByLegacyLink).mockReset();
+    vi.mocked(findPlatformUserByEmail).mockReset();
+    vi.mocked(createPlatformUser).mockReset();
+    vi.mocked(createPlatformLegacyIdentityLink).mockReset();
+    vi.mocked(upsertPlatformMembership).mockReset();
+  });
+
+  it("returns null without ADMIN_EMAIL", async () => {
+    delete process.env.ADMIN_EMAIL;
+    const result = await ensureAdminPlatformUser();
+    expect(result).toBeNull();
+  });
+
+  it("creates shared admin link and dual tenant memberships", async () => {
+    vi.mocked(findPlatformUserByLegacyLink).mockResolvedValue(null);
+    vi.mocked(findPlatformUserByEmail).mockResolvedValue(null);
+    vi.mocked(createPlatformUser).mockResolvedValue({
+      id: "admin-user",
+      email: "ops@example.com",
+      name: null,
+      status: "ACTIVE",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    vi.mocked(createPlatformLegacyIdentityLink).mockResolvedValue(true);
+    vi.mocked(upsertPlatformMembership).mockResolvedValue({
+      id: "m-1",
+      userId: "admin-user",
+      tenantSlug: "brightline",
+      role: "OWNER",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await ensureAdminPlatformUser();
+    expect(result?.linked).toBe(true);
+    expect(createPlatformLegacyIdentityLink).toHaveBeenCalledWith({
+      userId: "admin-user",
+      legacyKind: "admin_access",
+      legacyRefId: "shared",
+    });
+    expect(upsertPlatformMembership).toHaveBeenCalledTimes(2);
   });
 });

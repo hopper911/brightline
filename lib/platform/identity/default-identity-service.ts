@@ -10,6 +10,7 @@ import {
   findPlatformUserByLegacyLink,
   listPlatformMembershipsForUserInTenant,
 } from "@/lib/platform/identity/repository";
+import { ADMIN_ACCESS_LEGACY_REF_ID } from "@/lib/platform/identity/link-legacy";
 import type { LegacyIdentityInput, PlatformMembershipRecord, PlatformMembershipRole, PlatformUserRecord } from "@/lib/platform/identity/types";
 import { hasMinPlatformRole } from "@/lib/platform/identity/rbac";
 
@@ -45,7 +46,11 @@ export class DefaultIdentityService implements IdentityService {
     this.assertEnabled();
     void context;
 
-    if (input.kind === "admin_access" || input.kind === "automation_bearer") {
+    if (input.kind === "admin_access") {
+      return findPlatformUserByLegacyLink("admin_access", ADMIN_ACCESS_LEGACY_REF_ID);
+    }
+
+    if (input.kind === "automation_bearer") {
       return null;
     }
 

@@ -24,6 +24,7 @@ export const DEFAULT_ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: "Operate",
     items: [
       { id: "studio", label: "Mission Control", href: "/studio", visible: true },
+      { id: "studio_ops", label: "Studio ops", href: "/studio/ops", visible: true },
       { id: "studio_tasks", label: "Tasks", href: "/studio/tasks", visible: true },
       { id: "studio_calendar", label: "Calendar", href: "/studio/calendar", visible: true },
       { id: "finance", label: "Finance", href: "/studio/finance", visible: true },

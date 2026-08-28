@@ -6,6 +6,7 @@ import {
   mirotechSiteOrigin,
   sanitizeMirotechAdminPath,
 } from "@/lib/mirotech-admin-handoff";
+import { isLegacyAdminHandoffEnabled } from "@/lib/platform/identity/handoff-config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,15 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   if (!hasAdminAccessFromRequest(req)) {
     return NextResponse.redirect(new URL("/admin/login", req.url), 302);
+  }
+
+  if (!isLegacyAdminHandoffEnabled()) {
+    const url = new URL(req.url);
+    const next = sanitizeMirotechAdminPath(url.searchParams.get("next"));
+    const ssoStart = new URL("/api/admin/platform/sso/start", url.origin);
+    ssoStart.searchParams.set("target", "mirotech");
+    ssoStart.searchParams.set("returnTo", next);
+    return NextResponse.redirect(ssoStart.toString(), 302);
   }
 
   if (!isMirotechHandoffConfigured()) {

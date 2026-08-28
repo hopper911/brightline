@@ -2,14 +2,16 @@ import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { isPlatformSsoEnabled } from "@/lib/platform/identity/sso/config";
 import {
+  createPlatformStaffSessionToken,
   createSsoStateToken,
   PLATFORM_SSO_STATE_COOKIE,
+  PLATFORM_STAFF_SESSION_COOKIE,
   PLATFORM_STAFF_SESSION_MAX_AGE_SEC,
-  readPlatformStaffUserIdFromRequest,
 } from "@/lib/platform/identity/sso/platform-staff-session";
 import { sanitizeSsoReturnPath } from "@/lib/platform/identity/sso/redirect-allowlist";
 import { ssoExchangeService } from "@/lib/platform/identity/sso/sso-exchange-service";
 import type { SsoAudience } from "@/lib/platform/identity/sso/types";
+import { resolveStaffUserIdForCrossDomainSso } from "@/lib/platform/identity/resolve-staff-user-id";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,8 +23,7 @@ function parseTarget(raw: string | null): SsoAudience | null {
 }
 
 /**
- * Opt-in SSO start (Phase 8C) — legacy admin cookie required; does NOT replace login.
- * Requires platform_staff_session (prior SSO) or returns legacy handoff fallback hint.
+ * Opt-in SSO start (Phase 8C/8D) — legacy admin cookie required; bootstraps PlatformUser when linked.
  */
 export async function GET(req: Request) {
   if (!(await authorizeAdminRequest(req))) {
@@ -46,7 +47,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "Invalid SSO target." }, { status: 400 });
   }
 
-  const userId = readPlatformStaffUserIdFromRequest(req);
+  const userId = await resolveStaffUserIdForCrossDomainSso(req);
   if (!userId) {
     return NextResponse.json({
       ok: false,
@@ -78,5 +79,15 @@ export async function GET(req: Request) {
     path: "/",
     maxAge: 300,
   });
+  const staffToken = createPlatformStaffSessionToken(userId);
+  if (staffToken) {
+    res.cookies.set(PLATFORM_STAFF_SESSION_COOKIE, staffToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: PLATFORM_STAFF_SESSION_MAX_AGE_SEC,
+    });
+  }
   return res;
 }

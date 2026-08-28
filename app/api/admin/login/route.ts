@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ADMIN_ACCESS_COOKIE } from "@/lib/admin-cookie";
 import { ADMIN_SESSION_MAX_AGE_SEC, createAdminSessionToken } from "@/lib/admin-session";
+import { ensureAdminPlatformUser } from "@/lib/platform/identity/link-legacy";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { resolveAdminAccessCode } from "@/lib/resolve-admin-access-code";
 
@@ -93,5 +94,12 @@ export async function POST(req: Request) {
     path: "/",
     maxAge: ADMIN_SESSION_MAX_AGE_SEC,
   });
+
+  try {
+    await ensureAdminPlatformUser();
+  } catch (error) {
+    console.error("[admin-login] ensureAdminPlatformUser failed:", error);
+  }
+
   return res;
 }

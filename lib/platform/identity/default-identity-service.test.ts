@@ -73,10 +73,11 @@ describe("DefaultIdentityService", () => {
     expect(listPlatformMembershipsForUserInTenant).toHaveBeenCalledWith("user-1", "brightline");
   });
 
-  it("resolveLegacyIdentity returns null for admin_access", async () => {
+  it("resolveLegacyIdentity looks up admin_access shared link", async () => {
+    vi.mocked(findPlatformUserByLegacyLink).mockResolvedValue(sampleUser);
     const user = await service.resolveLegacyIdentity(context, { kind: "admin_access" });
-    expect(user).toBeNull();
-    expect(findPlatformUserByLegacyLink).not.toHaveBeenCalled();
+    expect(user?.id).toBe("user-1");
+    expect(findPlatformUserByLegacyLink).toHaveBeenCalledWith("admin_access", "shared");
   });
 
   it("resolveLegacyIdentity looks up accountant_access links", async () => {

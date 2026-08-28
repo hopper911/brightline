@@ -251,6 +251,18 @@ async function main() {
       },
     });
   }
+
+  // Platform tenants (Phase 1A) — idempotent; does not affect Studio OS demo data.
+  for (const row of [
+    { slug: "brightline", name: "Brightline Photography" },
+    { slug: "mirotech", name: "MiroTech Solutions" },
+  ]) {
+    await prisma.platformTenant.upsert({
+      where: { slug: row.slug },
+      create: row,
+      update: { name: row.name },
+    });
+  }
 }
 
 main()

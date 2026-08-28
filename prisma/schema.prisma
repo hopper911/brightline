@@ -2114,3 +2114,15 @@ model AccountantAuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
 }
+
+// --- Platform domain (additive migration; no FKs to legacy tables yet) ---
+
+model PlatformTenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_tenants")
+}

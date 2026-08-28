@@ -1,0 +1,25 @@
+---
+description: Canonical Brightline domain is brightlinephotography.com — never .co in new code
+alwaysApply: true
+---
+
+# Brightline canonical domain — `.com` only
+
+Production site: **`https://brightlinephotography.com`** (`lib/truth/brand-lock.ts`).
+
+## Hard rules
+
+- **Never** use `brightlinephotography.co` in URLs, env vars, emails, or docs for the live site.
+- Use `CANONICAL_SITE_ORIGIN`, `CANONICAL_SITE_DOMAIN`, `CANONICAL_MEDIA_ORIGIN`, `CANONICAL_IMAGES_HOST` from `lib/truth/brand-lock.ts`.
+- Legacy `.co` is **redirect-only** (`vercel.json`) and tenant hostname alias (`LEGACY_BRIGHTLINE_SITE_DOMAIN`) — not canonical.
+
+## Allowed `.co` references (only)
+
+- `vercel.json` / root `vercel.json` redirect rules
+- `LEGACY_BRIGHTLINE_*` constants and `isLegacyBrightlineCoHost()` for reading old stored URLs
+- `lib/platform/tenants/registry.ts` alias map
+- Resolver tests and deploy docs that document redirects
+
+## Guard
+
+`lib/truth/canonical-domain.test.ts` scans the repo and fails CI if `.co` appears outside the allowlist.

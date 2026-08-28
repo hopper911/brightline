@@ -19,6 +19,8 @@ describe("frozen truth — permanent baseline", () => {
     expect(TRUTH_FROZEN_AT).toBe("2026-08-01");
     expect(SITE_STATE.productionOrigin).toBe(CANONICAL_SITE_ORIGIN);
     expect(BRAND.url).toBe(CANONICAL_SITE_ORIGIN);
+    expect(CANONICAL_SITE_ORIGIN).toBe("https://brightlinephotography.com");
+    expect(CANONICAL_SITE_ORIGIN.endsWith(".com")).toBe(true);
   });
 
   it("locks public nav brand wording", () => {

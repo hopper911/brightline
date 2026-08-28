@@ -456,7 +456,7 @@ If user has `prefers-reduced-motion: reduce`:
 ### Environment
 
 ```
-NEXT_PUBLIC_MEDIA_URL=https://media.brightlinephotography.co
+NEXT_PUBLIC_MEDIA_URL=https://media.brightlinephotography.com
 NEXT_PUBLIC_HERO_VIDEO_KEY=videos/hero/intro-v1
 ```
 

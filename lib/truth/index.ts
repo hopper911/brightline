@@ -22,4 +22,5 @@ export {
   ALLOWED_UPLOAD_MIME_TYPES,
   SECURITY_MUST_USE,
 } from "@/lib/truth/security";
-export { SERVICE_AREA_LOCATIONS, CANONICAL_SITE_ORIGIN } from "@/lib/truth/brand-lock";
+export { SERVICE_AREA_LOCATIONS, CANONICAL_SITE_ORIGIN, CANONICAL_SITE_DOMAIN, CANONICAL_MEDIA_ORIGIN, CANONICAL_MEDIA_HOST, CANONICAL_IMAGES_HOST, LEGACY_BRIGHTLINE_SITE_DOMAIN, isBrightlineSiteHost, isLegacyBrightlineCoHost } from "@/lib/truth/brand-lock";
+export { findLegacyCoDomainViolations, LEGACY_CO_DOMAIN_ALLOWLIST, FORBIDDEN_CO_DOMAIN_PATTERN } from "@/lib/truth/canonical-domain";

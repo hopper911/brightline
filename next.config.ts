@@ -2,6 +2,7 @@ import path from "path";
 import { createRequire } from "module";
 import { loadEnvConfig } from "@next/env";
 import type { NextConfig } from "next";
+import { CANONICAL_IMAGES_HOST } from "./lib/truth/brand-lock";
 import { mergeParentDotenvIntoProcess } from "./lib/merge-parent-dotenv";
 
 const require = createRequire(import.meta.url);
@@ -72,7 +73,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "images.brightlinephotography.co",
+        hostname: CANONICAL_IMAGES_HOST,
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "**.brightlinephotography.com",
         pathname: "/**",
       },
       {

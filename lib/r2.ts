@@ -4,6 +4,10 @@
  * If the DB already holds a full https URL to our R2/public host, pass it through for img src.
  */
 
+import {
+  CANONICAL_IMAGES_HOST,
+  isLegacyBrightlineCoHost,
+} from "@/lib/truth/brand-lock";
 import { preferPortfolioWebFullKey } from "@/lib/portfolio-web-full";
 
 export function isTrustedR2Host(hostname: string): boolean {
@@ -11,7 +15,8 @@ export function isTrustedR2Host(hostname: string): boolean {
   return (
     h.endsWith(".r2.dev") ||
     h.endsWith(".r2.cloudflarestorage.com") ||
-    h === "images.brightlinephotography.co" ||
+    h === CANONICAL_IMAGES_HOST ||
+    isLegacyBrightlineCoHost(h) ||
     h === "mirotech.solutions" ||
     h.endsWith(".mirotech.solutions")
   );

@@ -1,4 +1,5 @@
 import type { TenantConfig, TenantSlug } from "@/lib/platform/tenants/types";
+import { LEGACY_BRIGHTLINE_SITE_DOMAIN } from "@/lib/truth/brand-lock";
 
 /** Canonical tenant registry — single source for names, domains, and public origins. */
 export const TENANT_REGISTRY: Readonly<Record<TenantSlug, TenantConfig>> = Object.freeze({
@@ -16,9 +17,9 @@ export const TENANT_REGISTRY: Readonly<Record<TenantSlug, TenantConfig>> = Objec
   },
 });
 
-/** Alternate hostnames that resolve to a tenant (e.g. legacy .co redirects). */
+/** Alternate hostnames that resolve to a tenant (legacy .co redirect source only). */
 export const TENANT_HOSTNAME_ALIASES: Readonly<Partial<Record<string, TenantSlug>>> = Object.freeze({
-  "brightlinephotography.co": "brightline",
+  [LEGACY_BRIGHTLINE_SITE_DOMAIN]: "brightline",
 });
 
 export function getTenantConfig(slug: TenantSlug): TenantConfig {

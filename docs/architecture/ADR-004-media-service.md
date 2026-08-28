@@ -103,6 +103,17 @@ See `lib/platform/media/media-service.ts` and `media-provider.ts`.
 
 Import `@/lib/platform/media/server` in route handlers only. **No existing upload/delivery routes migrated in 3B.**
 
+## Phase 3C implementation (2026-08-28)
+
+**First consumer:** `POST /api/admin/site-media/upload-url` (admin CMS media upload URL).
+
+| Behavior | Detail |
+| --- | --- |
+| Flag | `PLATFORM_MEDIA_ENABLED` — default **off** (legacy `signPut` path) |
+| Parity | Same bucket (`brightline`), key (`site/{folder}/{ts}-{name}`), response `{ ok, url, headers, key, publicUrl }`, public-read ACL, 3600s presign default |
+| Audit | Optional `media.upload_url.created` via `recordAuditSafely` on platform path only |
+| Rollback | Set `PLATFORM_MEDIA_ENABLED=false` |
+
 ## References
 
 - [`media-current-state.md`](./media-current-state.md)

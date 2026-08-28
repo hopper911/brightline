@@ -390,14 +390,8 @@ model Lead {
   source            String?
   internalNotes     String?
   contactedAt       DateTime?
-  /// Optional link to Studio OS lead record (`StudioLead.id`).
-  studioLeadId      String?   @unique
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-
-  studioLead StudioLead? @relation("LegacyLeadToStudioLead", fields: [studioLeadId], references: [id], onDelete: SetNull)
-
-  @@index([studioLeadId])
 }
 
 model Gallery {
@@ -1406,14 +1400,11 @@ model StudioLead {
   notes              String?
   convertedClientId  String?
   convertedProjectId String?
-  /// Optional pointer to legacy `Lead.id` for compatibility during transition.
-  legacyLeadId       String?    @unique
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
   convertedClient  StudioClient?  @relation(fields: [convertedClientId], references: [id], onDelete: SetNull)
   convertedProject StudioProject? @relation(fields: [convertedProjectId], references: [id], onDelete: SetNull)
-  legacyLead       Lead?          @relation("LegacyLeadToStudioLead")
   emailThreads     StudioEmailThread[]
 
   @@index([status])

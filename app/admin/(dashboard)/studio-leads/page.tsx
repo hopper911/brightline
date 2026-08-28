@@ -78,13 +78,10 @@ export default async function AdminStudioLeadsPage({
             Normalized lead records (conversion-ready).
           </p>
           <p className="mt-1 text-xs text-white/45">
-            Primary pipeline — legacy webform rows remain under Leads (legacy).
+            Primary inbound pipeline — use Studio leads for new intake and conversion.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/admin/leads" className="btn btn-ghost">
-            Inbound leads (legacy)
-          </Link>
           <Link href="/admin/studio-leads/new" className="btn btn-primary">
             New lead
           </Link>

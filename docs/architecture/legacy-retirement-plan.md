@@ -162,7 +162,8 @@
 | `PlatformJob.tenantId` + `tenantSlug` | platform tables | **A** | Same | **KEEP** |
 | `PlatformLegacyIdentityLink` | identity bridge | **A** | Yes while legacy login coexists | **KEEP** — prod 0 rows, runtime gated |
 | `PlatformSsoExchangeNonce` | SSO | **B** | Yes when SSO enabled | **KEEP** |
-| `Lead.studioLeadId` / `StudioLead.legacyLeadId` | schema | **C** | Never wired in app | **READY FOR FUTURE DROP** |
+| `Lead.studioLeadId` / `StudioLead.legacyLeadId` | schema | **~~C~~ REMOVED 11E** | Bridge never wired | Dropped — see `20260828210000_drop_lead_studio_lead_bridge` |
+| `Lead` table + legacy API | schema/routes | **A→retired** | Was parallel to StudioLead | API/UI removed; table kept; redirect to `/admin/studio-leads` |
 | `BlogPost.mirotechJournalId`, `publishToMirotech` | SiteSetting JSON | **A** | Yes — publish state | **KEEP** |
 | `StudioMedia` + `heroStudioMediaId` | schema | **C/E** | Scaffold — seed only; prod empty | **KEEP** table; **READY FOR FUTURE DROP** on unused columns |
 | `StudioProject.client` vs `clientId` | schema | **A/B** | String canonical; FK sparse | **STOP WRITING FIRST** on string after FK wired |
@@ -251,7 +252,8 @@
 4. **~~First deletion PR~~ — shims + deprecated types only (batch 1 above)** — **Phase 11B complete** (3 shims/aliases removed; type cleanup deferred to 11C)
 5. **Phase 11C** — flag inventory consolidated in `lib/platform/features.ts`; **no PLATFORM_* env vars removed** (dual paths active); dead deprecated barrel exports removed
 6. **Phase 11D** — database legacy field retirement **analysis** (coverage + recommendations); **no schema changes**
-7. **Second deletion PR** — dual-path legacy branches after ≥2 week prod flag
+7. **Phase 11E** — legacy Lead API retired; `Lead.studioLeadId` / `StudioLead.legacyLeadId` dropped (migration `20260828210000`)
+8. **Second deletion PR** — dual-path legacy branches after ≥2 week prod flag
 8. **Handoff retirement** — only after SSO metrics stable and `LEGACY_ADMIN_HANDOFF_ENABLED=false` trial
 9. **Admin route consolidation** — link-only until editors move to Studio (separate phase)
 

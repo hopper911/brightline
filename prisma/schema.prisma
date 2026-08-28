@@ -2125,8 +2125,41 @@ model PlatformTenant {
   updatedAt DateTime @updatedAt
 
   auditEvents PlatformAuditEvent[]
+  assets      PlatformAsset[]
 
   @@map("platform_tenants")
+}
+
+enum PlatformStorageProvider {
+  R2
+}
+
+enum PlatformAssetVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+/// Platform media registry (Phase 4A) — stable asset identity separate from domain models like MediaAsset / GalleryImage.
+model PlatformAsset {
+  id         String                  @id @default(cuid())
+  tenantId   String
+  provider   PlatformStorageProvider   @default(R2)
+  /// Logical vault id (brightline | mirotech-site) for MediaObjectRef resolution — not a storage migration path.
+  vault      String
+  bucket     String
+  objectKey  String
+  filename   String?
+  mimeType   String?
+  visibility PlatformAssetVisibility   @default(PRIVATE)
+  metadata   Json?
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+
+  tenant PlatformTenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, bucket, objectKey])
+  @@index([tenantId, createdAt])
+  @@map("platform_assets")
 }
 
 model PlatformAuditEvent {

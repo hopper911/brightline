@@ -12,6 +12,9 @@ describe("Phase 3D upload URL integrations", () => {
     getAssetUrl: vi.fn(),
     createDownloadUrl: vi.fn(),
     exists: vi.fn(),
+    headObject: vi.fn(),
+    resolveToObjectRef: vi.fn(),
+    registerAsset: vi.fn(),
   };
 
   beforeEach(() => {

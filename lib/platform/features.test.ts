@@ -8,6 +8,7 @@ import {
 const ENV_KEYS = [
   "PLATFORM_CONTENT_ENABLED",
   "PLATFORM_MEDIA_ENABLED",
+  "PLATFORM_ASSET_REGISTRY_ENABLED",
   "PLATFORM_PUBLISHING_ENABLED",
   "PLATFORM_IDENTITY_ENABLED",
   "PLATFORM_JOBS_ENABLED",
@@ -36,6 +37,7 @@ describe("platform feature flags", () => {
     expect(flags).toEqual({
       content: false,
       media: false,
+      assets: false,
       publishing: false,
       identity: false,
       jobs: false,

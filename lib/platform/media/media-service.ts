@@ -12,6 +12,7 @@ import type {
   MediaUploadResult,
   SignedMediaReadUrl,
 } from "@/lib/platform/media/types";
+import type { MediaReference, RegisterPlatformAssetInput, RegisterPlatformAssetResult } from "@/lib/platform/assets/types";
 
 export interface MediaService {
   /** Presigned upload URL for a new object key. */
@@ -35,6 +36,19 @@ export interface MediaService {
 
   /** Object metadata (HeadObject) — null when not found. */
   headObject(context: PlatformContext, object: MediaObjectRef): Promise<MediaHeadResult | null>;
+
+  /** Resolve legacy storage ref or platform asset id to MediaObjectRef. */
+  resolveToObjectRef(context: PlatformContext, reference: MediaReference): Promise<MediaObjectRef>;
+
+  /**
+   * Register a storage object in the platform asset registry (optional, flag-gated).
+   * Non-strict failures must not block upload/delivery callers.
+   */
+  registerAsset(
+    context: PlatformContext,
+    input: RegisterPlatformAssetInput,
+    options?: { strict?: boolean }
+  ): Promise<RegisterPlatformAssetResult>;
 }
 
 /** Alias aligned with Phase 1A service boundary naming. */

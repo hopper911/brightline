@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+vi.mock("server-only", () => ({}));
+
 import { DefaultMediaService } from "@/lib/platform/media/default-media-service";
 import type { MediaProvider } from "@/lib/platform/media/media-provider";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
@@ -14,7 +16,13 @@ describe("DefaultMediaService", () => {
     exists: vi.fn(),
   };
 
-  const service = new DefaultMediaService(provider);
+  const registry = {
+    findById: vi.fn(),
+    findByStorageRef: vi.fn(),
+    register: vi.fn(),
+  };
+
+  const service = new DefaultMediaService(provider, registry as never);
   const context = createPlatformContextForTenant("brightline");
 
   beforeEach(() => {
@@ -105,5 +113,34 @@ describe("DefaultMediaService", () => {
       vault: "mirotech-site",
       objectKey: "projects/foo/hero.webp",
     });
+  });
+
+  it("resolves asset id references through registry", async () => {
+    vi.mocked(registry.findById).mockResolvedValue({
+      id: "asset-1",
+      tenantId: "t1",
+      tenantSlug: "brightline",
+      provider: "R2",
+      vault: "brightline",
+      bucket: "b1",
+      objectKey: "site/x.jpg",
+      filename: null,
+      mimeType: null,
+      visibility: "PUBLIC",
+      metadata: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await service.resolveToObjectRef(context, { assetId: "asset-1" });
+    expect(result).toEqual({ vault: "brightline", objectKey: "site/x.jpg" });
+  });
+
+  it("delegates registerAsset to registry", async () => {
+    vi.mocked(registry.register).mockResolvedValue({ ok: true, skipped: true, reason: "disabled" });
+    await service.registerAsset(context, {
+      object: { vault: "brightline", objectKey: "site/x.jpg" },
+    });
+    expect(registry.register).toHaveBeenCalled();
   });
 });

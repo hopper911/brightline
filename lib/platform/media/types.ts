@@ -15,8 +15,8 @@ export type MediaObjectRef = {
 };
 
 /**
- * Future platform asset identity (Asset table not created in Phase 3A).
- * Storage object remains authoritative for delivery until asset registry lands.
+ * Platform asset identity (Phase 4A+).
+ * When `assetId` is set, storage fields remain for transitional dual-read paths.
  */
 export type PlatformMediaAssetRef = {
   assetId?: string;

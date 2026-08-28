@@ -14,6 +14,8 @@ describe("Phase 3F Mirotech CMS media integrations", () => {
     createDownloadUrl: vi.fn(),
     exists: vi.fn(),
     headObject: vi.fn(),
+    resolveToObjectRef: vi.fn(),
+    registerAsset: vi.fn(),
   };
 
   beforeEach(() => {

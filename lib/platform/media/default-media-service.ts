@@ -2,6 +2,9 @@ import "server-only";
 
 import { isAllowedPublicMediaKey } from "@/lib/media-key-access";
 import { resolveStoredMediaUrl } from "@/lib/r2";
+import type { PlatformAssetRegistryService } from "@/lib/platform/assets/registry-service";
+import { resolveMediaReferenceToObjectRef } from "@/lib/platform/assets/resolve-reference";
+import type { MediaReference, RegisterPlatformAssetInput, RegisterPlatformAssetResult } from "@/lib/platform/assets/types";
 import type { MediaProvider } from "@/lib/platform/media/media-provider";
 import type { MediaService } from "@/lib/platform/media/media-service";
 import type { PlatformContext } from "@/lib/platform/context/types";
@@ -14,7 +17,6 @@ import type {
   SignedMediaReadUrl,
 } from "@/lib/platform/media/types";
 import { resolveMediaPublicBaseUrl } from "@/lib/platform/media/resolve-bucket";
-import { r2MediaProvider } from "@/lib/platform/media/r2-media-provider";
 import { assertValidMediaObjectKey } from "@/lib/platform/media/validate-object-key";
 
 const DEFAULT_READ_EXPIRES_SECONDS = 3600;
@@ -34,7 +36,10 @@ function resolveMirotechPublicDeliveryUrl(objectKey: string): string | null {
  * Tenant on PlatformContext is ownership metadata only (no key rewrites).
  */
 export class DefaultMediaService implements MediaService {
-  constructor(private readonly provider: MediaProvider) {}
+  constructor(
+    private readonly provider: MediaProvider,
+    private readonly assetRegistry?: PlatformAssetRegistryService
+  ) {}
 
   async createUpload(request: MediaUploadRequest): Promise<MediaUploadResult> {
     void request.context;
@@ -95,5 +100,23 @@ export class DefaultMediaService implements MediaService {
     void context;
     const objectKey = assertValidMediaObjectKey(object.objectKey);
     return this.provider.headObject({ vault: object.vault, objectKey });
+  }
+
+  async resolveToObjectRef(context: PlatformContext, reference: MediaReference): Promise<MediaObjectRef> {
+    void context;
+    const lookup = (assetId: string) =>
+      this.assetRegistry?.findById(assetId) ?? Promise.resolve(null);
+    return resolveMediaReferenceToObjectRef(reference, lookup);
+  }
+
+  async registerAsset(
+    context: PlatformContext,
+    input: RegisterPlatformAssetInput,
+    options?: { strict?: boolean }
+  ): Promise<RegisterPlatformAssetResult> {
+    if (!this.assetRegistry) {
+      return { ok: true, skipped: true, reason: "disabled" };
+    }
+    return this.assetRegistry.register(context, input, options);
   }
 }

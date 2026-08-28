@@ -11,8 +11,12 @@ export {
 } from "@/lib/platform/media/r2-media-provider";
 import { DefaultMediaService } from "@/lib/platform/media/default-media-service";
 import { r2MediaProvider } from "@/lib/platform/media/r2-media-provider";
+import { platformAssetRegistryService } from "@/lib/platform/assets/registry-service";
 
-export const defaultMediaService = new DefaultMediaService(r2MediaProvider);
+export const defaultMediaService = new DefaultMediaService(
+  r2MediaProvider,
+  platformAssetRegistryService
+);
 export {
   resolveMediaBucket,
   resolveMediaPublicBaseUrl,

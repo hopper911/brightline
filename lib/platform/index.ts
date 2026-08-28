@@ -2,6 +2,13 @@ export * from "@/lib/platform/tenants";
 export * from "@/lib/platform/context";
 export * from "@/lib/platform/audit";
 export * from "@/lib/platform/media";
+export type {
+  MediaReference,
+  PlatformAssetRecord,
+  PlatformAssetStorageRef,
+  RegisterPlatformAssetInput,
+  RegisterPlatformAssetResult,
+} from "@/lib/platform/assets";
 export {
   getPlatformFeatures,
   isPlatformFeatureEnabled,

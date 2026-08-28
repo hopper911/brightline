@@ -7,6 +7,7 @@ import type { MediaService } from "@/lib/platform/media/media-service";
 import type { PlatformContext } from "@/lib/platform/context/types";
 import type {
   MediaDeliveryUrl,
+  MediaHeadResult,
   MediaObjectRef,
   MediaUploadRequest,
   MediaUploadResult,
@@ -88,5 +89,11 @@ export class DefaultMediaService implements MediaService {
     void context;
     const objectKey = assertValidMediaObjectKey(object.objectKey);
     return this.provider.exists({ vault: object.vault, objectKey });
+  }
+
+  async headObject(context: PlatformContext, object: MediaObjectRef): Promise<MediaHeadResult | null> {
+    void context;
+    const objectKey = assertValidMediaObjectKey(object.objectKey);
+    return this.provider.headObject({ vault: object.vault, objectKey });
   }
 }

@@ -6,6 +6,7 @@
 import type { PlatformContext } from "@/lib/platform/context/types";
 import type {
   MediaDeliveryUrl,
+  MediaHeadResult,
   MediaObjectRef,
   MediaUploadRequest,
   MediaUploadResult,
@@ -31,6 +32,9 @@ export interface MediaService {
 
   /** Object existence check (HeadObject). */
   exists(context: PlatformContext, object: MediaObjectRef): Promise<boolean>;
+
+  /** Object metadata (HeadObject) — null when not found. */
+  headObject(context: PlatformContext, object: MediaObjectRef): Promise<MediaHeadResult | null>;
 }
 
 /** Alias aligned with Phase 1A service boundary naming. */

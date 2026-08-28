@@ -21,6 +21,7 @@ describe("DefaultMediaService", () => {
     vi.mocked(provider.signPut).mockReset();
     vi.mocked(provider.signGet).mockReset();
     vi.mocked(provider.exists).mockReset();
+    vi.mocked(provider.headObject).mockReset();
   });
 
   it("maps public upload to public-read access", async () => {
@@ -82,6 +83,25 @@ describe("DefaultMediaService", () => {
     });
 
     expect(provider.exists).toHaveBeenCalledWith({
+      vault: "mirotech-site",
+      objectKey: "projects/foo/hero.webp",
+    });
+  });
+
+  it("delegates headObject to provider without rewriting keys", async () => {
+    vi.mocked(provider.headObject).mockResolvedValue({
+      size: 99,
+      lastModified: "2026-01-01T00:00:00.000Z",
+    });
+    const mirotechContext = createPlatformContextForTenant("mirotech");
+
+    const head = await service.headObject(mirotechContext, {
+      vault: "mirotech-site",
+      objectKey: "projects/foo/hero.webp",
+    });
+
+    expect(head?.size).toBe(99);
+    expect(provider.headObject).toHaveBeenCalledWith({
       vault: "mirotech-site",
       objectKey: "projects/foo/hero.webp",
     });

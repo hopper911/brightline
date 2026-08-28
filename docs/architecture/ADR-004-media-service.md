@@ -137,6 +137,18 @@ Shared: `createBrightlineUploadViaMediaService`, `adminMediaUploadUrlErrorMessag
 | Parity | Same vault (`brightline`), object keys from DB (`storageKey` / `lowResStorageKey`), 3600s default expiry, `{ url, expiresIn }` shape |
 | Deferred | Client gallery route, downloads, uploads, deletion |
 
+## Phase 3F implementation (2026-08-28)
+
+**Batch:** three Mirotech CMS/admin operations (`mirotech-site` vault only).
+
+| Operation | Location |
+| --- | --- |
+| CMS upload URL | `POST /api/admin/r2/upload-url` when `vault=mirotech-site` |
+| Admin preview sign | `GET /api/admin/r2/sign` when `vault=mirotech-site` |
+| CMS object head lookup | `mapCmsRef()` in `collectMirotechAllMedia` for `mirotech-site` refs |
+
+Tenant context: `createPlatformContextForTenant("mirotech")`. Flag: `PLATFORM_MEDIA_ENABLED` (global; split tenant flags deferred to Phase 4A if independent rollout is required).
+
 ## References
 
 - [`media-current-state.md`](./media-current-state.md)

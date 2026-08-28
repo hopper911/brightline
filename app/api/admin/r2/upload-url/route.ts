@@ -6,6 +6,11 @@ import {
   cleanR2Key,
   normalizePrefix,
 } from "@/lib/admin-r2-manager";
+import { auditAdminMediaUploadUrlCreated } from "@/lib/platform/audit/integrations/admin-media-upload-url";
+import { isPlatformFeatureEnabled } from "@/lib/platform/features";
+import { adminMediaUploadUrlErrorMessage } from "@/lib/platform/media/integrations/errors";
+import { createMirotechCmsUploadUrlViaMediaService } from "@/lib/platform/media/integrations/mirotech-cms-upload-url";
+import { defaultMediaService } from "@/lib/platform/media/server";
 import { isPrivateMediaKey } from "@/lib/media-key-access";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { signPut } from "@/lib/storage-r2";
@@ -70,6 +75,32 @@ export async function POST(req: Request) {
     assertR2ManagerKeyAllowed(key, vault);
     const access =
       vault === "brightline" && isPrivateMediaKey(key) ? "private" : "public-read";
+
+    if (vault === "mirotech-site" && isPlatformFeatureEnabled("media")) {
+      try {
+        const result = await createMirotechCmsUploadUrlViaMediaService(defaultMediaService, {
+          objectKey: key,
+          contentType,
+          access,
+          expiresInSeconds: 900,
+        });
+        await auditAdminMediaUploadUrlCreated({
+          route: "/api/admin/r2/upload-url",
+          key,
+          contentType,
+          metadata: { vault: "mirotech-site", access },
+        });
+        return NextResponse.json(result);
+      } catch (error) {
+        console.error("[r2/upload-url] Mirotech MediaService path failed:", error);
+        return NextResponse.json(
+          { ok: false, error: adminMediaUploadUrlErrorMessage(error) },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Legacy path — unchanged until full migration (Phase 3F flag off by default).
     const signed = await signPut({ key, contentType, access, expiresIn: 900, vault });
     return NextResponse.json({
       ok: true,

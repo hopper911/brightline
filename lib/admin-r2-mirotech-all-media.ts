@@ -25,6 +25,7 @@ import {
   type R2VaultId,
 } from "@/lib/r2-vaults-shared";
 import { headObject, listObjectsWithMeta } from "@/lib/storage-r2";
+import { isPlatformFeatureEnabled } from "@/lib/platform/features";
 
 export const MIROTECH_T9_PREFIX = "mirotech/";
 
@@ -130,7 +131,22 @@ function mapObject(
 
 async function mapCmsRef(ref: MirotechCmsMediaRef): Promise<MirotechAllMediaItem | null> {
   try {
-    const head = await headObject(ref.key, ref.vault);
+    let head: { key: string; size: number; lastModified: string | null };
+    if (ref.vault === "mirotech-site" && isPlatformFeatureEnabled("media")) {
+      const [{ headMirotechCmsObjectViaMediaService }, { defaultMediaService }] = await Promise.all([
+        import("@/lib/platform/media/integrations/mirotech-cms-head"),
+        import("@/lib/platform/media/server"),
+      ]);
+      const platformHead = await headMirotechCmsObjectViaMediaService(defaultMediaService, ref);
+      if (!platformHead) return null;
+      head = {
+        key: ref.key,
+        size: platformHead.size,
+        lastModified: platformHead.lastModified,
+      };
+    } else {
+      head = await headObject(ref.key, ref.vault);
+    }
     return mapObject(
       { key: head.key, size: head.size, lastModified: head.lastModified },
       ref.vault,

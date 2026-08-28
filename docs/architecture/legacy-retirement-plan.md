@@ -152,20 +152,25 @@
 
 ## 7. Legacy DB fields
 
-| Field / pattern | Location | Class | Still needed? |
-| --- | --- | --- | --- |
-| `PortfolioImage.url`, `thumbUrl`, `fullUrl`, `storageKey` | `schema.prisma` | **A** | Yes — authoritative when `assetId` null or read flag off |
-| `PortfolioImage.assetId` | `schema.prisma` | **B** | Yes — platform link; optional |
-| `legacyObjectKey` (runtime conflict type) | `resolve-domain-media.ts` | **B** | Yes during migration — not a DB column |
-| `PlatformAuditEvent.tenantId` + `tenantSlug` | platform tables | **A** | Yes — denormalized slug for queries before FK resolution |
-| `PlatformJob.tenantId` + `tenantSlug` | platform tables | **A** | Same |
-| `PlatformLegacyIdentityLink` | identity bridge | **A** | Yes while legacy login coexists |
-| `PlatformSsoExchangeNonce` | SSO | **B** | Yes when SSO enabled |
-| `BlogPost.mirotechJournalId`, `publishToMirotech` | blog model / SiteSetting JSON | **A** | Yes — publish state |
-| `StudioMedia.r2KeyFull`, `r2KeyThumb` | schema | **A** | Yes — studio delivery |
-| `imageUrl` (runtime only) | various pages/APIs | **A** | Yes — not a Prisma column |
+| Field / pattern | Location | Class | Still needed? | Phase 11D |
+| --- | --- | --- | --- | --- |
+| `PortfolioImage.url`, `thumbUrl`, `fullUrl`, `storageKey` | `schema.prisma` | **A** | Yes — authoritative when `assetId` null or read flag off | **KEEP** — prod: 3 rows, 0% `assetId` linked |
+| `PortfolioImage.assetId` | `schema.prisma` | **B** | Yes — platform link; optional | **KEEP** — expand backfill before stop-read |
+| `PortfolioImage.thumbUrl` / `fullUrl` / `isHero` | `schema.prisma` | **C** | No app writes; prod columns empty | **READY FOR FUTURE DROP** (verify first) |
+| `legacyObjectKey` (runtime conflict type) | `resolve-domain-media.ts` | **B** | Yes during migration — not a DB column | **KEEP** |
+| `PlatformAuditEvent.tenantId` + `tenantSlug` | platform tables | **A** | Yes — denormalized slug for queries | **KEEP** |
+| `PlatformJob.tenantId` + `tenantSlug` | platform tables | **A** | Same | **KEEP** |
+| `PlatformLegacyIdentityLink` | identity bridge | **A** | Yes while legacy login coexists | **KEEP** — prod 0 rows, runtime gated |
+| `PlatformSsoExchangeNonce` | SSO | **B** | Yes when SSO enabled | **KEEP** |
+| `Lead.studioLeadId` / `StudioLead.legacyLeadId` | schema | **C** | Never wired in app | **READY FOR FUTURE DROP** |
+| `BlogPost.mirotechJournalId`, `publishToMirotech` | SiteSetting JSON | **A** | Yes — publish state | **KEEP** |
+| `StudioMedia` + `heroStudioMediaId` | schema | **C/E** | Scaffold — seed only; prod empty | **KEEP** table; **READY FOR FUTURE DROP** on unused columns |
+| `StudioProject.client` vs `clientId` | schema | **A/B** | String canonical; FK sparse | **STOP WRITING FIRST** on string after FK wired |
+| `imageUrl` (runtime only) | various pages/APIs | **A** | Yes — not a Prisma column | **KEEP** |
 
-**No schema changes in Phase 11A.**
+**Phase 11D:** Full analysis in `docs/architecture/PHASE-11D-database-retirement-report.md`. **No schema changes.**
+
+**No schema changes in Phase 11A–11D.**
 
 ---
 
@@ -245,9 +250,10 @@
 3. **Backfill assets** — registry before retiring R2 scan for Studio media
 4. **~~First deletion PR~~ — shims + deprecated types only (batch 1 above)** — **Phase 11B complete** (3 shims/aliases removed; type cleanup deferred to 11C)
 5. **Phase 11C** — flag inventory consolidated in `lib/platform/features.ts`; **no PLATFORM_* env vars removed** (dual paths active); dead deprecated barrel exports removed
-6. **Second deletion PR** — dual-path legacy branches after ≥2 week prod flag
-7. **Handoff retirement** — only after SSO metrics stable and `LEGACY_ADMIN_HANDOFF_ENABLED=false` trial
-8. **Admin route consolidation** — link-only until editors move to Studio (separate phase)
+6. **Phase 11D** — database legacy field retirement **analysis** (coverage + recommendations); **no schema changes**
+7. **Second deletion PR** — dual-path legacy branches after ≥2 week prod flag
+8. **Handoff retirement** — only after SSO metrics stable and `LEGACY_ADMIN_HANDOFF_ENABLED=false` trial
+9. **Admin route consolidation** — link-only until editors move to Studio (separate phase)
 
 ---
 

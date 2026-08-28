@@ -264,7 +264,8 @@ Publishing is **not** centralized; each path owns its transaction boundaries.
 | Seam | Notes |
 | --- | --- |
 | `lib/platform/*` (Phase 1A–2A) | Tenant registry, resolver, PlatformContext, audit service; no legacy wiring yet |
-| `lib/r2-vaults.ts` | Natural wrapper point for future `MediaService` |
+| `lib/platform/media/*` (Phase 3A) | MediaService/MediaProvider contracts; no R2 adapter yet |
+| `lib/r2-vaults.ts` | Natural wrapper point for `R2MediaProvider` (Phase 3B) |
 | `lib/dual-brand/*` | Content/publish adapters behind future platform services |
 | `lib/feature-flags.ts` | Existing CMS gates — separate from platform flags |
 | `lib/truth/*` | Frozen contracts — extend via new modules, don't weaken |

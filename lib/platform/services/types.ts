@@ -8,24 +8,25 @@ import type {
   RecordPlatformAuditInput,
   RecordPlatformAuditResult,
 } from "@/lib/platform/audit/types";
+export type { MediaService as PlatformMediaService } from "@/lib/platform/media/media-service";
+export type {
+  MediaObjectRef,
+  PlatformMediaAssetRef,
+} from "@/lib/platform/media/types";
 
+/** @deprecated Use PlatformMediaAssetRef — Phase 1A shape kept for transitional imports. */
 export type PlatformAssetRef = {
   tenantSlug: TenantSlug;
   objectKey: string;
   vault?: "brightline" | "mirotech-site";
 };
 
+/** @deprecated Superseded by MediaUploadRequest / createDownloadUrl in MediaService (Phase 3A). */
 export type PlatformSignedUrlOptions = {
   tenantSlug: TenantSlug;
   objectKey: string;
   expiresInSeconds?: number;
 };
-
-/** Future MediaService — wraps existing R2 helpers when PLATFORM_MEDIA_ENABLED. */
-export interface PlatformMediaService {
-  getSignedUrl(options: PlatformSignedUrlOptions): Promise<string>;
-  headObject(ref: PlatformAssetRef): Promise<{ size: number; lastModified: string | null } | null>;
-}
 
 export type PlatformContentRef = {
   tenantSlug: TenantSlug;

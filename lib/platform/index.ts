@@ -3,6 +3,7 @@ export * from "@/lib/platform/context";
 export * from "@/lib/platform/audit";
 export * from "@/lib/platform/media";
 export * from "@/lib/platform/content";
+export * from "@/lib/platform/publishing";
 export type {
   MediaReference,
   PlatformAssetRecord,

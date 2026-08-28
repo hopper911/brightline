@@ -1,6 +1,8 @@
 /**
  * Future platform service boundaries — types only (Phase 1A).
  * Implementations wrap legacy code in later phases; nothing routes here yet.
+ *
+ * Publishing types moved to lib/platform/publishing/ (Phase 6A).
  */
 
 import type { TenantSlug } from "@/lib/platform/tenants";
@@ -34,17 +36,13 @@ export type {
 } from "@/lib/platform/content/types";
 export type { ContentService, PlatformContentService } from "@/lib/platform/content/content-service";
 
-export type PlatformPublishTarget = {
-  tenantSlug: TenantSlug;
-  entityType: string;
-  entityId: string;
-};
-
-/** Future PublishingService — wraps Studio Hub / Work publish paths. */
-export interface PlatformPublishingService {
-  publish(target: PlatformPublishTarget): Promise<{ jobId: string }>;
-  getJobStatus(jobId: string): Promise<{ status: "pending" | "completed" | "failed"; error?: string }>;
-}
+export type {
+  PlatformPublishTarget,
+  PlatformPublishingService,
+  PublishRequest,
+  PublishResult,
+  PublishingService,
+} from "@/lib/platform/publishing";
 
 /** Operational audit trail (implementation: `platformAuditService`). */
 export interface PlatformAuditService {

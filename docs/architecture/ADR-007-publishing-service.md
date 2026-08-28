@@ -219,6 +219,27 @@ Files: `integrations/blog-mirotech-sync.ts`, `app/api/admin/blog-posts/route.ts`
 3. **Automation** `/api/projects/publish` behind publishing service
 4. **Hub create idempotency** design
 
+## Phase 6D — Cross-application publishing decoupling (2026-08-28)
+
+**Domain layer:** `lib/platform/publishing/mirotech/` owns journal ingest transformation, remote client, and hub CMS writes.
+
+| Caller migrated | Integration |
+| --- | --- |
+| `PATCH /api/admin/studio-hub/[id]` | `resolveStudioHubProjectPatch` |
+| `PATCH /api/admin/studio-hub/[id]/blog` | `resolveStudioHubBlogPatch` |
+| `GET /api/admin/mirotech/sync-status` | `isMirotechRemotePublishConfigured` |
+| `scripts/resync-mirotech-journal.ts` | `journal-ingest` import |
+
+Legacy shims retained: `lib/dual-brand/sync-journal.ts`, `studio-hub` write re-exports.
+
+Flag: **`PLATFORM_PUBLISHING_ENABLED`** (default off). See [publishing-decoupling.md](./publishing-decoupling.md).
+
+## Recommended Phase 7A
+
+1. **Background publish jobs** — async `accepted` outcome + status polling
+2. **Hub POST create** + R2 rewrite batch via PublishingService
+3. **Remove legacy shims** after production soak (criteria in decoupling doc)
+
 ## Validation (Phase 6A)
 
 - `lib/platform/publishing/types.test.ts`

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { isMirotechJournalSyncConfigured } from "@/lib/dual-brand/sync-journal";
-import { mirotechSiteOrigin } from "@/lib/mirotech-admin-handoff";
+import { isMirotechRemotePublishConfigured, mirotechSiteOrigin } from "@/lib/platform/publishing/mirotech/remote-client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +13,7 @@ export async function GET(req: Request) {
   }
   return NextResponse.json({
     ok: true,
-    configured: isMirotechJournalSyncConfigured(),
+    configured: isMirotechRemotePublishConfigured(),
     mirotechSiteUrl: mirotechSiteOrigin(),
   });
 }

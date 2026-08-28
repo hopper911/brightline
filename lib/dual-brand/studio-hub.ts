@@ -1,7 +1,18 @@
 /**
  * Brightline Studio CMS hub client → Mirotech CaseStudy / Journal APIs.
+ * Read helpers and DTO types. Remote writes delegate to platform/mirotech (Phase 6D).
  */
-import { mirotechSiteOrigin } from "@/lib/mirotech-site";
+import {
+  isMirotechRemotePublishConfigured,
+  mirotechContentFetch,
+} from "@/lib/platform/publishing/mirotech/remote-client";
+import {
+  mirotechCreateHubBlog,
+  mirotechCreateHubProject,
+  mirotechDeleteHubProject,
+  mirotechUpdateHubBlog,
+  mirotechUpdateHubProject,
+} from "@/lib/platform/publishing/mirotech/hub-remote-write";
 
 export type HubJournalSummary = {
   id: string;
@@ -94,42 +105,12 @@ export type HubJournalPost = {
   publishedAt?: string | null;
 };
 
-function hubBearer(): string | null {
-  const candidates = [
-    process.env.CONTENT_API_SECRET?.trim(),
-    process.env.MIROTECH_ADMIN_HANDOFF_SECRET?.trim(),
-    process.env.ADMIN_HANDOFF_SECRET?.trim(),
-  ].filter((v): v is string => Boolean(v && v.length >= 16));
-  return candidates[0] ?? null;
-}
-
 export function isStudioHubConfigured(): boolean {
-  return Boolean(hubBearer());
+  return isMirotechRemotePublishConfigured();
 }
 
 async function hubFetch(path: string, init?: RequestInit) {
-  const bearer = hubBearer();
-  if (!bearer) {
-    throw new Error(
-      "Studio hub not configured (CONTENT_API_SECRET or MIROTECH_ADMIN_HANDOFF_SECRET)."
-    );
-  }
-  const res = await fetch(`${mirotechSiteOrigin()}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${bearer}`,
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-    cache: "no-store",
-  });
-  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!res.ok || data.ok === false) {
-    throw new Error(
-      typeof data.error === "string" ? data.error : `Hub request failed (${res.status})`
-    );
-  }
-  return data;
+  return mirotechContentFetch(path, init);
 }
 
 export async function listHubProjects(): Promise<HubProject[]> {
@@ -216,64 +197,34 @@ export async function getHubProject(id: string): Promise<HubProject | null> {
 }
 
 export async function createHubProject(payload: Record<string, unknown>): Promise<HubProject> {
-  const data = await hubFetch("/api/content/v1/projects", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  return data.project as HubProject;
+  return mirotechCreateHubProject(payload);
 }
 
 export async function updateHubProject(
   id: string,
   payload: Record<string, unknown>
 ): Promise<HubProject> {
-  const data = await hubFetch(`/api/content/v1/projects/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
-  return data.project as HubProject;
+  return mirotechUpdateHubProject(id, payload);
 }
 
 export async function deleteHubProject(
   id: string
 ): Promise<{ id: string; slug: string; title: string }> {
-  const data = await hubFetch(`/api/content/v1/projects/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
-  const deleted = data.deleted as { id: string; slug: string; title: string } | undefined;
-  if (!deleted?.id) {
-    throw new Error("Hub delete returned no project");
-  }
-  return deleted;
+  return mirotechDeleteHubProject(id);
 }
 
 export async function createHubBlog(
   projectId: string,
   payload: Record<string, unknown> = {}
 ): Promise<{ created: boolean; post: HubJournalPost; summary: HubJournalSummary }> {
-  const data = await hubFetch(
-    `/api/content/v1/projects/${encodeURIComponent(projectId)}/blog`,
-    { method: "POST", body: JSON.stringify(payload) }
-  );
-  return {
-    created: Boolean(data.created),
-    post: data.post as HubJournalPost,
-    summary: data.summary as HubJournalSummary,
-  };
+  return mirotechCreateHubBlog(projectId, payload);
 }
 
 export async function updateHubBlog(
   projectId: string,
   payload: Record<string, unknown>
 ): Promise<{ post: HubJournalPost; summary: HubJournalSummary }> {
-  const data = await hubFetch(
-    `/api/content/v1/projects/${encodeURIComponent(projectId)}/blog`,
-    { method: "PATCH", body: JSON.stringify(payload) }
-  );
-  return {
-    post: data.post as HubJournalPost,
-    summary: data.summary as HubJournalSummary,
-  };
+  return mirotechUpdateHubBlog(projectId, payload);
 }
 
 export function distributionStatus(opts: {

@@ -9,6 +9,14 @@ export {
   type BlogMirotechSyncOutcome,
 } from "@/lib/platform/publishing/integrations/blog-mirotech-sync";
 export {
+  legacyPatchStudioHubBlog,
+  legacyPatchStudioHubProject,
+  platformPatchStudioHubBlog,
+  platformPatchStudioHubProject,
+  resolveStudioHubBlogPatch,
+  resolveStudioHubProjectPatch,
+} from "@/lib/platform/publishing/integrations/studio-hub-publish";
+export {
   DefaultPublishingProviderRegistry,
   defaultPublishingProviderRegistry,
 } from "@/lib/platform/publishing/publishing-provider-registry";

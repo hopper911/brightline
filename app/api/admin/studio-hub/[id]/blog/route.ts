@@ -4,8 +4,8 @@ import { rejectCrossSiteMutation } from "@/lib/admin-request-origin";
 import {
   createHubBlog,
   isStudioHubConfigured,
-  updateHubBlog,
 } from "@/lib/dual-brand/studio-hub";
+import { resolveStudioHubBlogPatch } from "@/lib/platform/publishing/integrations/studio-hub-publish";
 import { sanitizeHubBlogPayload } from "@/lib/dual-brand/studio-hub-payload";
 
 export const runtime = "nodejs";
@@ -50,7 +50,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (!body) return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
 
   try {
-    const result = await updateHubBlog(id, sanitizeHubBlogPayload(body));
+    const result = await resolveStudioHubBlogPatch(id, sanitizeHubBlogPayload(body));
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     console.error("STUDIO_HUB_BLOG_PATCH_ERROR", e);

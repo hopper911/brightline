@@ -58,6 +58,8 @@ export type PublishRequest = {
   source: ContentRef;
   target: PublishTargetId;
   operation: PublishOperation;
+  /** Mirotech hub CMS patch body — adapter applies remote write (Phase 6D). */
+  hubPatch?: Record<string, unknown>;
 };
 
 export type PublishResult = {
@@ -71,7 +73,11 @@ export type PublishResult = {
   warnings?: string[];
   /** Observed side effects when adapter reports them. */
   effects?: PublishEffect[];
-  /** Stable error code when outcome is failed. */
+  /** Mirotech hub project returned from remote write (admin integrations only). */
+  hubProject?: Record<string, unknown>;
+  /** Mirotech hub journal write result (admin integrations only). */
+  hubBlog?: { post: Record<string, unknown>; summary: Record<string, unknown> };
+  /** Error code when outcome is failed. */
   errorCode?: PublishErrorCode;
 };
 

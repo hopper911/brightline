@@ -9,6 +9,7 @@ import {
   PublishingTargetError,
   PublishingValidationError,
 } from "@/lib/platform/publishing/errors";
+import { mapHubBlogWriteToPublishResult, mapHubProjectWriteToPublishResult } from "@/lib/platform/publishing/integrations/map-hub-publish-result";
 import { mapMirotechJournalSyncToPublishResult } from "@/lib/platform/publishing/integrations/map-mirotech-publish-result";
 import type {
   MirotechPublishingReadPort,
@@ -22,13 +23,10 @@ import type { PublishingProvider } from "@/lib/platform/publishing/publishing-pr
 import type { PublishOperation, PublishRequest, PublishResult } from "@/lib/platform/publishing/types";
 
 /**
- * Mirotech-site publishing adapter (Phase 6B).
+ * Mirotech-site publishing adapter (Phase 6B/6D).
  *
- * Wraps `syncBlogPostToMirotech` for Brightline blog-post → Mirotech journal ingest.
- * Idempotency: **partially safe** — ingest upserts by `brightlinePostId` / `mirotechJournalId`.
- * Audit: emitted by `blog-mirotech-sync` integration when PLATFORM_PUBLISHING_ENABLED (not here).
- *
- * Authorization: caller must verify admin/automation auth before invoking PublishingService.
+ * Delegates to Mirotech domain layer (`lib/platform/publishing/mirotech/*`).
+ * Audit for admin cutovers: integration modules (blog-mirotech-sync, studio-hub-publish).
  */
 export class MirotechPublishingAdapter implements PublishingProvider {
   readonly tenant = "mirotech" as const;
@@ -41,26 +39,51 @@ export class MirotechPublishingAdapter implements PublishingProvider {
 
   supports(request: PublishRequest): boolean {
     if (request.target !== "mirotech-site") return false;
-    return request.source.tenant === "brightline" && request.source.type === "blog-post";
+    if (request.source.tenant === "brightline" && request.source.type === "blog-post") {
+      return true;
+    }
+    if (
+      request.source.tenant === "mirotech" &&
+      (request.source.type === "dual-brand-work" || request.source.type === "dual-brand-journal") &&
+      request.hubPatch &&
+      Object.keys(request.hubPatch).length > 0
+    ) {
+      return true;
+    }
+    return false;
   }
 
   async publish(context: PlatformContext, request: PublishRequest): Promise<PublishResult> {
     void context;
-    this.assertSupported(request);
-
-    if (!this.writePort.isJournalSyncConfigured()) {
-      throw new PublishingNotConfiguredError(
-        "Mirotech journal sync is not configured (CONTENT_API_SECRET or handoff secret missing)."
+    if (!this.supports(request)) {
+      throw new PublishingTargetError(
+        `Unsupported Mirotech publish request: ${request.source.tenant}/${request.source.type}.`
       );
     }
 
+    if (!this.writePort.isJournalSyncConfigured()) {
+      throw new PublishingNotConfiguredError(
+        "Mirotech remote publish is not configured (CONTENT_API_SECRET or handoff secret missing)."
+      );
+    }
+
+    if (request.source.type === "blog-post") {
+      return this.publishBlogPost(request);
+    }
+    if (request.source.type === "dual-brand-work") {
+      return this.publishHubProject(request);
+    }
+    return this.publishHubBlog(request);
+  }
+
+  private async publishBlogPost(request: PublishRequest): Promise<PublishResult> {
     const post = await this.readPort.getBlogPostById(request.source.id);
     if (!post) {
       throw new PublishingNotFoundError(`Blog post not found: ${request.source.id}`);
     }
 
     const payload = this.postForOperation(post, request.operation);
-    this.validateOperation(request.operation, payload);
+    this.validateBlogOperation(request.operation, payload);
 
     try {
       const sync = await this.writePort.syncBlogPostToMirotech(payload);
@@ -73,13 +96,32 @@ export class MirotechPublishingAdapter implements PublishingProvider {
     }
   }
 
-  private assertSupported(request: PublishRequest): void {
-    if (request.target !== "mirotech-site") {
-      throw new PublishingTargetError(`Adapter mirotech-site cannot publish to "${request.target}".`);
+  private async publishHubProject(request: PublishRequest): Promise<PublishResult> {
+    if (!request.hubPatch) {
+      throw new PublishingValidationError("Hub project publish requires hubPatch payload.");
     }
-    if (request.source.tenant !== "brightline" || request.source.type !== "blog-post") {
-      throw new PublishingTargetError(
-        `Mirotech journal sync supports brightline blog-post sources only (got ${request.source.tenant}/${request.source.type}).`
+    try {
+      const project = await this.writePort.updateHubProject(request.source.id, request.hubPatch);
+      return mapHubProjectWriteToPublishResult(request, project);
+    } catch (error) {
+      throw new PublishingExecutionError(
+        error instanceof Error ? error.message : "Mirotech hub project publish failed.",
+        error
+      );
+    }
+  }
+
+  private async publishHubBlog(request: PublishRequest): Promise<PublishResult> {
+    if (!request.hubPatch) {
+      throw new PublishingValidationError("Hub journal publish requires hubPatch payload.");
+    }
+    try {
+      const blog = await this.writePort.updateHubBlog(request.source.id, request.hubPatch);
+      return mapHubBlogWriteToPublishResult(request, blog);
+    } catch (error) {
+      throw new PublishingExecutionError(
+        error instanceof Error ? error.message : "Mirotech hub journal publish failed.",
+        error
       );
     }
   }
@@ -91,7 +133,7 @@ export class MirotechPublishingAdapter implements PublishingProvider {
     return post;
   }
 
-  private validateOperation(operation: PublishOperation, post: BlogPost): void {
+  private validateBlogOperation(operation: PublishOperation, post: BlogPost): void {
     if (operation === "publish" && !post.publishToMirotech) {
       throw new PublishingValidationError(
         "Cannot publish to Mirotech: blog post publishToMirotech is false. Save opt-in first or use sync."

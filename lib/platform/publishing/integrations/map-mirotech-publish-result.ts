@@ -1,4 +1,4 @@
-import type { MirotechJournalSyncResult } from "@/lib/dual-brand/sync-journal";
+import type { MirotechJournalSyncResult } from "@/lib/platform/publishing/mirotech/journal-ingest";
 import type { PublishRequest, PublishResult } from "@/lib/platform/publishing/types";
 import { MIROTECH_JOURNAL_INGEST_PATH } from "@/lib/platform/publishing/integrations/mirotech-publishing-port";
 

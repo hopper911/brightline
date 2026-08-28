@@ -5,8 +5,8 @@ import {
   deleteHubProject,
   getHubProject,
   isStudioHubConfigured,
-  updateHubProject,
 } from "@/lib/dual-brand/studio-hub";
+import { resolveStudioHubProjectPatch } from "@/lib/platform/publishing/integrations/studio-hub-publish";
 import { sanitizeHubProjectPayload } from "@/lib/dual-brand/studio-hub-payload";
 
 export const runtime = "nodejs";
@@ -47,7 +47,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (!body) return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
 
   try {
-    const project = await updateHubProject(id, sanitizeHubProjectPayload(body));
+    const project = await resolveStudioHubProjectPatch(id, sanitizeHubProjectPayload(body));
     return NextResponse.json({ ok: true, project });
   } catch (e) {
     console.error("STUDIO_HUB_PATCH_ERROR", e);

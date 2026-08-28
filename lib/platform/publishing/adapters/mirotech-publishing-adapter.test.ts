@@ -42,6 +42,8 @@ describe("MirotechPublishingAdapter", () => {
   const writePort: MirotechPublishingWritePort = {
     isJournalSyncConfigured: vi.fn().mockReturnValue(true),
     syncBlogPostToMirotech: vi.fn(),
+    updateHubProject: vi.fn(),
+    updateHubBlog: vi.fn(),
   };
   const adapter = new MirotechPublishingAdapter(readPort, writePort);
   const context = createPlatformContextForTenant("brightline");

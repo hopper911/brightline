@@ -91,7 +91,7 @@ async function loadMirotechBlLinks(): Promise<Map<string, { journalId: string; s
 
 async function main() {
   const { getBlogPosts, saveBlogPosts } = await import("../lib/blog-posts");
-  const { syncBlogPostToMirotech } = await import("../lib/dual-brand/sync-journal");
+  const { syncBlogPostToMirotech } = await import("../lib/platform/publishing/mirotech/journal-ingest");
   const posts = await getBlogPosts();
   const map = await loadMirotechBlLinks();
 

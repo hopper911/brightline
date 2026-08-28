@@ -1,3 +1,5 @@
+import { platformLog } from "@/lib/observability/platform-log";
+
 /** In-process counters for asset-read cutover (Phase 4D). Not a full analytics pipeline. */
 
 export type AssetReadMetricKey =
@@ -28,11 +30,13 @@ let metrics: AssetReadMetrics = emptyMetrics();
 
 export function recordAssetReadMetric(key: AssetReadMetricKey, detail?: string): void {
   metrics[key] += 1;
-  if (detail) {
-    console.info(`[platform-asset-read] ${key} ${detail}`);
-  } else {
-    console.info(`[platform-asset-read] ${key}`);
-  }
+  if (key === "assetReadSuccess") return;
+  platformLog({
+    severity: key === "assetMissing" || key === "assetTenantMismatch" ? "warn" : "info",
+    service: "media",
+    action: `asset.read.${key}`,
+    message: detail,
+  });
 }
 
 export function getAssetReadMetrics(): AssetReadMetrics {

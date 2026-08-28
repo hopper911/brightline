@@ -1,5 +1,6 @@
 import "server-only";
 
+import { platformLog } from "@/lib/observability/platform-log";
 import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
 import { isPlatformFeatureEnabled } from "@/lib/platform/features";
@@ -30,6 +31,21 @@ async function auditSsoEvent(input: {
     action: input.action,
     resource: { type: "sso_exchange", id: input.userId ?? "anonymous" },
     metadata: input.metadata,
+  });
+}
+
+function logSsoFailure(
+  tenant: TenantSlug,
+  reason: string,
+  meta?: Record<string, unknown>
+): void {
+  platformLog({
+    severity: "warn",
+    service: "identity",
+    action: "identity.sso.failed",
+    tenant,
+    resourceId: meta?.userId != null ? String(meta.userId) : undefined,
+    meta: { reason, ...meta },
   });
 }
 
@@ -113,6 +129,7 @@ export class SsoExchangeService {
         action: "identity.sso.failed",
         metadata: { reason: "state_mismatch", audience: input.siteAudience },
       });
+      logSsoFailure(input.siteAudience, "state_mismatch", { audience: input.siteAudience });
       return { ok: false, reason: "state_mismatch" };
     }
 
@@ -123,6 +140,7 @@ export class SsoExchangeService {
         action: "identity.sso.failed",
         metadata: { reason: "invalid_token", audience: input.siteAudience },
       });
+      logSsoFailure(input.siteAudience, "invalid_token", { audience: input.siteAudience });
       return { ok: false, reason: "invalid_token" };
     }
 
@@ -134,6 +152,11 @@ export class SsoExchangeService {
         userId: claims.userId,
         metadata: { reason: "wrong_audience", expected: input.siteAudience, got: claims.audience },
       });
+      logSsoFailure(input.siteAudience, "wrong_audience", {
+        userId: claims.userId,
+        expected: input.siteAudience,
+        got: claims.audience,
+      });
       return { ok: false, reason: "wrong_audience" };
     }
 
@@ -144,6 +167,7 @@ export class SsoExchangeService {
         userId: claims.userId,
         metadata: { reason: "state_mismatch" },
       });
+      logSsoFailure(input.siteAudience, "state_mismatch", { userId: claims.userId });
       return { ok: false, reason: "state_mismatch" };
     }
 
@@ -164,6 +188,10 @@ export class SsoExchangeService {
         userId: claims.userId,
         metadata: { reason: "replay", audience: claims.audience },
       });
+      logSsoFailure(input.siteAudience, "replay", {
+        userId: claims.userId,
+        audience: claims.audience,
+      });
       return { ok: false, reason: "replay" };
     }
 
@@ -174,6 +202,10 @@ export class SsoExchangeService {
         action: "identity.sso.failed",
         userId: claims.userId,
         metadata: { reason: staff.reason, audience: claims.audience },
+      });
+      logSsoFailure(input.siteAudience, staff.reason, {
+        userId: claims.userId,
+        audience: claims.audience,
       });
       return { ok: false, reason: staff.reason };
     }

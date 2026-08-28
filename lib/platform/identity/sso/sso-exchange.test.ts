@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
+vi.mock("@/lib/observability/platform-log", () => ({
+  platformLog: vi.fn(),
+}));
+
 vi.mock("@/lib/platform/audit/record-safely", () => ({
   recordAuditSafely: vi.fn().mockResolvedValue({ ok: true, skipped: true }),
 }));

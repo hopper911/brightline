@@ -1,5 +1,6 @@
 import "server-only";
 
+import { platformLog } from "@/lib/observability/platform-log";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
 import { isPlatformFeatureEnabled } from "@/lib/platform/features";
 import type { DefaultJobService } from "@/lib/platform/jobs/default-job-service";
@@ -73,9 +74,30 @@ export async function drainPlatformJobs(options?: {
     try {
       const final = await service.runJob(context, job.id);
       if (final.status === "COMPLETED") result.completed += 1;
-      else if (final.status === "FAILED") result.failed += 1;
-    } catch {
+      else if (final.status === "FAILED") {
+        result.failed += 1;
+        platformLog({
+          severity: "error",
+          service: "jobs",
+          action: "job.drain.failed",
+          tenant: job.tenantSlug,
+          jobId: job.id,
+          meta: { type: job.type, errorSummary: final.errorSummary ?? null },
+        });
+      }
+    } catch (error) {
       result.failed += 1;
+      platformLog({
+        severity: "error",
+        service: "jobs",
+        action: "job.drain.error",
+        tenant: job.tenantSlug,
+        jobId: job.id,
+        meta: {
+          type: job.type,
+          message: error instanceof Error ? error.message : "Unknown error",
+        },
+      });
     }
   }
 

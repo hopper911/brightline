@@ -14,6 +14,9 @@ export default function Error({
     if (error?.message) {
       console.error("[Error boundary]", error.message, error.digest ?? "");
     }
+    void import("@/lib/monitoring/sentry").then(({ captureException }) => {
+      captureException(error, { service: "brightline", correlationId: error.digest });
+    });
   }, [error]);
 
   return (

@@ -2,8 +2,13 @@
  * Production error monitoring — no-ops unless SENTRY_DSN is set.
  */
 import * as Sentry from "@sentry/nextjs";
+import { redactLogMeta } from "@/lib/observability/redact";
 
 let initialized = false;
+
+export function isMonitoringEnabled(): boolean {
+  return initialized;
+}
 
 export function initMonitoring(): void {
   if (initialized) return;
@@ -20,15 +25,22 @@ export function initMonitoring(): void {
   initialized = true;
 }
 
-export function captureException(error: unknown, context?: Record<string, unknown>): void {
+export function captureException(
+  error: unknown,
+  context?: Record<string, unknown> & { correlationId?: string; service?: string; tenant?: string }
+): void {
+  const safe = context ? redactLogMeta(context) : undefined;
   if (!initialized) {
-    console.error(error, context);
+    console.error(error, safe);
     return;
   }
   Sentry.withScope((scope) => {
-    if (context) {
-      for (const [key, value] of Object.entries(context)) {
-        scope.setExtra(key, value);
+    if (safe) {
+      for (const [key, value] of Object.entries(safe)) {
+        if (key === "correlationId") scope.setTag("correlationId", String(value));
+        else if (key === "service") scope.setTag("service", String(value));
+        else if (key === "tenant") scope.setTag("tenant", String(value));
+        else scope.setExtra(key, value);
       }
     }
     Sentry.captureException(error);

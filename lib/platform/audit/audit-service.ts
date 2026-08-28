@@ -1,3 +1,4 @@
+import { platformLog } from "@/lib/observability/platform-log";
 import { isPlatformFeatureEnabled } from "@/lib/platform/features";
 import { insertPlatformAuditEvent } from "@/lib/platform/audit/repository";
 import type {
@@ -10,8 +11,15 @@ import {
 } from "@/lib/platform/audit/types";
 import { findPlatformTenantBySlug } from "@/lib/platform/tenants/repository";
 
-function logAuditFailure(action: string, message: string): void {
-  console.error(`[platform-audit] failed to record ${action}: ${message}`);
+function logAuditFailure(action: string, message: string, tenantSlug?: string): void {
+  platformLog({
+    severity: "warn",
+    service: "platform",
+    action: "audit.record.failed",
+    message,
+    tenant: tenantSlug === "brightline" || tenantSlug === "mirotech" ? tenantSlug : undefined,
+    meta: { auditAction: action },
+  });
 }
 
 /**
@@ -29,7 +37,7 @@ export class PlatformAuditService {
     if (!isValidPlatformAuditAction(action)) {
       const message = `Invalid audit action: ${action}`;
       if (input.strict) throw new Error(message);
-      logAuditFailure(action, message);
+      logAuditFailure(action, message, input.context.tenant.slug);
       return { ok: false, error: message };
     }
 
@@ -37,7 +45,7 @@ export class PlatformAuditService {
     if (!isPlatformAuditActorType(actorType)) {
       const message = `Invalid audit actor type: ${actorType}`;
       if (input.strict) throw new Error(message);
-      logAuditFailure(action, message);
+      logAuditFailure(action, message, input.context.tenant.slug);
       return { ok: false, error: message };
     }
 
@@ -60,7 +68,7 @@ export class PlatformAuditService {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown audit write error";
       if (input.strict) throw error;
-      logAuditFailure(action, message);
+      logAuditFailure(action, message, input.context.tenant.slug);
       return { ok: false, error: message };
     }
   }

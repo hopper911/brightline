@@ -63,9 +63,17 @@ export function proxy(request: NextRequest) {
   const adminAccess = adminCookieIndicatesAccess(
     request.cookies.get("admin_access")?.value
   );
+  const correlationId =
+    request.headers.get("x-brightline-correlation-id")?.trim() ||
+    (typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().replace(/-/g, "").slice(0, 32)
+      : `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`);
+  requestHeaders.set("x-brightline-correlation-id", correlationId);
+
   if (adminAccess) {
     requestHeaders.set("x-brightline-admin-pathname", pathname);
     const res = NextResponse.next({ request: { headers: requestHeaders } });
+    res.headers.set("x-brightline-correlation-id", correlationId);
     return withCsp(request, res, nonce, csp);
   }
 
@@ -78,6 +86,7 @@ export function proxy(request: NextRequest) {
       },
       { status: 401 }
     );
+    res.headers.set("x-brightline-correlation-id", correlationId);
     return withCsp(request, res, nonce, csp);
   }
 
@@ -85,6 +94,7 @@ export function proxy(request: NextRequest) {
   loginUrl.pathname = "/admin/login";
   loginUrl.searchParams.set("next", pathname);
   const res = NextResponse.redirect(loginUrl);
+  res.headers.set("x-brightline-correlation-id", correlationId);
   return withCsp(request, res, nonce, csp);
 }
 

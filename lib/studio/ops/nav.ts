@@ -233,6 +233,24 @@ export const PUBLISHING_OPS_LINKS: StudioOpsToolLink[] = [
 
 export const SYSTEM_OPS_LINKS: StudioOpsToolLink[] = [
   {
+    label: "Platform health (extended)",
+    description: "DB liveness + feature flags — no secrets exposed",
+    href: "/api/admin/platform/health",
+    permission: "platform.identity.read",
+  },
+  {
+    label: "Platform metrics (24h)",
+    description: "Jobs, SSO audit counts, asset read counters",
+    href: "/api/admin/platform/metrics",
+    permission: "platform.identity.read",
+  },
+  {
+    label: "Public liveness",
+    description: "Unauthenticated GET /api/platform/health for uptime checks",
+    href: "/api/platform/health",
+    permission: "platform.identity.read",
+  },
+  {
     label: "SSO status",
     description: "Parallel staff SSO availability probe",
     href: "/api/admin/platform/sso/status",

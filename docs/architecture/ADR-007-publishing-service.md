@@ -174,6 +174,31 @@ Delete `lib/platform/publishing/` — nothing routes through it in Phase 6A.
 3. **Idempotency keys** for hub create + sheet pipeline (design only if not implementing)
 4. **Operator context** on `PlatformContext` for publish audit (optional, flag-gated)
 
+## Phase 6B — Mirotech publishing adapter foundation (2026-08-28)
+
+**Target:** `mirotech-site` — Brightline `blog-post` → Mirotech journal ingest.
+
+| | Detail |
+| --- | --- |
+| Adapter | `MirotechPublishingAdapter` |
+| Delegates to | `syncBlogPostToMirotech` (`lib/dual-brand/sync-journal.ts`) |
+| Read port | `getBlogPostById` |
+| Operations | `sync` (legacy parity), `publish` (validates opt-in + status), `unpublish` (sets `publishToMirotech: false`) |
+| Service | `DefaultPublishingService` + `DefaultPublishingProviderRegistry` |
+| Auth | Caller-verified — service does not re-check admin session |
+| Audit | None in adapter — blog PATCH remains authoritative |
+| Idempotency | **Partially safe** — journal ingest upserts by `brightlinePostId` |
+| Consumer migration | **None** — `PATCH /api/admin/blog-posts` unchanged |
+
+Flag `PLATFORM_PUBLISHING_ENABLED` not wired in 6B.
+
+## Recommended Phase 6C
+
+1. **First publish consumer cutover** — blog PATCH behind `PLATFORM_PUBLISHING_ENABLED`
+2. **BrightlinePublishingAdapter** — local SiteSetting revalidate + status
+3. **Hub dual-brand-work** publish path via `updateHubProject`
+4. **Publish audit** at service boundary when flag on (avoid duplicate with legacy)
+
 ## Validation (Phase 6A)
 
 - `lib/platform/publishing/types.test.ts`

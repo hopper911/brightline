@@ -9,10 +9,13 @@ export type {
 } from "@/lib/platform/publishing/publishing-service";
 export {
   PublishingError,
+  PublishingExecutionError,
   PublishingNotConfiguredError,
   PublishingNotFoundError,
   PublishingRemoteFailedError,
+  PublishingTargetError,
   PublishingUnsupportedError,
+  PublishingValidationError,
   isPublishingError,
 } from "@/lib/platform/publishing/errors";
 export {

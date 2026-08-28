@@ -4,7 +4,7 @@
  * ContentService: "What is the content?"
  * PublishingService: "How does approved content become live?"
  *
- * Flag: PLATFORM_PUBLISHING_ENABLED (default off) — future DefaultPublishingService in 6B+.
+ * Flag: PLATFORM_PUBLISHING_ENABLED (default off) — consumer cutover in Phase 6C+.
  */
 
 import type { PlatformContext } from "@/lib/platform/context/types";

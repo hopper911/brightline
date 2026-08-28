@@ -45,6 +45,30 @@ export class PublishingRemoteFailedError extends PublishingError {
   }
 }
 
+/** Invalid publish request for the selected target (e.g. publish without opt-in flag). */
+export class PublishingValidationError extends PublishingError {
+  constructor(message = "Publish request failed validation.", cause?: unknown) {
+    super(message, "validation", cause);
+    this.name = "PublishingValidationError";
+  }
+}
+
+/** Publish target does not match adapter or source tenant pairing. */
+export class PublishingTargetError extends PublishingError {
+  constructor(message = "Publish target is not valid for this source.", cause?: unknown) {
+    super(message, "unsupported", cause);
+    this.name = "PublishingTargetError";
+  }
+}
+
+/** Underlying publish execution failed after validation. */
+export class PublishingExecutionError extends PublishingError {
+  constructor(message = "Publish execution failed.", cause?: unknown) {
+    super(message, "remote_failed", cause);
+    this.name = "PublishingExecutionError";
+  }
+}
+
 export function isPublishingError(value: unknown): value is PublishingError {
   return value instanceof PublishingError;
 }

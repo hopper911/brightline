@@ -63,6 +63,8 @@ export type PublishRequest = {
 export type PublishResult = {
   outcome: PublishOutcome;
   request: PublishRequest;
+  /** Id of the resource on the publish target (e.g. Mirotech journal id). */
+  resourceId?: string | null;
   /** Human-readable summary for admin UI (future). */
   message?: string;
   /** Non-fatal partial failures (e.g. local save ok, remote sync failed). */

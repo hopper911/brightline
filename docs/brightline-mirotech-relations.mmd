@@ -1,0 +1,104 @@
+%%{init: {
+  "theme": "neutral",
+  "themeVariables": {
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "secondaryColor": "#ffffff",
+    "secondaryTextColor": "#000000",
+    "secondaryBorderColor": "#000000",
+    "tertiaryColor": "#ffffff",
+    "tertiaryTextColor": "#000000",
+    "tertiaryBorderColor": "#000000",
+    "lineColor": "#000000",
+    "textColor": "#000000",
+    "mainBkg": "#ffffff",
+    "nodeBorder": "#000000",
+    "clusterBkg": "#ffffff",
+    "clusterBorder": "#000000",
+    "titleColor": "#000000",
+    "edgeLabelBackground": "#ffffff",
+    "fontSize": "11px"
+  },
+  "flowchart": { "htmlLabels": true, "curve": "linear", "padding": 8, "nodeSpacing": 28, "rankSpacing": 36 }
+}}%%
+flowchart TB
+  subgraph Public["Public websites"]
+    BL["brightlinephotography.com<br/>Next.js · Vercel"]
+    MS["mirotech.solutions<br/>Mirotech CMS · separate deploy"]
+  end
+
+  subgraph BLAdmin["Brightline operator surfaces"]
+    Admin["/admin<br/>Mission Control"]
+    Studio["/studio<br/>Studio OS"]
+    StudioCMS["/admin/studio-cms<br/>Studio Hub editor"]
+    MediaLib["/admin/media<br/>Unified media library"]
+    R2Hub["/admin/r2<br/>Combined R2 manager"]
+    MirotechHub["/admin/mirotech<br/>Handoff launcher"]
+  end
+
+  subgraph MSAdmin["Mirotech operator surfaces"]
+    MSAdminUI["/admin<br/>Projects · Journal · Media · Homepage"]
+  end
+
+  subgraph Data["Data and content"]
+    Neon["Neon Postgres<br/>Brightline Prisma DB<br/>WorkProject · Galleries · Studio"]
+    MSCMS["Mirotech content DB<br/>Case studies · Journal · Homepage"]
+    ContentAPI["Mirotech Content API<br/>/api/content/v1/*"]
+  end
+
+  subgraph Storage["Cloudflare R2 — two buckets"]
+    BLBucket["Brightline bucket<br/>vault: brightline<br/>portfolio · work · mirotech/T9 · galleries"]
+    MSBucket["Mirotech CMS bucket<br/>vault: mirotech-site<br/>projects · journal · site · resume"]
+  end
+
+  subgraph CDN["Public media delivery"]
+    BLMedia["/api/media/public<br/>brightlinephotography.com"]
+    MSMedia["media.mirotech.solutions"]
+  end
+
+  subgraph Shared["Shared / dual-brand layer"]
+    Hub["Dual-brand Studio Hub<br/>publishMirotech · publishBrightline<br/>brightlineExternalId"]
+    AssetRefs["Unified asset refs<br/>Brightline DB + Mirotech CMS keys"]
+  end
+
+  BL --> Neon
+  MS --> MSCMS
+
+  BL -.->|"reads work/journal<br/>site=BRIGHTLINE or MIROTECH"| ContentAPI
+  ContentAPI --> MSCMS
+
+  Admin --> StudioCMS
+  Admin --> MediaLib
+  Admin --> R2Hub
+  Admin --> MirotechHub
+
+  StudioCMS --> Hub
+  Hub -->|"Bearer CONTENT_API_SECRET"| ContentAPI
+
+  MirotechHub -->|"handoff token"| MSAdminUI
+
+  MediaLib --> Neon
+  MediaLib --> ContentAPI
+  MediaLib --> AssetRefs
+
+  R2Hub --> BLBucket
+  R2Hub --> MSBucket
+  AssetRefs --> BLBucket
+  AssetRefs --> MSBucket
+
+  MSCMS -.->|"case study galleries<br/>portfolio/arc cam cor"| BLBucket
+  MSCMS --> MSBucket
+  Neon --> BLBucket
+
+  BLBucket --> BLMedia
+  MSBucket --> MSMedia
+  BLMedia --> BL
+  MSMedia --> MS
+
+  Neon -->|"WorkProject /work"| BL
+  Hub -.->|brightlineExternalId| StudioCMS
+  MSCMS -->|publishMirotech| MS
+  Hub -.->|publishBrightline| BL
+
+  BLBucket -->|"mirotech/product/web_full/"| R2Hub

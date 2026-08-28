@@ -111,6 +111,11 @@ export type ContentReferenceSummary = {
   publicPath: string | null;
   updatedAt: string | null;
   publishedAt: string | null;
+  /** Adapter-specific operational hints (admin/cross-link); not for public page rendering. */
+  operational?: {
+    pillarSlug?: string;
+    section?: string;
+  };
 };
 
 /** Published read model — intentionally loose; adapters map domain shapes. */

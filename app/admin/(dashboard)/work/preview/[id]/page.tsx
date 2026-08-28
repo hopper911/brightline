@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import WorkProjectCaseStudy from "@/components/work/WorkProjectCaseStudy";
 import { hasAdminAccess } from "@/lib/admin-auth";
+import { resolveAdminWorkPreviewContext } from "@/lib/platform/content/integrations/admin-work-preview-context";
 import { getWorkProjectByIdForPreview } from "@/lib/queries/work";
-import { sectionToPillarSlug, getPillarBySlug } from "@/lib/work-pillar-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -21,29 +21,20 @@ export default async function AdminWorkPreviewPage({
   if (!isAdmin) redirect("/admin/login");
 
   const { id } = await params;
+  const previewContext = await resolveAdminWorkPreviewContext(id);
+  if (!previewContext) notFound();
+
   const project = await getWorkProjectByIdForPreview(id);
   if (!project) notFound();
 
-  let pillarSlug = "work";
-  let pillarLabel = "Work";
-  try {
-    pillarSlug = await sectionToPillarSlug(project.section);
-    const pillar = await getPillarBySlug(pillarSlug);
-    pillarLabel = pillar?.label ?? pillarSlug;
-  } catch {
-    // Incomplete / orphaned section mapping — still preview with fallbacks
-  }
-
-  const liveHref = project.published
-    ? `/work/${pillarSlug}/${project.slug}`
-    : null;
+  const { pillarSlug, pillarLabel, liveHref } = previewContext;
 
   return (
     <div className="min-h-screen bg-[var(--bg-ink-950,#0a0a0a)] text-white">
       <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-10">
         <div className="mb-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 px-5 py-4">
           <p className="text-[0.65rem] uppercase tracking-[0.28em] text-amber-100/80">
-            Admin preview · {project.published ? "Published" : "Draft"} · Work case study
+            Admin preview · {previewContext.published ? "Published" : "Draft"} · Work case study
           </p>
           <p className="mt-2 text-sm text-white/75">
             Same layout as the public page. Incomplete drafts are fine — empty sections stay

@@ -10,6 +10,20 @@ export {
   MirotechContentAdapter,
   mirotechContentAdapter,
 } from "@/lib/platform/content/adapters/mirotech-content-adapter";
+export {
+  DefaultContentProviderRegistry,
+  defaultContentProviderRegistry,
+} from "@/lib/platform/content/content-provider-registry";
+export {
+  DefaultContentService,
+  defaultContentService,
+} from "@/lib/platform/content/default-content-service";
+export {
+  legacyResolveAdminWorkPreviewContext,
+  platformResolveAdminWorkPreviewContext,
+  resolveAdminWorkPreviewContext,
+  type AdminWorkPreviewContext,
+} from "@/lib/platform/content/integrations/admin-work-preview-context";
 export { defaultBrightlineContentReadPort } from "@/lib/platform/content/integrations/default-brightline-content-read";
 export type { BrightlineContentReadPort } from "@/lib/platform/content/integrations/brightline-content-read-port";
 export { defaultMirotechContentReadPort } from "@/lib/platform/content/integrations/default-mirotech-content-read";

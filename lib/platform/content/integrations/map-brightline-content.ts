@@ -85,6 +85,10 @@ export function mapWorkProjectToReferenceSummary(
     publicPath: row.published ? brightlineWorkProjectPublicPath(row.pillarSlug, row.slug) : null,
     publishedAt: row.published ? iso(row.updatedAt) : null,
     updatedAt: iso(row.updatedAt),
+    operational: {
+      pillarSlug: row.pillarSlug,
+      section: row.section,
+    },
   };
 }
 

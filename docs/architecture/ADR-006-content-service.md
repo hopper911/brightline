@@ -233,13 +233,30 @@ Files: `lib/platform/content/adapters/brightline-content-adapter.ts`, `integrati
 
 No public route migration in 5C.
 
-## Recommended Phase 5D
+## Phase 5D — First content consumer migration (2026-08-28)
 
-1. **`DefaultContentService`** + provider registry behind `PLATFORM_CONTENT_ENABLED`
-2. **Flag-gated cutover** of one public read path (e.g. `/work/shared/[slug]` or work metadata lookup)
-3. **`mirotech-journal`** read adapter (optional second Mirotech type)
-4. **PublishingService** sketch — Studio Hub + journal sync write clients
-5. **Admin studio-hub API** — map DTOs at boundary instead of raw passthrough
+**Consumer:** Admin Work preview banner context (`/admin/work/preview/[id]`).
+
+| | Legacy | Platform (flag on) |
+| --- | --- | --- |
+| Input | WorkProject id | Same `ContentRef` `{ tenant: brightline, type: work-project, id }` |
+| Auth | `hasAdminAccess()` on page | Unchanged |
+| Read | `fetchBrightlineWorkProjectById` + pillar settings | `defaultContentService.resolveReference` → Brightline adapter |
+| Output | `AdminWorkPreviewContext` | Same external contract |
+| Not found | `notFound()` | Same |
+| Cache | `force-dynamic` | Unchanged |
+| Case study body | `getWorkProjectByIdForPreview` | **Unchanged** (not migrated in 5D) |
+
+Flag: **`PLATFORM_CONTENT_ENABLED`** (default **off**). Rollback: unset flag — legacy path only.
+
+Files: `integrations/admin-work-preview-context.ts`, `default-content-service.ts`, `content-provider-registry.ts`.
+
+## Recommended Phase 6A
+
+1. **Second consumer** — e.g. `/work/shared/[slug]` metadata or portfolio admin reference lookup
+2. **`mirotech-journal`** read adapter
+3. **PublishingService** sketch for cross-brand writes
+4. **Admin studio-hub API** DTO mapping at boundary
 
 ## Validation (Phase 5A)
 

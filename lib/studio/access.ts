@@ -61,7 +61,7 @@ export function canPublishMirotechJournal(
 export function allowedPublishingTenants(
   permissions: PlatformPermission[],
   legacyAdmin: boolean,
-  memberships: { tenantSlug: TenantSlug }[]
+  memberships: StudioOpsMembership[]
 ): TenantSlug[] {
   if (legacyAdmin) {
     return memberships.map((m) => m.tenantSlug);

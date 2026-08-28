@@ -64,11 +64,11 @@ export function expenseToRow(
 
 export function adjustmentToRow(
   a: AccountingLedgerAdjustment & {
-    project: { title: string; client: string } | null;
-    client: { companyName: string } | null;
+    studioProject: { title: string; client: string } | null;
+    studioClient: { companyName: string } | null;
   }
 ): UnifiedLedgerRow {
-  const clientName = a.client?.companyName ?? a.project?.client ?? null;
+  const clientName = a.studioClient?.companyName ?? a.studioProject?.client ?? null;
   const lt = a.ledgerType.toUpperCase();
   const ledgerType: LedgerEntryType =
     lt === "REFUND"
@@ -87,7 +87,7 @@ export function adjustmentToRow(
     description: a.description,
     amount: a.amount.toString(),
     clientName,
-    projectTitle: a.project?.title ?? null,
+    projectTitle: a.studioProject?.title ?? null,
     invoiceNumber: null,
   };
 }

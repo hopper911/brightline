@@ -1,4 +1,5 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
+import { timingSafeEqual } from "@/lib/crypto-buffer";
 
 export const ADMIN_SESSION_MAX_AGE_SEC = 60 * 60 * 8;
 const COOKIE_VERSION = "v1";

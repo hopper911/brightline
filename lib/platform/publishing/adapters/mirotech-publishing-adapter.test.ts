@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+import { blankBlogPost, type BlogPost } from "@/lib/blog-post-model";
 import { MirotechPublishingAdapter } from "@/lib/platform/publishing/adapters/mirotech-publishing-adapter";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
 import {
@@ -14,25 +15,13 @@ import type {
   MirotechPublishingWritePort,
 } from "@/lib/platform/publishing/integrations/mirotech-publishing-port";
 
-const samplePost = {
+const samplePost: BlogPost = {
+  ...blankBlogPost("Sample"),
   id: "post-1",
   slug: "sample-post",
-  title: "Sample",
-  excerpt: "",
-  body: "",
-  author: "Author",
-  status: "PUBLISHED" as const,
+  status: "PUBLISHED",
   publishToMirotech: true,
   mirotechJournalId: "",
-  tags: [],
-  format: "journal" as const,
-  featureOnHome: false,
-  coverImageUrl: null,
-  galleryImages: [],
-  galleryBlocks: [],
-  sectionOrder: [],
-  createdAt: "2024-01-01T00:00:00.000Z",
-  updatedAt: "2024-01-01T00:00:00.000Z",
 };
 
 describe("MirotechPublishingAdapter", () => {

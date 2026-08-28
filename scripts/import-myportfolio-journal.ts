@@ -7,6 +7,8 @@
  * Optional:
  *   DRY_RUN=1 npx tsx scripts/import-myportfolio-journal.ts
  */
+import { randomUUID } from "node:crypto";
+
 import "./load-cli-env";
 import { blankBlogPost, getBlogPosts, saveBlogPosts, type BlogGalleryImage, type BlogPost } from "@/lib/blog-posts";
 import { normalizeImportedBlogBody } from "@/lib/blog-imported";
@@ -376,6 +378,7 @@ async function importPage(source: SourcePage, existing?: BlogPost): Promise<Blog
 
   const coverImageUrl = uploadedUrls[0] ?? "";
   const galleryImages: BlogGalleryImage[] = uploadedUrls.slice(1).map((url, index) => ({
+    id: randomUUID(),
     url,
     alt: `${title} image ${index + 2}`,
   }));

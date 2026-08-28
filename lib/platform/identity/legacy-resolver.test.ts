@@ -25,6 +25,7 @@ describe("resolvePlatformUserFromLegacySession", () => {
       findUserById: vi.fn(),
       findUserByEmail: vi.fn(),
       getMemberships: vi.fn(),
+      hasTenantRole: vi.fn(),
       resolveLegacyIdentity: vi.fn(),
     };
     const user = await resolvePlatformUserFromLegacySession(
@@ -41,6 +42,7 @@ describe("resolvePlatformUserFromLegacySession", () => {
       findUserById: vi.fn(),
       findUserByEmail: vi.fn(),
       getMemberships: vi.fn(),
+      hasTenantRole: vi.fn(),
       resolveLegacyIdentity: vi.fn().mockResolvedValue(null),
     };
     const user = await resolvePlatformUserFromLegacySession(
@@ -56,6 +58,7 @@ describe("resolvePlatformUserFromLegacySession", () => {
       findUserById: vi.fn(),
       findUserByEmail: vi.fn(),
       getMemberships: vi.fn(),
+      hasTenantRole: vi.fn(),
       resolveLegacyIdentity: vi.fn().mockResolvedValue({
         id: "user-1",
         email: "finance@example.com",
@@ -78,6 +81,7 @@ describe("resolvePlatformUserFromLegacySession", () => {
       findUserById: vi.fn(),
       findUserByEmail: vi.fn(),
       getMemberships: vi.fn(),
+      hasTenantRole: vi.fn(),
       resolveLegacyIdentity: vi.fn().mockRejectedValue(new Error("db down")),
     };
     const user = await resolvePlatformUserFromLegacySession(

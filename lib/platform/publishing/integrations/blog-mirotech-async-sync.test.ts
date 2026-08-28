@@ -28,29 +28,18 @@ afterEach(() => {
   else process.env.PLATFORM_JOBS_ENABLED = savedJobs;
 });
 
+import { blankBlogPost, type BlogPost } from "@/lib/blog-post-model";
 import { enqueueMirotechJournalSyncJob } from "@/lib/platform/jobs/publishing-enqueue";
 import { defaultJobService } from "@/lib/platform/jobs/default-job-service";
 import { jobPlatformSyncBlogPostsMirotech } from "@/lib/platform/publishing/integrations/blog-mirotech-async-sync";
 
-const samplePost = {
+const samplePost: BlogPost = {
+  ...blankBlogPost("Sample"),
   id: "post-1",
   slug: "sample",
-  title: "Sample",
-  excerpt: "",
-  body: "",
-  author: "Author",
-  status: "PUBLISHED" as const,
+  status: "PUBLISHED",
   publishToMirotech: true,
   mirotechJournalId: "",
-  tags: [],
-  format: "journal" as const,
-  featureOnHome: false,
-  coverImageUrl: null,
-  galleryImages: [],
-  galleryBlocks: [],
-  sectionOrder: [],
-  createdAt: "2024-01-01T00:00:00.000Z",
-  updatedAt: "2024-01-01T00:00:00.000Z",
 };
 
 describe("jobPlatformSyncBlogPostsMirotech", () => {

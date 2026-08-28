@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { StudioOpsMembership } from "@/lib/studio/ops/types";
 import {
   canReadBrightlineStudioContent,
   canReadMirotechStudioContent,
@@ -46,7 +47,7 @@ describe("studio access", () => {
       allowedPublishingTenants(
         ["brightline.journal.publish"],
         false,
-        [{ tenantSlug: "brightline", role: "EDITOR" }]
+        [{ tenantSlug: "brightline", role: "EDITOR" } satisfies StudioOpsMembership]
       )
     ).toEqual(["brightline"]);
   });

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { createHash, randomBytes, randomInt, timingSafeEqual } from "crypto";
+import { createHash, randomBytes, randomInt } from "crypto";
+import { timingSafeEqual } from "@/lib/crypto-buffer";
 import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
 
 /** Unambiguous uppercase alphanumeric charset (no 0/O, 1/I/L). */

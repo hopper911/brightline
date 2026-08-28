@@ -111,7 +111,6 @@ function SiteBackgroundMedia({ media }: { media: ResolvedSiteBackgroundMedia }) 
           poster={poster || undefined}
           autoPlay
           muted
-          defaultMuted
           loop
           playsInline
           preload="auto"

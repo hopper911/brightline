@@ -17,6 +17,7 @@ import {
   type FolderPreview,
 } from "@/lib/admin-r2-manager";
 import { normalizeR2VaultId, resolveVaultForListPrefix, type R2VaultId } from "@/lib/r2-vaults";
+import { listObjectsDelimited } from "@/lib/storage-r2";
 import { sortMediaByLastModified } from "@/lib/admin-r2-unified-media-sort";
 
 export const runtime = "nodejs";

@@ -13,7 +13,7 @@ type FieldRow = {
   placeholder?: string | null;
   required?: boolean;
   options?: string[] | null;
-  sortOrder?: number;
+  mapsToProjectField?: string | null;
 };
 
 export function FormTemplateBuilder({
@@ -66,7 +66,7 @@ export function FormTemplateBuilder({
       placeholder: row.placeholder ?? null,
       required: row.required ?? false,
       options: row.options ?? null,
-      sortOrder: row.sortOrder ?? i,
+      sortOrder: i,
       mapsToProjectField: row.mapsToProjectField ?? null,
     }));
     const res = await fetch(`/api/admin/forms/templates/${templateId}/fields`, {

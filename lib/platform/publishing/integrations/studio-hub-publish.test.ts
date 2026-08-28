@@ -53,7 +53,7 @@ describe("studio hub publish integration", () => {
     vi.mocked(updateHubProject).mockResolvedValue(hubProject as never);
     const result = await legacyPatchStudioHubProject("hub-1", { status: "PUBLISHED" });
     expect(updateHubProject).toHaveBeenCalledWith("hub-1", { status: "PUBLISHED" });
-    expect(result.id).toBe("hub-1");
+    expect("id" in result && result.id).toBe("hub-1");
   });
 
   it("resolveStudioHubProjectPatch uses legacy when flag off", async () => {
@@ -81,7 +81,7 @@ describe("studio hub publish integration", () => {
     );
     expect(publishingService.publish).toHaveBeenCalled();
     expect(updateHubProject).not.toHaveBeenCalled();
-    expect(result.id).toBe("hub-1");
+    expect("id" in result && result.id).toBe("hub-1");
   });
 
   it("resolveStudioHubProjectPatch uses enqueue path when publishing and jobs enabled", async () => {

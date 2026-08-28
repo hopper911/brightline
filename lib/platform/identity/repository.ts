@@ -51,15 +51,20 @@ export async function findPlatformUserByLegacyLink(
   legacyRefId: string | null,
   client: PrismaClient = prisma
 ): Promise<PlatformUserRecord | null> {
-  const link = await client.platformLegacyIdentityLink.findUnique({
-    where: {
-      legacyKind_legacyRefId: {
-        legacyKind,
-        legacyRefId,
-      },
-    },
-    include: { user: true },
-  });
+  const link = legacyRefId
+    ? await client.platformLegacyIdentityLink.findUnique({
+        where: {
+          legacyKind_legacyRefId: {
+            legacyKind,
+            legacyRefId,
+          },
+        },
+        include: { user: true },
+      })
+    : await client.platformLegacyIdentityLink.findFirst({
+        where: { legacyKind, legacyRefId: null },
+        include: { user: true },
+      });
   return link?.user ? rowToUser(link.user) : null;
 }
 

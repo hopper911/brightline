@@ -36,7 +36,9 @@ export default async function StudioPublishingJobPage({ params }: Props) {
     notFound();
   }
 
-  const canRetry = job.retryable && canRetryPublishingJob(job.tenantSlug, context.permissions, legacyAdmin);
+  const canRetry =
+    job.retryable &&
+    canRetryPublishingJob(job.tenantSlug as "brightline" | "mirotech", context.permissions, legacyAdmin);
 
   return (
     <div>

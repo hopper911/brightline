@@ -52,8 +52,8 @@ export async function loadUnifiedLedger(prisma: PrismaClient, d: LedgerDateFilte
     prisma.accountingLedgerAdjustment.findMany({
       where: adjustmentWhere(d),
       include: {
-        project: { select: { title: true, client: true } },
-        client: { select: { companyName: true } },
+        studioProject: { select: { title: true, client: true } },
+        studioClient: { select: { companyName: true } },
       },
     }),
   ]);

@@ -1,5 +1,6 @@
 import { assertPublicHttpUrlResolved } from "@/lib/ssrf-guard";
 import { extractInstagramPermalink } from "@/lib/blog-post-model";
+import { concatNodeBuffers } from "@/lib/crypto-buffer";
 
 const MAX_THUMB_BYTES = 2 * 1024 * 1024;
 const MAX_HTML_BYTES = 512 * 1024;
@@ -83,7 +84,7 @@ async function readBodyWithCap(res: Response, maxBytes: number): Promise<Buffer>
     throw Object.assign(new Error("Response is empty or too large."), { status: 400 });
   }
 
-  return Buffer.concat(chunks.map((c) => Buffer.from(c)));
+  return concatNodeBuffers(chunks.map((c) => Buffer.from(c)));
 }
 
 /**

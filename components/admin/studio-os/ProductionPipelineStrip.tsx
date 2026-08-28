@@ -2,7 +2,6 @@
 
 import type { ProjectStatus } from "@prisma/client";
 import { useCallback, useState } from "react";
-import { motion } from "framer-motion";
 
 import { projectStatusLabel, STUDIO_PROJECT_PIPELINE } from "@/lib/studio/project-status-display";
 
@@ -64,11 +63,9 @@ export function ProductionPipelineStrip({ projectId, currentStatus, onStatusUpda
           const active = s === currentStatus;
           const past = STUDIO_PROJECT_PIPELINE.indexOf(s) < STUDIO_PROJECT_PIPELINE.indexOf(currentStatus);
           return (
-            <motion.button
+            <button
               key={s}
               type="button"
-              layout
-              whileTap={{ scale: 0.97 }}
               disabled={busy}
               onClick={() => apply(s)}
               className={[
@@ -82,7 +79,7 @@ export function ProductionPipelineStrip({ projectId, currentStatus, onStatusUpda
               title={projectStatusLabel(s)}
             >
               <span className="tabular-nums opacity-40">{i + 1}.</span> {projectStatusLabel(s)}
-            </motion.button>
+            </button>
           );
         })}
       </div>

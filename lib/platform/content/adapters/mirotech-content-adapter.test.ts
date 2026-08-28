@@ -64,6 +64,8 @@ function createAdapter(overrides?: Partial<MirotechContentReadPort>) {
   const port: MirotechContentReadPort = {
     getHubProjectById: vi.fn(),
     getMirotechWorkBySlug: vi.fn(),
+    listHubProjects: vi.fn().mockResolvedValue([]),
+    listMirotechCaseStudies: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
   return { adapter: new MirotechContentAdapter(port), port };

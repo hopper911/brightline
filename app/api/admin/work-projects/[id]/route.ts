@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import {
@@ -308,7 +309,7 @@ export async function PATCH(
         relatedServicesLinks:
           body.relatedServicesLinks !== undefined
             ? body.relatedServicesLinks == null
-              ? null
+              ? Prisma.JsonNull
               : Array.isArray(body.relatedServicesLinks)
                 ? body.relatedServicesLinks
                     .map((link) => ({

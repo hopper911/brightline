@@ -241,7 +241,7 @@ export default async function DesignProjectPage({ params }: Props) {
                 return (
                   <li key={link.slug}>
                     <Link href={`/services/${link.slug}`} className="btn btn-ghost">
-                      {link.label || svc?.title || link.slug}
+                      {link.title || svc?.title || link.slug}
                     </Link>
                   </li>
                 );

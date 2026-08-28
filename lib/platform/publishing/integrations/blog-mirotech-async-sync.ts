@@ -11,6 +11,7 @@ import type {
   BlogMirotechSyncOutcome,
   BlogMirotechSyncResultItem,
 } from "@/lib/platform/publishing/integrations/blog-mirotech-sync-types";
+import { isAcceptedBlogSyncResult } from "@/lib/platform/publishing/integrations/blog-mirotech-sync-types";
 
 const MIROTECH_TARGET = "mirotech-site" as const;
 
@@ -81,7 +82,7 @@ export async function jobPlatformSyncBlogPostsMirotech(
       if (existing?.status === "COMPLETED") {
         const cached = syncResultFromJob(post.id, existing.payload as Record<string, unknown>);
         results.push(cached);
-        if (cached.ok) {
+        if (!isAcceptedBlogSyncResult(cached) && cached.ok) {
           next[index] = applySyncSuccess(post, cached.mirotechJournalId);
         }
         continue;

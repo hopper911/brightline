@@ -91,7 +91,6 @@ export default function PageBackground({
           poster={posterUrl}
           autoPlay
           muted
-          defaultMuted
           loop
           playsInline
           preload="auto"

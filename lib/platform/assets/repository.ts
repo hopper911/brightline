@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type {
   PlatformAssetRecord,
@@ -105,7 +105,7 @@ export async function createPlatformAsset(
       filename: input.filename ?? null,
       mimeType: input.mimeType ?? null,
       visibility: input.visibility,
-      metadata: input.metadata ?? undefined,
+      metadata: (input.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
     },
     include: assetInclude,
   });
@@ -132,7 +132,7 @@ export async function upsertPlatformAssetFromStorageRef(
         filename: input.filename ?? existing.filename,
         mimeType: input.mimeType ?? existing.mimeType,
         visibility: input.visibility,
-        metadata: input.metadata ?? undefined,
+        metadata: (input.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
       },
       include: assetInclude,
     });

@@ -62,11 +62,11 @@ function countMediaMatches(value: unknown, oldKey: string): number {
     return mediaStringMatchesKey(value, oldKey) ? 1 : 0;
   }
   if (Array.isArray(value)) {
-    return value.reduce((sum, item) => sum + countMediaMatches(item, oldKey), 0);
+    return value.reduce((sum: number, item) => sum + countMediaMatches(item, oldKey), 0);
   }
   if (value && typeof value === "object") {
     return Object.values(value as Record<string, unknown>).reduce(
-      (sum, v) => sum + countMediaMatches(v, oldKey),
+      (sum: number, v) => sum + countMediaMatches(v, oldKey),
       0
     );
   }
@@ -168,11 +168,11 @@ function countMediaMatchesMulti(value: unknown, keyMap: Map<string, string>): nu
     return 0;
   }
   if (Array.isArray(value)) {
-    return value.reduce((sum, item) => sum + countMediaMatchesMulti(item, keyMap), 0);
+    return value.reduce((sum: number, item) => sum + countMediaMatchesMulti(item, keyMap), 0);
   }
   if (value && typeof value === "object") {
     return Object.values(value as Record<string, unknown>).reduce(
-      (sum, v) => sum + countMediaMatchesMulti(v, keyMap),
+      (sum: number, v) => sum + countMediaMatchesMulti(v, keyMap),
       0
     );
   }

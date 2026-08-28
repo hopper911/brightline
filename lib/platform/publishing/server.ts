@@ -13,7 +13,10 @@ export {
   createPublishingMirotechJournalSyncHandler,
   runPublishingMirotechJournalSyncJob,
 } from "@/lib/platform/jobs/handlers/publishing-mirotech-journal-sync";
-export { jobPlatformPatchStudioHubProject } from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
+export {
+  enqueueStudioHubProjectPatchJob as jobPlatformPatchStudioHubProject,
+  enqueueStudioHubBlogPatchJob as jobPlatformPatchStudioHubBlog,
+} from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
 export {
   legacyPatchStudioHubBlog,
   legacyPatchStudioHubProject,

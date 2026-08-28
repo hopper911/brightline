@@ -14,6 +14,7 @@ vi.mock("@/lib/platform/publishing/integrations/blog-mirotech-async-sync", () =>
   jobPlatformSyncBlogPostsMirotech: vi.fn(),
 }));
 
+import { blankBlogPost, type BlogPost } from "@/lib/blog-post-model";
 import { syncBlogPostsToMirotech } from "@/lib/dual-brand/sync-journal";
 import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
 import { jobPlatformSyncBlogPostsMirotech } from "@/lib/platform/publishing/integrations/blog-mirotech-async-sync";
@@ -24,25 +25,13 @@ import {
   resolveBlogPostsMirotechSync,
 } from "@/lib/platform/publishing/integrations/blog-mirotech-sync";
 
-const samplePost = {
+const samplePost: BlogPost = {
+  ...blankBlogPost("Sample"),
   id: "post-1",
   slug: "sample",
-  title: "Sample",
-  excerpt: "",
-  body: "",
-  author: "Author",
-  status: "PUBLISHED" as const,
+  status: "PUBLISHED",
   publishToMirotech: true,
   mirotechJournalId: "",
-  tags: [],
-  format: "journal" as const,
-  featureOnHome: false,
-  coverImageUrl: null,
-  galleryImages: [],
-  galleryBlocks: [],
-  sectionOrder: [],
-  createdAt: "2024-01-01T00:00:00.000Z",
-  updatedAt: "2024-01-01T00:00:00.000Z",
 };
 
 describe("blog mirotech sync integration", () => {
@@ -68,7 +57,7 @@ describe("blog mirotech sync integration", () => {
     });
     const result = await legacySyncBlogPostsMirotech([samplePost]);
     expect(syncBlogPostsToMirotech).toHaveBeenCalledWith([samplePost]);
-    expect(result.results[0]?.ok).toBe(true);
+    expect(result.results[0] && "ok" in result.results[0] && result.results[0].ok).toBe(true);
   });
 
   it("resolveBlogPostsMirotechSync uses legacy when flag off", async () => {
@@ -91,7 +80,8 @@ describe("blog mirotech sync integration", () => {
 
     const result = await resolveBlogPostsMirotechSync([samplePost]);
     expect(jobPlatformSyncBlogPostsMirotech).toHaveBeenCalled();
-    expect(result.results[0]?.mirotechJournalId).toBe("job-j-1");
+    const first = result.results[0];
+    expect(first && "mirotechJournalId" in first && first.mirotechJournalId).toBe("job-j-1");
   });
 
   it("resolveBlogPostsMirotechSync uses platform sync when jobs disabled", async () => {

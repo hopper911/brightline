@@ -365,7 +365,7 @@ export default function ServicePagesClient({ initialServices }: Props) {
         mode="single"
         mediaRoot="portfolio"
         initialPortfolioFolder={
-          r2BackgroundTarget === "backgroundMedia" ? "web_video" : "web_full"
+          r2BackgroundTarget === "backgroundMediaUrl" ? "web_video" : "web_full"
         }
         confirmLabel="Use selected"
       />

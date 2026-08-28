@@ -1,4 +1,5 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
+import { timingSafeEqual } from "@/lib/crypto-buffer";
 import {
   SSO_EXCHANGE_TTL_MAX_SEC,
   SSO_EXCHANGE_TTL_MIN_SEC,

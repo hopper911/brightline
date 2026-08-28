@@ -41,7 +41,7 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Event not found." }, { status: 404 });
   }
 
-  const data: Prisma.StudioScheduleEventUpdateInput = {};
+  const data: Prisma.StudioScheduleEventUncheckedUpdateInput = {};
 
   if (body?.title !== undefined) {
     const t = body.title.trim();

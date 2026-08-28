@@ -6,5 +6,5 @@ export {
   resolvePlatformUserFromLegacySession,
   type LegacySessionInput,
 } from "@/lib/platform/identity/legacy-resolver";
-export { ssoExchangeService, isPlatformSsoEnabled } from "@/lib/platform/identity/sso/sso-exchange-service";
-export { isPlatformSsoConfigured } from "@/lib/platform/identity/sso/config";
+export { ssoExchangeService } from "@/lib/platform/identity/sso/sso-exchange-service";
+export { isPlatformSsoEnabled, isPlatformSsoConfigured } from "@/lib/platform/identity/sso/config";

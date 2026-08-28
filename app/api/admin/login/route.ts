@@ -1,4 +1,5 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
+import { timingSafeEqual } from "@/lib/crypto-buffer";
 import { NextResponse } from "next/server";
 import { ADMIN_ACCESS_COOKIE } from "@/lib/admin-cookie";
 import { ADMIN_SESSION_MAX_AGE_SEC, createAdminSessionToken } from "@/lib/admin-session";

@@ -65,7 +65,7 @@
     "@fontsource/montserrat": "^5.0.0",
     "@prisma/client": "^5.22.0",
     "@sentry/nextjs": "^10.71.0",
-    "@types/archiver": "^7.0.0",
+    "@types/archiver": "^8.0.0",
     "@types/pdfkit": "^0.17.6",
     "archiver": "^8.0.0",
     "aws4fetch": "^1.0.20",

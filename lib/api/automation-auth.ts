@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "@/lib/crypto-buffer";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 
 export type AuthResult =

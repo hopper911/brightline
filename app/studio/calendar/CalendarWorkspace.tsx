@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -354,16 +354,18 @@ export function CalendarWorkspace({ initialYear, initialMonth, projectHints, pro
 
       <AnimatePresence>
         {showCreate ? (
-          <motion.form
+          <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void createEvent(e.currentTarget);
-            }}
           >
+            <form
+              className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5"
+              onSubmit={(e: FormEvent<HTMLFormElement>) => {
+                e.preventDefault();
+                void createEvent(e.currentTarget);
+              }}
+            >
             <p className="text-xs uppercase tracking-[0.25em] text-white/50">Schedule event</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <label className="block text-sm text-white/70">
@@ -441,7 +443,8 @@ export function CalendarWorkspace({ initialYear, initialMonth, projectHints, pro
             <button type="submit" className="btn btn-primary mt-4 text-xs">
               Save
             </button>
-          </motion.form>
+            </form>
+          </motion.div>
         ) : null}
       </AnimatePresence>
 

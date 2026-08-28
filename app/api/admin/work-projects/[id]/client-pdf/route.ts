@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import sharp from "sharp";
 import { NextResponse } from "next/server";
+import { concatNodeBuffers } from "@/lib/crypto-buffer";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getObjectBuffer } from "@/lib/storage-r2";
@@ -36,7 +37,7 @@ function pdfToBuffer(doc: PDFKit.PDFDocument) {
   return new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("end", () => resolve(concatNodeBuffers(chunks)));
     doc.on("error", reject);
     doc.end();
   });

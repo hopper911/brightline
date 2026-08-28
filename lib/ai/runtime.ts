@@ -30,7 +30,7 @@ export async function runChatCompletion(
   params: ChatCompletionBody
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
   try {
-    return await client.chat.completions.create(params);
+    return await client.chat.completions.create({ ...params, stream: false });
   } catch (err: unknown) {
     if (err instanceof APIError) {
       const status = err.status === 429 ? 429 : err.status === 408 ? 504 : 502;

@@ -24,8 +24,6 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export { SECTION_COPY_TONES, type SectionCopyTone };
-
 const SHARED_CLAIM_RULES = `Shared honesty rules:
 - Never invent ROI, customers, production metrics, or client results.
 - Label sample / placeholder data clearly when relevant.

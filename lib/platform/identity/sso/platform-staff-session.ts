@@ -1,4 +1,5 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
+import { timingSafeEqual } from "@/lib/crypto-buffer";
 
 export const PLATFORM_STAFF_SESSION_COOKIE = "platform_staff_session";
 export const PLATFORM_SSO_STATE_COOKIE = "platform_sso_state";

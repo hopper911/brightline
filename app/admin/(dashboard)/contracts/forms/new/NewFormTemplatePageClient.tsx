@@ -10,7 +10,7 @@ const TYPES = Object.values(FormTemplateType);
 export default function NewFormTemplatePageClient() {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [type, setType] = useState(FormTemplateType.OTHER);
+  const [type, setType] = useState<FormTemplateType>(FormTemplateType.OTHER);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

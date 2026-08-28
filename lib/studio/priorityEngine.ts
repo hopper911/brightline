@@ -126,6 +126,12 @@ function clampScore(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
+const MAX_TODAY_FOCUS = 8;
+
+function pushCapped(list: PriorityItem[], item: PriorityItem, max = MAX_TODAY_FOCUS): void {
+  if (list.length < max) list.push(item);
+}
+
 function moneyNumber(value: { toString(): string } | undefined): number {
   if (!value) return 0;
   return Number(value.toString());

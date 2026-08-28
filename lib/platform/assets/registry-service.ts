@@ -7,9 +7,9 @@ import {
   findPlatformAssetByStorageRef,
   listPlatformAssetsByTenantSlug,
   upsertPlatformAssetFromStorageRef,
+  type PlatformAssetListResult,
 } from "@/lib/platform/assets/repository";
 import type {
-  PlatformAssetListResult,
   PlatformAssetRecord,
   PlatformAssetStorageRef,
   RegisterPlatformAssetInput,

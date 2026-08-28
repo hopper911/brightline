@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { concatNodeBuffers } from "@/lib/crypto-buffer";
 import { prisma } from "@/lib/prisma";
 
 export const DELIVERY_GROUPS = [
@@ -144,7 +145,7 @@ export function pdfToBuffer(doc: PDFKit.PDFDocument) {
   return new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("end", () => resolve(concatNodeBuffers(chunks)));
     doc.on("error", reject);
     doc.end();
   });

@@ -4,6 +4,7 @@
 
 import {
   detectR2Kind,
+  detectR2Quality,
   fileNameFromKey,
   formatBytes,
   pairKeyCandidate,
@@ -164,7 +165,7 @@ function brokenHealthItem(key: string, vault: R2VaultId, refs: AssetRef[]): Asse
   const cmsRefs = cmsRefsFromAssetRefs(refs);
   const brightlineDbRefs = refs.filter((r) => r.source === "brightline-db");
   const kind = detectR2Kind(key);
-  const quality = key.includes("web_thumb") || key.includes("/thumb/") ? "thumb" : "full";
+  const quality = detectR2Quality(key);
   return {
     key,
     vault,
@@ -174,7 +175,7 @@ function brokenHealthItem(key: string, vault: R2VaultId, refs: AssetRef[]): Asse
     lastModified: null,
     kind,
     quality,
-    qualityLabel: qualityLabel(quality as "full" | "thumb" | "low_res" | "derivative" | "other"),
+    qualityLabel: qualityLabel(quality),
     previewUrl: previewUrlForKey(key, vault),
     sourceLabel: refs[0]?.label ?? "Broken reference",
     cmsRefs,

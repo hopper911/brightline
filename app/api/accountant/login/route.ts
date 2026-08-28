@@ -64,24 +64,25 @@ export async function POST(req: Request) {
     data: { lastLoginAt: new Date() },
   });
 
+  const permissions = row.permissions;
   const ctx = {
     kind: "accountant" as const,
-    accountantAccess: row,
+    accountantAccess: { ...row, permissions },
     permissions: {
-      canViewInvoices: row.permissions.canViewInvoices,
-      canViewPayments: row.permissions.canViewPayments,
-      canViewExpenses: row.permissions.canViewExpenses,
-      canViewTransactions: row.permissions.canViewTransactions,
-      canUploadReceipts: row.permissions.canUploadReceipts,
-      canExportReports: row.permissions.canExportReports,
-      canDownloadDocuments: row.permissions.canDownloadDocuments,
-      canAddAccountingNotes: row.permissions.canAddAccountingNotes,
-      canViewProjectFinancials: row.permissions.canViewProjectFinancials,
-      canEditExpenseCategories: row.permissions.canEditExpenseCategories,
-      canCreateExpenses: row.permissions.canCreateExpenses,
-      canEditExpenses: row.permissions.canEditExpenses,
+      canViewInvoices: permissions.canViewInvoices,
+      canViewPayments: permissions.canViewPayments,
+      canViewExpenses: permissions.canViewExpenses,
+      canViewTransactions: permissions.canViewTransactions,
+      canUploadReceipts: permissions.canUploadReceipts,
+      canExportReports: permissions.canExportReports,
+      canDownloadDocuments: permissions.canDownloadDocuments,
+      canAddAccountingNotes: permissions.canAddAccountingNotes,
+      canViewProjectFinancials: permissions.canViewProjectFinancials,
+      canEditExpenseCategories: permissions.canEditExpenseCategories,
+      canCreateExpenses: permissions.canCreateExpenses,
+      canEditExpenses: permissions.canEditExpenses,
     },
-  };
+  } satisfies import("@/lib/accountant/auth").AccountantPortalContext;
 
   await auditAccountantAction({
     ctx,

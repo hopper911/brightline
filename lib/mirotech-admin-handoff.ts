@@ -1,4 +1,5 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
+import { timingSafeEqual } from "@/lib/crypto-buffer";
 import { mirotechSiteOrigin } from "@/lib/mirotech-site";
 
 export { mirotechSiteOrigin };

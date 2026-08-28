@@ -43,7 +43,7 @@ function inferSuccess(action: string, metadata: Record<string, unknown> | null):
 
 function toView(record: {
   id: string;
-  tenantSlug: TenantSlug;
+  tenantSlug: string;
   actorType: PlatformAuditActorType;
   actorId: string | null;
   action: string;
@@ -52,10 +52,11 @@ function toView(record: {
   metadata: Record<string, unknown> | null;
   createdAt: Date;
 }): StudioAuditEventView {
+  const tenantSlug = record.tenantSlug as TenantSlug;
   const metadata = sanitizeAuditMetadataForDisplay(record.metadata);
   return {
     id: record.id,
-    tenantSlug: record.tenantSlug,
+    tenantSlug,
     actorType: record.actorType,
     actorId: record.actorId,
     action: record.action,

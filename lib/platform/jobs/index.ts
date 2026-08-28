@@ -1,6 +1,7 @@
 export type { JobProvider, CreateJobInput, JobUpdatePatch } from "@/lib/platform/jobs/job-provider";
 export type { JobService, PlatformJobService } from "@/lib/platform/jobs/job-service";
-export type { JobHandler, JobHandlerRegistry } from "@/lib/platform/jobs/job-handler-registry";
+export type { JobHandler } from "@/lib/platform/jobs/job-handler-registry";
+export type { JobHandlerRegistry as JobHandlerRegistryType } from "@/lib/platform/jobs/job-handler-registry";
 export {
   JobError,
   JobForbiddenError,

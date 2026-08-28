@@ -52,6 +52,8 @@ function createAdapter(overrides?: Partial<BrightlineContentReadPort>) {
   const port: BrightlineContentReadPort = {
     getWorkProjectById: vi.fn(),
     getPortfolioProjectById: vi.fn(),
+    listWorkProjects: vi.fn().mockResolvedValue({ rows: [] }),
+    listPortfolioProjects: vi.fn().mockResolvedValue({ rows: [] }),
     ...overrides,
   };
   return { adapter: new BrightlineContentAdapter(port), port };

@@ -1,4 +1,5 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
+import { timingSafeEqual } from "@/lib/crypto-buffer";
 
 /** Signed client gallery session — binds cookie to access-token id without exposing a bare cuid. */
 export const CLIENT_GALLERY_SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7;

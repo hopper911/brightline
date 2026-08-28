@@ -1,3 +1,4 @@
+import { concatNodeBuffers, concatTwoBuffers, bufferFromSlice } from "@/lib/crypto-buffer";
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { SITE_BACKGROUNDS_PREFIX } from "@/lib/site-background-videos";
@@ -106,7 +107,7 @@ export async function POST(req: Request) {
     if (totalBytes < MIN_PART) {
       await putObjectBuffer({
         key,
-        body: Buffer.concat(chunks),
+        body: concatNodeBuffers(chunks),
         contentType,
         access: "private",
       });
@@ -132,17 +133,17 @@ export async function POST(req: Request) {
 
     try {
       for (let i = 0; i < chunks.length; i++) {
-        buffer = Buffer.concat([buffer, chunks[i]!]);
+        buffer = concatTwoBuffers(buffer, chunks[i]!);
         const isLast = i === chunks.length - 1;
         if (!isLast) {
           while (buffer.length >= MIN_PART) {
-            await emit(Buffer.from(buffer.subarray(0, MIN_PART)));
-            buffer = Buffer.from(buffer.subarray(MIN_PART));
+            await emit(bufferFromSlice(buffer, 0, MIN_PART));
+            buffer = bufferFromSlice(buffer, MIN_PART);
           }
         } else {
           while (buffer.length > MIN_PART) {
-            await emit(Buffer.from(buffer.subarray(0, MIN_PART)));
-            buffer = Buffer.from(buffer.subarray(MIN_PART));
+            await emit(bufferFromSlice(buffer, 0, MIN_PART));
+            buffer = bufferFromSlice(buffer, MIN_PART);
           }
           if (buffer.length > 0) {
             await emit(buffer);

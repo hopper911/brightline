@@ -41,7 +41,7 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Task not found." }, { status: 404 });
   }
 
-  const data: Prisma.StudioTaskUpdateInput = {};
+  const data: Prisma.StudioTaskUncheckedUpdateInput = {};
 
   if (body?.title !== undefined) {
     const t = body.title.trim();

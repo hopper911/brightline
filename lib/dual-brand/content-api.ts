@@ -39,6 +39,7 @@ export type DualBrandWorkProject = {
   tools?: string[];
   platforms?: string[];
   publishMirotech?: boolean;
+  publishBrightline?: boolean;
   sections?: Array<{
     id: string;
     type: string;

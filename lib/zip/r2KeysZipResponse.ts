@@ -48,7 +48,7 @@ export function createR2KeysZipResponse(entries: R2ZipEntry[], zipFilename: stri
     }
   })();
 
-  const webStream = Readable.toWeb(passThrough);
+  const webStream = Readable.toWeb(passThrough) as unknown as BodyInit;
   return new Response(webStream, {
     headers: {
       "Content-Type": "application/zip",

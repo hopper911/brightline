@@ -108,7 +108,7 @@ export async function resolveStudioOpsContext(req?: Request): Promise<StudioOpsC
     }
   }
 
-  const sectionIds: StudioOpsSectionId[] = [
+  const ALL_SECTIONS: StudioOpsSectionId[] = [
     "overview",
     "brightline",
     "mirotech",
@@ -116,7 +116,10 @@ export async function resolveStudioOpsContext(req?: Request): Promise<StudioOpsC
     "media",
     "publishing",
     "system",
-  ].filter((id) => studioOpsSectionVisible(id, permissions, legacyAdmin));
+  ];
+  const sectionIds = ALL_SECTIONS.filter((id) =>
+    studioOpsSectionVisible(id, permissions, legacyAdmin)
+  );
 
   const identityStatus = !identityEnabled
     ? "disabled"

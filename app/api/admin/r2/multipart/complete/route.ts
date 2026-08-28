@@ -1,3 +1,4 @@
+import { concatNodeBuffers, concatTwoBuffers, bufferFromSlice } from "@/lib/crypto-buffer";
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { assertSameOriginAdminMutation } from "@/lib/admin-request-origin";
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
     if (totalBytes < R2_MULTIPART_MIN_PART) {
       await putObjectBuffer({
         key,
-        body: Buffer.concat(chunks),
+        body: concatNodeBuffers(chunks),
         contentType,
         access,
         vault,
@@ -130,17 +131,17 @@ export async function POST(req: Request) {
 
     try {
       for (let i = 0; i < chunks.length; i++) {
-        buffer = Buffer.concat([buffer, chunks[i]!]);
+        buffer = concatTwoBuffers(buffer, chunks[i]!);
         const isLast = i === chunks.length - 1;
         if (!isLast) {
           while (buffer.length >= R2_MULTIPART_MIN_PART) {
-            await emit(Buffer.from(buffer.subarray(0, R2_MULTIPART_MIN_PART)));
-            buffer = Buffer.from(buffer.subarray(R2_MULTIPART_MIN_PART));
+            await emit(bufferFromSlice(buffer, 0, R2_MULTIPART_MIN_PART));
+            buffer = bufferFromSlice(buffer, R2_MULTIPART_MIN_PART);
           }
         } else {
           while (buffer.length > R2_MULTIPART_MIN_PART) {
-            await emit(Buffer.from(buffer.subarray(0, R2_MULTIPART_MIN_PART)));
-            buffer = Buffer.from(buffer.subarray(R2_MULTIPART_MIN_PART));
+            await emit(bufferFromSlice(buffer, 0, R2_MULTIPART_MIN_PART));
+            buffer = bufferFromSlice(buffer, R2_MULTIPART_MIN_PART);
           }
           if (buffer.length > 0) {
             await emit(buffer);

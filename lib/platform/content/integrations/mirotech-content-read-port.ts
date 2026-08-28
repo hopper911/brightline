@@ -5,4 +5,6 @@ import type { HubProject } from "@/lib/dual-brand/studio-hub";
 export type MirotechContentReadPort = {
   getHubProjectById(id: string): Promise<HubProject | null>;
   getMirotechWorkBySlug(slug: string): Promise<DualBrandWorkProject | null>;
+  listHubProjects(): Promise<HubProject[]>;
+  listMirotechCaseStudies(): Promise<DualBrandWorkProject[]>;
 };

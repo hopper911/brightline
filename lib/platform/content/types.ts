@@ -130,6 +130,12 @@ export type ContentPublishedSnapshot = {
   payload: unknown;
 };
 
+/** Paginated content list result from ContentService.listPublished. */
+export type ContentListResult = {
+  items: ContentReferenceSummary[];
+  nextCursor?: string;
+};
+
 /** Cross-publish distribution when source record fans out to multiple tenants. */
 export type ContentDistributionSnapshot = {
   ref: ContentRef;

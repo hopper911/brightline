@@ -142,3 +142,34 @@ export async function upsertPlatformAssetFromStorageRef(
   const asset = await createPlatformAsset(input, client);
   return { asset, created: true };
 }
+
+export type PlatformAssetListResult = {
+  items: PlatformAssetRecord[];
+  nextCursor?: string;
+};
+
+function clampAssetLimit(limit?: number): number {
+  return Math.min(Math.max(limit ?? 30, 1), 50);
+}
+
+/** Paginated tenant asset listing for Studio / admin browsers (registry rows only). */
+export async function listPlatformAssetsByTenantSlug(
+  tenantSlug: TenantSlug,
+  options?: { limit?: number; cursor?: string },
+  client: PrismaClient = prisma
+): Promise<PlatformAssetListResult> {
+  const limit = clampAssetLimit(options?.limit);
+  const rows = await client.platformAsset.findMany({
+    where: {
+      tenant: { slug: tenantSlug },
+      ...(options?.cursor ? { id: { lt: options.cursor } } : {}),
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    include: assetInclude,
+  });
+  const slice = rows.slice(0, limit);
+  const items = slice.map(mapRow);
+  const nextCursor = rows.length > limit ? slice[slice.length - 1]?.id : undefined;
+  return { items, nextCursor };
+}

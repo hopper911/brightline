@@ -5,9 +5,11 @@ import type { PlatformContext } from "@/lib/platform/context/types";
 import {
   findPlatformAssetById,
   findPlatformAssetByStorageRef,
+  listPlatformAssetsByTenantSlug,
   upsertPlatformAssetFromStorageRef,
 } from "@/lib/platform/assets/repository";
 import type {
+  PlatformAssetListResult,
   PlatformAssetRecord,
   PlatformAssetStorageRef,
   RegisterPlatformAssetInput,
@@ -34,6 +36,16 @@ export class PlatformAssetRegistryService {
 
   async findByStorageRef(ref: PlatformAssetStorageRef): Promise<PlatformAssetRecord | null> {
     return findPlatformAssetByStorageRef(ref);
+  }
+
+  async listByTenant(
+    context: PlatformContext,
+    options?: { limit?: number; cursor?: string }
+  ): Promise<PlatformAssetListResult> {
+    if (!isPlatformFeatureEnabled("assets")) {
+      return { items: [] };
+    }
+    return listPlatformAssetsByTenantSlug(context.tenant.slug, options);
   }
 
   async register(

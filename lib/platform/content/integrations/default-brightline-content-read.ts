@@ -104,8 +104,63 @@ export async function fetchBrightlinePortfolioProjectById(
   };
 }
 
+function clampLimit(limit?: number): number {
+  return Math.min(Math.max(limit ?? 30, 1), 50);
+}
+
+export async function listBrightlineWorkProjects(
+  options?: { limit?: number; cursor?: string },
+  client: PrismaClient = prisma
+): Promise<{ rows: BrightlineWorkProjectRow[]; nextCursor?: string }> {
+  const limit = clampLimit(options?.limit);
+  const rows = await client.workProject.findMany({
+    where: options?.cursor ? { id: { lt: options.cursor } } : undefined,
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    select: WORK_PROJECT_SELECT,
+  });
+  const slice = rows.slice(0, limit);
+  const mapped = await Promise.all(slice.map((row) => toWorkProjectRow(row)));
+  const nextCursor = rows.length > limit ? slice[slice.length - 1]?.id : undefined;
+  return { rows: mapped, nextCursor };
+}
+
+export async function listBrightlinePortfolioProjects(
+  options?: { limit?: number; cursor?: string },
+  client: PrismaClient = prisma
+): Promise<{ rows: BrightlinePortfolioProjectRow[]; nextCursor?: string }> {
+  const limit = clampLimit(options?.limit);
+  const rows = await client.portfolioProject.findMany({
+    where: options?.cursor ? { id: { lt: options.cursor } } : undefined,
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    select: PORTFOLIO_PROJECT_SELECT,
+  });
+  const slice = rows.slice(0, limit);
+  const mapped = slice.map((row) => ({
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    categorySlug: row.categorySlug,
+    location: row.location,
+    year: row.year,
+    description: row.description,
+    published: row.published,
+    seoTitle: row.seoTitle,
+    seoDescription: row.seoDescription,
+    coverAlt: row.coverAlt,
+    imageCount: row._count.images,
+    updatedAt: row.updatedAt,
+    createdAt: row.createdAt,
+  }));
+  const nextCursor = rows.length > limit ? slice[slice.length - 1]?.id : undefined;
+  return { rows: mapped, nextCursor };
+}
+
 /** Default read port — Prisma selects with no client/gallery/delivery fields. */
 export const defaultBrightlineContentReadPort: BrightlineContentReadPort = {
   getWorkProjectById: (id) => fetchBrightlineWorkProjectById(id),
   getPortfolioProjectById: (id) => fetchBrightlinePortfolioProjectById(id),
+  listWorkProjects: (options) => listBrightlineWorkProjects(options),
+  listPortfolioProjects: (options) => listBrightlinePortfolioProjects(options),
 };

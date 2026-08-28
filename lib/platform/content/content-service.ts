@@ -9,6 +9,7 @@ import type {
   ContentDistributionSnapshot,
   ContentPublishedSnapshot,
   ContentRef,
+  ContentListResult,
   ContentReferenceSummary,
   ContentType,
 } from "@/lib/platform/content/types";
@@ -49,11 +50,11 @@ export interface ContentService {
    * List published refs of a cross-domain type for a tenant (e.g. dual-brand work on /work).
    * Optional — implement when migrating public listing routes behind the service.
    */
-  listPublished?(
+  listPublished(
     context: PlatformContext,
     type: ContentType,
     options?: { limit?: number; cursor?: string }
-  ): Promise<ContentReferenceSummary[]>;
+  ): Promise<ContentListResult>;
 }
 
 /** Alias aligned with Phase 1A service boundary naming. */

@@ -40,4 +40,12 @@ export type BrightlinePortfolioProjectRow = {
 export type BrightlineContentReadPort = {
   getWorkProjectById(id: string): Promise<BrightlineWorkProjectRow | null>;
   getPortfolioProjectById(id: string): Promise<BrightlinePortfolioProjectRow | null>;
+  listWorkProjects(options?: {
+    limit?: number;
+    cursor?: string;
+  }): Promise<{ rows: BrightlineWorkProjectRow[]; nextCursor?: string }>;
+  listPortfolioProjects(options?: {
+    limit?: number;
+    cursor?: string;
+  }): Promise<{ rows: BrightlinePortfolioProjectRow[]; nextCursor?: string }>;
 };

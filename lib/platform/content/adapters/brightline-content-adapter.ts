@@ -25,8 +25,10 @@ import {
 } from "@/lib/platform/content/integrations/map-brightline-content";
 import type {
   ContentPublishedSnapshot,
+  ContentListResult,
   ContentRef,
   ContentReferenceSummary,
+  ContentType,
 } from "@/lib/platform/content/types";
 import { assertValidContentRef } from "@/lib/platform/content/types";
 import type { TenantSlug } from "@/lib/platform/tenants/types";
@@ -112,6 +114,50 @@ export class BrightlineContentAdapter implements ContentProvider {
       return null;
     }
     return mapPortfolioProjectToReferenceSummary(valid, row);
+  }
+
+  async listPublished(
+    _context: PlatformContext,
+    type: ContentType,
+    options?: { limit?: number; cursor?: string }
+  ): Promise<ContentListResult> {
+    const limit = Math.min(Math.max(options?.limit ?? 30, 1), 50);
+
+    if (type === "work-project") {
+      const { rows, nextCursor } = await this.readPort.listWorkProjects({
+        limit,
+        cursor: options?.cursor,
+      });
+      return {
+        items: rows.map((row) =>
+          mapWorkProjectToReferenceSummary(
+            { tenant: BRIGHTLINE_TENANT, type: "work-project", id: row.id },
+            row
+          )
+        ),
+        nextCursor,
+      };
+    }
+
+    if (type === "portfolio-project") {
+      const { rows, nextCursor } = await this.readPort.listPortfolioProjects({
+        limit,
+        cursor: options?.cursor,
+      });
+      return {
+        items: rows.map((row) =>
+          mapPortfolioProjectToReferenceSummary(
+            { tenant: BRIGHTLINE_TENANT, type: "portfolio-project", id: row.id },
+            row
+          )
+        ),
+        nextCursor,
+      };
+    }
+
+    throw new ContentUnsupportedTypeError(
+      `Brightline content adapter does not support content type "${type}".`
+    );
   }
 
   private assertBrightlineRef(ref: ContentRef): ContentRef & { type: BrightlineAdapterContentType } {

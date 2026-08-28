@@ -28,9 +28,11 @@ import {
 import type { MirotechContentReadPort } from "@/lib/platform/content/integrations/mirotech-content-read-port";
 import type {
   ContentDistributionSnapshot,
+  ContentListResult,
   ContentPublishedSnapshot,
   ContentRef,
   ContentReferenceSummary,
+  ContentType,
 } from "@/lib/platform/content/types";
 import { assertValidContentRef } from "@/lib/platform/content/types";
 import type { TenantSlug } from "@/lib/platform/tenants/types";
@@ -132,6 +134,51 @@ export class MirotechContentAdapter implements ContentProvider {
       return null;
     }
     return mapHubProjectToReferenceSummary(valid, hub);
+  }
+
+  async listPublished(
+    _context: PlatformContext,
+    type: ContentType,
+    options?: { limit?: number; cursor?: string }
+  ): Promise<ContentListResult> {
+    const limit = Math.min(Math.max(options?.limit ?? 30, 1), 50);
+    const cursor = options?.cursor;
+
+    if (type === "dual-brand-work") {
+      const hubs = await this.readPort.listHubProjects();
+      const sorted = [...hubs].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+      const start = cursor ? sorted.findIndex((h) => h.id === cursor) + 1 : 0;
+      const slice = sorted.slice(start, start + limit);
+      return {
+        items: slice.map((hub) =>
+          mapHubProjectToReferenceSummary(
+            { tenant: MIROTECH_TENANT, type: "dual-brand-work", id: hub.id },
+            hub
+          )
+        ),
+        nextCursor: slice.length === limit ? slice[slice.length - 1]?.id : undefined,
+      };
+    }
+
+    if (type === "mirotech-case-study") {
+      const projects = await this.readPort.listMirotechCaseStudies();
+      const sorted = [...projects].sort((a, b) => b.sortOrder - a.sortOrder);
+      const start = cursor ? sorted.findIndex((p) => p.slug === cursor) + 1 : 0;
+      const slice = sorted.slice(start, start + limit);
+      return {
+        items: slice.map((project) =>
+          mapWorkProjectToReferenceSummary(
+            { tenant: MIROTECH_TENANT, type: "mirotech-case-study", id: project.slug },
+            project
+          )
+        ),
+        nextCursor: slice.length === limit ? slice[slice.length - 1]?.slug : undefined,
+      };
+    }
+
+    throw new ContentUnsupportedTypeError(
+      `Mirotech content adapter does not support content type "${type}".`
+    );
   }
 
   private assertMirotechRef(ref: ContentRef): ContentRef & { type: MirotechAdapterContentType } {

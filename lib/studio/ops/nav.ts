@@ -25,19 +25,19 @@ export const STUDIO_OPS_NAV: StudioOpsNavItem[] = [
   {
     id: "content",
     label: "Content",
-    href: "/studio/ops/content",
-    description: "CMS, work, journal, and hub content",
+    href: "/studio/content",
+    description: "Platform content listings by tenant",
   },
   {
     id: "media",
     label: "Media",
-    href: "/studio/ops/media",
-    description: "Libraries, R2, and dual-brand media tools",
+    href: "/studio/media",
+    description: "Asset registry browser",
   },
   {
     id: "publishing",
     label: "Publishing",
-    href: "/studio/ops/publishing",
+    href: "/studio/publishing",
     description: "Distribution, sync, and publish pipelines",
   },
   {

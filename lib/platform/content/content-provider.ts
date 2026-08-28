@@ -7,9 +7,11 @@ import type { PlatformContext } from "@/lib/platform/context/types";
 import type { TenantSlug } from "@/lib/platform/tenants/types";
 import type {
   ContentDistributionSnapshot,
+  ContentListResult,
   ContentPublishedSnapshot,
   ContentRef,
   ContentReferenceSummary,
+  ContentType,
 } from "@/lib/platform/content/types";
 
 /**
@@ -43,6 +45,13 @@ export interface ContentProvider {
     context: PlatformContext,
     ref: ContentRef
   ): Promise<ContentDistributionSnapshot | null>;
+
+  /** List content summaries for adapter-supported types (Studio / admin pickers). */
+  listPublished?(
+    context: PlatformContext,
+    type: ContentType,
+    options?: { limit?: number; cursor?: string }
+  ): Promise<ContentListResult>;
 }
 
 /** Planned adapter mapping (not implemented in 5A). */

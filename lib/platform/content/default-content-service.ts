@@ -12,6 +12,7 @@ import {
 } from "@/lib/platform/content/errors";
 import type {
   ContentDistributionSnapshot,
+  ContentListResult,
   ContentPublishedSnapshot,
   ContentRef,
   ContentReferenceSummary,
@@ -51,11 +52,15 @@ export class DefaultContentService implements ContentService {
     context: PlatformContext,
     type: ContentType,
     options?: { limit?: number; cursor?: string }
-  ): Promise<ContentReferenceSummary[]> {
-    void context;
-    void type;
-    void options;
-    return [];
+  ): Promise<ContentListResult> {
+    const tenant = context.tenant.slug;
+    const provider = this.registry.getProvider(tenant);
+    if (!provider?.listPublished) {
+      throw new ContentUnsupportedTypeError(
+        `No listPublished provider for tenant "${tenant}" and type "${type}".`
+      );
+    }
+    return provider.listPublished(context, type, options);
   }
 
   private providerFor(ref: ContentRef): ContentProvider {

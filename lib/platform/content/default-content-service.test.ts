@@ -44,4 +44,20 @@ describe("DefaultContentService", () => {
       })
     ).rejects.toThrow(ContentUnsupportedTypeError);
   });
+
+  it("routes listPublished to tenant provider", async () => {
+    const provider: ContentProvider = {
+      tenant: "brightline",
+      supports: () => true,
+      resolveReference: vi.fn(),
+      getPublished: vi.fn(),
+      listPublished: vi.fn().mockResolvedValue({ items: [], nextCursor: "c1" }),
+    };
+    const registry = new DefaultContentProviderRegistry({ brightline: provider });
+    const service = new DefaultContentService(registry);
+    const context = createPlatformContextForTenant("brightline");
+    const result = await service.listPublished(context, "work-project", { limit: 10 });
+    expect(result.nextCursor).toBe("c1");
+    expect(provider.listPublished).toHaveBeenCalledWith(context, "work-project", { limit: 10 });
+  });
 });

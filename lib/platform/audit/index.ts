@@ -1,0 +1,19 @@
+export {
+  PlatformAuditService,
+  auditService,
+  platformAuditService,
+} from "@/lib/platform/audit/audit-service";
+export { insertPlatformAuditEvent } from "@/lib/platform/audit/repository";
+export { sanitizeAuditMetadata } from "@/lib/platform/audit/sanitize-metadata";
+export {
+  PLATFORM_AUDIT_ACTION_PATTERN,
+  PLATFORM_AUDIT_ACTOR_TYPES,
+  isPlatformAuditActorType,
+  isValidPlatformAuditAction,
+  type PlatformAuditActor,
+  type PlatformAuditActorType,
+  type PlatformAuditEventRecord,
+  type PlatformAuditResource,
+  type RecordPlatformAuditInput,
+  type RecordPlatformAuditResult,
+} from "@/lib/platform/audit/types";

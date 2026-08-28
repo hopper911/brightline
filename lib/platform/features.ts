@@ -8,7 +8,8 @@ export type PlatformFeatureKey =
   | "media"
   | "publishing"
   | "identity"
-  | "jobs";
+  | "jobs"
+  | "audit";
 
 export type PlatformFeatures = Readonly<Record<PlatformFeatureKey, boolean>>;
 
@@ -18,6 +19,7 @@ const ENV_KEYS: Readonly<Record<PlatformFeatureKey, string>> = Object.freeze({
   publishing: "PLATFORM_PUBLISHING_ENABLED",
   identity: "PLATFORM_IDENTITY_ENABLED",
   jobs: "PLATFORM_JOBS_ENABLED",
+  audit: "PLATFORM_AUDIT_ENABLED",
 });
 
 function parseEnvFlag(name: string): boolean {
@@ -34,6 +36,7 @@ export function getPlatformFeatures(): PlatformFeatures {
     publishing: parseEnvFlag(ENV_KEYS.publishing),
     identity: parseEnvFlag(ENV_KEYS.identity),
     jobs: parseEnvFlag(ENV_KEYS.jobs),
+    audit: parseEnvFlag(ENV_KEYS.audit),
   });
 }
 
@@ -57,5 +60,8 @@ export const platformFeatures = {
   },
   get jobs() {
     return isPlatformFeatureEnabled("jobs");
+  },
+  get audit() {
+    return isPlatformFeatureEnabled("audit");
   },
 };

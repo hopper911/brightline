@@ -2124,5 +2124,28 @@ model PlatformTenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  auditEvents PlatformAuditEvent[]
+
   @@map("platform_tenants")
+}
+
+model PlatformAuditEvent {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  tenantSlug   String
+  actorType    String
+  actorId      String?
+  action       String
+  resourceType String?
+  resourceId   String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  tenant PlatformTenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantSlug, createdAt])
+  @@index([action, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@map("platform_audit_events")
 }

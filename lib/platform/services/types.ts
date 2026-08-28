@@ -4,6 +4,10 @@
  */
 
 import type { TenantSlug } from "@/lib/platform/tenants";
+import type {
+  RecordPlatformAuditInput,
+  RecordPlatformAuditResult,
+} from "@/lib/platform/audit/types";
 
 export type PlatformAssetRef = {
   tenantSlug: TenantSlug;
@@ -44,4 +48,9 @@ export type PlatformPublishTarget = {
 export interface PlatformPublishingService {
   publish(target: PlatformPublishTarget): Promise<{ jobId: string }>;
   getJobStatus(jobId: string): Promise<{ status: "pending" | "completed" | "failed"; error?: string }>;
+}
+
+/** Operational audit trail (implementation: `platformAuditService`). */
+export interface PlatformAuditService {
+  record(input: RecordPlatformAuditInput): Promise<RecordPlatformAuditResult>;
 }

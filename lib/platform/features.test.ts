@@ -11,6 +11,7 @@ const ENV_KEYS = [
   "PLATFORM_PUBLISHING_ENABLED",
   "PLATFORM_IDENTITY_ENABLED",
   "PLATFORM_JOBS_ENABLED",
+  "PLATFORM_AUDIT_ENABLED",
 ] as const;
 
 describe("platform feature flags", () => {
@@ -38,6 +39,7 @@ describe("platform feature flags", () => {
       publishing: false,
       identity: false,
       jobs: false,
+      audit: false,
     });
     expect(platformFeatures.content).toBe(false);
     expect(isPlatformFeatureEnabled("media")).toBe(false);

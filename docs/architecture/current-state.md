@@ -223,7 +223,7 @@ Publishing is **not** centralized; each path owns its transaction boundaries.
 
 ### Platform (Phase 1A — default off)
 
-- `PLATFORM_CONTENT_ENABLED`, `PLATFORM_MEDIA_ENABLED`, `PLATFORM_PUBLISHING_ENABLED`, `PLATFORM_IDENTITY_ENABLED`, `PLATFORM_JOBS_ENABLED`
+- `PLATFORM_CONTENT_ENABLED`, `PLATFORM_MEDIA_ENABLED`, `PLATFORM_PUBLISHING_ENABLED`, `PLATFORM_IDENTITY_ENABLED`, `PLATFORM_JOBS_ENABLED`, `PLATFORM_AUDIT_ENABLED`
 
 ### Email / payments / AI
 
@@ -263,7 +263,7 @@ Publishing is **not** centralized; each path owns its transaction boundaries.
 
 | Seam | Notes |
 | --- | --- |
-| `lib/platform/*` (Phase 1A–1B) | Tenant registry, resolver, PlatformContext; no legacy wiring yet |
+| `lib/platform/*` (Phase 1A–2A) | Tenant registry, resolver, PlatformContext, audit service; no legacy wiring yet |
 | `lib/r2-vaults.ts` | Natural wrapper point for future `MediaService` |
 | `lib/dual-brand/*` | Content/publish adapters behind future platform services |
 | `lib/feature-flags.ts` | Existing CMS gates — separate from platform flags |
@@ -338,6 +338,26 @@ No production route imports these helpers yet.
 - Hard-coded `https://brightlinephotography.com` and `https://mirotech.solutions` strings in admin UI
 - `primarySite` enum strings parallel but not identical to `TenantSlug`
 - `tenantSlugFromLegacySite()` bridges vault/CMS labels → platform slugs for future migration
+
+---
+
+## 12. Existing logging / audit mechanisms
+
+Domain-specific audit and telemetry tables already exist. Phase 2A adds a **platform** layer beside them — no replacement.
+
+| Mechanism | Table / module | Scope |
+| --- | --- | --- |
+| Accountant portal audit | `AccountantAuditLog` | Finance portal actions (`actorType`, `action`, `entityType`/`entityId`, IP/UA) |
+| Document / form audit | `DocumentAuditLog` | Generated documents and form submissions |
+| AI ops telemetry | `AiInvocation` | Model calls, tokens, latency — not a general audit trail |
+| Optional error monitoring | `lib/monitoring/sentry.ts` | Production exceptions (`SENTRY_DSN`) |
+| Console logging | Various | Ad hoc `console.error` / `console.log` |
+
+**Platform audit (Phase 2A — beside legacy):**
+
+- `PlatformAuditEvent` → `platform_audit_events`
+- `platformAuditService.record()` — gated by `PLATFORM_AUDIT_ENABLED` (default off)
+- No production routes call the service yet
 
 ---
 

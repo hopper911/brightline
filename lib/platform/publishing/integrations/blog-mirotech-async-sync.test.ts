@@ -10,13 +10,11 @@ vi.mock("@/lib/platform/jobs/default-job-service", () => ({
   defaultJobService: {
     enqueue: vi.fn(),
     getStatus: vi.fn(),
-    runJob: vi.fn(),
   },
-  createMemoryJobService: vi.fn(),
 }));
 
-vi.mock("@/lib/platform/jobs/drain-platform-jobs", () => ({
-  awaitPlatformJobs: vi.fn(),
+vi.mock("@/lib/platform/jobs/publishing-enqueue", () => ({
+  enqueueMirotechJournalSyncJob: vi.fn(),
 }));
 
 const savedJobs = process.env.PLATFORM_JOBS_ENABLED;
@@ -30,9 +28,8 @@ afterEach(() => {
   else process.env.PLATFORM_JOBS_ENABLED = savedJobs;
 });
 
-import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
+import { enqueueMirotechJournalSyncJob } from "@/lib/platform/jobs/publishing-enqueue";
 import { defaultJobService } from "@/lib/platform/jobs/default-job-service";
-import { awaitPlatformJobs } from "@/lib/platform/jobs/drain-platform-jobs";
 import { jobPlatformSyncBlogPostsMirotech } from "@/lib/platform/publishing/integrations/blog-mirotech-async-sync";
 
 const samplePost = {
@@ -58,67 +55,20 @@ const samplePost = {
 
 describe("jobPlatformSyncBlogPostsMirotech", () => {
   beforeEach(() => {
-    vi.mocked(defaultJobService.enqueue).mockReset();
+    vi.mocked(enqueueMirotechJournalSyncJob).mockReset();
     vi.mocked(defaultJobService.getStatus).mockReset();
-    vi.mocked(awaitPlatformJobs).mockReset();
-    vi.mocked(recordAuditSafely).mockClear();
   });
 
-  it("enqueues, drains worker, and returns mirotech sync outcome", async () => {
-    vi.mocked(defaultJobService.enqueue).mockResolvedValue({ jobId: "job-1", status: "PENDING" });
-    vi.mocked(defaultJobService.getStatus).mockResolvedValue({
-      id: "job-1",
-      tenantSlug: "brightline",
-      type: "publishing.mirotech.journal.sync",
+  it("enqueues and returns accepted result without inline drain", async () => {
+    vi.mocked(enqueueMirotechJournalSyncJob).mockResolvedValue({
+      jobId: "job-1",
+      accepted: true,
       status: "PENDING",
-      payload: {},
-      attempts: 0,
-      idempotencyKey: "k1",
-      createdAt: "2024-01-01T00:00:00.000Z",
-      startedAt: null,
-      completedAt: null,
-      failedAt: null,
-      errorSummary: null,
-    });
-    vi.mocked(awaitPlatformJobs).mockResolvedValue([
-      {
-        id: "job-1",
-        tenantSlug: "brightline",
-        type: "publishing.mirotech.journal.sync",
-        status: "COMPLETED",
-        payload: { result: { ok: true, resourceId: "journal-9" } },
-        attempts: 1,
-        idempotencyKey: "k1",
-        createdAt: "2024-01-01T00:00:00.000Z",
-        startedAt: "2024-01-01T00:00:00.000Z",
-        completedAt: "2024-01-01T00:00:00.000Z",
-        failedAt: null,
-        errorSummary: null,
-      },
-    ]);
-    vi.mocked(defaultJobService.getStatus).mockResolvedValue({
-      id: "job-1",
-      tenantSlug: "brightline",
-      type: "publishing.mirotech.journal.sync",
-      status: "COMPLETED",
-      payload: { result: { ok: true, resourceId: "journal-9" } },
-      attempts: 1,
-      idempotencyKey: "k1",
-      createdAt: "2024-01-01T00:00:00.000Z",
-      startedAt: "2024-01-01T00:00:00.000Z",
-      completedAt: "2024-01-01T00:00:00.000Z",
-      failedAt: null,
-      errorSummary: null,
     });
 
     const result = await jobPlatformSyncBlogPostsMirotech([samplePost]);
 
-    expect(defaultJobService.enqueue).toHaveBeenCalled();
-    expect(awaitPlatformJobs).toHaveBeenCalledWith(["job-1"], expect.any(Object));
-    expect(result.results[0]).toMatchObject({ ok: true, mirotechJournalId: "journal-9" });
-    expect(result.posts[0]?.mirotechJournalId).toBe("journal-9");
-    expect(vi.mocked(recordAuditSafely).mock.calls.some((c) => c[0].action === "publishing.queued")).toBe(
-      true
-    );
+    expect(enqueueMirotechJournalSyncJob).toHaveBeenCalled();
+    expect(result.results[0]).toMatchObject({ postId: "post-1", accepted: true, jobId: "job-1" });
   });
 });

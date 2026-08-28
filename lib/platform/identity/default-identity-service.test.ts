@@ -94,4 +94,19 @@ describe("DefaultIdentityService", () => {
     const user = await service.findUserByEmail(context, "ops@brightlinephotography.com");
     expect(user?.id).toBe("user-1");
   });
+
+  it("hasTenantRole checks membership rank in context tenant", async () => {
+    vi.mocked(listPlatformMembershipsForUserInTenant).mockResolvedValue([
+      {
+        id: "m-1",
+        userId: "user-1",
+        tenantSlug: "brightline",
+        role: "EDITOR",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    await expect(service.hasTenantRole(context, "user-1", "VIEWER")).resolves.toBe(true);
+    await expect(service.hasTenantRole(context, "user-1", "ADMIN")).resolves.toBe(false);
+  });
 });

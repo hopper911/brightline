@@ -32,34 +32,59 @@ export async function PATCH(req: Request) {
 
     const input =
       body && typeof body === "object" && Array.isArray((body as { posts?: unknown }).posts)
-        ? (body as { posts: unknown[] }).posts
+        ? (body as { posts: unknown[]; skipMirotechSync?: boolean })
         : body;
 
-    let posts = await saveBlogPosts(input);
+    const skipMirotechSync =
+      input &&
+      typeof input === "object" &&
+      !Array.isArray(input) &&
+      (input as { skipMirotechSync?: boolean }).skipMirotechSync === true;
 
-    let mirotechSync: Array<{ postId: string; ok: boolean; error?: string }> = [];
-    try {
-      const synced = await resolveBlogPostsMirotechSync(posts);
-      mirotechSync = synced.results.map((r) => ({
-        postId: r.postId,
-        ok: r.ok,
-        error: r.error,
-      }));
-      const idsChanged = synced.posts.some(
-        (p, i) => p.mirotechJournalId !== posts[i]?.mirotechJournalId
-      );
-      if (idsChanged || synced.results.some((r) => r.ok)) {
-        posts = await saveBlogPosts(synced.posts);
+    const postsInput =
+      input && typeof input === "object" && Array.isArray((input as { posts?: unknown }).posts)
+        ? (input as { posts: unknown[] }).posts
+        : input;
+
+    let posts = await saveBlogPosts(postsInput);
+
+    let mirotechSync: Array<{
+      postId: string;
+      ok?: boolean;
+      accepted?: boolean;
+      jobId?: string;
+      error?: string;
+    }> = [];
+
+    if (!skipMirotechSync) {
+      try {
+        const synced = await resolveBlogPostsMirotechSync(posts);
+        mirotechSync = synced.results.map((r) => {
+          if ("accepted" in r && r.accepted) {
+            return { postId: r.postId, accepted: true, jobId: r.jobId };
+          }
+          return {
+            postId: r.postId,
+            ok: "ok" in r ? Boolean(r.ok) : false,
+            error: "error" in r ? r.error : undefined,
+          };
+        });
+        const idsChanged = synced.posts.some(
+          (p, i) => p.mirotechJournalId !== posts[i]?.mirotechJournalId
+        );
+        if (idsChanged || synced.results.some((r) => "ok" in r && r.ok)) {
+          posts = await saveBlogPosts(synced.posts);
+        }
+      } catch (err) {
+        console.error("BLOG_MIROTECH_SYNC_ERROR", err);
+        mirotechSync = [
+          {
+            postId: "",
+            ok: false,
+            error: err instanceof Error ? err.message : "Mirotech sync failed",
+          },
+        ];
       }
-    } catch (err) {
-      console.error("BLOG_MIROTECH_SYNC_ERROR", err);
-      mirotechSync = [
-        {
-          postId: "",
-          ok: false,
-          error: err instanceof Error ? err.message : "Mirotech sync failed",
-        },
-      ];
     }
 
     try {

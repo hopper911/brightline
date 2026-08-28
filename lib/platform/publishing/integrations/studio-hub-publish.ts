@@ -9,7 +9,12 @@ import { isPlatformFeatureEnabled } from "@/lib/platform/features";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { defaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { isPublishingError } from "@/lib/platform/publishing/errors";
-import { jobPlatformPatchStudioHubProject } from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
+import {
+  enqueueStudioHubBlogPatchJob,
+  enqueueStudioHubProjectPatchJob,
+} from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
+import { isPlatformPublishingJobsAsync } from "@/lib/platform/publishing/is-async-publishing-jobs";
+import type { AsyncPublishAccepted } from "@/lib/platform/publishing/async-publish-types";
 
 const MIROTECH_TARGET = "mirotech-site" as const;
 
@@ -82,12 +87,12 @@ export async function resolveStudioHubProjectPatch(
   id: string,
   payload: Record<string, unknown>,
   options?: { publishingService?: DefaultPublishingService; actor?: PlatformAuditActor }
-): Promise<HubProject> {
+): Promise<HubProject | AsyncPublishAccepted> {
   if (!isPlatformFeatureEnabled("publishing")) {
     return legacyPatchStudioHubProject(id, payload);
   }
-  if (isPlatformFeatureEnabled("jobs")) {
-    return jobPlatformPatchStudioHubProject(id, payload, { actor: options?.actor });
+  if (isPlatformPublishingJobsAsync()) {
+    return enqueueStudioHubProjectPatchJob(id, payload, { actor: options?.actor });
   }
   return platformPatchStudioHubProject(id, payload, options?.publishingService, options?.actor);
 }
@@ -147,9 +152,15 @@ export async function resolveStudioHubBlogPatch(
   projectId: string,
   payload: Record<string, unknown>,
   options?: { publishingService?: DefaultPublishingService; actor?: PlatformAuditActor }
-): Promise<{ post: HubJournalPost; summary: HubJournalSummary }> {
+): Promise<
+  | { post: HubJournalPost; summary: HubJournalSummary }
+  | AsyncPublishAccepted
+> {
   if (!isPlatformFeatureEnabled("publishing")) {
     return legacyPatchStudioHubBlog(projectId, payload);
+  }
+  if (isPlatformPublishingJobsAsync()) {
+    return enqueueStudioHubBlogPatchJob(projectId, payload, { actor: options?.actor });
   }
   return platformPatchStudioHubBlog(projectId, payload, options?.publishingService, options?.actor);
 }

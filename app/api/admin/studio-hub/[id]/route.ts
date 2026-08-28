@@ -7,6 +7,7 @@ import {
   isStudioHubConfigured,
 } from "@/lib/dual-brand/studio-hub";
 import { resolveStudioHubProjectPatch } from "@/lib/platform/publishing/integrations/studio-hub-publish";
+import { isAsyncPublishAccepted } from "@/lib/platform/publishing/async-publish-types";
 import { sanitizeHubProjectPayload } from "@/lib/dual-brand/studio-hub-payload";
 
 export const runtime = "nodejs";
@@ -47,8 +48,11 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (!body) return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
 
   try {
-    const project = await resolveStudioHubProjectPatch(id, sanitizeHubProjectPayload(body));
-    return NextResponse.json({ ok: true, project });
+    const outcome = await resolveStudioHubProjectPatch(id, sanitizeHubProjectPayload(body));
+    if (isAsyncPublishAccepted(outcome)) {
+      return NextResponse.json({ ok: true, ...outcome });
+    }
+    return NextResponse.json({ ok: true, project: outcome });
   } catch (e) {
     console.error("STUDIO_HUB_PATCH_ERROR", e);
     return NextResponse.json({ ok: false, error: "Save failed" }, { status: 502 });

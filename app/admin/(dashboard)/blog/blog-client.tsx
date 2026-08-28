@@ -27,6 +27,7 @@ import type { BlogAssistAction, BlogSuggestResult, BlogFormatResult } from "@/li
 import { isImportedJournalSlug } from "@/lib/blog-imported";
 import { fetchVisionAltText, mapWithConcurrency } from "@/lib/blog-image-alt";
 import type { HubSharedBlogEntry } from "@/lib/dual-brand/studio-hub";
+import { pollPlatformJobsUntilDone } from "@/lib/admin/poll-platform-job";
 import { getPublicR2Url } from "@/lib/r2";
 import { blankGalleryBlock } from "@/lib/gallery-blocks";
 import { blogPostToChapter } from "@/lib/story-chapters";
@@ -293,11 +294,64 @@ export default function BlogAdminClient({
         ok?: boolean;
         posts?: BlogPost[];
         error?: string;
-        mirotechSync?: Array<{ postId: string; ok: boolean; error?: string }>;
+        mirotechSync?: Array<{
+          postId: string;
+          ok?: boolean;
+          accepted?: boolean;
+          jobId?: string;
+          error?: string;
+        }>;
       };
       if (!res.ok || !json.ok) throw new Error(json.error ?? "Save failed.");
-      setPosts(json.posts ?? posts);
-      const syncFail = (json.mirotechSync || []).filter((r) => !r.ok);
+
+      let nextPosts = json.posts ?? posts;
+      const accepted = (json.mirotechSync || []).filter(
+        (r): r is { postId: string; accepted: true; jobId: string } =>
+          Boolean(r.accepted && r.jobId)
+      );
+
+      if (accepted.length) {
+        const polled = await pollPlatformJobsUntilDone(accepted.map((r) => r.jobId));
+        const failures: string[] = [];
+
+        for (const item of accepted) {
+          const job = polled.get(item.jobId);
+          if (!job || job.status === "FAILED" || !job.result?.ok) {
+            failures.push(
+              job?.result?.error || job?.errorSummary || `Sync failed for ${item.postId}`
+            );
+            continue;
+          }
+          const journalId = job.result.resourceId || "";
+          nextPosts = nextPosts.map((p) =>
+            p.id === item.postId ? { ...p, mirotechJournalId: journalId || p.mirotechJournalId } : p
+          );
+        }
+
+        if (failures.length) {
+          setSaveError(`Saved locally, but Mirotech sync failed: ${failures.join("; ")}`);
+          setSaveStatus("error");
+          setPosts(nextPosts);
+          return;
+        }
+
+        const persist = await fetch("/api/admin/blog-posts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ posts: nextPosts, skipMirotechSync: true }),
+        });
+        const persisted = (await persist.json()) as { ok?: boolean; posts?: BlogPost[]; error?: string };
+        if (!persist.ok || !persisted.ok) {
+          throw new Error(persisted.error ?? "Failed to persist Mirotech journal ids.");
+        }
+        setPosts(persisted.posts ?? nextPosts);
+        setSaveStatus("saved");
+        return;
+      }
+
+      setPosts(nextPosts);
+      const syncFail = (json.mirotechSync || []).filter((r) => r.ok === false);
       if (syncFail.length) {
         setSaveError(
           `Saved locally, but Mirotech sync failed: ${syncFail.map((r) => r.error).filter(Boolean).join("; ") || "unknown error"}`

@@ -12,14 +12,19 @@ vi.mock("@/lib/platform/audit/record-safely", () => ({
 }));
 
 vi.mock("@/lib/platform/publishing/integrations/studio-hub-async-publish", () => ({
-  jobPlatformPatchStudioHubProject: vi.fn(),
+  enqueueStudioHubProjectPatchJob: vi.fn(),
+  enqueueStudioHubBlogPatchJob: vi.fn(),
 }));
 
 import { updateHubBlog, updateHubProject } from "@/lib/dual-brand/studio-hub";
-import { jobPlatformPatchStudioHubProject } from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
+import {
+  enqueueStudioHubBlogPatchJob,
+  enqueueStudioHubProjectPatchJob,
+} from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
 import {
   legacyPatchStudioHubBlog,
   legacyPatchStudioHubProject,
+  resolveStudioHubBlogPatch,
   resolveStudioHubProjectPatch,
 } from "@/lib/platform/publishing/integrations/studio-hub-publish";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
@@ -33,7 +38,8 @@ describe("studio hub publish integration", () => {
   beforeEach(() => {
     vi.mocked(updateHubProject).mockReset();
     vi.mocked(updateHubBlog).mockReset();
-    vi.mocked(jobPlatformPatchStudioHubProject).mockReset();
+    vi.mocked(enqueueStudioHubProjectPatchJob).mockReset();
+    vi.mocked(enqueueStudioHubBlogPatchJob).mockReset();
   });
 
   afterEach(() => {
@@ -78,16 +84,19 @@ describe("studio hub publish integration", () => {
     expect(result.id).toBe("hub-1");
   });
 
-  it("resolveStudioHubProjectPatch uses job path when publishing and jobs enabled", async () => {
+  it("resolveStudioHubProjectPatch uses enqueue path when publishing and jobs enabled", async () => {
     process.env.PLATFORM_PUBLISHING_ENABLED = "true";
     process.env.PLATFORM_JOBS_ENABLED = "true";
-    vi.mocked(jobPlatformPatchStudioHubProject).mockResolvedValue(hubProject as never);
+    vi.mocked(enqueueStudioHubProjectPatchJob).mockResolvedValue({
+      accepted: true,
+      jobId: "job-1",
+    });
 
     const result = await resolveStudioHubProjectPatch("hub-1", { status: "PUBLISHED" });
-    expect(jobPlatformPatchStudioHubProject).toHaveBeenCalledWith("hub-1", { status: "PUBLISHED" }, {
+    expect(enqueueStudioHubProjectPatchJob).toHaveBeenCalledWith("hub-1", { status: "PUBLISHED" }, {
       actor: undefined,
     });
-    expect(result.id).toBe("hub-1");
+    expect(result).toEqual({ accepted: true, jobId: "job-1" });
   });
 
   it("legacy blog patch delegates to updateHubBlog", async () => {
@@ -97,5 +106,18 @@ describe("studio hub publish integration", () => {
     } as never);
     await legacyPatchStudioHubBlog("hub-1", { status: "PUBLISHED" });
     expect(updateHubBlog).toHaveBeenCalled();
+  });
+
+  it("resolveStudioHubBlogPatch uses enqueue path when publishing and jobs enabled", async () => {
+    process.env.PLATFORM_PUBLISHING_ENABLED = "true";
+    process.env.PLATFORM_JOBS_ENABLED = "true";
+    vi.mocked(enqueueStudioHubBlogPatchJob).mockResolvedValue({
+      accepted: true,
+      jobId: "job-blog-1",
+    });
+
+    const result = await resolveStudioHubBlogPatch("hub-1", { title: "Blog" });
+    expect(enqueueStudioHubBlogPatchJob).toHaveBeenCalled();
+    expect(result).toEqual({ accepted: true, jobId: "job-blog-1" });
   });
 });

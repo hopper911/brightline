@@ -10,7 +10,8 @@ import {
   findPlatformUserByLegacyLink,
   listPlatformMembershipsForUserInTenant,
 } from "@/lib/platform/identity/repository";
-import type { LegacyIdentityInput, PlatformMembershipRecord, PlatformUserRecord } from "@/lib/platform/identity/types";
+import type { LegacyIdentityInput, PlatformMembershipRecord, PlatformMembershipRole, PlatformUserRecord } from "@/lib/platform/identity/types";
+import { hasMinPlatformRole } from "@/lib/platform/identity/rbac";
 
 /**
  * Default IdentityService — read-only identity lookups (Phase 8A).
@@ -55,6 +56,18 @@ export class DefaultIdentityService implements IdentityService {
     }
 
     return null;
+  }
+
+  async hasTenantRole(
+    context: PlatformContext,
+    userId: string,
+    minRole: PlatformMembershipRole
+  ): Promise<boolean> {
+    this.assertEnabled();
+    const id = userId.trim();
+    if (!id) return false;
+    const memberships = await listPlatformMembershipsForUserInTenant(id, context.tenant.slug);
+    return memberships.some((m) => hasMinPlatformRole(m.role, minRole));
   }
 
   private assertEnabled(): void {

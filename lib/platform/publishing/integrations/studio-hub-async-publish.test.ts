@@ -13,45 +13,78 @@ vi.mock("@/lib/platform/jobs/default-job-service", () => ({
   },
 }));
 
-vi.mock("@/lib/platform/jobs/drain-platform-jobs", () => ({
-  awaitPlatformJobs: vi.fn(),
+vi.mock("@/lib/platform/jobs/publishing-enqueue", () => ({
+  enqueueMirotechHubPatchJob: vi.fn(),
 }));
 
-import { awaitPlatformJobs } from "@/lib/platform/jobs/drain-platform-jobs";
 import { defaultJobService } from "@/lib/platform/jobs/default-job-service";
-import { jobPlatformPatchStudioHubProject } from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
+import { enqueueMirotechHubPatchJob } from "@/lib/platform/jobs/publishing-enqueue";
+import {
+  enqueueStudioHubBlogPatchJob,
+  enqueueStudioHubProjectPatchJob,
+} from "@/lib/platform/publishing/integrations/studio-hub-async-publish";
 
 const hubProject = { id: "hub-1", title: "Case Study", slug: "case-study" };
 
-describe("jobPlatformPatchStudioHubProject", () => {
+describe("enqueueStudioHubProjectPatchJob", () => {
   beforeEach(() => {
-    vi.mocked(defaultJobService.enqueue).mockReset();
+    vi.mocked(enqueueMirotechHubPatchJob).mockReset();
     vi.mocked(defaultJobService.getStatus).mockReset();
-    vi.mocked(awaitPlatformJobs).mockReset();
   });
 
-  it("enqueues hub patch job, drains, and returns hub project", async () => {
-    vi.mocked(defaultJobService.enqueue).mockResolvedValue({ jobId: "job-hub-1", status: "PENDING" });
-    vi.mocked(awaitPlatformJobs).mockResolvedValue([
-      {
-        id: "job-hub-1",
-        tenantSlug: "mirotech",
-        type: "publishing.mirotech.hub.patch",
-        status: "COMPLETED",
-        payload: { result: { ok: true, hubProject } },
-        attempts: 1,
-        idempotencyKey: "k1",
-        createdAt: "2024-01-01T00:00:00.000Z",
-        startedAt: "2024-01-01T00:00:00.000Z",
-        completedAt: "2024-01-01T00:00:00.000Z",
-        failedAt: null,
-        errorSummary: null,
-      },
-    ]);
+  it("returns accepted jobId without inline drain", async () => {
+    vi.mocked(enqueueMirotechHubPatchJob).mockResolvedValue({
+      jobId: "job-hub-1",
+      accepted: true,
+      status: "PENDING",
+    });
 
-    const result = await jobPlatformPatchStudioHubProject("hub-1", { status: "PUBLISHED" });
-    expect(defaultJobService.enqueue).toHaveBeenCalled();
-    expect(awaitPlatformJobs).toHaveBeenCalledWith(["job-hub-1"], expect.any(Object));
-    expect(result.id).toBe("hub-1");
+    const result = await enqueueStudioHubProjectPatchJob("hub-1", { status: "PUBLISHED" });
+    expect(enqueueMirotechHubPatchJob).toHaveBeenCalled();
+    expect(result).toEqual({ accepted: true, jobId: "job-hub-1", reused: undefined });
+  });
+
+  it("returns cached hub project when reused job completed", async () => {
+    vi.mocked(enqueueMirotechHubPatchJob).mockResolvedValue({
+      jobId: "job-hub-1",
+      accepted: true,
+      reused: true,
+      status: "COMPLETED",
+    });
+    vi.mocked(defaultJobService.getStatus).mockResolvedValue({
+      id: "job-hub-1",
+      tenantSlug: "mirotech",
+      type: "publishing.mirotech.hub.patch",
+      status: "COMPLETED",
+      payload: { result: { ok: true, hubProject } },
+      attempts: 1,
+      idempotencyKey: "k1",
+      createdAt: "2024-01-01T00:00:00.000Z",
+      startedAt: "2024-01-01T00:00:00.000Z",
+      completedAt: "2024-01-01T00:00:00.000Z",
+      failedAt: null,
+      errorSummary: null,
+    });
+
+    const result = await enqueueStudioHubProjectPatchJob("hub-1", { status: "PUBLISHED" });
+    expect(result).toMatchObject({ id: "hub-1" });
+  });
+});
+
+describe("enqueueStudioHubBlogPatchJob", () => {
+  beforeEach(() => {
+    vi.mocked(enqueueMirotechHubPatchJob).mockReset();
+    vi.mocked(defaultJobService.getStatus).mockReset();
+  });
+
+  it("returns accepted jobId for journal patch", async () => {
+    vi.mocked(enqueueMirotechHubPatchJob).mockResolvedValue({
+      jobId: "job-blog-1",
+      accepted: true,
+      status: "PENDING",
+    });
+
+    const result = await enqueueStudioHubBlogPatchJob("hub-1", { title: "Blog" });
+    expect(result).toEqual({ accepted: true, jobId: "job-blog-1", reused: undefined });
   });
 });

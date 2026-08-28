@@ -9,6 +9,7 @@ import { createPlatformContextForTenant } from "@/lib/platform/context/types";
 import { isPlatformFeatureEnabled } from "@/lib/platform/features";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { defaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
+import { isPlatformPublishingJobsAsync } from "@/lib/platform/publishing/is-async-publishing-jobs";
 import { isPublishingError } from "@/lib/platform/publishing/errors";
 import { jobPlatformSyncBlogPostsMirotech } from "@/lib/platform/publishing/integrations/blog-mirotech-async-sync";
 import type { BlogMirotechSyncOutcome } from "@/lib/platform/publishing/integrations/blog-mirotech-sync-types";
@@ -134,7 +135,7 @@ export async function resolveBlogPostsMirotechSync(
   if (!isPlatformFeatureEnabled("publishing")) {
     return legacySyncBlogPostsMirotech(posts);
   }
-  if (isPlatformFeatureEnabled("jobs")) {
+  if (isPlatformPublishingJobsAsync()) {
     return jobPlatformSyncBlogPostsMirotech(posts, { actor: options?.actor });
   }
   return platformSyncBlogPostsMirotech(

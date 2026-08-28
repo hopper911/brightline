@@ -6,6 +6,7 @@ import {
   issueAccountantSessionCookie,
   verifyAccountantPassword,
 } from "@/lib/accountant/auth";
+import { ensureAccountantPlatformUser } from "@/lib/platform/identity/link-legacy";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 
 export const runtime = "nodejs";
@@ -87,6 +88,13 @@ export async function POST(req: Request) {
     action: "accountant.login",
     metadata: { email: row.email },
     req,
+  });
+
+  void ensureAccountantPlatformUser({
+    accountantAccessId: row.id,
+    email: row.email,
+  }).catch((err) => {
+    console.error("ACCOUNTANT_PLATFORM_IDENTITY_LINK_ERROR", err);
   });
 
   const cookie = await issueAccountantSessionCookie(row.id, req);

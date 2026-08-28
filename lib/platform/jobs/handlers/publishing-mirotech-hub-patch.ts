@@ -59,12 +59,36 @@ export function createPublishingMirotechHubPatchHandler(
         hubPatch: parsed.hubPatch,
       });
 
-      if (publishResult.outcome === "completed" && publishResult.hubProject) {
-        result = {
-          ok: true,
-          resourceId: publishResult.resourceId ?? parsed.source.id,
-          hubProject: publishResult.hubProject as Record<string, unknown>,
-        };
+      if (publishResult.outcome === "completed") {
+        if (parsed.source.type === "dual-brand-journal" && publishResult.hubBlog) {
+          result = {
+            ok: true,
+            resourceId: publishResult.resourceId ?? parsed.source.id,
+            hubBlog: publishResult.hubBlog as PublishingJobResult["hubBlog"],
+          };
+        } else if (parsed.source.type === "dual-brand-work" && publishResult.hubProject) {
+          result = {
+            ok: true,
+            resourceId: publishResult.resourceId ?? parsed.source.id,
+            hubProject: publishResult.hubProject as Record<string, unknown>,
+          };
+        } else {
+          const error =
+            parsed.source.type === "dual-brand-journal"
+              ? "Hub journal publish completed without hubBlog result."
+              : "Hub patch publish completed without hubProject result.";
+          result = { ok: false, error };
+          await recordAuditSafely({
+            context,
+            actor: parsed.actor,
+            action: "publishing.failed",
+            resource,
+            metadata: { target: parsed.target, error, jobId: job.id },
+          });
+          await storePublishingJobResult(provider, job, result);
+          throw new PublishingJobExecutionError(error);
+        }
+
         await recordAuditSafely({
           context,
           actor: parsed.actor,

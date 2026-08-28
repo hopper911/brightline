@@ -27,6 +27,8 @@ export type PublishingJobResult = {
   error?: string;
   /** Hub project body returned from Mirotech CMS write (hub patch jobs). */
   hubProject?: Record<string, unknown>;
+  /** Hub journal write result (hub journal patch jobs). */
+  hubBlog?: { post: Record<string, unknown>; summary: Record<string, unknown> };
 };
 
 export type PublishingMirotechJournalSyncPayload = {
@@ -193,8 +195,11 @@ export function parsePublishingMirotechHubPatchPayload(
     throw new JobPayloadError("Hub patch job payload missing source ContentRef.");
   }
   const source = assertValidContentRef(sourceRaw as ContentRef);
-  if (source.type !== "dual-brand-work" || source.tenant !== "mirotech") {
-    throw new JobPayloadError("Hub patch job requires mirotech dual-brand-work source.");
+  if (source.type !== "dual-brand-work" && source.type !== "dual-brand-journal") {
+    throw new JobPayloadError("Hub patch job requires mirotech dual-brand-work or dual-brand-journal source.");
+  }
+  if (source.tenant !== "mirotech") {
+    throw new JobPayloadError("Hub patch job requires mirotech tenant source.");
   }
 
   const target = payload.target;
@@ -281,6 +286,20 @@ export function readPublishingJobResult(payload: JobPayload): PublishingJobResul
           hubProjectRaw && typeof hubProjectRaw === "object" && !Array.isArray(hubProjectRaw)
             ? (hubProjectRaw as Record<string, unknown>)
             : undefined,
+        hubBlog:
+          (() => {
+            const hubBlogRaw = (resultRaw as PublishingJobResult).hubBlog;
+            if (!hubBlogRaw || typeof hubBlogRaw !== "object" || Array.isArray(hubBlogRaw)) {
+              return undefined;
+            }
+            const post = (hubBlogRaw as PublishingJobResult["hubBlog"])?.post;
+            const summary = (hubBlogRaw as PublishingJobResult["hubBlog"])?.summary;
+            if (!post || !summary) return undefined;
+            return {
+              post: post as Record<string, unknown>,
+              summary: summary as Record<string, unknown>,
+            };
+          })(),
       };
     }
   }

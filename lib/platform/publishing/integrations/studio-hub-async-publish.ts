@@ -1,94 +1,103 @@
 import "server-only";
 
-import type { HubProject } from "@/lib/dual-brand/studio-hub";
-import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
+import type { HubJournalPost, HubJournalSummary, HubProject } from "@/lib/dual-brand/studio-hub";
 import type { PlatformAuditActor } from "@/lib/platform/audit/types";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
-import { awaitPlatformJobs } from "@/lib/platform/jobs/drain-platform-jobs";
 import type { DefaultJobService } from "@/lib/platform/jobs/default-job-service";
 import { defaultJobService } from "@/lib/platform/jobs/default-job-service";
-import {
-  buildPublishingMirotechHubPatchIdempotencyKey,
-  hashPublishingContentVersion,
-  publishingHubPatchJobPayload,
-  readPublishingJobResult,
-} from "@/lib/platform/jobs/publishing-payload";
-import { PUBLISHING_MIROTECH_HUB_PATCH_JOB } from "@/lib/platform/jobs/types";
+import { enqueueMirotechHubPatchJob } from "@/lib/platform/jobs/publishing-enqueue";
+import { readPublishingJobResult } from "@/lib/platform/jobs/publishing-payload";
+import type { AsyncPublishAccepted } from "@/lib/platform/publishing/async-publish-types";
 
 const MIROTECH_TARGET = "mirotech-site" as const;
 
+async function resolveCachedHubPatchJob(
+  jobService: DefaultJobService,
+  jobId: string
+): Promise<ReturnType<typeof readPublishingJobResult>> {
+  const context = createPlatformContextForTenant("mirotech");
+  const existing = await jobService.getStatus(context, jobId);
+  if (existing?.status !== "COMPLETED") return null;
+  const cached = readPublishingJobResult(existing.payload);
+  if (!cached?.ok) return null;
+  return cached;
+}
+
 /**
- * Async Studio Hub project PATCH (Phase 7C).
- * Enqueues job + drains via shared platform job runner (same path as cron).
+ * Enqueue Studio Hub project PATCH (fire-and-forget).
+ * Returns cached hubProject when idempotent job already completed.
  */
-export async function jobPlatformPatchStudioHubProject(
+export async function enqueueStudioHubProjectPatchJob(
   id: string,
   payload: Record<string, unknown>,
   options?: {
     jobService?: DefaultJobService;
     actor?: PlatformAuditActor;
   }
-): Promise<HubProject> {
+): Promise<AsyncPublishAccepted | HubProject> {
   const jobService = options?.jobService ?? defaultJobService;
   const context = createPlatformContextForTenant("mirotech");
-  const actor = options?.actor ?? { type: "USER" };
+  const actor = options?.actor ?? { type: "USER" as const };
   const source = { tenant: "mirotech" as const, type: "dual-brand-work" as const, id };
-  const contentVersion = hashPublishingContentVersion(payload);
-  const idempotencyKey = buildPublishingMirotechHubPatchIdempotencyKey({
+
+  const enqueued = await enqueueMirotechHubPatchJob({
+    context,
     source,
     target: MIROTECH_TARGET,
     operation: "sync",
-    contentVersion,
-  });
-
-  await recordAuditSafely({
-    context,
+    hubPatch: payload,
     actor,
-    action: "publishing.queued",
-    resource: { type: "dual-brand-work", id },
-    metadata: {
-      target: MIROTECH_TARGET,
-      operation: "sync",
-      contentVersion,
-      idempotencyKey,
-    },
-  });
-
-  const enqueued = await jobService.enqueue(context, {
-    type: PUBLISHING_MIROTECH_HUB_PATCH_JOB,
-    idempotencyKey,
-    payload: publishingHubPatchJobPayload({
-      source,
-      target: MIROTECH_TARGET,
-      operation: "sync",
-      contentVersion,
-      hubPatch: payload,
-      actor,
-    }),
+    jobService,
   });
 
   if (enqueued.reused) {
-    const existing = await jobService.getStatus(context, enqueued.jobId);
-    if (existing?.status === "COMPLETED") {
-      const cached = readPublishingJobResult(existing.payload);
-      if (cached?.ok && cached.hubProject) {
-        return cached.hubProject as unknown as HubProject;
-      }
+    const cached = await resolveCachedHubPatchJob(jobService, enqueued.jobId);
+    if (cached?.hubProject) {
+      return cached.hubProject as unknown as HubProject;
     }
   }
 
-  const [finalJob] = await awaitPlatformJobs([enqueued.jobId], { jobService });
-  if (!finalJob) {
-    throw new Error("Hub patch publishing job not found after enqueue.");
+  return { accepted: true, jobId: enqueued.jobId, reused: enqueued.reused };
+}
+
+/**
+ * Enqueue Studio Hub journal PATCH (fire-and-forget).
+ * Returns cached hubBlog when idempotent job already completed.
+ */
+export async function enqueueStudioHubBlogPatchJob(
+  projectId: string,
+  payload: Record<string, unknown>,
+  options?: {
+    jobService?: DefaultJobService;
+    actor?: PlatformAuditActor;
+  }
+): Promise<
+  AsyncPublishAccepted | { post: HubJournalPost; summary: HubJournalSummary }
+> {
+  const jobService = options?.jobService ?? defaultJobService;
+  const context = createPlatformContextForTenant("mirotech");
+  const actor = options?.actor ?? { type: "USER" as const };
+  const source = { tenant: "mirotech" as const, type: "dual-brand-journal" as const, id: projectId };
+
+  const enqueued = await enqueueMirotechHubPatchJob({
+    context,
+    source,
+    target: MIROTECH_TARGET,
+    operation: "sync",
+    hubPatch: payload,
+    actor,
+    jobService,
+  });
+
+  if (enqueued.reused) {
+    const cached = await resolveCachedHubPatchJob(jobService, enqueued.jobId);
+    if (cached?.hubBlog) {
+      return {
+        post: cached.hubBlog.post as unknown as HubJournalPost,
+        summary: cached.hubBlog.summary as unknown as HubJournalSummary,
+      };
+    }
   }
 
-  const outcome = readPublishingJobResult(finalJob.payload);
-  if (!outcome?.ok) {
-    throw new Error(outcome?.error || finalJob.errorSummary || "Hub project publish failed");
-  }
-  if (!outcome.hubProject) {
-    throw new Error("Hub patch job completed without hubProject result.");
-  }
-
-  return outcome.hubProject as unknown as HubProject;
+  return { accepted: true, jobId: enqueued.jobId, reused: enqueued.reused };
 }

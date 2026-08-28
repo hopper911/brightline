@@ -2,6 +2,7 @@ import type { PlatformContext } from "@/lib/platform/context/types";
 import type {
   LegacyIdentityInput,
   PlatformMembershipRecord,
+  PlatformMembershipRole,
   PlatformUserRecord,
 } from "@/lib/platform/identity/types";
 
@@ -17,6 +18,11 @@ export interface IdentityService {
     context: PlatformContext,
     input: LegacyIdentityInput
   ): Promise<PlatformUserRecord | null>;
+  hasTenantRole(
+    context: PlatformContext,
+    userId: string,
+    minRole: PlatformMembershipRole
+  ): Promise<boolean>;
 }
 
 export type PlatformIdentityService = IdentityService;

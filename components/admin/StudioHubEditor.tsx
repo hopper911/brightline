@@ -22,6 +22,7 @@ import {
   type HubSectionDraft,
 } from "@/lib/dual-brand/case-study-template";
 import type { HubJournalPost, HubProject } from "@/lib/dual-brand/studio-hub";
+import { pollPlatformJobUntilDone } from "@/lib/admin/poll-platform-job";
 import { distributionStatus } from "@/lib/dual-brand/studio-hub";
 import {
   SECTION_TONE_OPTIONS,
@@ -1367,21 +1368,41 @@ export default function StudioHubEditor({ initial }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json()) as { ok?: boolean; project?: HubProject; error?: string };
-      if (!res.ok || !data.ok || !data.project) throw new Error(data.error || "Save failed");
-      setMessage("Project saved");
-      if (data.project.sections) {
-        setSections(normalizeHubSections(data.project.sections));
+      const data = (await res.json()) as {
+        ok?: boolean;
+        project?: HubProject;
+        accepted?: boolean;
+        jobId?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.ok) throw new Error(data.error || "Save failed");
+
+      let project = data.project;
+      if (data.accepted && data.jobId) {
+        const job = await pollPlatformJobUntilDone(data.jobId);
+        if (job.status === "FAILED" || !job.result?.ok) {
+          throw new Error(job.result?.error || job.errorSummary || "Publish job failed");
+        }
+        if (!job.result.hubProject) {
+          throw new Error("Publish job completed without project result.");
+        }
+        project = job.result.hubProject as unknown as HubProject;
       }
-      if (data.project.platforms) {
-        setPrototypeUrl(extractPrototypeUrl(data.project.platforms));
+
+      if (!project) throw new Error(data.error || "Save failed");
+      setMessage("Project saved");
+      if (project.sections) {
+        setSections(normalizeHubSections(project.sections));
+      }
+      if (project.platforms) {
+        setPrototypeUrl(extractPrototypeUrl(project.platforms));
         setPlatformsCsv(
-          data.project.platforms.filter((p) => !/^https?:\/\//i.test(p)).join(", ")
+          project.platforms.filter((p) => !/^https?:\/\//i.test(p)).join(", ")
         );
       }
-      if (!id && data.project.id) {
-        setId(data.project.id);
-        router.replace(`/admin/studio-cms/${data.project.id}`);
+      if (!id && project.id) {
+        setId(project.id);
+        router.replace(`/admin/studio-cms/${project.id}`);
       }
       router.refresh();
     } catch (e) {
@@ -1464,10 +1485,26 @@ export default function StudioHubEditor({ initial }: Props) {
       const data = (await res.json()) as {
         ok?: boolean;
         post?: HubJournalPost;
+        accepted?: boolean;
+        jobId?: string;
         error?: string;
       };
-      if (!res.ok || !data.ok || !data.post) throw new Error(data.error || "Blog save failed");
-      setBlog(data.post);
+      if (!res.ok || !data.ok) throw new Error(data.error || "Blog save failed");
+
+      let post = data.post;
+      if (data.accepted && data.jobId) {
+        const job = await pollPlatformJobUntilDone(data.jobId);
+        if (job.status === "FAILED" || !job.result?.ok) {
+          throw new Error(job.result?.error || job.errorSummary || "Blog publish job failed");
+        }
+        if (!job.result.hubBlog?.post) {
+          throw new Error("Blog publish job completed without post result.");
+        }
+        post = job.result.hubBlog.post as unknown as HubJournalPost;
+      }
+
+      if (!post) throw new Error(data.error || "Blog save failed");
+      setBlog(post);
       setMessage("Blog version saved");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Blog save failed");

@@ -28,16 +28,11 @@ export type PlatformSignedUrlOptions = {
   expiresInSeconds?: number;
 };
 
-export type PlatformContentRef = {
-  tenantSlug: TenantSlug;
-  entityType: string;
-  entityId: string;
-};
-
-/** Future ContentService — neutral read/write for cross-tenant content. */
-export interface PlatformContentService {
-  getPublished(ref: PlatformContentRef): Promise<unknown | null>;
-}
+export type {
+  ContentRef,
+  PlatformContentRef,
+} from "@/lib/platform/content/types";
+export type { ContentService, PlatformContentService } from "@/lib/platform/content/content-service";
 
 export type PlatformPublishTarget = {
   tenantSlug: TenantSlug;

@@ -2,6 +2,7 @@ export * from "@/lib/platform/tenants";
 export * from "@/lib/platform/context";
 export * from "@/lib/platform/audit";
 export * from "@/lib/platform/media";
+export * from "@/lib/platform/content";
 export type {
   MediaReference,
   PlatformAssetRecord,
@@ -19,7 +20,6 @@ export {
 export type {
   PlatformAssetRef,
   PlatformContentRef,
-  PlatformContentService,
   PlatformMediaService,
   PlatformPublishTarget,
   PlatformPublishingService,

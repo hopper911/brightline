@@ -3,6 +3,7 @@ import {
   TENANT_REGISTRY,
   TENANT_SLUGS,
   getTenantConfig,
+  getTenantPrimaryDomain,
   isTenantSlug,
   listTenants,
   parseTenantSlug,
@@ -33,9 +34,10 @@ describe("platform tenants", () => {
     expect(tenantSlugFromR2Vault("mirotech-site")).toBe("mirotech");
   });
 
-  it("exposes stable public origins", () => {
+  it("exposes stable domains and origins", () => {
+    expect(getTenantConfig("brightline").primaryDomain).toBe("brightlinephotography.com");
     expect(getTenantConfig("brightline").publicOrigin).toBe("https://brightlinephotography.com");
-    expect(getTenantConfig("mirotech").publicOrigin).toBe("https://mirotech.solutions");
+    expect(getTenantPrimaryDomain("mirotech")).toBe("mirotech.solutions");
     expect(listTenants()).toHaveLength(2);
   });
 });

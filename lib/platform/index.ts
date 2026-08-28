@@ -1,4 +1,5 @@
 export * from "@/lib/platform/tenants";
+export * from "@/lib/platform/context";
 export {
   getPlatformFeatures,
   isPlatformFeatureEnabled,

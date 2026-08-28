@@ -82,6 +82,7 @@
     "react-dom": "19.2.3",
     "react-easy-crop": "^5.5.7",
     "resend": "^6.24.0",
+    "server-only": "^0.0.1",
     "sharp": "^0.34.5",
     "stripe": "^22.1.0",
     "tslib": "^2.8.1",

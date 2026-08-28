@@ -9,7 +9,10 @@ export type TenantSlug = (typeof TENANT_SLUGS)[number];
 
 export type TenantConfig = {
   slug: TenantSlug;
-  name: string;
+  /** Human-readable brand name */
+  displayName: string;
+  /** Canonical public apex domain (no scheme, no www). */
+  primaryDomain: string;
   /** Canonical public site origin (no trailing slash). */
   publicOrigin: string;
 };
@@ -36,4 +39,9 @@ export function tenantSlugFromLegacySite(site: string): TenantSlug | null {
 /** Map R2 vault id to owning tenant (both vaults are operated from Brightline admin). */
 export function tenantSlugFromR2Vault(vault: "brightline" | "mirotech-site"): TenantSlug {
   return vault === "mirotech-site" ? "mirotech" : "brightline";
+}
+
+/** @deprecated Use displayName — kept for transitional reads during migration. */
+export function tenantDisplayName(config: TenantConfig): string {
+  return config.displayName;
 }

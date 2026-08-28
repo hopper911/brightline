@@ -263,7 +263,7 @@ Publishing is **not** centralized; each path owns its transaction boundaries.
 
 | Seam | Notes |
 | --- | --- |
-| `lib/platform/*` (Phase 1A) | Tenant registry + feature flags; no runtime wiring yet |
+| `lib/platform/*` (Phase 1A–1B) | Tenant registry, resolver, PlatformContext; no legacy wiring yet |
 | `lib/r2-vaults.ts` | Natural wrapper point for future `MediaService` |
 | `lib/dual-brand/*` | Content/publish adapters behind future platform services |
 | `lib/feature-flags.ts` | Existing CMS gates — separate from platform flags |
@@ -271,6 +271,73 @@ Publishing is **not** centralized; each path owns its transaction boundaries.
 | Additive Prisma `platform_*` tables | No FK to legacy until backfill strategy approved |
 | Env-gated `PLATFORM_*_ENABLED` | Strangler routing without removing legacy paths |
 | Local scripts (`scripts/execute-mirotech-r2-reorg.ts`) | Prefer direct R2/DB for bulk work vs production API |
+
+---
+
+## 11. Current brand / application resolution
+
+How the codebase determines **which brand or site** an operation relates to today (legacy — not yet unified through `PlatformContext`).
+
+### Brightline deploy identity
+
+This repository **is** the Brightline Photography application. There is no runtime switch that turns the same deploy into MiroTech.
+
+| Mechanism | Location | Behavior |
+| --- | --- | --- |
+| Frozen canonical origin | `lib/truth/brand-lock.ts` → `CANONICAL_SITE_ORIGIN` | `https://brightlinephotography.com` |
+| Public brand config | `lib/config/brand.ts` → `BRAND.url` | Same origin; sibling link to Mirotech |
+| Site URL override | `NEXT_PUBLIC_SITE_URL` | Used by sitemap, robots, Stripe checkout, studio URLs, journal sync when set |
+| Host redirects | `vercel.json` | `.co` and `www` → `brightlinephotography.com` |
+| CSP / image hosts | `lib/csp.ts`, `lib/r2.ts` | Allowlists include Brightline + Mirotech CDN domains |
+
+The Brightline app does **not** inspect `Host` to choose between Brightline and Mirotech public sites. It always serves Brightline surfaces.
+
+### Mirotech as external application
+
+| Mechanism | Location | Behavior |
+| --- | --- | --- |
+| Site origin helper | `lib/mirotech-site.ts` → `mirotechSiteOrigin()` | `MIROTECH_SITE_URL` / `NEXT_PUBLIC_MIROTECH_SITE_URL` or default `https://mirotech.solutions` |
+| Content API base | `lib/dual-brand/content-api.ts` | `MIROTECH_CONTENT_API_URL` or default `https://mirotech.solutions` |
+| Admin handoff target | `lib/mirotech-admin-handoff.ts` | Redirects to Mirotech `/admin` with HMAC token |
+| Hard-coded preview URLs | `StudioHubEditor.tsx`, `admin-media-library.ts`, blog client | Build `https://mirotech.solutions/work/...` and journal links |
+
+Mirotech public routes are **not** rendered by this deploy; they are linked or fetched via HTTP.
+
+### Dual-brand CMS fields (Studio Hub / journal)
+
+| Field | Values | Usage |
+| --- | --- | --- |
+| `primarySite` | `BOTH`, `BRIGHTLINE`, `MIROTECH` | Journal/case-study publish target in Studio Hub (`lib/dual-brand/studio-hub.ts`) |
+| `publishMirotech` / `publishBrightline` | boolean flags on hub projects | Controls cross-brand publish from admin |
+| `brightlineSection` + slug | string | Brightline Work URL path segment |
+
+These are **content routing** flags, not application tenant context for the whole request.
+
+### R2 vault → brand (storage, not HTTP host)
+
+| Vault ID | Owner brand | Module |
+| --- | --- | --- |
+| `brightline` | Brightline Photography | `lib/r2-vaults.ts` |
+| `mirotech-site` | MiroTech Solutions (operated from Brightline admin) | `lib/r2-vaults.ts` |
+
+Vault selection is explicit in admin R2 tools — not derived from request hostname.
+
+### Platform tenant layer (Phase 1B — beside legacy)
+
+New modules in `lib/platform/` provide canonical resolution **without replacing** the above:
+
+- `resolveTenantBySlug('brightline' | 'mirotech')` — throws on unknown
+- `resolveTenantByHostname(host)` — maps apex/www + `.co` alias; `null` for unknown
+- `createPlatformContextForTenant(slug)` — typed `{ tenant: TenantConfig }`
+- `resolveTenantFromRequest(request)` — server-only Host header helper
+
+No production route imports these helpers yet.
+
+### Gaps / migration targets
+
+- Hard-coded `https://brightlinephotography.com` and `https://mirotech.solutions` strings in admin UI
+- `primarySite` enum strings parallel but not identical to `TenantSlug`
+- `tenantSlugFromLegacySite()` bridges vault/CMS labels → platform slugs for future migration
 
 ---
 

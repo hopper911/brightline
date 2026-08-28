@@ -2273,3 +2273,18 @@ model PlatformLegacyIdentityLink {
   @@index([userId])
   @@map("platform_legacy_identity_links")
 }
+
+/// Single-use SSO exchange nonces (Phase 8C) — replay protection for cross-domain staff SSO.
+model PlatformSsoExchangeNonce {
+  id         String    @id @default(cuid())
+  nonce      String    @unique
+  audience   String
+  issuer     String
+  userId     String
+  consumedAt DateTime  @default(now())
+  expiresAt  DateTime
+
+  @@index([expiresAt])
+  @@index([audience, consumedAt])
+  @@map("platform_sso_exchange_nonces")
+}

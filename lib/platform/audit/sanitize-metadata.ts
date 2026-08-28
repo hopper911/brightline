@@ -6,7 +6,7 @@ const FORBIDDEN_METADATA_KEY =
 
 /** Values resembling secrets or signed URLs are redacted. */
 const SENSITIVE_VALUE_PATTERN =
-  /^(Bearer\s+|ho1\.|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|https?:\/\/[^\s]*[?&](X-Amz-Signature|sig|token|handoff)=)/i;
+  /^(Bearer\s+|ho1\.|sso1\.|ps1\.|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|https?:\/\/[^\s]*[?&](X-Amz-Signature|sig|token|handoff)=)/i;
 
 function redactValue(value: unknown): unknown {
   if (typeof value === "string" && SENSITIVE_VALUE_PATTERN.test(value.trim())) {

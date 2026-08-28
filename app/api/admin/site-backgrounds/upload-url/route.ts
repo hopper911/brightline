@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
-import { SITE_BACKGROUNDS_PREFIX } from "@/lib/site-background-videos";
+import { auditAdminMediaUploadUrlCreated } from "@/lib/platform/audit/integrations/admin-media-upload-url";
+import { isPlatformFeatureEnabled } from "@/lib/platform/features";
+import { adminMediaUploadUrlErrorMessage } from "@/lib/platform/media/integrations/errors";
+import { createSiteBackgroundUploadUrlViaMediaService } from "@/lib/platform/media/integrations/site-background-upload-url";
+import { defaultMediaService } from "@/lib/platform/media/server";
+import {
+  buildSiteBackgroundObjectKey,
+  resolveSiteBackgroundFolder,
+  safeSiteBackgroundFileName,
+} from "@/lib/site-background-upload-url";
 import { signPut } from "@/lib/storage-r2";
 import { isAllowedImageOrVideoUpload } from "@/lib/upload-mime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function safeFileName(name: string): string {
-  return name
-    .trim()
-    .replace(/[/\\?%*:|"<>]/g, "-")
-    .replace(/\s+/g, "-")
-    .slice(0, 160);
-}
 
 export async function POST(req: Request) {
   if (!(await authorizeAdminRequest(req))) {
@@ -27,14 +28,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Invalid JSON." }, { status: 400 });
   }
 
-  const fileName = safeFileName(body.fileName ?? "");
+  const fileName = safeSiteBackgroundFileName(body.fileName ?? "");
   if (!fileName) {
     return NextResponse.json({ ok: false, error: "fileName is required." }, { status: 400 });
   }
 
-  const folder =
-    body.folder === "web" ? "web" : body.folder === "posters" ? "posters" : "full";
-  const key = `${SITE_BACKGROUNDS_PREFIX}${folder}/${Date.now()}-${fileName}`;
+  const folder = resolveSiteBackgroundFolder(body.folder);
+  const key = buildSiteBackgroundObjectKey(folder, fileName);
   const contentType = isAllowedImageOrVideoUpload(body.contentType);
   if (!contentType) {
     return NextResponse.json(
@@ -43,6 +43,29 @@ export async function POST(req: Request) {
     );
   }
 
+  if (isPlatformFeatureEnabled("media")) {
+    try {
+      const result = await createSiteBackgroundUploadUrlViaMediaService(defaultMediaService, {
+        objectKey: key,
+        contentType,
+      });
+      await auditAdminMediaUploadUrlCreated({
+        route: "/api/admin/site-backgrounds/upload-url",
+        key,
+        contentType,
+        metadata: { folder },
+      });
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("[site-backgrounds/upload-url] MediaService path failed:", error);
+      return NextResponse.json(
+        { ok: false, error: adminMediaUploadUrlErrorMessage(error) },
+        { status: 500 }
+      );
+    }
+  }
+
+  // Legacy path — unchanged until full migration (Phase 3D flag off by default).
   try {
     const signed = await signPut({
       key,

@@ -114,6 +114,18 @@ Import `@/lib/platform/media/server` in route handlers only. **No existing uploa
 | Audit | Optional `media.upload_url.created` via `recordAuditSafely` on platform path only |
 | Rollback | Set `PLATFORM_MEDIA_ENABLED=false` |
 
+## Phase 3D implementation (2026-08-28)
+
+**Batch:** three Brightline admin operations (upload signing + admin preview).
+
+| Route | Operation |
+| --- | --- |
+| `POST /api/admin/site-backgrounds/upload-url` | Private presigned PUT for `site/backgrounds/{full\|web\|posters}/` |
+| `POST /api/admin/portfolio/upload-url` | Private presigned PUT for `portfolio-public/` drops |
+| `GET /api/admin/media/sign` | Admin preview redirect (300s presigned GET; public keys via `signPublicR2Get`) |
+
+Shared: `createBrightlineUploadViaMediaService`, `adminMediaUploadUrlErrorMessage`. Mirotech vault, client gallery, and public `/api/media/public` untouched.
+
 ## References
 
 - [`media-current-state.md`](./media-current-state.md)

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { auditAdminMediaUploadUrlCreated } from "@/lib/platform/audit/integrations/admin-media-upload-url";
+import { isPlatformFeatureEnabled } from "@/lib/platform/features";
+import { adminMediaUploadUrlErrorMessage } from "@/lib/platform/media/integrations/errors";
+import { createPortfolioPublicUploadUrlViaMediaService } from "@/lib/platform/media/integrations/portfolio-public-upload-url";
+import { defaultMediaService } from "@/lib/platform/media/server";
 import { normalizeUploadContentType } from "@/lib/upload-mime";
 
 export const runtime = "nodejs";
@@ -16,6 +21,11 @@ function toHumanMessage(err: unknown): string {
   if (e.name === "SignatureDoesNotMatch" || e.code === "SignatureDoesNotMatch")
     return "Storage signature error. Check credentials and clock sync.";
   return e.message ?? "Unable to create upload URL.";
+}
+
+function buildPortfolioPublicObjectKey(filename: string): string {
+  const ext = filename.split(".").pop()?.replace(/[^\w]/g, "") || "jpg";
+  return `portfolio-public/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 }
 
 export async function POST(req: Request) {
@@ -54,12 +64,30 @@ export async function POST(req: Request) {
       );
     }
 
-    const ext = body.filename.split(".").pop()?.replace(/[^\w]/g, "") || "jpg";
-    const key = `portfolio-public/${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}.${ext}`;
+    const key = buildPortfolioPublicObjectKey(body.filename);
 
-    // Lazy import to keep AWS SDK codepaths out of module init.
+    if (isPlatformFeatureEnabled("media")) {
+      try {
+        const result = await createPortfolioPublicUploadUrlViaMediaService(defaultMediaService, {
+          objectKey: key,
+          contentType,
+        });
+        await auditAdminMediaUploadUrlCreated({
+          route: "/api/admin/portfolio/upload-url",
+          key,
+          contentType,
+        });
+        return NextResponse.json(result);
+      } catch (error) {
+        console.error("UPLOAD_ERROR", { route: ROUTE_NAME, err: error, platformMedia: true });
+        return NextResponse.json(
+          { ok: false, error: adminMediaUploadUrlErrorMessage(error) },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Legacy path — unchanged until full migration (Phase 3D flag off by default).
     const { getMarketingUploadUrl } = await import("@/lib/image-strategy");
     const signed = await getMarketingUploadUrl({
       key,

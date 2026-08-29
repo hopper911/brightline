@@ -46,7 +46,7 @@ function resolvePillarCoverCardUrl(
   if (!v) return fallbackCardUrl ?? "/images/hero.jpg";
   if (/^(https?:|\/)/i.test(v)) return v;
   const signed = getPublicR2CardUrl(v.replace(/^\/+/, ""));
-  return signed || fallbackCardUrl ?? "/images/hero.jpg";
+  return signed || (fallbackCardUrl ?? "/images/hero.jpg");
 }
 
 function resolvePillarCoverBleedUrl(

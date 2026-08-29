@@ -2,11 +2,12 @@ import AssignedPageBackground from "@/components/AssignedPageBackground";
 import ClientAccessLanding from "@/components/ClientAccessLanding";
 import { BRAND } from "@/lib/config/brand";
 import {
+import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
   getBackgroundMediaFromPage,
   getWebsitePagesForAdmin,
 } from "@/lib/website-pages";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 export const metadata = {
   title: `Client Galleries · ${BRAND.name}`,

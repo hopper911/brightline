@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { revalidatePublicChrome } from "@/lib/revalidate-public-chrome";
 import { getBlogPosts, saveBlogPosts } from "@/lib/blog-posts";
 import { resolveBlogPostsMirotechSync } from "@/lib/platform/publishing/integrations/blog-mirotech-sync";
 
@@ -93,6 +94,7 @@ export async function PATCH(req: Request) {
       revalidatePath("/travel");
       revalidatePath("/travel/[slug]", "page");
       revalidatePath("/sitemap.xml");
+      revalidatePublicChrome();
     } catch (err) {
       console.error("BLOG_POSTS_REVALIDATE_ERROR", err);
     }

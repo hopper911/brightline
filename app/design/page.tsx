@@ -9,8 +9,9 @@ import { listPublishedDesignProjects } from "@/lib/queries/design";
 import { DESIGN_PORTFOLIO_CATEGORIES } from "@/lib/design/categories";
 import { BRAND } from "@/lib/config/brand";
 import { getResumePageSettings } from "@/lib/feature-flags";
+import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 type Props = {
   searchParams?: Promise<{ discipline?: string; category?: string }>;

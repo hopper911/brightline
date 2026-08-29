@@ -8,8 +8,9 @@ import { BRAND } from "@/lib/config/brand";
 import { getPublishedWebsitePageBySlug } from "@/lib/website-pages";
 import { getDesignSectionSettings } from "@/lib/design-section-settings";
 import Link from "next/link";
+import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 export const metadata = {
   title: `About | ${BRAND.name}`,

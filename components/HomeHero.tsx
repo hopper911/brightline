@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import MagneticButton from "./MagneticButton";
 import PrimaryCTA from "./PrimaryCTA";
@@ -35,6 +36,28 @@ function getHeroPosterUrl(): string | null {
 export default function HomeHero({ featuredImage = null, showDesignPath = false }: HomeHeroProps) {
   const videoUrl = getHeroVideoUrl();
   const posterUrl = getHeroPosterUrl();
+  const lcpPosterUrl = posterUrl ?? featuredImage?.url ?? null;
+  const lcpPosterAlt = featuredImage?.alt ?? "BRIGHTLINE signature imagery";
+
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [videoVisible, setVideoVisible] = useState(false);
+
+  useEffect(() => {
+    if (!videoUrl) return;
+    let cancelled = false;
+    const armVideo = () => {
+      if (cancelled) return;
+      setVideoSrc(videoUrl);
+    };
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      window.requestIdleCallback(armVideo, { timeout: 2500 });
+    } else {
+      window.setTimeout(armVideo, 2000);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [videoUrl]);
 
   const { scrollY } = useScroll();
   const scale = useTransform(scrollY, [0, 200], [1, 1.03]);
@@ -112,16 +135,31 @@ export default function HomeHero({ featuredImage = null, showDesignPath = false 
           <div className="relative h-[min(420px,70vw)] w-full max-w-xl overflow-hidden rounded-[32px] border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)] image-guard-overlay">
           {videoUrl ? (
             <>
-              <video
-                src={videoUrl}
-                poster={posterUrl ?? featuredImage?.url ?? undefined}
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="absolute inset-0 h-full w-full object-cover"
-                aria-hidden
-              />
+              {lcpPosterUrl ? (
+                <Image
+                  src={lcpPosterUrl}
+                  alt={lcpPosterAlt}
+                  fill
+                  draggable={false}
+                  priority
+                  sizes="(min-width: 1024px) 520px, 100vw"
+                  className={`object-cover transition-opacity duration-500 ${videoVisible ? "opacity-0" : "opacity-100"}`}
+                />
+              ) : null}
+              {videoSrc ? (
+                <video
+                  src={videoSrc}
+                  poster={lcpPosterUrl ?? undefined}
+                  preload="none"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  onPlaying={() => setVideoVisible(true)}
+                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${videoVisible ? "opacity-100" : "opacity-0"}`}
+                  aria-hidden
+                />
+              ) : null}
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
               {featuredImage ? (
                 <Link
@@ -136,6 +174,7 @@ export default function HomeHero({ featuredImage = null, showDesignPath = false 
                     draggable={false}
                     sizes="80px"
                     className="object-cover"
+                    loading="lazy"
                   />
                 </Link>
               ) : null}

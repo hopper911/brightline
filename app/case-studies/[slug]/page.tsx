@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 import Reveal from "@/components/Reveal";
 import PageBackground from "@/components/PageBackground";
 import {
@@ -10,6 +11,8 @@ import {
   type CaseStudyEditorial,
 } from "@/lib/caseStudies";
 import { getPublicR2Url } from "@/lib/r2";
+
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 export async function generateStaticParams() {
   return CASE_STUDIES.map((c) => ({ slug: c.slug }));

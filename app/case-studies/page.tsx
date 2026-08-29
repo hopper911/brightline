@@ -5,8 +5,9 @@ import Reveal from "@/components/Reveal";
 import { CASE_STUDIES } from "@/lib/caseStudies";
 import { formatBlogDate, getCaseStudyJournalPosts } from "@/lib/blog-posts";
 import { getPublicR2Url } from "@/lib/r2";
+import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 export const metadata: Metadata = {
   title: "Case Studies · BRIGHTLINE Photography",

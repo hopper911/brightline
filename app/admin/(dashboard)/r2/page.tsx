@@ -1,8 +1,14 @@
 import { redirect } from "next/navigation";
+import dynamic from "next/dynamic";
 import { hasAdminAccess } from "@/lib/admin-auth";
-import R2ManagerClient from "./r2-manager-client";
 import { inferVaultFromPrefix, isR2VaultId, type R2VaultId } from "@/lib/r2-vaults-shared";
 import { parseUploadDestinationFromSearch } from "@/lib/r2-upload-destination";
+
+const R2ManagerClient = dynamic(() => import("./r2-manager-client"), {
+  loading: () => (
+    <div className="p-8 text-sm text-white/60">Loading media library…</div>
+  ),
+});
 
 export const dynamic = "force-dynamic";
 

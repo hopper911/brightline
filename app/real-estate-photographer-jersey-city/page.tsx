@@ -4,8 +4,9 @@ import { getSeoServicePageBySlug } from "@/lib/seoServicePages";
 import { getPublishedProjectsBySections } from "@/lib/queries/work";
 import { getSectionToPillarSlugMap } from "@/lib/work-pillar-settings";
 import { BRAND } from "@/lib/config/brand";
+import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 const SLUG = "real-estate-photographer-jersey-city";
 

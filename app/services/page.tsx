@@ -8,8 +8,9 @@ import { getEditableServicePages } from "@/lib/service-pages";
 import { CREDIBILITY } from "@/lib/config/credibility";
 import { STRUCTURED_DELIVERY } from "@/lib/config/strategicPositioning";
 import { getPublishedWebsitePageBySlug } from "@/lib/website-pages";
+import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 const additionalServices = [
   {

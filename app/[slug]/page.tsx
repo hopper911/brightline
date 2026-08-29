@@ -4,8 +4,9 @@ import { sectionToPillarSlug } from "@/lib/work-pillar-settings";
 import { normalizeProjectSlug } from "@/lib/slugify";
 import WebsitePageView from "@/components/WebsitePageView";
 import { getPublishedWebsitePageBySlug } from "@/lib/website-pages";
+import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 /**
  * Legacy published links used to be shared as `/{slug}`. Resolve those root

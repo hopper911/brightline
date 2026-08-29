@@ -8,6 +8,7 @@ import { pageKeyWorkSection } from "@/lib/page-backgrounds";
 import StudioProjectCaseStudy from "@/components/studio/StudioProjectCaseStudy";
 import { BRAND } from "@/lib/config/brand";
 import {
+import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
   getPillarBySlug,
   getSectionToPillarSlugMap,
   isDualBrandHub,
@@ -31,7 +32,7 @@ import {
   type DualBrandWorkProject,
 } from "@/lib/dual-brand/content-api";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";

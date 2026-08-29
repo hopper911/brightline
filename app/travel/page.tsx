@@ -5,8 +5,9 @@ import AssignedPageBackground from "@/components/AssignedPageBackground";
 import Reveal from "@/components/Reveal";
 import { BRAND } from "@/lib/config/brand";
 import { formatBlogDate, getPublishedTravelPosts } from "@/lib/blog-posts";
+import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 export const metadata: Metadata = {
   title: `Travel · ${BRAND.name}`,

@@ -40,6 +40,7 @@
     "check:migrations:all": "node scripts/check-migration-safety.mjs",
     "check:env": "node scripts/validate-server-env.mjs",
     "check:env:ci": "node scripts/validate-server-env.mjs --ci",
+    "perf:lighthouse": "node scripts/perf-lighthouse-snapshot.mjs",
     "seed:delivery-smoke": "npx tsx scripts/seed-delivery-smoke.ts",
     "seed:delivery-smoke:empty": "DELIVERY_SMOKE_BOOTSTRAP_EMPTY=1 DELIVERY_SMOKE_WRITE_JSON=1 npx tsx scripts/seed-delivery-smoke.ts",
     "test:e2e": "playwright test",

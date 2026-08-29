@@ -26,13 +26,17 @@ export type PillarCoverRow = {
   hub: PillarConfig["hub"];
 };
 
-function heroMediaCardUrl(media: { keyThumb?: string | null; keyFull?: string | null } | null): string {
+function heroMediaCardUrl(
+  media: { keyThumb?: string | null; keyFull?: string | null } | null | undefined
+): string {
   if (!media) return "";
   const key = media.keyThumb ?? media.keyFull ?? "";
   return key ? getPublicR2CardUrl(key) : "";
 }
 
-function heroMediaBleedUrl(media: { keyThumb?: string | null; keyFull?: string | null } | null): string {
+function heroMediaBleedUrl(
+  media: { keyThumb?: string | null; keyFull?: string | null } | null | undefined
+): string {
   if (!media) return "";
   const key = media.keyFull ?? media.keyThumb ?? "";
   return key ? getPublicR2FullBleedUrl(key) : "";

@@ -54,7 +54,7 @@ export default function HomeHero({ featuredImage = null, showDesignPath = false 
     if (typeof window !== "undefined" && "requestIdleCallback" in window) {
       window.requestIdleCallback(armVideo, { timeout: 2500 });
     } else {
-      window.setTimeout(armVideo, 2000);
+      setTimeout(armVideo, 2000);
     }
     return () => {
       cancelled = true;

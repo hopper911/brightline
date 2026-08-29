@@ -66,7 +66,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined" && "requestIdleCallback" in window) {
         window.requestIdleCallback(() => startLenis(), { timeout: 2000 });
       } else {
-        window.setTimeout(startLenis, 1200);
+        setTimeout(startLenis, 1200);
       }
     }
 

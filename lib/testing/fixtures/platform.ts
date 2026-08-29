@@ -1,6 +1,6 @@
 import type { PlatformAssetRecord } from "@/lib/platform/assets/types";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
-import type { PlatformTenantSlug } from "@/lib/platform/tenants/types";
+import type { TenantSlug } from "@/lib/platform/tenants/types";
 import type { JobRecord } from "@/lib/platform/jobs/types";
 import type { PlatformMembershipRecord, PlatformUserRecord } from "@/lib/platform/identity/types";
 
@@ -10,7 +10,7 @@ export const TEST_MEMBERSHIP_ID = "test-membership-0001";
 export const TEST_ASSET_ID = "test-asset-0001";
 export const TEST_JOB_ID = "test-job-0001";
 
-export function testPlatformContext(tenant: PlatformTenantSlug = "brightline") {
+export function testPlatformContext(tenant: TenantSlug = "brightline") {
   return createPlatformContextForTenant(tenant);
 }
 

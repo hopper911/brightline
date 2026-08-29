@@ -14,6 +14,7 @@ import {
 import { getPublicR2FullBleedUrl } from "@/lib/r2";
 
 export { isDualBrandHub };
+export type { PillarConfig } from "@/lib/portfolioPillars";
 
 export const WORK_PILLARS_SETTING_KEY = "work_pillars:v1";
 

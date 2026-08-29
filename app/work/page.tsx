@@ -24,7 +24,6 @@ import {
 } from "@/lib/pillar-cover-data";
 import {
   getPublicDualBrandWork,
-  PUBLIC_PAGE_REVALIDATE_SECONDS,
 } from "@/lib/public-chrome-cache";
 
 /** Full-bleed hero when the Work “Website pages” entry has no hero media (avoids an empty PageBackground). */
@@ -54,7 +53,7 @@ function resolveWorkIndexBackground(
   return { media: null, poster: null };
 }
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Work · BRIGHTLINE Photography",

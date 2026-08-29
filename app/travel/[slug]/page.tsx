@@ -8,7 +8,6 @@ import BlogPostFooter from "@/components/blog/BlogPostFooter";
 import { BRAND, getUrl } from "@/lib/config/brand";
 import { safeJsonLdScript } from "@/lib/safe-json-ld";
 import {
-import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
   blankTravel,
   formatBlogDate,
   getPublishedBlogPostBySlug,
@@ -17,7 +16,7 @@ import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 import { pageKeyTravelPost } from "@/lib/page-backgrounds";
 import { cleanStoryChapters } from "@/lib/story-chapters";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 export async function generateMetadata({
   params,

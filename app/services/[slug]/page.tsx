@@ -7,9 +7,8 @@ import PrimaryCTA from "@/components/PrimaryCTA";
 import { getImageAltFallback } from "@/lib/config/brand";
 import { pageKeyService } from "@/lib/page-backgrounds";
 import { getEditableServicePageBySlug } from "@/lib/service-pages";
-import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";

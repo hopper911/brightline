@@ -4,9 +4,8 @@ import { getSeoServicePageBySlug } from "@/lib/seoServicePages";
 import { getPublishedProjectsBySections } from "@/lib/queries/work";
 import { getSectionToPillarSlugMap } from "@/lib/work-pillar-settings";
 import { BRAND } from "@/lib/config/brand";
-import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 const SLUG = "corporate-photographer-nyc";
 

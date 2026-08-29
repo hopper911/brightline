@@ -28,10 +28,9 @@ import {
 } from "@/lib/pillar-cover-data";
 import {
   getPublicDualBrandWork,
-  PUBLIC_PAGE_REVALIDATE_SECONDS,
 } from "@/lib/public-chrome-cache";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 export const metadata = {
   title: `Commercial Photography | ${BRAND.name}`,

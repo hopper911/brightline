@@ -3,9 +3,8 @@ import { notFound } from "next/navigation";
 import AssignedPageBackground from "@/components/AssignedPageBackground";
 import SharedWorkProjectView from "@/components/work/SharedWorkProjectView";
 import { dualBrandMediaSrc, fetchDualBrandWorkBySlug } from "@/lib/dual-brand/content-api";
-import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 type Props = { params: Promise<{ slug: string }> };
 

@@ -4,9 +4,8 @@ import { notFound } from "next/navigation";
 import { BRAND } from "@/lib/config/brand";
 import { getResumePageSettings } from "@/lib/feature-flags";
 import { externalLinkProps } from "@/lib/external-link";
-import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getResumePageSettings();

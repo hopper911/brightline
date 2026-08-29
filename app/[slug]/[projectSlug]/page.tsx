@@ -2,9 +2,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { isKnownPillarSlug } from "@/lib/work-pillar-settings";
 import { getProjectByPillarAndSlug } from "@/lib/queries/work";
 import { normalizeProjectSlug } from "@/lib/slugify";
-import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 /**
  * Shorthand project links such as `/advertising/erny` resolve to

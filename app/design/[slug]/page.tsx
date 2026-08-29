@@ -9,7 +9,6 @@ import CaseStudySection from "@/components/design/CaseStudySection";
 import DigitalProjectCard from "@/components/design/DigitalProjectCard";
 import { BrowserFrame } from "@/components/design/DesignChrome";
 import {
-import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
   disciplineLabel,
   getDesignSectionSettings,
 } from "@/lib/design-section-settings";
@@ -27,7 +26,7 @@ import { pageKeyDesign } from "@/lib/page-backgrounds";
 import { parseRelatedServiceLinks } from "@/lib/work-project-related-services";
 import { services } from "@/app/services/data";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 type Props = { params: Promise<{ slug: string }> };
 

@@ -12,11 +12,10 @@ import { applyDesignNavToSiteNav, mergeWorkPillarNavIntoSiteNav } from "@/lib/si
 import { DEFAULT_DESIGN_SECTION_SETTINGS } from "@/lib/design-section-settings";
 import {
   getPublicChromeBundle,
-  PUBLIC_PAGE_REVALIDATE_SECONDS,
 } from "@/lib/public-chrome-cache";
 import "./globals.css";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 export const viewport: Viewport = {
   width: "device-width",

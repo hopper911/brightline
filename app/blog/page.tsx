@@ -6,9 +6,8 @@ import Reveal from "@/components/Reveal";
 import { BRAND } from "@/lib/config/brand";
 import { formatBlogDate, getPublishedBlogPosts } from "@/lib/blog-posts";
 import { fetchDualBrandJournal } from "@/lib/dual-brand/content-api";
-import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: `Journal · ${BRAND.name}`,

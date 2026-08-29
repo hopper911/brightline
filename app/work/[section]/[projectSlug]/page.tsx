@@ -8,9 +8,8 @@ import { getProjectByPillarAndSlug } from "@/lib/queries/work";
 import { getPublicR2Url } from "@/lib/r2";
 import { BRAND } from "@/lib/config/brand";
 import { getPillarCaseStudyDefaults } from "@/lib/pillarCaseStudyDefaults";
-import { PUBLIC_PAGE_REVALIDATE_SECONDS } from "@/lib/public-page-cache";
 
-export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 export async function generateMetadata({
   params,

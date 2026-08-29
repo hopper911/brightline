@@ -4,6 +4,7 @@ import { StudioInvoiceStatus } from "@prisma/client";
 import { getAccountantPortalContext } from "@/lib/accountant/auth";
 import { prisma } from "@/lib/prisma";
 import { getFinanceOverview } from "@/lib/studio/finance";
+import { ExportDownloadLink } from "./export-download-link";
 
 export const dynamic = "force-dynamic";
 
@@ -156,21 +157,30 @@ export default async function AccountantDashboardPage() {
           <h2 className="font-display text-xl text-white">Exports</h2>
           <p className="mt-1 text-sm text-white/55">Download CSV extracts (uses your current session).</p>
           <div className="mt-4 flex flex-wrap gap-3 text-sm">
-            <a className="rounded-lg border border-white/20 px-3 py-2 text-white/80 hover:bg-white/5" href="/api/accountant/export/invoices">
+            <ExportDownloadLink
+              className="rounded-lg border border-white/20 px-3 py-2 text-white/80 hover:bg-white/5"
+              href="/api/accountant/export/invoices"
+            >
               Invoices CSV
-            </a>
-            <a className="rounded-lg border border-white/20 px-3 py-2 text-white/80 hover:bg-white/5" href="/api/accountant/export/payments">
+            </ExportDownloadLink>
+            <ExportDownloadLink
+              className="rounded-lg border border-white/20 px-3 py-2 text-white/80 hover:bg-white/5"
+              href="/api/accountant/export/payments"
+            >
               Payments CSV
-            </a>
-            <a className="rounded-lg border border-white/20 px-3 py-2 text-white/80 hover:bg-white/5" href="/api/accountant/export/expenses">
+            </ExportDownloadLink>
+            <ExportDownloadLink
+              className="rounded-lg border border-white/20 px-3 py-2 text-white/80 hover:bg-white/5"
+              href="/api/accountant/export/expenses"
+            >
               Expenses CSV
-            </a>
-            <a
+            </ExportDownloadLink>
+            <ExportDownloadLink
               className="rounded-lg border border-white/20 px-3 py-2 text-white/80 hover:bg-white/5"
               href="/api/accountant/export/transactions"
             >
               Ledger CSV
-            </a>
+            </ExportDownloadLink>
           </div>
           <Link className="mt-4 inline-block text-sm text-amber-200/90" href="/accountant/reports">
             Report builder →

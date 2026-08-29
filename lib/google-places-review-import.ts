@@ -317,7 +317,7 @@ export async function resolveMapsReviewInput(
     };
   }
 
-  let parsed = parseMapsReviewUrl(expanded) ?? parseMapsReviewUrl(input);
+  const parsed = parseMapsReviewUrl(expanded) ?? parseMapsReviewUrl(input);
 
   if (parsed?.placeId || parsed?.placeQuery) {
     return {

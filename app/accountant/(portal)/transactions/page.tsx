@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAccountantPortalContext } from "@/lib/accountant/auth";
 import { loadUnifiedLedger } from "@/lib/accountant/ledger-query";
 import { prisma } from "@/lib/prisma";
+import { ExportDownloadLink } from "../export-download-link";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +28,12 @@ export default async function AccountantTransactionsPage() {
             Merged ledger: payments, expenses, and manual adjustments.
           </p>
         </div>
-        <a
+        <ExportDownloadLink
           className="rounded-lg border border-white/20 px-3 py-2 text-sm text-white/80 hover:bg-white/5"
           href="/api/accountant/export/transactions"
         >
           Export CSV
-        </a>
+        </ExportDownloadLink>
       </header>
 
       <div className="overflow-x-auto rounded-2xl border border-white/10">

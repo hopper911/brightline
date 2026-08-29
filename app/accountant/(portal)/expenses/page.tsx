@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAccountantPortalContext } from "@/lib/accountant/auth";
 import { ExpenseCreateForm } from "@/components/accountant/ExpenseCreateForm";
 import { prisma } from "@/lib/prisma";
+import { ExportDownloadLink } from "../export-download-link";
 
 export const dynamic = "force-dynamic";
 
@@ -42,12 +43,12 @@ export default async function AccountantExpensesPage() {
           <h1 className="font-display text-3xl text-white">Expenses</h1>
           <p className="mt-1 text-sm text-white/55">Operational expenses and vendor spend.</p>
         </div>
-        <a
+        <ExportDownloadLink
           className="rounded-lg border border-white/20 px-3 py-2 text-sm text-white/80 hover:bg-white/5"
           href="/api/accountant/export/expenses"
         >
           Export CSV
-        </a>
+        </ExportDownloadLink>
       </header>
 
       {ctx.permissions.canCreateExpenses ? <ExpenseCreateForm /> : null}

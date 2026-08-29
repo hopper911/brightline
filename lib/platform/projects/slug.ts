@@ -33,7 +33,7 @@ export function suffixProjectSlug(slug: string): string {
 export async function resolveProjectSlug(
   input: ResolveProjectSlugInput
 ): Promise<ResolveProjectSlugResult> {
-  let slug = normalizeProjectSlugInput(input.title, input.slugInput);
+  const slug = normalizeProjectSlugInput(input.title, input.slugInput);
 
   if (!(await input.isTaken(slug))) {
     return { slug, suffixed: false };

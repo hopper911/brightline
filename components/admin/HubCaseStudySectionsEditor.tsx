@@ -730,7 +730,7 @@ ref
         return 0;
       }
 
-      let working = sections.map((section) => ({ ...section, data: { ...section.data } }));
+      const working = sections.map((section) => ({ ...section, data: { ...section.data } }));
       let filled = 0;
 
       for (let index = 0; index < working.length; index += 1) {

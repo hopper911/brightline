@@ -7,12 +7,21 @@ import { prisma } from "@/lib/prisma";
 
 const STATE_PREFIX = "project_workflow_state:v1:";
 
+export type ProjectWorkflowPriority = "HIGH" | "NORMAL" | "LOW";
+
+export const PROJECT_WORKFLOW_PRIORITIES: ProjectWorkflowPriority[] = ["HIGH", "NORMAL", "LOW"];
+
 export type StoredProjectWorkflowState = {
   lifecycle: ProjectWorkflowLifecycle;
   reviewNotes: string | null;
   updatedAt: string;
   /** Mirotech case study workflow template applied at create (Phase 23A). */
   templateId?: string | null;
+  /** Operator priority for completion queue (Phase 25). */
+  priority?: ProjectWorkflowPriority;
+  /** Set when async/sync publish fails while lifecycle remains APPROVED. */
+  publishFailedAt?: string | null;
+  publishFailedReason?: string | null;
 };
 
 function stateKey(ref: ContentRef): string {
@@ -32,6 +41,9 @@ export async function getStoredProjectWorkflowState(
       reviewNotes: parsed.reviewNotes ?? null,
       updatedAt: parsed.updatedAt ?? new Date().toISOString(),
       templateId: parsed.templateId ?? null,
+      priority: parsed.priority ?? "NORMAL",
+      publishFailedAt: parsed.publishFailedAt ?? null,
+      publishFailedReason: parsed.publishFailedReason ?? null,
     };
   } catch {
     return null;
@@ -48,6 +60,9 @@ export async function setStoredProjectWorkflowState(
     reviewNotes: state.reviewNotes ?? null,
     updatedAt: state.updatedAt,
     templateId: state.templateId ?? null,
+    priority: state.priority ?? "NORMAL",
+    publishFailedAt: state.publishFailedAt ?? null,
+    publishFailedReason: state.publishFailedReason ?? null,
   });
   await prisma.siteSetting.upsert({
     where: { key },
@@ -73,6 +88,9 @@ export async function loadAllStoredProjectWorkflowStates(): Promise<
           reviewNotes: parsed.reviewNotes ?? null,
           updatedAt: parsed.updatedAt ?? new Date().toISOString(),
           templateId: parsed.templateId ?? null,
+          priority: parsed.priority ?? "NORMAL",
+          publishFailedAt: parsed.publishFailedAt ?? null,
+          publishFailedReason: parsed.publishFailedReason ?? null,
         });
       }
     } catch {

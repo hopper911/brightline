@@ -105,12 +105,20 @@ export default async function StudioProjectsPage({ searchParams }: Props) {
             Completeness and lifecycle come from ProjectWorkflowService validators.
           </p>
         </div>
-        <StudioProjectCreateForm
-          allowedTenants={allowedTenants}
-          canCreateBrightline={listing.canCreateBrightline}
-          canCreateMirotech={listing.canCreateMirotech}
-          defaultTenant={context.activeTenant}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/studio/projects/completion"
+            className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white/70 hover:text-white"
+          >
+            Completion queue
+          </Link>
+          <StudioProjectCreateForm
+            allowedTenants={allowedTenants}
+            canCreateBrightline={listing.canCreateBrightline}
+            canCreateMirotech={listing.canCreateMirotech}
+            defaultTenant={context.activeTenant}
+          />
+        </div>
       </div>
 
       {allowedTenants.length > 1 ? (

@@ -14,13 +14,18 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ projectRef: string }>;
+  searchParams: Promise<{ tab?: string; workflow?: string }>;
 };
 
-export default async function StudioProjectEditorPage({ params }: Props) {
+export default async function StudioProjectEditorPage({ params, searchParams }: Props) {
   const context = await resolveStudioOpsContext();
   if (!context) return null;
 
   const { projectRef } = await params;
+  const sp = await searchParams;
+  const initialTab = sp.tab === "media" || sp.tab === "seo" || sp.tab === "publishing" ? sp.tab : undefined;
+  const workflowIntent =
+    sp.workflow === "review" || sp.workflow === "publish" ? sp.workflow : undefined;
   const ref = parseStudioProjectRefParam(projectRef);
   if (!ref) notFound();
 
@@ -44,6 +49,12 @@ export default async function StudioProjectEditorPage({ params }: Props) {
   const param = encodeStudioProjectRefParam(ref);
 
   return (
-    <StudioProjectEditor initialView={view} projectRefParam={param} canWrite={canWrite} />
+    <StudioProjectEditor
+      initialView={view}
+      projectRefParam={param}
+      canWrite={canWrite}
+      initialTab={initialTab as "media" | "seo" | "publishing" | undefined}
+      workflowIntent={workflowIntent}
+    />
   );
 }

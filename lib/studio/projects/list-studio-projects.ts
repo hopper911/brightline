@@ -81,7 +81,7 @@ function resolveTenantFilter(
   return allowed.length > 1 ? "all" : allowed[0];
 }
 
-async function listBrightlineWorkflowProjects(
+export async function listBrightlineWorkflowProjects(
   storedStates: Map<string, import("@/lib/platform/projects/workflow-state").StoredProjectWorkflowState>
 ): Promise<StudioProjectDashboardRow[]> {
   const projects = await prisma.workProject.findMany({
@@ -215,7 +215,7 @@ function hubProjectToDashboardRow(
   };
 }
 
-async function listMirotechWorkflowProjects(
+export async function listMirotechWorkflowProjects(
   storedStates: Map<string, import("@/lib/platform/projects/workflow-state").StoredProjectWorkflowState>
 ): Promise<StudioProjectDashboardRow[]> {
   const projects = await listHubProjects();

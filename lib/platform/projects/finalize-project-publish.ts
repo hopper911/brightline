@@ -5,7 +5,10 @@ import type { PlatformAuditActor } from "@/lib/platform/audit/types";
 import type { PlatformContext } from "@/lib/platform/context/types";
 import type { ContentRef } from "@/lib/platform/content/types";
 import { setStoredProjectPublishedSnapshot } from "@/lib/platform/projects/published-snapshot";
-import { setStoredProjectWorkflowState } from "@/lib/platform/projects/workflow-state";
+import {
+  getStoredProjectWorkflowState,
+  setStoredProjectWorkflowState,
+} from "@/lib/platform/projects/workflow-state";
 
 export async function finalizeProjectPublishSuccess(input: {
   context: PlatformContext;
@@ -21,11 +24,16 @@ export async function finalizeProjectPublishSuccess(input: {
   jobId?: string;
 }): Promise<void> {
   const publishedAt = new Date().toISOString();
+  const stored = await getStoredProjectWorkflowState(input.ref);
 
   await setStoredProjectWorkflowState(input.ref, {
     lifecycle: "PUBLISHED",
     reviewNotes: null,
     updatedAt: publishedAt,
+    templateId: stored?.templateId ?? null,
+    priority: stored?.priority ?? "NORMAL",
+    publishFailedAt: null,
+    publishFailedReason: null,
   });
 
   await setStoredProjectPublishedSnapshot(input.ref, {
@@ -56,6 +64,18 @@ export async function finalizeProjectPublishFailure(input: {
   error: string;
   jobId?: string;
 }): Promise<void> {
+  const stored = await getStoredProjectWorkflowState(input.ref);
+  const failedAt = new Date().toISOString();
+  await setStoredProjectWorkflowState(input.ref, {
+    lifecycle: stored?.lifecycle === "PUBLISHED" ? "PUBLISHED" : "APPROVED",
+    reviewNotes: stored?.reviewNotes ?? null,
+    updatedAt: failedAt,
+    templateId: stored?.templateId ?? null,
+    priority: stored?.priority ?? "NORMAL",
+    publishFailedAt: failedAt,
+    publishFailedReason: input.error,
+  });
+
   await recordAuditSafely({
     context: input.context,
     actor: input.actor,

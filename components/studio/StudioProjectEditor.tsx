@@ -22,6 +22,8 @@ type Props = {
   initialView: StudioProjectEditorView;
   projectRefParam: string;
   canWrite: boolean;
+  initialTab?: "media" | "seo" | "publishing";
+  workflowIntent?: "review" | "publish";
 };
 
 const TRANSITION_LABELS: Record<string, string> = {
@@ -52,8 +54,14 @@ function labelClass() {
   return "text-xs uppercase tracking-[0.18em] text-white/45";
 }
 
-export function StudioProjectEditor({ initialView, projectRefParam, canWrite }: Props) {
-  const [tab, setTab] = useState<TabId>("overview");
+export function StudioProjectEditor({
+  initialView,
+  projectRefParam,
+  canWrite,
+  initialTab,
+  workflowIntent,
+}: Props) {
+  const [tab, setTab] = useState<TabId>(initialTab ?? "overview");
   const [view, setView] = useState(initialView);
   const [overview, setOverview] = useState(initialView.overview);
   const [content, setContent] = useState(initialView.content);
@@ -183,6 +191,18 @@ export function StudioProjectEditor({ initialView, projectRefParam, canWrite }: 
     },
     [canWrite, projectRefParam, reviewNotes]
   );
+
+  useEffect(() => {
+    if (!canWrite || !workflowIntent) return;
+    if (workflowIntent === "review" && workflow.allowedTransitions.includes("IN_REVIEW")) {
+      runTransition("IN_REVIEW");
+    }
+    if (workflowIntent === "publish" && workflow.publishAllowed) {
+      runTransition("PUBLISHED");
+    }
+    // Deep-link from completion queue — run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const saveMedia = useCallback(async () => {
     if (!canWrite) return;

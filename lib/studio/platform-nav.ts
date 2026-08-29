@@ -6,6 +6,18 @@ export const STUDIO_PLATFORM_NAV = [
     description: "Workflow project ingestion and drafts",
   },
   {
+    id: "completion-queue",
+    label: "Completion queue",
+    href: "/studio/projects/completion",
+    description: "Portfolio blockers and publish readiness",
+  },
+  {
+    id: "portfolio-readiness",
+    label: "Portfolio readiness",
+    href: "/studio/portfolio-readiness",
+    description: "Site-level portfolio launch gate",
+  },
+  {
     id: "content",
     label: "Content",
     href: "/studio/content",

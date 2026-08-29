@@ -139,7 +139,63 @@ export function contentAdminEditHref(
     return `/admin/studio-cms/${encodeURIComponent(id)}`;
   }
   if (tenant === "mirotech" && type === "mirotech-case-study") {
-    return `/api/admin/mirotech/handoff?next=${encodeURIComponent("/admin/work")}`;
+    return `/admin/studio-cms/${encodeURIComponent(id)}`;
   }
   return null;
+}
+
+export function canReadBrightlineStudioProjects(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (legacyAdmin) return true;
+  return (
+    permissions.includes("brightline.journal.read") ||
+    permissions.includes("brightline.project.create") ||
+    permissions.includes("brightline.project.write")
+  );
+}
+
+export function canReadMirotechStudioProjects(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (legacyAdmin) return true;
+  return (
+    permissions.includes("mirotech.project.read") ||
+    permissions.includes("mirotech.project.write")
+  );
+}
+
+export function canCreateBrightlineProject(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (legacyAdmin) return true;
+  return permissions.includes("brightline.project.create");
+}
+
+export function canCreateMirotechCaseStudy(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (legacyAdmin) return true;
+  return permissions.includes("mirotech.project.write");
+}
+
+export function allowedProjectTenants(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean,
+  memberships: StudioOpsMembership[]
+): TenantSlug[] {
+  const allowed: TenantSlug[] = [];
+  for (const m of memberships) {
+    if (m.tenantSlug === "brightline" && canReadBrightlineStudioProjects(permissions, legacyAdmin)) {
+      allowed.push("brightline");
+    }
+    if (m.tenantSlug === "mirotech" && canReadMirotechStudioProjects(permissions, legacyAdmin)) {
+      allowed.push("mirotech");
+    }
+  }
+  return [...new Set(allowed)];
 }

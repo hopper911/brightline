@@ -11,6 +11,9 @@ import {
   canRetryPublishingJob,
   contentAdminEditHref,
   tenantRouteAllowed,
+  canCreateBrightlineProject,
+  canCreateMirotechCaseStudy,
+  canReadBrightlineStudioProjects,
 } from "@/lib/studio/access";
 
 describe("studio access", () => {
@@ -38,6 +41,16 @@ describe("studio access", () => {
     expect(contentAdminEditHref("mirotech", "dual-brand-work", "hub-1")).toBe(
       "/admin/studio-cms/hub-1"
     );
+    expect(contentAdminEditHref("mirotech", "mirotech-case-study", "cs-1")).toBe(
+      "/admin/studio-cms/cs-1"
+    );
+  });
+
+  it("gates project create permissions", () => {
+    expect(canCreateBrightlineProject(["brightline.project.create"], false)).toBe(true);
+    expect(canCreateBrightlineProject(["brightline.journal.read"], false)).toBe(false);
+    expect(canCreateMirotechCaseStudy(["mirotech.project.write"], false)).toBe(true);
+    expect(canReadBrightlineStudioProjects(["brightline.project.write"], false)).toBe(true);
   });
 
   it("gates publishing visibility by publish permissions", () => {

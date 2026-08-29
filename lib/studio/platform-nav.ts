@@ -1,5 +1,11 @@
 export const STUDIO_PLATFORM_NAV = [
   {
+    id: "projects",
+    label: "Projects",
+    href: "/studio/projects",
+    description: "Workflow project ingestion and drafts",
+  },
+  {
     id: "content",
     label: "Content",
     href: "/studio/content",

@@ -1,0 +1,46 @@
+{
+  "capturedAt": "2026-08-29T16:17:53.731Z",
+  "phase": "15C-post-deploy",
+  "results": [
+    {
+      "label": "brightline-home",
+      "url": "https://brightlinephotography.com/",
+      "score": 76,
+      "lcp": "6.2 s",
+      "fcp": "1.7 s",
+      "tbt": "70 ms",
+      "ttfb": "Root document took 20 ms",
+      "cls": "0"
+    },
+    {
+      "label": "brightline-work",
+      "url": "https://brightlinephotography.com/work",
+      "score": 98,
+      "lcp": "2.2 s",
+      "fcp": "1.1 s",
+      "tbt": "20 ms",
+      "ttfb": "Root document took 10 ms",
+      "cls": "0"
+    },
+    {
+      "label": "brightline-project",
+      "url": "https://brightlinephotography.com/work/shared/mirotech-ops-intelligence-command-center",
+      "score": 94,
+      "lcp": "3.0 s",
+      "fcp": "1.6 s",
+      "tbt": "30 ms",
+      "ttfb": "Root document took 20 ms",
+      "cls": "0.005"
+    },
+    {
+      "label": "mirotech-home",
+      "url": "https://mirotech.solutions/",
+      "score": 83,
+      "lcp": "4.4 s",
+      "fcp": "1.6 s",
+      "tbt": "20 ms",
+      "ttfb": "Root document took 1,810 ms",
+      "cls": "0"
+    }
+  ]
+}

@@ -22,7 +22,6 @@ export function mapBrightlineWorkProjectLifecycle(
   input: BrightlineWorkProjectLifecycleInput
 ): ProjectWorkflowLifecycle {
   if (input.published) return "PUBLISHED";
-  if (input.completeForPublish) return "APPROVED";
   const hasBody =
     Boolean(input.summary?.trim()) ||
     Boolean(input.description?.trim());
@@ -39,7 +38,6 @@ export function mapMirotechCaseStudyLifecycle(
   if (status === "PUBLISHED") return "PUBLISHED";
   if (status === "ARCHIVED") return "ARCHIVED";
   if (status === "REVIEW") return "IN_REVIEW";
-  if (input.completeForPublish && status === "DRAFT") return "APPROVED";
   const hasBody = Boolean(input.summary?.trim()) || input.sectionCount > 0;
   const hasHero = Boolean(input.heroImage?.trim());
   if (hasBody && hasHero) return "MEDIA_READY";

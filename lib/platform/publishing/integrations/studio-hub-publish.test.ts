@@ -16,6 +16,10 @@ vi.mock("@/lib/platform/publishing/integrations/studio-hub-async-publish", () =>
   enqueueStudioHubBlogPatchJob: vi.fn(),
 }));
 
+vi.mock("@/lib/platform/projects/publish-gate", () => ({
+  assertProjectPublishAllowed: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { updateHubBlog, updateHubProject } from "@/lib/dual-brand/studio-hub";
 import {
   enqueueStudioHubBlogPatchJob,

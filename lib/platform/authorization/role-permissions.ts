@@ -15,7 +15,9 @@ const BL_WRITE: PlatformPermission[] = [
   "brightline.project.write",
 ];
 
-const BL_PUBLISH: PlatformPermission[] = [...BL_WRITE, "brightline.journal.publish"];
+const BL_APPROVE: PlatformPermission[] = [...BL_WRITE, "brightline.project.approve"];
+
+const BL_PUBLISH: PlatformPermission[] = [...BL_APPROVE, "brightline.journal.publish"];
 
 const BL_ADMIN: PlatformPermission[] = [...BL_PUBLISH, "brightline.client.manage"];
 
@@ -28,8 +30,10 @@ const MT_DRAFT: PlatformPermission[] = [
   "mirotech.journal.write",
 ];
 
+const MT_APPROVE: PlatformPermission[] = [...MT_DRAFT, "mirotech.project.approve"];
+
 const MT_PUBLISH: PlatformPermission[] = [
-  ...MT_DRAFT,
+  ...MT_APPROVE,
   "mirotech.case-study.publish",
   "mirotech.journal.publish",
 ];

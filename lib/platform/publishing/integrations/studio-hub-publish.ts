@@ -9,6 +9,7 @@ import { isPlatformFeatureEnabled } from "@/lib/platform/features";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { defaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { isPublishingError } from "@/lib/platform/publishing/errors";
+import { assertProjectPublishAllowed } from "@/lib/platform/projects/publish-gate";
 import {
   enqueueStudioHubBlogPatchJob,
   enqueueStudioHubProjectPatchJob,
@@ -88,6 +89,15 @@ export async function resolveStudioHubProjectPatch(
   payload: Record<string, unknown>,
   options?: { publishingService?: DefaultPublishingService; actor?: PlatformAuditActor }
 ): Promise<HubProject | AsyncPublishAccepted> {
+  const status = payload.status;
+  if (String(status ?? "").toUpperCase() === "PUBLISHED") {
+    await assertProjectPublishAllowed({
+      tenant: "mirotech",
+      type: "mirotech-case-study",
+      id,
+    });
+  }
+
   if (!isPlatformFeatureEnabled("publishing")) {
     return legacyPatchStudioHubProject(id, payload);
   }

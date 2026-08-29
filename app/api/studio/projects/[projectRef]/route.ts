@@ -59,7 +59,10 @@ export async function GET(
     return NextResponse.json({ ok: false, error: "Forbidden." }, { status: 403 });
   }
 
-  const view = await getStudioProjectEditorView(ref);
+  const view = await getStudioProjectEditorView(ref, {
+    permissions: opsContext.permissions,
+    legacyAdmin,
+  });
   if (!view) {
     return NextResponse.json({ ok: false, error: "Project not found." }, { status: 404 });
   }
@@ -105,7 +108,10 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Valid section is required." }, { status: 400 });
   }
 
-  const view = await getStudioProjectEditorView(ref);
+  const view = await getStudioProjectEditorView(ref, {
+    permissions: opsContext.permissions,
+    legacyAdmin,
+  });
   if (!view) {
     return NextResponse.json({ ok: false, error: "Project not found." }, { status: 404 });
   }

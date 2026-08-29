@@ -2,6 +2,11 @@ import "server-only";
 
 import { listHubProjects, type HubProject } from "@/lib/dual-brand/studio-hub";
 import { defaultProjectWorkflowService } from "@/lib/platform/projects/server";
+import { resolveEffectiveLifecycle } from "@/lib/platform/projects/lifecycle-transitions";
+import {
+  loadAllStoredProjectWorkflowStates,
+  storedWorkflowStateForRef,
+} from "@/lib/platform/projects/workflow-state";
 import type { PlatformPermission } from "@/lib/platform/authorization/permissions";
 import type { TenantSlug } from "@/lib/platform/tenants/types";
 import {
@@ -76,7 +81,9 @@ function resolveTenantFilter(
   return allowed.length > 1 ? "all" : allowed[0];
 }
 
-async function listBrightlineWorkflowProjects(): Promise<StudioProjectDashboardRow[]> {
+async function listBrightlineWorkflowProjects(
+  storedStates: Map<string, import("@/lib/platform/projects/workflow-state").StoredProjectWorkflowState>
+): Promise<StudioProjectDashboardRow[]> {
   const projects = await prisma.workProject.findMany({
     select: {
       id: true,
@@ -119,6 +126,15 @@ async function listBrightlineWorkflowProjects(): Promise<StudioProjectDashboardR
       kind: "work-project",
       snapshot,
     });
+    const stored = storedWorkflowStateForRef(
+      { tenant: "brightline", type: "work-project", id: row.id },
+      storedStates
+    );
+    const effectiveLifecycle = resolveEffectiveLifecycle(
+      stored?.lifecycle ?? null,
+      lifecycle,
+      row.published
+    );
 
     return {
       id: row.id,
@@ -127,8 +143,8 @@ async function listBrightlineWorkflowProjects(): Promise<StudioProjectDashboardR
       title: row.title,
       slug: row.slug,
       typeLabel: `Work · ${row.section}`,
-      lifecycle,
-      lifecycleLabel: lifecycleDisplayLabel(lifecycle),
+      lifecycle: effectiveLifecycle,
+      lifecycleLabel: lifecycleDisplayLabel(effectiveLifecycle),
       completenessScore: completeness.score,
       completenessComplete: completeness.complete,
       missing: completeness.missing,
@@ -139,7 +155,10 @@ async function listBrightlineWorkflowProjects(): Promise<StudioProjectDashboardR
   });
 }
 
-function hubProjectToDashboardRow(project: HubProject): StudioProjectDashboardRow {
+function hubProjectToDashboardRow(
+  project: HubProject,
+  storedStates: Map<string, import("@/lib/platform/projects/workflow-state").StoredProjectWorkflowState>
+): StudioProjectDashboardRow {
   const snapshot = {
     title: project.title,
     slug: project.slug,
@@ -165,6 +184,15 @@ function hubProjectToDashboardRow(project: HubProject): StudioProjectDashboardRo
     snapshot,
   });
   const published = String(project.status).toUpperCase() === "PUBLISHED";
+  const stored = storedWorkflowStateForRef(
+    { tenant: "mirotech", type: "mirotech-case-study", id: project.id },
+    storedStates
+  );
+  const effectiveLifecycle = resolveEffectiveLifecycle(
+    stored?.lifecycle ?? null,
+    lifecycle,
+    published
+  );
   const updatedAt = project.updatedAt
     ? new Date(project.updatedAt).toISOString()
     : new Date().toISOString();
@@ -176,8 +204,8 @@ function hubProjectToDashboardRow(project: HubProject): StudioProjectDashboardRo
     title: project.title,
     slug: project.slug,
     typeLabel: "Case study",
-    lifecycle,
-    lifecycleLabel: lifecycleDisplayLabel(lifecycle),
+    lifecycle: effectiveLifecycle,
+    lifecycleLabel: lifecycleDisplayLabel(effectiveLifecycle),
     completenessScore: completeness.score,
     completenessComplete: completeness.complete,
     missing: completeness.missing,
@@ -187,9 +215,11 @@ function hubProjectToDashboardRow(project: HubProject): StudioProjectDashboardRo
   };
 }
 
-async function listMirotechWorkflowProjects(): Promise<StudioProjectDashboardRow[]> {
+async function listMirotechWorkflowProjects(
+  storedStates: Map<string, import("@/lib/platform/projects/workflow-state").StoredProjectWorkflowState>
+): Promise<StudioProjectDashboardRow[]> {
   const projects = await listHubProjects();
-  return projects.map(hubProjectToDashboardRow);
+  return projects.map((project) => hubProjectToDashboardRow(project, storedStates));
 }
 
 export async function listStudioProjects(
@@ -204,17 +234,18 @@ export async function listStudioProjects(
     input.memberships
   );
   const tenantFilter = resolveTenantFilter(input.tenantFilter, allowedTenants);
+  const storedStates = await loadAllStoredProjectWorkflowStates();
 
   const rows: StudioProjectDashboardRow[] = [];
 
   if (tenantFilter === "all" || tenantFilter === "brightline") {
     if (allowedTenants.includes("brightline")) {
-      rows.push(...(await listBrightlineWorkflowProjects()));
+      rows.push(...(await listBrightlineWorkflowProjects(storedStates)));
     }
   }
   if (tenantFilter === "all" || tenantFilter === "mirotech") {
     if (allowedTenants.includes("mirotech")) {
-      rows.push(...(await listMirotechWorkflowProjects()));
+      rows.push(...(await listMirotechWorkflowProjects(storedStates)));
     }
   }
 

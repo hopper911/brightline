@@ -208,6 +208,31 @@ export function canWriteStudioProject(
   return canWriteMirotechProject(permissions, legacyAdmin);
 }
 
+export function canApproveBrightlineProject(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (legacyAdmin) return true;
+  return permissions.includes("brightline.project.approve");
+}
+
+export function canApproveMirotechProject(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (legacyAdmin) return true;
+  return permissions.includes("mirotech.project.approve");
+}
+
+export function canApproveStudioProject(
+  tenant: TenantSlug,
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (tenant === "brightline") return canApproveBrightlineProject(permissions, legacyAdmin);
+  return canApproveMirotechProject(permissions, legacyAdmin);
+}
+
 export function allowedProjectTenants(
   permissions: PlatformPermission[],
   legacyAdmin: boolean,

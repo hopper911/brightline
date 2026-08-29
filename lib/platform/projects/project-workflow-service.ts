@@ -7,6 +7,8 @@ import type {
   ProjectWorkflowKind,
   ProjectWorkflowLifecycle,
   ProjectWorkflowStatusChangeInput,
+  ProjectWorkflowTransitionInput,
+  ProjectWorkflowTransitionResult,
 } from "@/lib/platform/projects/types";
 import type { ContentRef } from "@/lib/platform/content/types";
 
@@ -37,4 +39,10 @@ export interface ProjectWorkflowService {
     subject: AuthorizationSubject,
     input: ProjectWorkflowStatusChangeInput
   ): Promise<void>;
+
+  transitionLifecycle(
+    context: PlatformContext,
+    subject: AuthorizationSubject,
+    input: ProjectWorkflowTransitionInput
+  ): Promise<ProjectWorkflowTransitionResult>;
 }

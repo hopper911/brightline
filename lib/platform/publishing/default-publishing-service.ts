@@ -10,6 +10,7 @@ import {
 import type { PublishingService } from "@/lib/platform/publishing/publishing-service";
 import type { PublishRequest, PublishResult } from "@/lib/platform/publishing/types";
 import { assertValidPublishRequest } from "@/lib/platform/publishing/types";
+import { assertProjectPublishAllowed } from "@/lib/platform/projects/publish-gate";
 
 /**
  * Default PublishingService — routes to target adapters (Phase 6B).
@@ -26,6 +27,16 @@ export class DefaultPublishingService implements PublishingService {
 
   async publish(context: PlatformContext, request: PublishRequest): Promise<PublishResult> {
     const valid = assertValidPublishRequest(request);
+    if (
+      valid.source.type === "dual-brand-work" &&
+      String(valid.hubPatch?.status ?? "").toUpperCase() === "PUBLISHED"
+    ) {
+      await assertProjectPublishAllowed({
+        tenant: "mirotech",
+        type: "mirotech-case-study",
+        id: valid.source.id,
+      });
+    }
     const provider = this.providerFor(valid);
     return provider.publish(context, valid);
   }

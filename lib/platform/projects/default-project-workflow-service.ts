@@ -11,6 +11,7 @@ import type { ContentRef } from "@/lib/platform/content/types";
 import { isPlatformFeatureEnabled } from "@/lib/platform/features";
 import { createBrightlineWorkProjectDraft } from "@/lib/platform/projects/adapters/brightline-work-adapter";
 import { createMirotechCaseStudyDraft } from "@/lib/platform/projects/adapters/mirotech-case-study-adapter";
+import { applyDomainLifecycleForTransition } from "@/lib/platform/projects/apply-domain-lifecycle";
 import {
   validateBrightlineProjectCompleteness,
   type BrightlineWorkProjectCompletenessInput,
@@ -21,9 +22,18 @@ import {
 } from "@/lib/platform/projects/completeness/mirotech-case-study";
 import {
   ProjectWorkflowPermissionDeniedError,
+  ProjectWorkflowTransitionError,
   ProjectWorkflowUnsupportedKindError,
   ProjectWorkflowValidationError,
 } from "@/lib/platform/projects/errors";
+import {
+  allowedNextLifecycles,
+  canTransitionLifecycle,
+  isReopenReview,
+  requiresApprovalPermission,
+  requiresCompletenessForReview,
+  resolveEffectiveLifecycle,
+} from "@/lib/platform/projects/lifecycle-transitions";
 import {
   mapBrightlineWorkProjectLifecycle,
   mapMirotechCaseStudyLifecycle,
@@ -33,14 +43,36 @@ import type {
   ProjectWorkflowService,
 } from "@/lib/platform/projects/project-workflow-service";
 import { getProjectWorkflowTemplate } from "@/lib/platform/projects/templates";
+import { loadProjectWorkflowSnapshot } from "@/lib/platform/projects/workflow-snapshot";
+import {
+  getStoredProjectWorkflowState,
+  setStoredProjectWorkflowState,
+} from "@/lib/platform/projects/workflow-state";
 import type {
   ProjectWorkflowCreateInput,
   ProjectWorkflowCreateResult,
   ProjectWorkflowKind,
   ProjectWorkflowLifecycle,
   ProjectWorkflowStatusChangeInput,
+  ProjectWorkflowTransitionInput,
+  ProjectWorkflowTransitionResult,
 } from "@/lib/platform/projects/types";
 import type { TenantSlug } from "@/lib/platform/tenants/types";
+
+function approvePermissionForTenant(tenant: TenantSlug): PlatformPermission {
+  if (tenant === "brightline") return "brightline.project.approve";
+  return "mirotech.project.approve";
+}
+
+function filterAllowedTransitions(
+  from: ProjectWorkflowLifecycle,
+  completeness: { complete: boolean }
+): ProjectWorkflowLifecycle[] {
+  return allowedNextLifecycles(from).filter((to) => {
+    if (requiresCompletenessForReview(to) && !completeness.complete) return false;
+    return true;
+  });
+}
 
 function createPermissionForKind(
   tenant: TenantSlug,
@@ -162,6 +194,12 @@ export class DefaultProjectWorkflowService implements ProjectWorkflowService {
         },
       });
 
+      await setStoredProjectWorkflowState(ref, {
+        lifecycle: "DRAFT",
+        reviewNotes: null,
+        updatedAt: new Date().toISOString(),
+      });
+
       return { ref, id: row.id, slug: row.slug, lifecycle, completeness };
     }
 
@@ -200,6 +238,12 @@ export class DefaultProjectWorkflowService implements ProjectWorkflowService {
         slug: row.slug,
         templateId: input.templateId ?? null,
       },
+    });
+
+    await setStoredProjectWorkflowState(ref, {
+      lifecycle: "DRAFT",
+      reviewNotes: null,
+      updatedAt: new Date().toISOString(),
     });
 
     return { ref, id: row.id, slug: row.slug, lifecycle, completeness };
@@ -272,6 +316,128 @@ export class DefaultProjectWorkflowService implements ProjectWorkflowService {
         reason: input.reason ?? null,
       },
     });
+  }
+
+  async transitionLifecycle(
+    context: PlatformContext,
+    subject: AuthorizationSubject,
+    input: ProjectWorkflowTransitionInput
+  ): Promise<ProjectWorkflowTransitionResult> {
+    if (context.tenant.slug !== input.tenant) {
+      throw new ProjectWorkflowValidationError("Tenant mismatch for lifecycle transition.");
+    }
+    const kind = input.ref.type as ProjectWorkflowKind;
+    if (!isProjectWorkflowKindForRef(input.ref)) {
+      throw new ProjectWorkflowUnsupportedKindError(input.ref.type, input.tenant);
+    }
+
+    const snapshotCtx = await loadProjectWorkflowSnapshot(input.ref);
+    const completeness = this.evaluateCompleteness(snapshotCtx);
+    const derived = this.deriveLifecycle(snapshotCtx);
+    const stored = await getStoredProjectWorkflowState(input.ref);
+    const fromLifecycle = resolveEffectiveLifecycle(
+      stored?.lifecycle ?? null,
+      derived,
+      snapshotCtx.published
+    );
+    const toLifecycle = input.toLifecycle;
+
+    if (fromLifecycle === toLifecycle) {
+      return {
+        lifecycle: fromLifecycle,
+        completeness,
+        reviewNotes: stored?.reviewNotes ?? null,
+        allowedTransitions: filterAllowedTransitions(fromLifecycle, completeness),
+      };
+    }
+
+    if (!canTransitionLifecycle(fromLifecycle, toLifecycle)) {
+      throw new ProjectWorkflowTransitionError(
+        `Cannot transition from ${fromLifecycle} to ${toLifecycle}.`
+      );
+    }
+
+    if (requiresCompletenessForReview(toLifecycle) && !completeness.complete) {
+      throw new ProjectWorkflowTransitionError(
+        "Project is not complete enough for review.",
+        completeness.missing
+      );
+    }
+
+    if (toLifecycle === "PUBLISHED") {
+      if (!completeness.complete) {
+        throw new ProjectWorkflowTransitionError(
+          "Project is not complete enough to publish.",
+          completeness.missing
+        );
+      }
+      if (fromLifecycle !== "APPROVED" && fromLifecycle !== "PUBLISHED") {
+        throw new ProjectWorkflowTransitionError("Project must be approved before publication.");
+      }
+    }
+
+    const writePermission = createPermissionForKind(input.tenant, kind, "write");
+    await this.assertPermission(subject, input.tenant, writePermission);
+
+    if (requiresApprovalPermission(toLifecycle)) {
+      await this.assertPermission(subject, input.tenant, approvePermissionForTenant(input.tenant));
+    }
+
+    const reviewNotes =
+      input.reviewNotes !== undefined
+        ? input.reviewNotes.trim() || null
+        : stored?.reviewNotes ?? null;
+
+    await applyDomainLifecycleForTransition(input.ref, fromLifecycle, toLifecycle);
+
+    const updatedAt = new Date().toISOString();
+    await setStoredProjectWorkflowState(input.ref, {
+      lifecycle: toLifecycle,
+      reviewNotes,
+      updatedAt,
+    });
+
+    const actor = auditActorFromSubject(subject);
+    if (toLifecycle === "IN_REVIEW" && isReopenReview(fromLifecycle, toLifecycle)) {
+      await recordAuditSafely({
+        context,
+        actor,
+        action: "project.review_reopened",
+        resource: { type: input.ref.type, id: input.ref.id },
+        metadata: { from: fromLifecycle, reviewNotes },
+      });
+    } else if (toLifecycle === "IN_REVIEW") {
+      await recordAuditSafely({
+        context,
+        actor,
+        action: "project.review_requested",
+        resource: { type: input.ref.type, id: input.ref.id },
+        metadata: { from: fromLifecycle, reviewNotes },
+      });
+    } else if (toLifecycle === "APPROVED") {
+      await recordAuditSafely({
+        context,
+        actor,
+        action: "project.approved",
+        resource: { type: input.ref.type, id: input.ref.id },
+        metadata: { from: fromLifecycle, reviewNotes },
+      });
+    } else {
+      await recordAuditSafely({
+        context,
+        actor,
+        action: "project.status.changed",
+        resource: { type: input.ref.type, id: input.ref.id },
+        metadata: { from: fromLifecycle, to: toLifecycle },
+      });
+    }
+
+    return {
+      lifecycle: toLifecycle,
+      completeness,
+      reviewNotes,
+      allowedTransitions: filterAllowedTransitions(toLifecycle, completeness),
+    };
   }
 }
 

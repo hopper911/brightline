@@ -33,6 +33,16 @@ export class ProjectSlugConflictError extends ProjectWorkflowError {
   }
 }
 
+export class ProjectWorkflowTransitionError extends ProjectWorkflowError {
+  readonly missing: string[];
+
+  constructor(message: string, missing: string[] = []) {
+    super("transition_denied", message);
+    this.name = "ProjectWorkflowTransitionError";
+    this.missing = missing;
+  }
+}
+
 export class ProjectWorkflowUnsupportedKindError extends ProjectWorkflowError {
   constructor(kind: string, tenant: string) {
     const message =

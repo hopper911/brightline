@@ -10,6 +10,7 @@ const mockGetPillar = vi.fn();
 const mockGetPrimarySection = vi.fn();
 const mockPrismaFind = vi.fn();
 const mockPrismaCreate = vi.fn();
+const mockSiteSettingUpsert = vi.fn();
 
 vi.mock("@/lib/platform/projects/adapters/brightline-work-adapter", () => ({
   createBrightlineWorkProjectDraft: (...args: unknown[]) => mockWorkCreate(...args),
@@ -39,6 +40,9 @@ vi.mock("@/lib/prisma", () => ({
     workProject: {
       findFirst: (...args: unknown[]) => mockPrismaFind(...args),
       create: (...args: unknown[]) => mockPrismaCreate(...args),
+    },
+    siteSetting: {
+      upsert: (...args: unknown[]) => mockSiteSettingUpsert(...args),
     },
   },
 }));
@@ -115,6 +119,7 @@ describe("DefaultProjectWorkflowService", () => {
     process.env.PLATFORM_IDENTITY_ENABLED = "true";
     mockAuthCan.mockResolvedValue(true);
     mockAudit.mockResolvedValue({ ok: true, skipped: false, id: "audit-1" });
+    mockSiteSettingUpsert.mockResolvedValue({});
   });
 
   it("creates Brightline work-project draft", async () => {

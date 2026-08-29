@@ -5,6 +5,7 @@ import { isAsyncPublishAccepted } from "@/lib/platform/publishing/async-publish-
 import { resolveStudioHubProjectPatch } from "@/lib/platform/publishing/integrations/studio-hub-publish";
 import type { StudioProjectEditorSection } from "@/lib/studio/projects/validate-studio-project-section";
 import { validateStudioProjectSectionSave } from "@/lib/studio/projects/validate-studio-project-section";
+import { assertProjectPublishAllowed } from "@/lib/platform/projects/publish-gate";
 import { prisma } from "@/lib/prisma";
 import {
   getPillarBySlug,
@@ -17,6 +18,16 @@ export async function saveStudioProjectSection(
   rawData: Record<string, unknown>
 ): Promise<{ ok: true; jobId?: string } | { ok: false; error: string }> {
   const data = validateStudioProjectSectionSave(ref, section, rawData);
+
+  if (section === "publishing") {
+    const wantsPublish =
+      ref.type === "work-project"
+        ? Boolean((data as { published?: boolean }).published)
+        : String((data as { status?: string }).status ?? "").toUpperCase() === "PUBLISHED";
+    if (wantsPublish) {
+      await assertProjectPublishAllowed(ref);
+    }
+  }
 
   if (ref.type === "work-project" && ref.tenant === "brightline") {
     const updateData: Record<string, unknown> = { ...data };

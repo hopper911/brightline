@@ -34,7 +34,10 @@ export default async function StudioProjectEditorPage({ params }: Props) {
       : canReadMirotechStudioProjects(context.permissions, legacyAdmin);
   if (!canRead) notFound();
 
-  const view = await getStudioProjectEditorView(ref);
+  const view = await getStudioProjectEditorView(ref, {
+    permissions: context.permissions,
+    legacyAdmin,
+  });
   if (!view) notFound();
 
   const canWrite = canWriteStudioProject(ref.tenant, context.permissions, legacyAdmin);

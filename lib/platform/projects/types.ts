@@ -66,3 +66,18 @@ export type ProjectWorkflowStatusChangeInput = {
   toLifecycle: ProjectWorkflowLifecycle;
   reason?: string;
 };
+
+export type ProjectWorkflowTransitionInput = {
+  tenant: TenantSlug;
+  ref: ContentRef;
+  toLifecycle: ProjectWorkflowLifecycle;
+  reviewNotes?: string;
+};
+
+export type ProjectWorkflowTransitionResult = {
+  lifecycle: ProjectWorkflowLifecycle;
+  completeness: ProjectCompletenessResult;
+  reviewNotes: string | null;
+  allowedTransitions: ProjectWorkflowLifecycle[];
+  missing?: string[];
+};

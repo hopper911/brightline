@@ -2,11 +2,20 @@ import "server-only";
 
 import type { ContentRef } from "@/lib/platform/content/types";
 import { getHubProject, type HubProject } from "@/lib/dual-brand/studio-hub";
+import {
+  allowedNextLifecycles,
+  requiresCompletenessForReview,
+  resolveEffectiveLifecycle,
+} from "@/lib/platform/projects/lifecycle-transitions";
+import { evaluateProjectPublishGate } from "@/lib/platform/projects/publish-gate";
 import { defaultProjectWorkflowService } from "@/lib/platform/projects/server";
 import type {
   ProjectCompletenessResult,
   ProjectWorkflowLifecycle,
 } from "@/lib/platform/projects/types";
+import { getStoredProjectWorkflowState } from "@/lib/platform/projects/workflow-state";
+import type { PlatformPermission } from "@/lib/platform/authorization/permissions";
+import { canApproveStudioProject } from "@/lib/studio/access";
 import {
   studioProjectLegacyAdminHref,
   studioProjectPreviewHref,
@@ -63,9 +72,55 @@ export type StudioProjectEditorView = {
     publishBrightline: boolean;
     hubStatus: string | null;
   };
+  workflow: {
+    reviewNotes: string | null;
+    allowedTransitions: ProjectWorkflowLifecycle[];
+    canApprove: boolean;
+    publishAllowed: boolean;
+  };
 };
 
-export async function getStudioProjectEditorView(ref: ContentRef): Promise<StudioProjectEditorView | null> {
+export type GetStudioProjectEditorOptions = {
+  permissions?: PlatformPermission[];
+  legacyAdmin?: boolean;
+};
+
+function filterAllowedTransitions(
+  from: ProjectWorkflowLifecycle,
+  completeness: ProjectCompletenessResult
+): ProjectWorkflowLifecycle[] {
+  return allowedNextLifecycles(from).filter((to) => {
+    if (requiresCompletenessForReview(to) && !completeness.complete) return false;
+    return true;
+  });
+}
+
+async function buildWorkflowPanel(
+  ref: ContentRef,
+  lifecycle: ProjectWorkflowLifecycle,
+  completeness: ProjectCompletenessResult,
+  options?: GetStudioProjectEditorOptions
+) {
+  const stored = await getStoredProjectWorkflowState(ref);
+  const publishGate = await evaluateProjectPublishGate(ref);
+  const legacyAdmin = options?.legacyAdmin ?? false;
+  const canApprove =
+    options?.permissions
+      ? canApproveStudioProject(ref.tenant, options.permissions, legacyAdmin)
+      : false;
+
+  return {
+    reviewNotes: stored?.reviewNotes ?? null,
+    allowedTransitions: filterAllowedTransitions(lifecycle, completeness),
+    canApprove,
+    publishAllowed: publishGate.allowed,
+  };
+}
+
+export async function getStudioProjectEditorView(
+  ref: ContentRef,
+  options?: GetStudioProjectEditorOptions
+): Promise<StudioProjectEditorView | null> {
   if (ref.type === "work-project" && ref.tenant === "brightline") {
     const project = await prisma.workProject.findUnique({
       where: { id: ref.id },
@@ -103,6 +158,13 @@ export async function getStudioProjectEditorView(ref: ContentRef): Promise<Studi
       kind: "work-project",
       snapshot,
     });
+    const stored = await getStoredProjectWorkflowState(ref);
+    const effectiveLifecycle = resolveEffectiveLifecycle(
+      stored?.lifecycle ?? null,
+      lifecycle,
+      project.published
+    );
+    const workflow = await buildWorkflowPanel(ref, effectiveLifecycle, completeness, options);
 
     const mediaItems: StudioProjectMediaItem[] = project.media.map((row) => ({
       id: row.mediaId,
@@ -119,8 +181,8 @@ export async function getStudioProjectEditorView(ref: ContentRef): Promise<Studi
       kind: "work-project",
       title: project.title,
       slug: project.slug,
-      lifecycle,
-      lifecycleLabel: lifecycleDisplayLabel(lifecycle),
+      lifecycle: effectiveLifecycle,
+      lifecycleLabel: lifecycleDisplayLabel(effectiveLifecycle),
       completeness,
       updatedAt: project.updatedAt.toISOString(),
       previewHref: studioProjectPreviewHref("brightline", "work-project", project.id),
@@ -128,7 +190,7 @@ export async function getStudioProjectEditorView(ref: ContentRef): Promise<Studi
       overview: {
         summary: project.summary ?? "",
         projectType: project.projectType,
-        status: lifecycleDisplayLabel(lifecycle),
+        status: lifecycleDisplayLabel(effectiveLifecycle),
       },
       content: {
         summary: project.summary ?? "",
@@ -181,6 +243,7 @@ export async function getStudioProjectEditorView(ref: ContentRef): Promise<Studi
         publishBrightline: false,
         hubStatus: null,
       },
+      workflow,
     };
   }
 
@@ -213,6 +276,14 @@ export async function getStudioProjectEditorView(ref: ContentRef): Promise<Studi
       kind: "mirotech-case-study",
       snapshot,
     });
+    const published = String(project.status).toUpperCase() === "PUBLISHED";
+    const stored = await getStoredProjectWorkflowState(ref);
+    const effectiveLifecycle = resolveEffectiveLifecycle(
+      stored?.lifecycle ?? null,
+      lifecycle,
+      published
+    );
+    const workflow = await buildWorkflowPanel(ref, effectiveLifecycle, completeness, options);
 
     return {
       ref,
@@ -220,8 +291,8 @@ export async function getStudioProjectEditorView(ref: ContentRef): Promise<Studi
       kind: "mirotech-case-study",
       title: project.title,
       slug: project.slug,
-      lifecycle,
-      lifecycleLabel: lifecycleDisplayLabel(lifecycle),
+      lifecycle: effectiveLifecycle,
+      lifecycleLabel: lifecycleDisplayLabel(effectiveLifecycle),
       completeness,
       updatedAt:
         typeof project.updatedAt === "string"
@@ -272,11 +343,12 @@ export async function getStudioProjectEditorView(ref: ContentRef): Promise<Studi
         publicPathPreview: null,
       },
       publishing: {
-        published: String(project.status).toUpperCase() === "PUBLISHED",
+        published,
         publishMirotech: project.publishMirotech ?? false,
         publishBrightline: project.publishBrightline ?? false,
         hubStatus: project.status ?? "DRAFT",
       },
+      workflow,
     };
   }
 

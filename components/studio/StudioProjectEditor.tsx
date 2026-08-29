@@ -24,6 +24,16 @@ type Props = {
   canWrite: boolean;
 };
 
+const TRANSITION_LABELS: Record<string, string> = {
+  IN_REVIEW: "Request review",
+  APPROVED: "Approve",
+  PUBLISHED: "Publish",
+  MEDIA_READY: "Return to editing",
+  CONTENT_READY: "Mark content ready",
+  DRAFT: "Revert to draft",
+  ARCHIVED: "Archive",
+};
+
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "content", label: "Content" },
@@ -55,6 +65,10 @@ export function StudioProjectEditor({ initialView, projectRefParam, canWrite }: 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
+  const [workflow, setWorkflow] = useState(initialView.workflow);
+  const [reviewNotes, setReviewNotes] = useState(initialView.workflow.reviewNotes ?? "");
+  const [transitionError, setTransitionError] = useState<string | null>(null);
+  const [transitioning, setTransitioning] = useState(false);
 
   const seoHints = useMemo(
     () => seoLengthHints(seo.seoTitle, seo.seoDescription),
@@ -108,6 +122,47 @@ export function StudioProjectEditor({ initialView, projectRefParam, canWrite }: 
       }
     },
     [canWrite, projectRefParam]
+  );
+
+  const runTransition = useCallback(
+    async (toLifecycle: string) => {
+      if (!canWrite) return;
+      setTransitioning(true);
+      setTransitionError(null);
+      try {
+        const res = await fetch(`/api/studio/projects/${projectRefParam}/transition`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ toLifecycle, reviewNotes }),
+        });
+        const json = (await res.json()) as {
+          ok?: boolean;
+          error?: string;
+          missing?: string[];
+          view?: StudioProjectEditorView;
+        };
+        if (!res.ok || !json.ok) {
+          const missing =
+            json.missing?.length ? ` Missing: ${json.missing.join(", ")}.` : "";
+          setTransitionError(`${json.error ?? "Transition failed."}${missing}`);
+          return;
+        }
+        if (json.view) {
+          setView(json.view);
+          setOverview(json.view.overview);
+          setWorkflow(json.view.workflow);
+          setReviewNotes(json.view.workflow.reviewNotes ?? "");
+          setPublishing(json.view.publishing);
+        }
+        setActivityLoaded(false);
+      } catch {
+        setTransitionError("Network error.");
+      } finally {
+        setTransitioning(false);
+      }
+    },
+    [canWrite, projectRefParam, reviewNotes]
   );
 
   const saveMedia = useCallback(async () => {
@@ -273,6 +328,39 @@ export function StudioProjectEditor({ initialView, projectRefParam, canWrite }: 
               <p className={labelClass()}>Lifecycle</p>
               <p className="mt-2 text-white">{view.lifecycleLabel}</p>
             </div>
+            <div className="md:col-span-2">
+              <p className={labelClass()}>Internal review notes</p>
+              <textarea
+                className={fieldClass()}
+                rows={2}
+                value={reviewNotes}
+                disabled={!canWrite}
+                onChange={(e) => setReviewNotes(e.target.value)}
+                placeholder="Short internal notes for reviewers"
+              />
+            </div>
+            {canWrite && workflow.allowedTransitions.length > 0 ? (
+              <div className="md:col-span-2 flex flex-wrap gap-2">
+                {workflow.allowedTransitions.map((target) => {
+                  const needsApprove = target === "APPROVED" || target === "PUBLISHED";
+                  if (needsApprove && !workflow.canApprove) return null;
+                  return (
+                    <button
+                      key={target}
+                      type="button"
+                      disabled={transitioning}
+                      className="rounded border border-white/20 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
+                      onClick={() => runTransition(target)}
+                    >
+                      {TRANSITION_LABELS[target] ?? target}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+            {transitionError ? (
+              <p className="md:col-span-2 text-sm text-red-300">{transitionError}</p>
+            ) : null}
             <div>
               <p className={labelClass()}>Updated</p>
               <p className="mt-2 text-white/70">{new Date(view.updatedAt).toLocaleString()}</p>
@@ -497,12 +585,20 @@ export function StudioProjectEditor({ initialView, projectRefParam, canWrite }: 
             <p className="text-sm text-white/70">
               Completeness: {view.completeness.score}% — {view.completeness.complete ? "ready" : "not ready"}
             </p>
+            {!workflow.publishAllowed ? (
+              <p className="text-sm text-amber-100/80">
+                Publication requires approval and passing completeness checks.
+              </p>
+            ) : null}
             {view.kind === "work-project" ? (
               <label className="flex items-center gap-2 text-sm text-white/80">
                 <input
                   type="checkbox"
                   checked={publishing.published}
-                  disabled={!canWrite || (!view.completeness.complete && !publishing.published)}
+                  disabled={
+                    !canWrite ||
+                    (!workflow.publishAllowed && !publishing.published)
+                  }
                   onChange={(e) => {
                     setPublishing({ ...publishing, published: e.target.checked });
                     markDirty();
@@ -517,7 +613,10 @@ export function StudioProjectEditor({ initialView, projectRefParam, canWrite }: 
                   <select
                     className={fieldClass()}
                     value={publishing.hubStatus ?? "DRAFT"}
-                    disabled={!canWrite || (!view.completeness.complete && publishing.hubStatus !== "PUBLISHED")}
+                    disabled={
+                      !canWrite ||
+                      (!workflow.publishAllowed && publishing.hubStatus !== "PUBLISHED")
+                    }
                     onChange={(e) => {
                       setPublishing({ ...publishing, hubStatus: e.target.value });
                       markDirty();

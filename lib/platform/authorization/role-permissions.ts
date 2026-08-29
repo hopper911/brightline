@@ -11,6 +11,8 @@ const BL_WRITE: PlatformPermission[] = [
   ...BL_READ,
   "brightline.gallery.write",
   "brightline.journal.write",
+  "brightline.project.create",
+  "brightline.project.write",
 ];
 
 const BL_PUBLISH: PlatformPermission[] = [...BL_WRITE, "brightline.journal.publish"];

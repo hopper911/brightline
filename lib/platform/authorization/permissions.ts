@@ -10,6 +10,8 @@ export const BRIGHTLINE_PERMISSIONS = [
   "brightline.journal.read",
   "brightline.journal.write",
   "brightline.journal.publish",
+  "brightline.project.create",
+  "brightline.project.write",
 ] as const;
 
 export const MIROTECH_PERMISSIONS = [

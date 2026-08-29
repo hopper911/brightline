@@ -122,13 +122,13 @@ Deleting `platform_assets` rows does not remove R2 objects; deleting R2 objects 
 
 ## 7. Recommended future improvements
 
-| Priority | Improvement |
-| --- | --- |
-| High | Document Neon project ID, plan, and **verified** PITR/branch restore steps in runbook after console audit |
-| High | Promote `architecture/platform-foundation` to production or merge to release branch so health/metrics routes exist |
+| Priority | Improvement | Status (2026-08-28) |
+| --- | --- | --- |
+| High | Neon console audit + restore steps | **Template added** — [neon-database-recovery.md](../operations/neon-database-recovery.md); worksheet still operator-filled |
+| High | Promote `architecture/platform-foundation` to production | **Open** — health route 404 until promoted |
 | Medium | Scheduled R2 inventory export or cross-region replication for critical prefixes (galleries, `accounting/`) |
-| Medium | External uptime monitor on `/api/platform/health` once route is live |
-| Medium | Neon dev/preview branch strategy documented and wired to Vercel preview env |
+| Medium | External uptime monitor on `/api/platform/health` | **Blocked** until foundation promote |
+| Medium | Neon dev/preview branch strategy | **Open** |
 | Low | Partial index on `platform_jobs(status, createdAt)` when job volume grows (see Phase 12B) |
 | Low | Vercel paid tier or external cron for more frequent job drain if async publishing becomes critical path |
 | Low | Sentry alerts wired to email/Slack when `SENTRY_DSN` is set |

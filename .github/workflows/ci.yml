@@ -2,16 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [main, work-v2]
+    branches: [main, work-v2, architecture/platform-foundation]
   pull_request:
-    branches: [main, work-v2]
+    branches: [main, work-v2, architecture/platform-foundation]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
+  static:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -28,15 +33,29 @@ jobs:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
           DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
-      - name: Unit tests (authz + truth locks)
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
         run: npm test
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
           DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
+      - name: Migration safety (changed migrations only)
+        run: node scripts/check-migration-safety.mjs --diff-only
+        env:
+          MIGRATION_DIFF_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'origin/main' }}
+
+      - name: Environment template validation
+        run: node scripts/validate-server-env.mjs --ci
+
   e2e:
     runs-on: ubuntu-latest
-    needs: test
+    needs: static
     services:
       postgres:
         image: postgres:16-alpine
@@ -97,7 +116,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: test
+    needs: static
 
     steps:
       - uses: actions/checkout@v4
@@ -117,7 +136,7 @@ jobs:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
           DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
-      - name: Build
+      - name: Production build
         run: npm run build
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"

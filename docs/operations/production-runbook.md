@@ -437,5 +437,6 @@ Full template: [.env.example](../../.env.example). Vercel-specific list: [DEPLOY
 | [alerting.md](./alerting.md) | Alert signals |
 | [publishing-cutover-runbook.md](../architecture/publishing-cutover-runbook.md) | Publishing flags |
 | [asset-backfill-runbook.md](../architecture/asset-backfill-runbook.md) | Asset registry |
+| [deployment.md](./deployment.md) | CI/CD, PR checks, preview safety |
 | [neon-database-recovery.md](./neon-database-recovery.md) | Neon console audit + PITR/branch recovery |
 | [PHASE-12C-operations-report.md](../architecture/PHASE-12C-operations-report.md) | Phase 12C summary |

@@ -52,3 +52,30 @@ export function preferPortfolioWebFullKey(keyOrUrl: string): string {
 
   return raw.replace(/^\/+/, "").replace(/\/web_thumb\//g, "/web_full/");
 }
+
+/** Card / grid previews — prefer ~800px web_thumb (never upgrades thumb to full). */
+export function preferPortfolioWebThumbKey(keyOrUrl: string): string {
+  const raw = keyOrUrl.trim();
+  if (!raw) return raw;
+  if (isVideoMediaKey(raw)) return raw;
+
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("/")) {
+    try {
+      const base = raw.startsWith("/") ? "https://local.invalid" : undefined;
+      const u = new URL(raw, base);
+      const key = u.searchParams.get("key");
+      if (key && key.includes("/web_full/")) {
+        u.searchParams.set("key", key.replace(/\/web_full\//g, "/web_thumb/"));
+        if (raw.startsWith("/")) {
+          return `${u.pathname}${u.search}${u.hash}`;
+        }
+        return u.toString();
+      }
+    } catch {
+      /* fall through */
+    }
+    return raw.replace(/\/web_full\//g, "/web_thumb/");
+  }
+
+  return raw.replace(/^\/+/, "").replace(/\/web_full\//g, "/web_thumb/");
+}

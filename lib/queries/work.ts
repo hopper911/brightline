@@ -83,6 +83,34 @@ export async function getFeaturedHeroForSection(section: WorkSection) {
   return project?.heroMedia ?? null;
 }
 
+type HeroMedia = Prisma.MediaAssetGetPayload<Record<string, never>>;
+
+/** One batched query — best featured hero per section (for home/work pillar covers). */
+export async function getFeaturedHeroMapForSections(
+  sections: WorkSection[]
+): Promise<Map<WorkSection, HeroMedia>> {
+  const unique = [...new Set(sections)];
+  if (unique.length === 0) return new Map();
+
+  const projects = await prisma.workProject.findMany({
+    where: { section: { in: unique }, published: true },
+    include: { heroMedia: true },
+    orderBy: [
+      { isFeatured: "desc" },
+      { sortOrder: "asc" },
+      { year: "desc" },
+      { createdAt: "desc" },
+    ],
+  });
+
+  const map = new Map<WorkSection, HeroMedia>();
+  for (const project of projects) {
+    if (!project.heroMedia || map.has(project.section)) continue;
+    map.set(project.section, project.heroMedia);
+  }
+  return map;
+}
+
 export async function getPublishedProjectsBySections(sections: WorkSection[]) {
   if (sections.length === 0) return [];
   return prisma.workProject.findMany({

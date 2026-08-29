@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getWebsitePages, saveWebsitePages } from "@/lib/website-pages";
+import { revalidatePublicChrome } from "@/lib/revalidate-public-chrome";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,5 +37,6 @@ export async function PATCH(req: Request) {
 
   const pages = await saveWebsitePages(input);
   revalidatePath("/", "layout");
+  revalidatePublicChrome();
   return NextResponse.json({ ok: true, pages });
 }

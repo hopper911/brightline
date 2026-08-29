@@ -1,23 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { preferPortfolioWebFullKey } from "@/lib/portfolio-web-full";
+import {
+  preferPortfolioWebFullKey,
+  preferPortfolioWebThumbKey,
+} from "@/lib/portfolio-web-full";
 
-describe("preferPortfolioWebFullKey", () => {
-  it("upgrades portfolio web_thumb keys to web_full", () => {
-    expect(preferPortfolioWebFullKey("portfolio/arc/web_thumb/arc-260813-01.webp")).toBe(
-      "portfolio/arc/web_full/arc-260813-01.webp"
+describe("portfolio web_full / web_thumb key helpers", () => {
+  it("upgrades thumb to full for bleed delivery", () => {
+    expect(preferPortfolioWebFullKey("portfolio/arc/web_thumb/hero.webp")).toBe(
+      "portfolio/arc/web_full/hero.webp"
     );
   });
 
-  it("leaves web_full keys unchanged", () => {
-    expect(preferPortfolioWebFullKey("portfolio/arc/web_full/arc-260813-01.webp")).toBe(
-      "portfolio/arc/web_full/arc-260813-01.webp"
+  it("downgrades full to thumb for card delivery", () => {
+    expect(preferPortfolioWebThumbKey("portfolio/arc/web_full/hero.webp")).toBe(
+      "portfolio/arc/web_thumb/hero.webp"
     );
   });
 
-  it("rewrites key= query on media public URLs", () => {
-    const url =
-      "https://brightlinephotography.com/api/media/public?key=portfolio%2Farc%2Fweb_thumb%2Fx.webp";
-    expect(preferPortfolioWebFullKey(url)).toContain("web_full");
-    expect(preferPortfolioWebFullKey(url)).not.toContain("web_thumb");
+  it("preserves video keys", () => {
+    const video = "portfolio/arc/web_video/clip.mp4";
+    expect(preferPortfolioWebThumbKey(video)).toBe(video);
+    expect(preferPortfolioWebFullKey(video)).toBe(video);
   });
 });

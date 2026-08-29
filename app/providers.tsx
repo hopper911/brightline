@@ -42,25 +42,33 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Public routes: keep ONE Lenis instance across navigations.
-    // Recreating on every pathname made each click feel like a full new page.
+    // Public routes: defer Lenis until after first paint (Phase 15B).
     if (!lenisRef.current) {
-      const lenis = new Lenis({
-        duration: 1.1,
-        smoothWheel: true,
-        wheelMultiplier: 0.9,
-        touchMultiplier: 1.0,
-      });
-      lenisRef.current = lenis;
+      const startLenis = () => {
+        if (lenisRef.current || isOperatorRoute(pathname)) return;
+        const lenis = new Lenis({
+          duration: 1.1,
+          smoothWheel: true,
+          wheelMultiplier: 0.9,
+          touchMultiplier: 1.0,
+        });
+        lenisRef.current = lenis;
 
-      const loop = (time: number) => {
-        lenis.raf(time);
+        const loop = (time: number) => {
+          lenis.raf(time);
+          rafRef.current = requestAnimationFrame(loop);
+        };
         rafRef.current = requestAnimationFrame(loop);
       };
-      rafRef.current = requestAnimationFrame(loop);
+
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        window.requestIdleCallback(() => startLenis(), { timeout: 2000 });
+      } else {
+        window.setTimeout(startLenis, 1200);
+      }
     }
 
-    lenisRef.current.scrollTo(0, { immediate: true });
+    lenisRef.current?.scrollTo(0, { immediate: true });
   }, [pathname]);
 
   useEffect(() => {

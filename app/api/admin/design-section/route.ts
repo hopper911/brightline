@@ -5,6 +5,7 @@ import {
   saveDesignSectionSettings,
 } from "@/lib/design-section-settings";
 import { auditDesignSectionSettingsSaved } from "@/lib/platform/audit/integrations/design-section-settings";
+import { revalidatePublicChrome } from "@/lib/revalidate-public-chrome";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,5 +30,6 @@ export async function PUT(req: Request) {
   }
   const settings = await saveDesignSectionSettings(body);
   await auditDesignSectionSettingsSaved(body);
+  revalidatePublicChrome();
   return NextResponse.json({ ok: true, settings });
 }

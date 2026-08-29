@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import AssignedPageBackground from "@/components/AssignedPageBackground";
 import Reveal from "@/components/Reveal";
-import { getFeaturedHeroForSection } from "@/lib/queries/work";
-import { getPublicR2FullBleedUrl } from "@/lib/r2";
+import { getPublicR2CardUrl, getPublicR2FullBleedUrl } from "@/lib/r2";
 import {
   listFeaturedPublishedStudioProjectsForHub,
   type PublishedStudioTileForWorkPillar,
@@ -13,16 +12,27 @@ import {
   getPublishedWebsitePageBySlug,
   type WebsitePage,
 } from "@/lib/website-pages";
-import { getVisibleWorkPillars, isDualBrandHub, resolvePillarCoverUrl } from "@/lib/work-pillar-settings";
+import { getVisibleWorkPillars, isDualBrandHub } from "@/lib/work-pillar-settings";
 import DesignEntryBand from "@/components/DesignEntryBand";
-import { dualBrandWorkHref, dualBrandMediaSrc, fetchDualBrandWork } from "@/lib/dual-brand/content-api";
+import {
+  dualBrandWorkHref,
+  dualBrandMediaCardSrc,
+} from "@/lib/dual-brand/content-api";
+import {
+  buildVisiblePillarCovers,
+  dualBrandCoverFallbacks,
+} from "@/lib/pillar-cover-data";
+import {
+  getPublicDualBrandWork,
+  PUBLIC_PAGE_REVALIDATE_SECONDS,
+} from "@/lib/public-chrome-cache";
 
 /** Full-bleed hero when the Work “Website pages” entry has no hero media (avoids an empty PageBackground). */
 function resolveWorkIndexBackground(
   workPage: WebsitePage | null,
   homePage: WebsitePage | null,
   featured: PublishedStudioTileForWorkPillar[],
-  pillarCoverUrls: (string | null)[]
+  pillarBleedCoverUrls: (string | null)[]
 ): { media: string | null; poster: string | null } {
   const fromWork = getBackgroundMediaFromPage(workPage);
   if (fromWork.media?.trim()) return fromWork;
@@ -38,50 +48,13 @@ function resolveWorkIndexBackground(
     };
   }
 
-  const cover = pillarCoverUrls.find((u) => u?.trim());
+  const cover = pillarBleedCoverUrls.find((u) => u?.trim());
   if (cover) return { media: cover, poster: null };
 
   return { media: null, poster: null };
 }
 
-export const dynamic = "force-dynamic";
-
-async function fetchPillarData(dualBrandCoverFallback: string | null) {
-  const pillars = await getVisibleWorkPillars();
-  return Promise.all(
-    pillars.map(async (pillar) => {
-      let autoCover: string | null = null;
-      let defaultAlt: string | null = null;
-      if (isDualBrandHub(pillar)) {
-        autoCover = dualBrandCoverFallback;
-        defaultAlt = pillar.label;
-      } else {
-        const firstSection = pillar.sections[0];
-        const hero = firstSection
-          ? await getFeaturedHeroForSection(firstSection)
-          : null;
-        if (hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)) {
-          autoCover = getPublicR2FullBleedUrl(hero.keyFull ?? hero.keyThumb ?? "");
-          defaultAlt = hero.alt ?? pillar.label;
-        }
-      }
-      const coverUrl =
-        resolvePillarCoverUrl(pillar.coverImageKey, autoCover) ?? autoCover;
-      const coverAlt =
-        pillar.coverAlt.trim() ? pillar.coverAlt.trim() : (defaultAlt ?? pillar.label);
-      return {
-        slug: pillar.slug,
-        label: pillar.label,
-        description: pillar.description,
-        homeMeta: pillar.homeMeta,
-        coverUrl,
-        coverAlt,
-        sections: pillar.sections,
-        hub: pillar.hub,
-      };
-    })
-  );
-}
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 export const metadata: Metadata = {
   title: "Work · BRIGHTLINE Photography",
@@ -103,18 +76,16 @@ export default async function WorkIndexPage() {
       getPublishedWebsitePageBySlug("work"),
       getPublishedWebsitePageBySlug("home"),
       listFeaturedPublishedStudioProjectsForHub(),
-      fetchDualBrandWork(),
+      getPublicDualBrandWork(),
     ]);
-  const dualBrandCoverFallback =
-    dualBrandMediaSrc(
-      dualBrandProjects.find((p) => p.heroImage || p.thumbnailImage)?.heroImage ||
-        dualBrandProjects.find((p) => p.thumbnailImage)?.thumbnailImage ||
-        null
-    ) || null;
+  const dualBrandCovers = dualBrandCoverFallbacks(dualBrandProjects);
 
-  let pillarData: Awaited<ReturnType<typeof fetchPillarData>>;
+  let pillarData: Awaited<ReturnType<typeof buildVisiblePillarCovers>>;
   try {
-    pillarData = await fetchPillarData(dualBrandCoverFallback);
+    pillarData = await buildVisiblePillarCovers({
+      dualBrandCoverCardFallback: dualBrandCovers.card,
+      dualBrandCoverBleedFallback: dualBrandCovers.bleed,
+    });
   } catch {
     const pillars = await getVisibleWorkPillars();
     pillarData = pillars.map((p) => ({
@@ -122,10 +93,8 @@ export default async function WorkIndexPage() {
       label: p.label,
       description: p.description,
       homeMeta: p.homeMeta,
-      coverUrl: resolvePillarCoverUrl(
-        p.coverImageKey,
-        isDualBrandHub(p) ? dualBrandCoverFallback : null
-      ),
+      coverUrl: "/images/hero.jpg",
+      coverBleedUrl: "/images/hero.jpg",
       coverAlt: p.coverAlt.trim() ? p.coverAlt.trim() : p.label,
       sections: p.sections,
       hub: p.hub,
@@ -139,7 +108,7 @@ export default async function WorkIndexPage() {
     publishedWorkPage,
     publishedHomePage,
     featuredStudioProjects,
-    pillarData.map((p) => p.coverUrl)
+    pillarData.map((p) => p.coverBleedUrl)
   );
 
   return (
@@ -169,7 +138,7 @@ export default async function WorkIndexPage() {
                 const hero = project.heroImage;
                 const heroUrl =
                   hero?.kind === "IMAGE" && (hero.keyFull ?? hero.keyThumb)
-                    ? getPublicR2FullBleedUrl(hero.keyFull ?? hero.keyThumb ?? "")
+                    ? getPublicR2CardUrl(hero.keyThumb ?? hero.keyFull ?? "")
                     : null;
 
                 return (
@@ -178,14 +147,15 @@ export default async function WorkIndexPage() {
                       href={`/work/${encodeURIComponent(project.slug)}`}
                       className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 lift-card"
                     >
-                      <div className="relative h-[220px] w-full image-guard-overlay">
+                      <div className="relative h-[200px] w-full image-guard-overlay">
                         {heroUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={heroUrl}
-                            alt={hero?.alt ?? project.title}
+                            alt={project.title}
                             draggable={false}
                             className="h-full w-full object-cover image-zoom"
+                            loading="lazy"
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">
@@ -237,8 +207,8 @@ export default async function WorkIndexPage() {
             <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {dualBrandProjects.map((project) => {
                 const heroUrl =
-                  dualBrandMediaSrc(project.heroImage) ||
-                  dualBrandMediaSrc(project.thumbnailImage) ||
+                  dualBrandMediaCardSrc(project.thumbnailImage) ||
+                  dualBrandMediaCardSrc(project.heroImage) ||
                   null;
                 return (
                   <Reveal key={project.id}>
@@ -254,6 +224,7 @@ export default async function WorkIndexPage() {
                             alt={project.title}
                             draggable={false}
                             className="h-full w-full object-cover image-zoom"
+                            loading="lazy"
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">
@@ -296,6 +267,7 @@ export default async function WorkIndexPage() {
                       alt={pillar.coverAlt ?? pillar.label}
                       draggable={false}
                       className="h-full w-full object-cover image-zoom"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-black/60 text-white/40">

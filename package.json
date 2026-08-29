@@ -72,6 +72,7 @@
     "@sentry/nextjs": "^10.71.0",
     "@types/archiver": "^8.0.0",
     "@types/pdfkit": "^0.17.6",
+    "@vercel/speed-insights": "^2.0.0",
     "archiver": "^8.0.0",
     "aws4fetch": "^1.0.20",
     "bcryptjs": "^3.0.3",

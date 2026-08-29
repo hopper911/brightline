@@ -3,8 +3,9 @@
  * Env: MIROTECH_CONTENT_API_URL (default https://mirotech.solutions), CONTENT_API_SECRET (optional).
  */
 
+import { unstable_cache } from "next/cache";
 import { getPublicR2Url } from "@/lib/r2";
-import { preferPortfolioWebFullKey } from "@/lib/portfolio-web-full";
+import { preferPortfolioWebFullKey, preferPortfolioWebThumbKey } from "@/lib/portfolio-web-full";
 
 export type DualBrandWorkProject = {
   id: string;
@@ -96,8 +97,15 @@ function authHeaders(): HeadersInit {
 }
 
 export async function fetchDualBrandWork(): Promise<DualBrandWorkProject[]> {
-  return fetchWorkList("BRIGHTLINE");
+  return fetchWorkList("BRIGHTLINE", { cache: "no-store" });
 }
+
+/** Public pages — short TTL cross-request cache (Phase 15B). */
+export const getCachedDualBrandWorkForPublic = unstable_cache(
+  async () => fetchWorkList("BRIGHTLINE", { revalidateSeconds: 60 }),
+  ["dual-brand-work-brightline-public"],
+  { revalidate: 60, tags: ["dual-brand-content", "public-chrome"] }
+);
 
 export async function fetchDualBrandWorkBySlug(
   slug: string
@@ -126,13 +134,24 @@ async function fetchWorkBySlug(
   }
 }
 
-async function fetchWorkList(site: "MIROTECH" | "BRIGHTLINE"): Promise<DualBrandWorkProject[]> {
+async function fetchWorkList(
+  site: "MIROTECH" | "BRIGHTLINE",
+  options?: { cache?: RequestCache; revalidateSeconds?: number }
+): Promise<DualBrandWorkProject[]> {
   try {
-    const res = await fetch(`${baseUrl()}/api/content/v1/work?site=${site}`, {
+    const fetchOptions: RequestInit & { next?: { revalidate: number } } = {
       headers: authHeaders(),
-      cache: "no-store",
       signal: AbortSignal.timeout(8_000),
-    });
+    };
+    if (options?.revalidateSeconds != null) {
+      fetchOptions.next = { revalidate: options.revalidateSeconds };
+    } else if (options?.cache) {
+      fetchOptions.cache = options.cache;
+    } else {
+      fetchOptions.cache = "no-store";
+    }
+
+    const res = await fetch(`${baseUrl()}/api/content/v1/work?site=${site}`, fetchOptions);
     if (!res.ok) return [];
     const data = (await res.json()) as { projects?: DualBrandWorkProject[] };
     return Array.isArray(data.projects) ? data.projects : [];
@@ -205,9 +224,17 @@ export function dualBrandWorkHref(project: DualBrandWorkProject): string {
   return `/work/shared/${encodeURIComponent(project.slug)}`;
 }
 
-/** Resolve dual-brand hero/thumb R2 keys for Brightline public img src. */
+/** Resolve dual-brand hero/thumb R2 keys for Brightline public img src (full bleed). */
 export function dualBrandMediaSrc(value?: string | null): string {
   const v = preferPortfolioWebFullKey(value?.trim() || "");
+  if (!v) return "";
+  if (/^(https?:|data:|blob:)/i.test(v) || v.startsWith("/")) return v;
+  return getPublicR2Url(v.replace(/^\/+/, ""));
+}
+
+/** Listing cards — web_thumb tier when available. */
+export function dualBrandMediaCardSrc(value?: string | null): string {
+  const v = preferPortfolioWebThumbKey(value?.trim() || "");
   if (!v) return "";
   if (/^(https?:|data:|blob:)/i.test(v) || v.startsWith("/")) return v;
   return getPublicR2Url(v.replace(/^\/+/, ""));

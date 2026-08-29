@@ -232,3 +232,15 @@ curl -sI -o /dev/null -w 'TTFB: %{time_starttransfer}s\n' https://brightlinephot
 # Unit tests (unchanged)
 npm test
 ```
+
+---
+
+## Phase 15B optimizations (2026-08-29)
+
+Shipped on `architecture/platform-foundation` (deploy required for production effect):
+
+1. **Listing image tier** — `web_thumb` for home/work pillar and grid cards; LCP preload for hero poster/featured image.
+2. **60s ISR + `unstable_cache`** for layout chrome; batched pillar hero query; cached dual-brand work list on public pages.
+3. **Deferred Lenis** + Vercel Speed Insights for field CWV.
+
+See [PHASE-15B-performance-optimization-report.md](../architecture/PHASE-15B-performance-optimization-report.md).

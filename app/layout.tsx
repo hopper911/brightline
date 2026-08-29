@@ -2,18 +2,21 @@ import type { Metadata, Viewport } from "next";
 import type { CSSProperties } from "react";
 import { headers } from "next/headers";
 import { Inter, Montserrat } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import Providers from "./providers";
 import Analytics from "../components/Analytics";
 import { BRAND } from "@/lib/config/brand";
 import AppShell from "./AppShell";
-import { DEFAULT_SITE_THEME, getSiteTheme, themeToCssVars } from "@/lib/site-theme";
-import { resolveSiteBackgroundMedia } from "@/lib/site-background-videos";
-import { DEFAULT_SITE_NAV, getSiteNav, mergeWorkPillarNavIntoSiteNav, applyDesignNavToSiteNav } from "@/lib/site-nav";
-import { getDefaultVisibleWorkPillarNavItems, getVisibleWorkPillarNavItems } from "@/lib/work-pillar-settings";
-import { getDesignSectionSettings, DEFAULT_DESIGN_SECTION_SETTINGS } from "@/lib/design-section-settings";
+import { DEFAULT_SITE_THEME, themeToCssVars } from "@/lib/site-theme";
+import { applyDesignNavToSiteNav, mergeWorkPillarNavIntoSiteNav } from "@/lib/site-nav";
+import { DEFAULT_DESIGN_SECTION_SETTINGS } from "@/lib/design-section-settings";
+import {
+  getPublicChromeBundle,
+  PUBLIC_PAGE_REVALIDATE_SECONDS,
+} from "@/lib/public-chrome-cache";
 import "./globals.css";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -76,45 +79,13 @@ export const metadata: Metadata = {
   },
 };
 
-async function withTimeout<T>(promise: Promise<T>, fallback: T, timeoutMs = 1500): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  /** Rejections must not crash the tree (e.g. DB errors in getVisibleWorkPillarNavItems). */
-  const settled = promise.then(
-    (v) => v,
-    () => fallback
-  );
-  try {
-    return await Promise.race([
-      settled,
-      new Promise<T>((resolve) => {
-        timer = setTimeout(() => resolve(fallback), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [theme, nav, pillarNav, designSettings] = await Promise.all([
-    withTimeout(getSiteTheme(), DEFAULT_SITE_THEME),
-    withTimeout(getSiteNav(), DEFAULT_SITE_NAV),
-    withTimeout(getVisibleWorkPillarNavItems(), getDefaultVisibleWorkPillarNavItems()),
-    withTimeout(getDesignSectionSettings(), DEFAULT_DESIGN_SECTION_SETTINGS),
-  ]);
-  const backgroundMedia = await withTimeout(resolveSiteBackgroundMedia(theme), {
-    enabled: false,
-    videoUrl: "",
-    posterUrl: "",
-    cinematic: false,
-    source: "none" as const,
-    videoId: null,
-    title: null,
-  });
+  const chrome = await getPublicChromeBundle();
+  const { theme, nav, pillarNav, designSettings, backgroundMedia } = chrome;
   const mergedNav = applyDesignNavToSiteNav(
     mergeWorkPillarNavIntoSiteNav(nav, pillarNav),
     {
@@ -147,6 +118,7 @@ export default async function RootLayout({
           </AppShell>
         </Providers>
         <Analytics nonce={nonce} />
+        <SpeedInsights />
       </body>
     </html>
   );

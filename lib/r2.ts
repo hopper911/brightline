@@ -8,7 +8,7 @@ import {
   CANONICAL_IMAGES_HOST,
   isLegacyBrightlineCoHost,
 } from "@/lib/truth/brand-lock";
-import { preferPortfolioWebFullKey } from "@/lib/portfolio-web-full";
+import { preferPortfolioWebFullKey, preferPortfolioWebThumbKey } from "@/lib/portfolio-web-full";
 
 export function isTrustedR2Host(hostname: string): boolean {
   const h = hostname.toLowerCase();
@@ -102,6 +102,16 @@ export function resolveFullBleedMediaUrl(stored: string | null | undefined): str
 
 export function getPublicR2FullBleedUrl(key: string): string {
   return resolveFullBleedMediaUrl(key);
+}
+
+/** Listing cards / grids — ~800px web_thumb tier (Phase 15B). */
+export function resolveCardMediaUrl(stored: string | null | undefined): string {
+  if (!stored?.trim()) return "";
+  return resolveStoredMediaUrl(preferPortfolioWebThumbKey(stored.trim()));
+}
+
+export function getPublicR2CardUrl(key: string): string {
+  return resolveCardMediaUrl(key);
 }
 
 /** Append `proxy=1` so the handler streams bytes instead of 302 (canvas-safe). */

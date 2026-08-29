@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import type { PillarConfig } from "@/lib/portfolioPillars";
 import { getWorkPillarList, saveWorkPillarList } from "@/lib/work-pillar-settings";
+import { revalidatePublicChrome } from "@/lib/revalidate-public-chrome";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,7 @@ export async function PATCH(req: Request) {
     const saved = await saveWorkPillarList(pillars);
     revalidatePath("/", "layout");
     revalidatePath("/work");
+    revalidatePublicChrome();
     return NextResponse.json({ ok: true, pillars: saved });
   } catch (err: unknown) {
     console.error("WORK_PILLARS_PATCH", err);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getSiteTheme, saveSiteTheme } from "@/lib/site-theme";
+import { revalidatePublicChrome } from "@/lib/revalidate-public-chrome";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,5 +34,6 @@ export async function PATCH(req: Request) {
       ? (body as { theme: unknown }).theme
       : body
   );
+  revalidatePublicChrome();
   return NextResponse.json({ ok: true, theme });
 }

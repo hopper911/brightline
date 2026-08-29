@@ -14,18 +14,24 @@ import {
   POSITIONING_STRIP,
   STRUCTURED_DELIVERY,
 } from "@/lib/config/strategicPositioning";
-import { getFeaturedHeroForSection } from "@/lib/queries/work";
 import { getHomepageFeaturedMedia } from "@/lib/queries/site";
 import { getPublishedGalleryCards } from "@/lib/queries/public-galleries";
 import { getHomepageJournalPosts, formatBlogDate } from "@/lib/blog-posts";
-import { getPublicR2FullBleedUrl, getPublicR2Url } from "@/lib/r2";
+import { getPublicR2Url } from "@/lib/r2";
 import { getPublishedWebsitePageBySlug } from "@/lib/website-pages";
-import { getVisibleWorkPillars, isDualBrandHub, resolvePillarCoverUrl } from "@/lib/work-pillar-settings";
+import { getVisibleWorkPillars, isDualBrandHub } from "@/lib/work-pillar-settings";
 import DesignEntryBand from "@/components/DesignEntryBand";
 import { getDesignSectionSettings } from "@/lib/design-section-settings";
-import { fetchDualBrandWork } from "@/lib/dual-brand/content-api";
+import {
+  buildVisiblePillarCovers,
+  dualBrandCoverFallbacks,
+} from "@/lib/pillar-cover-data";
+import {
+  getPublicDualBrandWork,
+  PUBLIC_PAGE_REVALIDATE_SECONDS,
+} from "@/lib/public-chrome-cache";
 
-export const dynamic = "force-dynamic";
+export const revalidate = PUBLIC_PAGE_REVALIDATE_SECONDS;
 
 export const metadata = {
   title: `Commercial Photography | ${BRAND.name}`,
@@ -103,66 +109,27 @@ export default async function Page() {
   const designSettings = await getDesignSectionSettings();
   const showDesignPath = designSettings.enabled && designSettings.showOnHome;
   const dualBrandProjects = visiblePillars.some(isDualBrandHub)
-    ? await fetchDualBrandWork()
+    ? await getPublicDualBrandWork()
     : [];
-  const dualBrandCoverFallback =
-    dualBrandProjects.find((p) => p.heroImage || p.thumbnailImage)?.heroImage ||
-    dualBrandProjects.find((p) => p.thumbnailImage)?.thumbnailImage ||
-    null;
+  const dualBrandCovers = dualBrandCoverFallbacks(dualBrandProjects);
 
-  let pillarData: {
-    slug: string;
-    label: string;
-    homeMeta: string;
-    coverUrl: string;
-    coverAlt: string;
-  }[];
+  let pillarData: Awaited<ReturnType<typeof buildVisiblePillarCovers>>;
   try {
-    pillarData = await Promise.all(
-      visiblePillars.map(async (pillar) => {
-        let autoCover = "/images/hero.jpg";
-        let coverAltDefault = pillar.label;
-        if (isDualBrandHub(pillar)) {
-          if (dualBrandCoverFallback) autoCover = dualBrandCoverFallback;
-        } else {
-          const firstSection = pillar.sections[0];
-          const hero = firstSection
-            ? await getFeaturedHeroForSection(firstSection)
-            : null;
-          const imageKey = hero?.kind === "IMAGE" ? hero.keyFull ?? hero.keyThumb : null;
-          autoCover = imageKey ? getPublicR2FullBleedUrl(imageKey) : "/images/hero.jpg";
-          coverAltDefault = hero?.alt ?? pillar.label;
-        }
-        const coverUrl =
-          resolvePillarCoverUrl(pillar.coverImageKey, autoCover) ?? autoCover;
-        const coverAlt =
-          pillar.coverAlt.trim() ? pillar.coverAlt.trim() : coverAltDefault;
-        return {
-          slug: pillar.slug,
-          label: pillar.label,
-          homeMeta: pillar.homeMeta,
-          coverUrl,
-          coverAlt,
-        };
-      })
-    );
-  } catch {
-    pillarData = visiblePillars.map((pillar) => {
-      const autoCover =
-        isDualBrandHub(pillar) && dualBrandCoverFallback
-          ? dualBrandCoverFallback
-          : "/images/hero.jpg";
-      const coverUrl =
-        resolvePillarCoverUrl(pillar.coverImageKey, autoCover) ?? autoCover;
-      const coverAlt = pillar.coverAlt.trim() ? pillar.coverAlt.trim() : pillar.label;
-      return {
-        slug: pillar.slug,
-        label: pillar.label,
-        homeMeta: pillar.homeMeta,
-        coverUrl,
-        coverAlt,
-      };
+    pillarData = await buildVisiblePillarCovers({
+      dualBrandCoverCardFallback: dualBrandCovers.card,
+      dualBrandCoverBleedFallback: dualBrandCovers.bleed,
     });
+  } catch {
+    pillarData = visiblePillars.map((pillar) => ({
+      slug: pillar.slug,
+      label: pillar.label,
+      homeMeta: pillar.homeMeta,
+      coverUrl: "/images/hero.jpg",
+      coverBleedUrl: "/images/hero.jpg",
+      coverAlt: pillar.coverAlt.trim() ? pillar.coverAlt.trim() : pillar.label,
+      sections: pillar.sections,
+      hub: pillar.hub,
+    }));
   }
 
   let featuredImage: { url: string; alt: string } | null = null;
@@ -192,8 +159,20 @@ export default async function Page() {
     journalPosts = [];
   }
 
+  const heroPosterKey =
+    typeof process.env.NEXT_PUBLIC_HERO_POSTER_KEY === "string"
+      ? process.env.NEXT_PUBLIC_HERO_POSTER_KEY.trim()
+      : "";
+  const lcpPreloadUrl =
+    (heroPosterKey ? getPublicR2Url(heroPosterKey) : null) ??
+    featuredImage?.url ??
+    null;
+
   return (
     <>
+      {lcpPreloadUrl ? (
+        <link rel="preload" as="image" href={lcpPreloadUrl} fetchPriority="high" />
+      ) : null}
       <AssignedPageBackground pageKey="home" />
       <div className="page-shell relative z-[2] min-h-screen">
       <div className="soft-grid">

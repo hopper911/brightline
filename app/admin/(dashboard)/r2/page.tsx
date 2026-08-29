@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { hasAdminAccess } from "@/lib/admin-auth";
 import { inferVaultFromPrefix, isR2VaultId, type R2VaultId } from "@/lib/r2-vaults-shared";
 import { parseUploadDestinationFromSearch } from "@/lib/r2-upload-destination";

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, useReducedMotion } from "framer-motion";
 import MagneticButton from "./MagneticButton";
 import PrimaryCTA from "./PrimaryCTA";
 import { BRAND } from "@/lib/config/brand";
@@ -42,8 +42,10 @@ export default function HomeHero({ featuredImage = null, showDesignPath = false 
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [videoVisible, setVideoVisible] = useState(false);
 
+  const reduceMotion = useReducedMotion();
+
   useEffect(() => {
-    if (!videoUrl) return;
+    if (!videoUrl || reduceMotion) return;
     let cancelled = false;
     const armVideo = () => {
       if (cancelled) return;
@@ -57,7 +59,7 @@ export default function HomeHero({ featuredImage = null, showDesignPath = false 
     return () => {
       cancelled = true;
     };
-  }, [videoUrl]);
+  }, [videoUrl, reduceMotion]);
 
   const { scrollY } = useScroll();
   const scale = useTransform(scrollY, [0, 200], [1, 1.03]);
@@ -127,10 +129,10 @@ export default function HomeHero({ featuredImage = null, showDesignPath = false 
           </motion.div>
         </div>
         <motion.div
-          style={{ scale }}
+          style={reduceMotion ? undefined : { scale }}
           initial={false}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: "easeOut", delay: 0.1 }}
+          transition={{ duration: reduceMotion ? 0 : 0.55, ease: "easeOut", delay: reduceMotion ? 0 : 0.1 }}
         >
           <div className="relative h-[min(420px,70vw)] w-full max-w-xl overflow-hidden rounded-[32px] border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)] image-guard-overlay">
           {videoUrl ? (
@@ -146,7 +148,7 @@ export default function HomeHero({ featuredImage = null, showDesignPath = false 
                   className={`object-cover transition-opacity duration-500 ${videoVisible ? "opacity-0" : "opacity-100"}`}
                 />
               ) : null}
-              {videoSrc ? (
+              {videoSrc && !reduceMotion ? (
                 <video
                   src={videoSrc}
                   poster={lcpPosterUrl ?? undefined}

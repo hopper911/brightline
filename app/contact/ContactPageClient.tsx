@@ -202,37 +202,57 @@ export default function ContactPage() {
                 Optional details
               </summary>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <input
-                  className="rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  value={form.company}
-                  onChange={(e) => setForm({ ...form, company: e.target.value })}
-                  placeholder={isEmployment ? "Company or studio" : "Company or organization"}
-                />
-                <input
-                  className="rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  value={form.location}
-                  onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  placeholder={isEmployment ? "Location or remote" : "Location"}
-                />
-                <input
-                  className="rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  value={form.timeline}
-                  onChange={(e) => setForm({ ...form, timeline: e.target.value })}
-                  placeholder={
-                    isEmployment
-                      ? "Employment type (full-time, contract…)"
-                      : isDigital
-                        ? "Timeline"
-                        : "Timeline (if any)"
-                  }
-                />
-                {!isEmployment ? (
+                <label className="block text-xs uppercase tracking-widest text-white/60" htmlFor="contact-company">
+                  {isEmployment ? "Company or studio" : "Company or organization"}
                   <input
-                    className="rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                    value={form.budget}
-                    onChange={(e) => setForm({ ...form, budget: e.target.value })}
-                    placeholder={isDigital ? "Budget range (optional)" : "Budget range (optional)"}
+                    id="contact-company"
+                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                    value={form.company}
+                    onChange={(e) => setForm({ ...form, company: e.target.value })}
+                    placeholder={isEmployment ? "Company or studio" : "Company or organization"}
                   />
+                </label>
+                <label className="block text-xs uppercase tracking-widest text-white/60" htmlFor="contact-location">
+                  {isEmployment ? "Location or remote" : "Location"}
+                  <input
+                    id="contact-location"
+                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    placeholder={isEmployment ? "Location or remote" : "Location"}
+                  />
+                </label>
+                <label className="block text-xs uppercase tracking-widest text-white/60" htmlFor="contact-timeline">
+                  {isEmployment
+                    ? "Employment type"
+                    : isDigital
+                      ? "Timeline"
+                      : "Timeline (if any)"}
+                  <input
+                    id="contact-timeline"
+                    className="mt-2 w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                    value={form.timeline}
+                    onChange={(e) => setForm({ ...form, timeline: e.target.value })}
+                    placeholder={
+                      isEmployment
+                        ? "Employment type (full-time, contract…)"
+                        : isDigital
+                          ? "Timeline"
+                          : "Timeline (if any)"
+                    }
+                  />
+                </label>
+                {!isEmployment ? (
+                  <label className="block text-xs uppercase tracking-widest text-white/60" htmlFor="contact-budget">
+                    Budget range (optional)
+                    <input
+                      id="contact-budget"
+                      className="mt-2 w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                      value={form.budget}
+                      onChange={(e) => setForm({ ...form, budget: e.target.value })}
+                      placeholder={isDigital ? "Budget range (optional)" : "Budget range (optional)"}
+                    />
+                  </label>
                 ) : null}
               </div>
               {isEmployment ? (

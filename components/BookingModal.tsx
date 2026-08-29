@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BRAND } from "@/lib/config/brand";
+import { useFocusTrap } from "@/lib/a11y/use-focus-trap";
 
 type BookingModalProps = {
   isOpen: boolean;
@@ -11,6 +12,9 @@ type BookingModalProps = {
 
 export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
   const [mounted, setMounted] = useState(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  useFocusTrap(isOpen, dialogRef, { onEscape: onClose });
 
   useEffect(() => {
     const id = setTimeout(() => setMounted(true), 0);
@@ -32,14 +36,23 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Book a consultation"
     >
+      <button
+        type="button"
+        className="absolute inset-0"
+        onClick={onClose}
+        aria-label="Close booking modal backdrop"
+      />
       <div
         className="relative flex max-h-[min(90dvh,900px)] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
       >
         <button
+          type="button"
           onClick={onClose}
           className="absolute right-3 top-3 z-10 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/10 p-2 text-white/70 hover:bg-white/20 hover:text-white transition-colors sm:right-4 sm:top-4"
           aria-label="Close booking modal"

@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { getImageModeForUrl } from "@/lib/image-utils";
 import { DeliveryUsageGuide } from "@/components/delivery/DeliveryUsageGuide";
+import { useFocusTrap } from "@/lib/a11y/use-focus-trap";
 
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iNyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iNyIgZmlsbD0iI2U4ZTllYSIvPjwvc3ZnPg==";
@@ -111,6 +112,11 @@ export default function ClientGalleryView({ token }: { token: string }) {
   const [lightboxImage, setLightboxImage] = useState<GalleryImage | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [clientNow, setClientNow] = useState<number | null>(null);
+  const lightboxRef = useRef<HTMLDivElement | null>(null);
+
+  useFocusTrap(Boolean(lightboxImage), lightboxRef, {
+    onEscape: () => setLightboxImage(null),
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -470,14 +476,6 @@ export default function ClientGalleryView({ token }: { token: string }) {
     },
     [gallery, token, downloadQuality]
   );
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setLightboxImage(null);
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   const sortedVideos = useMemo(
     () =>
@@ -919,7 +917,7 @@ export default function ClientGalleryView({ token }: { token: string }) {
                 />
               </button>
 
-              <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                 <button
                   type="button"
                   onClick={() => toggleFavorite(image.id, image.isFavorite)}
@@ -1006,9 +1004,11 @@ export default function ClientGalleryView({ token }: { token: string }) {
 
       {lightboxImage ? (
         <div
+          ref={lightboxRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setLightboxImage(null)}
-          role="presentation"
+          role="dialog"
+          aria-modal="true"
+          aria-label={lightboxImage.alt?.trim() || gallery.title}
         >
           <button
             type="button"

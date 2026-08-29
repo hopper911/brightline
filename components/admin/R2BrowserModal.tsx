@@ -19,6 +19,7 @@ import {
 } from "@/lib/r2-browser-prefixes";
 import type { R2VaultId } from "@/lib/r2-vaults-shared";
 import type { T9MediaRoot } from "@/lib/t9-media-root";
+import { useFocusTrap } from "@/lib/a11y/use-focus-trap";
 
 const MEDIA_EXT = /\.(jpg|jpeg|png|webp|gif|avif|mp4|webm|mov|m4v)$/i;
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
@@ -129,6 +130,9 @@ export default function R2BrowserModal({
   const [loadingMore, setLoadingMore] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  useFocusTrap(isOpen, dialogRef, { onEscape: onClose });
 
   const libraryRoots = useMemo(() => browseLibraryRoots(mediaRoot), [mediaRoot]);
   const atLibraryHome = nav === null || nav.prefix === null;
@@ -567,6 +571,7 @@ export default function R2BrowserModal({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:bg-black/60 sm:p-4"
       role="dialog"
       aria-modal="true"

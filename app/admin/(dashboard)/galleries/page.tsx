@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import R2BrowserModal, { type R2BrowserPick } from "@/components/admin/R2BrowserModal";
 import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
+import { useFocusTrap } from "@/lib/a11y/use-focus-trap";
 
 type Client = { id: string; name: string };
 type Project = { id: string; title: string };
@@ -89,6 +90,7 @@ export default function AdminGalleriesPage() {
   const [showRevokedAccessHistory, setShowRevokedAccessHistory] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
   const [r2CoverTarget, setR2CoverTarget] = useState<R2CoverTarget>(null);
+  const editDialogRef = useRef<HTMLDivElement | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
@@ -206,6 +208,12 @@ export default function AdminGalleriesPage() {
     setEditError(null);
     setEditing(null);
   }
+
+  useFocusTrap(editOpen, editDialogRef, {
+    onEscape: () => {
+      if (!editSaving) closeEditModal();
+    },
+  });
 
   async function saveEdit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -415,11 +423,19 @@ export default function AdminGalleriesPage() {
       </div>
 
       {editOpen && editing ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div
+          ref={editDialogRef}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="gallery-edit-title"
+        >
           <div className="w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-black/50">Edit gallery</p>
+                <p id="gallery-edit-title" className="text-xs uppercase tracking-[0.3em] text-black/50">
+                  Edit gallery
+                </p>
                 <p className="mt-1 text-lg text-black/80">{editing.title}</p>
               </div>
               <button className="btn btn-ghost" type="button" onClick={closeEditModal} disabled={editSaving}>

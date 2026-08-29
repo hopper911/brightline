@@ -5,6 +5,7 @@ import Cropper, { type Area, type Point } from "react-easy-crop";
 import "react-easy-crop/react-easy-crop.css";
 
 import { getCroppedImageBlob, type PixelCrop } from "@/lib/admin/getCroppedImageBlob";
+import { useFocusTrap } from "@/lib/a11y/use-focus-trap";
 
 type Props = {
   title: string;
@@ -25,6 +26,7 @@ export default function ImageCropModal({
   onClose,
   onApply,
 }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -32,6 +34,8 @@ export default function ImageCropModal({
   const [freeCropSize, setFreeCropSize] = useState<{ width: number; height: number } | null>(null);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState("");
+
+  useFocusTrap(true, dialogRef, { onEscape: onClose });
 
   useEffect(() => {
     if (aspect !== undefined || cropSizeProp != null) return;
@@ -86,10 +90,16 @@ export default function ImageCropModal({
   const readyForFreeCrop = aspect !== undefined || cropSizeProp != null || freeCropSize !== null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-4 py-8">
+    <div
+      ref={dialogRef}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-4 py-8"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="image-crop-title"
+    >
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl bg-white p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
-          <h2 className="font-display text-lg text-black">{title}</h2>
+          <h2 id="image-crop-title" className="font-display text-lg text-black">{title}</h2>
           <button type="button" className="btn btn-ghost shrink-0 text-sm" onClick={onClose}>
             Cancel
           </button>
@@ -102,7 +112,9 @@ export default function ImageCropModal({
         </p>
 
         {error ? (
-          <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+            {error}
+          </p>
         ) : null}
 
         <div ref={containerRef} className="relative mt-4 h-[min(52vh,440px)] w-full bg-black">
@@ -137,6 +149,7 @@ export default function ImageCropModal({
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
             className="flex-1"
+            aria-label="Zoom crop area"
           />
         </label>
 

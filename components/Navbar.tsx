@@ -3,23 +3,24 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { SiteNavItem } from "@/lib/site-nav";
+import { useFocusTrap } from "@/lib/a11y/use-focus-trap";
+
+const MOBILE_NAV_ID = "site-mobile-nav-dialog";
 
 export default function Navbar({ links }: { links: SiteNavItem[] }) {
   const navLinks = links.filter((link) => link.visible);
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const panelRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const lastScroll = useRef(0);
 
-  // Close on ESC
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  const closeMenu = () => setOpen(false);
+
+  useFocusTrap(open, dialogRef, {
+    onEscape: closeMenu,
+    restoreFocus: true,
+  });
 
   // Prevent background scroll when open
   useEffect(() => {
@@ -46,7 +47,7 @@ export default function Navbar({ links }: { links: SiteNavItem[] }) {
     <header
       className={`sticky top-0 z-50 border-b border-white/10 transition-transform motion-fast ${
         scrolled ? "bg-[#0b0e12]/80 backdrop-blur-md" : "bg-[#0b0e12]/60"
-      } ${hidden ? "-translate-y-full" : "translate-y-0"}`}
+      } ${hidden ? "-translate-y-full focus-within:translate-y-0" : "translate-y-0"}`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4">
         <Link
@@ -75,8 +76,10 @@ export default function Navbar({ links }: { links: SiteNavItem[] }) {
 
         {/* Mobile hamburger */}
         <button
+          type="button"
           aria-label="Open menu"
           aria-expanded={open}
+          aria-controls={MOBILE_NAV_ID}
           onClick={() => setOpen(true)}
           className="nav-pill md:hidden inline-flex min-h-11 min-w-[4.5rem] shrink-0 items-center justify-center rounded-full border border-white/20 px-4 py-2 text-[0.7rem] uppercase tracking-[0.28em] text-white/80 hover:border-white/40"
         >
@@ -86,16 +89,22 @@ export default function Navbar({ links }: { links: SiteNavItem[] }) {
 
       {/* Mobile overlay + slide-down panel */}
       {open && (
-        <div className="md:hidden">
-          {/* overlay */}
-          <div
+        <div
+          ref={dialogRef}
+          id={MOBILE_NAV_ID}
+          className="md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Site navigation"
+        >
+          <button
+            type="button"
             className="fixed inset-0 z-50 bg-black/60"
-            onClick={() => setOpen(false)}
+            onClick={closeMenu}
+            aria-label="Close menu"
           />
 
-          {/* panel */}
           <div
-            ref={panelRef}
             className="fixed left-0 right-0 top-0 z-[60] border-b border-white/10 bg-[#0b0e12]/95 backdrop-blur"
           >
             <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
@@ -111,8 +120,9 @@ export default function Navbar({ links }: { links: SiteNavItem[] }) {
               </Link>
 
               <button
+                type="button"
                 aria-label="Close menu"
-                onClick={() => setOpen(false)}
+                onClick={closeMenu}
                 className="nav-pill inline-flex min-h-11 min-w-[4.5rem] items-center justify-center rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-[0.28em] text-white/70 hover:border-white/60"
               >
                 Close

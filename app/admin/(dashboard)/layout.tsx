@@ -26,8 +26,11 @@ export default async function AdminDashboardLayout({
 
   return (
     <>
+      <a href="#admin-main-content" className="skip-link">
+        Skip to main content
+      </a>
       <AdminNav />
-      <main className="pt-14 lg:pt-0 lg:pl-64">{children}</main>
+      <main id="admin-main-content" className="pt-14 lg:pt-0 lg:pl-64">{children}</main>
     </>
   );
 }

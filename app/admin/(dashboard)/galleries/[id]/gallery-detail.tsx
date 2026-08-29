@@ -7,6 +7,7 @@ import { DeliveryEmailTemplate } from "@/components/delivery/DeliveryEmailTempla
 import R2BrowserModal, { type R2BrowserPick } from "@/components/admin/R2BrowserModal";
 import { pickToStoredMediaRef } from "@/lib/r2-browser-prefixes";
 import { isGalleryViewableByClient } from "@/lib/gallery-client-delivery";
+import { countImagesMissingAlt, imagesMissingAltMessage } from "@/lib/a11y/image-alt-qa";
 
 type GalleryImage = {
   id: string;
@@ -361,8 +362,32 @@ export default function GalleryDetail({ initialGallery }: { initialGallery: Gall
     }
   }
 
+  async function saveImageAlt(imageId: string, alt: string) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/galleries/${gallery.id}/images`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alts: [{ id: imageId, alt }] }),
+        credentials: "include",
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to save alt text");
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save alt text");
+    }
+  }
+
   async function generateToken(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const missingAlt = countImagesMissingAlt(gallery.images);
+    if (missingAlt > 0) {
+      const proceed = window.confirm(
+        `${imagesMissingAltMessage(missingAlt)} Generate client access anyway?`
+      );
+      if (!proceed) return;
+    }
     setError(null);
     setTokenBusy(true);
     setLastToken(null);
@@ -1160,6 +1185,15 @@ export default function GalleryDetail({ initialGallery }: { initialGallery: Gall
               </p>
             </div>
 
+            {countImagesMissingAlt(gallery.images) > 0 ? (
+              <p
+                className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+                role="status"
+              >
+                {imagesMissingAltMessage(countImagesMissingAlt(gallery.images))}
+              </p>
+            ) : null}
+
             {gallery.images.length === 0 ? (
               <p className="mt-3 text-sm text-white/60">No images yet.</p>
             ) : (
@@ -1189,6 +1223,24 @@ export default function GalleryDetail({ initialGallery }: { initialGallery: Gall
                             ? ` · web-ready ${img.lowResWidth ?? "?"}×${img.lowResHeight ?? "?"}`
                             : " · web-ready pending"}
                         </p>
+                        <label className="mt-2 block text-xs text-white/55">
+                          <span className="uppercase tracking-[0.18em] text-white/40">Alt text</span>
+                          <input
+                            type="text"
+                            value={img.alt ?? ""}
+                            onChange={(e) =>
+                              setGallery((g) => ({
+                                ...g,
+                                images: g.images.map((row) =>
+                                  row.id === img.id ? { ...row, alt: e.target.value } : row
+                                ),
+                              }))
+                            }
+                            onBlur={(e) => void saveImageAlt(img.id, e.target.value)}
+                            className="mt-1 w-full min-w-[200px] rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30"
+                            placeholder="Describe image for clients and accessibility"
+                          />
+                        </label>
                       </div>
                     </div>
 

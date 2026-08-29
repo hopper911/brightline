@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { LazyMotion, domAnimation } from "framer-motion";
 import Lenis from "lenis";
+import { prefersReducedMotion } from "@/lib/a11y/prefers-reduced-motion";
 
 /**
  * PERMANENT LOCK — admin sidebar scroll (do not touch).
@@ -43,9 +44,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     }
 
     // Public routes: defer Lenis until after first paint (Phase 15B).
+    // Skip smooth scroll when user prefers reduced motion (Phase 16 a11y).
     if (!lenisRef.current) {
       const startLenis = () => {
-        if (lenisRef.current || isOperatorRoute(pathname)) return;
+        if (lenisRef.current || isOperatorRoute(pathname) || prefersReducedMotion()) return;
         const lenis = new Lenis({
           duration: 1.1,
           smoothWheel: true,

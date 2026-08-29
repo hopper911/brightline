@@ -4,7 +4,7 @@ import { hasAdminAccess } from "@/lib/admin-auth";
 import { inferVaultFromPrefix, isR2VaultId, type R2VaultId } from "@/lib/r2-vaults-shared";
 import { parseUploadDestinationFromSearch } from "@/lib/r2-upload-destination";
 
-const R2ManagerClient = dynamic(() => import("./r2-manager-client"), {
+const R2ManagerClient = nextDynamic(() => import("./r2-manager-client"), {
   loading: () => (
     <div className="p-8 text-sm text-white/60">Loading media library…</div>
   ),

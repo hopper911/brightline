@@ -16,14 +16,27 @@ export async function PATCH(
 
   const { id: galleryId } = await context.params;
 
-  let body: { order?: string[]; heroImageId?: string | null };
+  let body: {
+    order?: string[];
+    heroImageId?: string | null;
+    alts?: Array<{ id: string; alt: string }>;
+  };
   try {
-    body = (await req.json()) as { order?: string[]; heroImageId?: string | null };
+    body = (await req.json()) as {
+      order?: string[];
+      heroImageId?: string | null;
+      alts?: Array<{ id: string; alt: string }>;
+    };
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON." }, { status: 400 });
   }
 
   const order = Array.isArray(body.order) ? body.order.filter((x) => typeof x === "string") : [];
+  const altUpdates = Array.isArray(body.alts)
+    ? body.alts.filter(
+        (row) => typeof row?.id === "string" && typeof row?.alt === "string"
+      )
+    : [];
   const heroImageId =
     body.heroImageId === undefined
       ? undefined
@@ -70,6 +83,24 @@ export async function PATCH(
           data: { isHero: true },
         });
       }
+    }
+
+    if (altUpdates.length) {
+      const images = await tx.galleryImage.findMany({
+        where: { galleryId },
+        select: { id: true },
+      });
+      const allowed = new Set(images.map((i) => i.id));
+      await Promise.all(
+        altUpdates
+          .filter((row) => allowed.has(row.id))
+          .map((row) =>
+            tx.galleryImage.update({
+              where: { id: row.id },
+              data: { alt: row.alt.trim() || null },
+            })
+          )
+      );
     }
   });
 

@@ -1,5 +1,22 @@
 import type { ProjectWorkflowKind } from "@/lib/platform/projects/types";
 import type { TenantSlug } from "@/lib/platform/tenants/types";
+import {
+  listMirotechCaseStudyTemplateDefs,
+  type MirotechCaseStudyTemplateDef,
+} from "@/lib/platform/projects/mirotech-template-definitions";
+import {
+  resolveMirotechTemplateId,
+  templateStructureSummary,
+} from "@/lib/platform/projects/mirotech-template-apply";
+
+export type ProjectWorkflowTemplateStructure = {
+  coreFields: MirotechCaseStudyTemplateDef["coreFields"];
+  sections: MirotechCaseStudyTemplateDef["sections"];
+  mediaSlots: MirotechCaseStudyTemplateDef["mediaSlots"];
+  seo: MirotechCaseStudyTemplateDef["seo"];
+  technologyCategories: string[];
+  aiDraft: { enabled: boolean };
+};
 
 export type ProjectWorkflowTemplate = {
   id: string;
@@ -8,6 +25,7 @@ export type ProjectWorkflowTemplate = {
   label: string;
   description: string;
   defaults: Record<string, unknown>;
+  structure?: ProjectWorkflowTemplateStructure;
 };
 
 const BRIGHTLINE_TEMPLATES: ProjectWorkflowTemplate[] = [
@@ -53,68 +71,21 @@ const BRIGHTLINE_TEMPLATES: ProjectWorkflowTemplate[] = [
   },
 ];
 
-const MIROTECH_TEMPLATES: ProjectWorkflowTemplate[] = [
-  {
-    id: "ai-saas-case-study",
+function mirotechTemplateToWorkflow(def: MirotechCaseStudyTemplateDef): ProjectWorkflowTemplate {
+  return {
+    id: def.id,
     tenant: "mirotech",
     kind: "mirotech-case-study",
-    label: "AI SaaS case study",
-    description: "Product-led AI SaaS narrative with outcome metrics.",
-    defaults: {
-      projectType: "SELF_DIRECTED_CASE_STUDY",
-      categories: ["AI", "SaaS"],
-      disciplines: ["Product", "Engineering"],
-    },
-  },
-  {
-    id: "automation-platform",
-    tenant: "mirotech",
-    kind: "mirotech-case-study",
-    label: "Automation platform",
-    description: "Workflow automation or integration platform story.",
-    defaults: {
-      projectType: "MIROTECH_INITIATIVE",
-      categories: ["Automation"],
-      disciplines: ["Engineering", "Operations"],
-    },
-  },
-  {
-    id: "data-platform",
-    tenant: "mirotech",
-    kind: "mirotech-case-study",
-    label: "Data platform",
-    description: "Analytics, data pipeline, or platform engineering case study.",
-    defaults: {
-      projectType: "RESEARCH_LED_CONCEPT",
-      categories: ["Data"],
-      disciplines: ["Data", "Engineering"],
-    },
-  },
-  {
-    id: "product-design-case-study",
-    tenant: "mirotech",
-    kind: "mirotech-case-study",
-    label: "Product design case study",
-    description: "UX/product design with research and delivery narrative.",
-    defaults: {
-      projectType: "INDEPENDENT_CONCEPT",
-      categories: ["Product"],
-      disciplines: ["Design", "Research"],
-    },
-  },
-  {
-    id: "full-stack-web-app",
-    tenant: "mirotech",
-    kind: "mirotech-case-study",
-    label: "Full-stack web application",
-    description: "End-to-end web application delivery story.",
-    defaults: {
-      projectType: "CLIENT_COMMISSION",
-      categories: ["Web"],
-      disciplines: ["Engineering", "Design"],
-    },
-  },
-];
+    label: def.label,
+    description: def.description,
+    defaults: { ...def.defaults },
+    structure: templateStructureSummary(def),
+  };
+}
+
+const MIROTECH_TEMPLATES: ProjectWorkflowTemplate[] = listMirotechCaseStudyTemplateDefs().map(
+  mirotechTemplateToWorkflow
+);
 
 export const PROJECT_WORKFLOW_TEMPLATES: ProjectWorkflowTemplate[] = [
   ...BRIGHTLINE_TEMPLATES,
@@ -125,7 +96,9 @@ export function getProjectWorkflowTemplate(
   tenant: TenantSlug,
   templateId: string
 ): ProjectWorkflowTemplate | null {
-  return PROJECT_WORKFLOW_TEMPLATES.find((t) => t.tenant === tenant && t.id === templateId) ?? null;
+  const resolvedId =
+    tenant === "mirotech" ? resolveMirotechTemplateId(templateId) ?? templateId : templateId;
+  return PROJECT_WORKFLOW_TEMPLATES.find((t) => t.tenant === tenant && t.id === resolvedId) ?? null;
 }
 
 export function listProjectWorkflowTemplates(

@@ -177,7 +177,7 @@ describe("DefaultProjectWorkflowService", () => {
       tenant: "mirotech",
       kind: "mirotech-case-study",
       title: "AI Platform",
-      templateId: "ai-saas-case-study",
+      templateId: "ai-saas-platform",
     });
 
     expect(result.ref.type).toBe("mirotech-case-study");

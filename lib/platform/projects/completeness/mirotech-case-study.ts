@@ -1,4 +1,5 @@
 import { buildSeoCompletenessChecks } from "@/lib/platform/projects/completeness/seo";
+import { validateMirotechCaseStudyAgainstTemplate } from "@/lib/platform/projects/mirotech-template-apply";
 import type { ProjectCompletenessResult } from "@/lib/platform/projects/types";
 
 export type MirotechCaseStudyCompletenessInput = {
@@ -11,9 +12,13 @@ export type MirotechCaseStudyCompletenessInput = {
   sectionCount: number;
   challenge: string | null;
   outcome: string | null;
+  role?: string | null;
+  projectDisclaimer?: string | null;
+  sectionTitles?: string[];
   seoTitle: string | null;
   seoDescription: string | null;
   publishMirotech: boolean;
+  templateId?: string | null;
 };
 
 type Check = { label: string; passed: boolean };
@@ -43,6 +48,13 @@ export function validateMirotechProjectCompleteness(
     { label: "publishing target (Mirotech)", passed: input.publishMirotech },
   ];
 
+  if (input.templateId) {
+    coreChecks.push({
+      label: "role (template)",
+      passed: Boolean(input.role?.trim()),
+    });
+  }
+
   const seoChecks = buildSeoCompletenessChecks({
     seoTitle: input.seoTitle,
     seoDescription: input.seoDescription,
@@ -56,16 +68,50 @@ export function validateMirotechProjectCompleteness(
 
   const missing = allChecks.filter((c) => !c.passed).map((c) => c.label);
   const warnings: string[] = [];
+
   if (input.status === "REVIEW" && missing.length > 0) {
     warnings.push("Case study is in review but publish prerequisites are incomplete.");
+  }
+
+  if (input.templateId) {
+    const templateResult = validateMirotechCaseStudyAgainstTemplate(input.templateId, {
+      title: input.title,
+      slug: input.slug,
+      summary: input.summary,
+      status: input.status,
+      heroImage: input.heroImage,
+      thumbnailImage: input.thumbnailImage,
+      sectionCount: input.sectionCount,
+      challenge: input.challenge,
+      outcome: input.outcome,
+      role: input.role,
+      projectDisclaimer: input.projectDisclaimer,
+      sectionTitles: input.sectionTitles,
+      seoTitle: input.seoTitle,
+      seoDescription: input.seoDescription,
+      publishMirotech: input.publishMirotech,
+    });
+    if (templateResult) {
+      for (const w of templateResult.warnings) {
+        warnings.push(w);
+      }
+      for (const sectionTitle of templateResult.missingSections) {
+        const label = `template section: ${sectionTitle}`;
+        if (!missing.includes(label)) {
+          missing.push(label);
+          allChecks.push({ label, passed: false });
+        }
+      }
+    }
   }
 
   const score = scoreFromChecks(allChecks);
   const publishCore = coreChecks.every((c) => c.passed);
   const publishSeo = seoChecks.every((c) => c.passed);
+  const templateSectionMissing = missing.some((m) => m.startsWith("template section:"));
 
   return {
-    complete: publishCore && publishSeo,
+    complete: publishCore && publishSeo && !templateSectionMissing,
     score,
     missing,
     warnings,

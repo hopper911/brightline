@@ -81,6 +81,8 @@ export async function POST(req: Request) {
     pillarSlug?: string;
     section?: string;
     summary?: string;
+    projectBrief?: string;
+    applyTemplateDraft?: boolean;
   } | null;
 
   const tenant = parseTenant(body?.tenant);
@@ -124,6 +126,8 @@ export async function POST(req: Request) {
       pillarSlug: body?.pillarSlug?.trim() || undefined,
       section: body?.section?.trim() || undefined,
       summary: body?.summary?.trim() || undefined,
+      projectBrief: body?.projectBrief?.trim() || undefined,
+      applyTemplateDraft: body?.applyTemplateDraft === true,
     });
 
     return NextResponse.json({

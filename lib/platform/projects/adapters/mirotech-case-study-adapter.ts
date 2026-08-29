@@ -3,6 +3,11 @@ import "server-only";
 import type { HubProject } from "@/lib/dual-brand/studio-hub";
 import { defaultMirotechContentReadPort } from "@/lib/platform/content/integrations/default-mirotech-content-read";
 import { ProjectWorkflowValidationError } from "@/lib/platform/projects/errors";
+import {
+  buildMirotechCreatePayloadFromTemplate,
+  resolveMirotechTemplateId,
+} from "@/lib/platform/projects/mirotech-template-apply";
+import { getMirotechCaseStudyTemplateDef } from "@/lib/platform/projects/mirotech-template-definitions";
 import { resolveProjectSlug } from "@/lib/platform/projects/slug";
 import { mirotechCreateHubProject } from "@/lib/platform/publishing/mirotech/hub-remote-write";
 import type { ProjectWorkflowCreateInput } from "@/lib/platform/projects/types";
@@ -18,19 +23,35 @@ export type MirotechCaseStudyCreateResult = {
   sectionCount: number;
   challenge: string | null;
   outcome: string | null;
+  role: string | null;
+  projectDisclaimer: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
   publishMirotech: boolean;
+  templateId: string | null;
+  sectionTitles: string[];
 };
 
 export async function createMirotechCaseStudyDraft(
   input: ProjectWorkflowCreateInput,
-  templateDefaults: Record<string, unknown> = {}
+  templateDefaults: Record<string, unknown> = {},
+  templateId: string | null = null,
+  draftOverlay?: {
+    summary?: string;
+    role?: string;
+    challenge?: string;
+    outcome?: string;
+    projectDisclaimer?: string;
+    sections?: Array<{ title: string; body: string }>;
+  }
 ): Promise<MirotechCaseStudyCreateResult> {
   const title = input.title?.trim();
   if (!title) {
     throw new ProjectWorkflowValidationError("title is required.");
   }
+
+  const resolvedTemplateId = resolveMirotechTemplateId(templateId);
+  const templateDef = resolvedTemplateId ? getMirotechCaseStudyTemplateDef(resolvedTemplateId) : null;
 
   const conflictPolicy = input.slugConflictPolicy ?? "suffix";
   const { slug } = await resolveProjectSlug({
@@ -43,7 +64,7 @@ export async function createMirotechCaseStudyDraft(
     },
   });
 
-  const payload: Record<string, unknown> = {
+  const basePayload: Record<string, unknown> = {
     title,
     slug,
     summary:
@@ -56,10 +77,18 @@ export async function createMirotechCaseStudyDraft(
     ...templateDefaults,
   };
 
-  delete payload.pillarSlug;
-  delete payload.section;
+  const payload = templateDef
+    ? buildMirotechCreatePayloadFromTemplate(templateDef, basePayload, draftOverlay)
+    : (() => {
+        const plain = { ...basePayload };
+        delete plain.pillarSlug;
+        delete plain.section;
+        return plain;
+      })();
 
   const project = (await mirotechCreateHubProject(payload)) as HubProject;
+  const sectionTitles =
+    project.sections?.map((s) => (s.title ?? "").trim()).filter(Boolean) ?? [];
 
   return {
     id: project.id,
@@ -72,8 +101,12 @@ export async function createMirotechCaseStudyDraft(
     sectionCount: project.sections?.length ?? 0,
     challenge: project.challenge ?? null,
     outcome: project.outcome ?? null,
+    role: project.role ?? null,
+    projectDisclaimer: project.projectDisclaimer ?? null,
     seoTitle: project.seoTitle ?? null,
     seoDescription: project.seoDescription ?? null,
     publishMirotech: project.publishMirotech ?? true,
+    templateId: resolvedTemplateId,
+    sectionTitles,
   };
 }

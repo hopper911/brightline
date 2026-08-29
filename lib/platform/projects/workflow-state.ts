@@ -11,6 +11,8 @@ export type StoredProjectWorkflowState = {
   lifecycle: ProjectWorkflowLifecycle;
   reviewNotes: string | null;
   updatedAt: string;
+  /** Mirotech case study workflow template applied at create (Phase 23A). */
+  templateId?: string | null;
 };
 
 function stateKey(ref: ContentRef): string {
@@ -29,6 +31,7 @@ export async function getStoredProjectWorkflowState(
       lifecycle: parsed.lifecycle,
       reviewNotes: parsed.reviewNotes ?? null,
       updatedAt: parsed.updatedAt ?? new Date().toISOString(),
+      templateId: parsed.templateId ?? null,
     };
   } catch {
     return null;
@@ -44,6 +47,7 @@ export async function setStoredProjectWorkflowState(
     lifecycle: state.lifecycle,
     reviewNotes: state.reviewNotes ?? null,
     updatedAt: state.updatedAt,
+    templateId: state.templateId ?? null,
   });
   await prisma.siteSetting.upsert({
     where: { key },
@@ -68,6 +72,7 @@ export async function loadAllStoredProjectWorkflowStates(): Promise<
           lifecycle: parsed.lifecycle,
           reviewNotes: parsed.reviewNotes ?? null,
           updatedAt: parsed.updatedAt ?? new Date().toISOString(),
+          templateId: parsed.templateId ?? null,
         });
       }
     } catch {

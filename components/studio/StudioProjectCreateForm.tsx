@@ -8,6 +8,11 @@ type Template = {
   id: string;
   label: string;
   description: string;
+  structure?: {
+    sections?: Array<{ title: string; hint?: string }>;
+    technologyCategories?: string[];
+    aiDraft?: { enabled: boolean };
+  };
 };
 
 type Props = {
@@ -34,11 +39,14 @@ export function StudioProjectCreateForm({
   );
   const [title, setTitle] = useState("");
   const [templateId, setTemplateId] = useState("");
+  const [projectBrief, setProjectBrief] = useState("");
+  const [applyTemplateDraft, setApplyTemplateDraft] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const kind = tenant === "brightline" ? "work-project" : "mirotech-case-study";
+  const selectedTemplate = templates.find((t) => t.id === templateId);
 
   useEffect(() => {
     if (!open || !creatableTenants.includes(tenant)) return;
@@ -53,6 +61,8 @@ export function StudioProjectCreateForm({
       if (!cancelled) {
         setTemplates(data.templates ?? []);
         setTemplateId("");
+        setProjectBrief("");
+        setApplyTemplateDraft(false);
       }
     })();
     return () => {
@@ -69,16 +79,24 @@ export function StudioProjectCreateForm({
     setSubmitting(true);
     setError(null);
     try {
+      const body: Record<string, unknown> = {
+        tenant,
+        kind,
+        title: title.trim(),
+        templateId: templateId || undefined,
+      };
+      if (tenant === "mirotech" && templateId && projectBrief.trim()) {
+        body.projectBrief = projectBrief.trim();
+        if (applyTemplateDraft && selectedTemplate?.structure?.aiDraft?.enabled) {
+          body.applyTemplateDraft = true;
+        }
+      }
+
       const res = await fetch("/api/studio/projects", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenant,
-          kind,
-          title: title.trim(),
-          templateId: templateId || undefined,
-        }),
+        body: JSON.stringify(body),
       });
       const data = (await res.json()) as {
         ok?: boolean;
@@ -169,7 +187,49 @@ export function StudioProjectCreateForm({
                       <option key={t.id} value={t.id}>{t.label}</option>
                     ))}
                   </select>
+                  {selectedTemplate?.description ? (
+                    <p className="mt-1 text-xs text-white/45">{selectedTemplate.description}</p>
+                  ) : null}
                 </label>
+              ) : null}
+
+              {tenant === "mirotech" && templateId ? (
+                <>
+                  <label className="block text-sm">
+                    <span className="text-white/55">Project brief (optional)</span>
+                    <textarea
+                      className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-white"
+                      rows={3}
+                      value={projectBrief}
+                      onChange={(e) => setProjectBrief(e.target.value)}
+                      placeholder="Rough notes — problem, scope, your role. No fake metrics."
+                    />
+                  </label>
+                  {selectedTemplate?.structure?.aiDraft?.enabled ? (
+                    <label className="flex items-start gap-2 text-sm text-white/70">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={applyTemplateDraft}
+                        onChange={(e) => setApplyTemplateDraft(e.target.checked)}
+                        disabled={!projectBrief.trim()}
+                      />
+                      <span>
+                        Generate initial draft from brief (review before publish — never auto-publishes claims)
+                      </span>
+                    </label>
+                  ) : null}
+                  {selectedTemplate?.structure?.sections?.length ? (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs text-white/50">
+                      <p className="font-medium text-white/65">Template sections</p>
+                      <ul className="mt-2 space-y-1">
+                        {selectedTemplate.structure.sections.map((s) => (
+                          <li key={s.title}>{s.title}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
 
               {error ? <p className="text-sm text-red-300">{error}</p> : null}

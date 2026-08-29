@@ -4,6 +4,7 @@ import type { ContentRef } from "@/lib/platform/content/types";
 import { getHubProject } from "@/lib/dual-brand/studio-hub";
 import type { ProjectWorkflowCompletenessInput } from "@/lib/platform/projects/project-workflow-service";
 import { ProjectWorkflowValidationError } from "@/lib/platform/projects/errors";
+import { getStoredProjectWorkflowState } from "@/lib/platform/projects/workflow-state";
 import { prisma } from "@/lib/prisma";
 
 export type ProjectWorkflowSnapshotContext = ProjectWorkflowCompletenessInput & {
@@ -45,7 +46,10 @@ export async function loadProjectWorkflowSnapshot(
   if (ref.type === "mirotech-case-study" && ref.tenant === "mirotech") {
     const project = await getHubProject(ref.id);
     if (!project) throw new ProjectWorkflowValidationError("Project not found.");
+    const stored = await getStoredProjectWorkflowState(ref);
     const published = String(project.status).toUpperCase() === "PUBLISHED";
+    const sectionTitles =
+      project.sections?.map((s) => (s.title ?? "").trim()).filter(Boolean) ?? [];
     return {
       tenant: "mirotech",
       kind: "mirotech-case-study",
@@ -60,9 +64,13 @@ export async function loadProjectWorkflowSnapshot(
         sectionCount: project.sections?.length ?? 0,
         challenge: project.challenge ?? null,
         outcome: project.outcome ?? null,
+        role: project.role ?? null,
+        projectDisclaimer: project.projectDisclaimer ?? null,
+        sectionTitles,
         seoTitle: project.seoTitle ?? null,
         seoDescription: project.seoDescription ?? null,
         publishMirotech: project.publishMirotech ?? false,
+        templateId: stored?.templateId ?? null,
       },
     };
   }

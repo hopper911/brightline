@@ -116,9 +116,9 @@ Starter defaults in `lib/platform/projects/templates.ts` (5 per tenant):
 
 **Brightline:** commercial-architecture, hospitality, editorial, event, headshot (pillar defaults).
 
-**Mirotech:** ai-saas-case-study, automation-platform, data-platform, product-design-case-study, full-stack-web-app (`projectType` + categories).
+**Mirotech:** ai-saas-platform, ai-automation-agent-workflow, data-intelligence-platform, fintech-compliance-platform, operational-workflow-saas (`projectType` + categories + section shells).
 
-Templates only seed **defaults** — they do not replace domain schemas.
+Templates seed **structure** (sections, field labels, media slots, SEO hints) — not fabricated claims. Legacy ids `ai-saas-case-study`, `automation-platform`, and `data-platform` map to Phase 23A equivalents.
 
 ---
 

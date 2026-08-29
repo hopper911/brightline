@@ -43,6 +43,7 @@ import type {
   ProjectWorkflowCompletenessInput,
   ProjectWorkflowService,
 } from "@/lib/platform/projects/project-workflow-service";
+import { generateMirotechTemplateDraft } from "@/lib/platform/projects/mirotech-template-draft";
 import { getProjectWorkflowTemplate } from "@/lib/platform/projects/templates";
 import { loadProjectWorkflowSnapshot } from "@/lib/platform/projects/workflow-snapshot";
 import {
@@ -204,7 +205,32 @@ export class DefaultProjectWorkflowService implements ProjectWorkflowService {
       return { ref, id: row.id, slug: row.slug, lifecycle, completeness };
     }
 
-    const row = await createMirotechCaseStudyDraft(input, templateDefaults);
+    const draftOverlay =
+      input.applyTemplateDraft && input.projectBrief?.trim() && template
+        ? await (async () => {
+            const draft = await generateMirotechTemplateDraft({
+              templateId: template.id,
+              title: input.title,
+              brief: input.projectBrief!.trim(),
+            });
+            if (!draft.ok) return undefined;
+            return {
+              summary: draft.coreFields.summary,
+              role: draft.coreFields.role,
+              challenge: draft.coreFields.challenge,
+              outcome: draft.coreFields.outcome,
+              projectDisclaimer: draft.coreFields.projectDisclaimer,
+              sections: draft.sections.map((s) => ({ title: s.title, body: s.body })),
+            };
+          })()
+        : undefined;
+
+    const row = await createMirotechCaseStudyDraft(
+      input,
+      templateDefaults,
+      template?.id ?? input.templateId ?? null,
+      draftOverlay
+    );
     const completenessInput: MirotechCaseStudyCompletenessInput = {
       title: row.title,
       slug: row.slug,
@@ -215,9 +241,13 @@ export class DefaultProjectWorkflowService implements ProjectWorkflowService {
       sectionCount: row.sectionCount,
       challenge: row.challenge,
       outcome: row.outcome,
+      role: row.role,
+      projectDisclaimer: row.projectDisclaimer,
+      sectionTitles: row.sectionTitles,
       seoTitle: row.seoTitle,
       seoDescription: row.seoDescription,
       publishMirotech: row.publishMirotech,
+      templateId: row.templateId,
     };
     const completeness = validateMirotechProjectCompleteness(completenessInput);
     const lifecycle = mapMirotechCaseStudyLifecycle({
@@ -245,6 +275,7 @@ export class DefaultProjectWorkflowService implements ProjectWorkflowService {
       lifecycle: "DRAFT",
       reviewNotes: null,
       updatedAt: new Date().toISOString(),
+      templateId: row.templateId ?? input.templateId ?? null,
     });
 
     return { ref, id: row.id, slug: row.slug, lifecycle, completeness };

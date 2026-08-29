@@ -47,6 +47,10 @@ export type ProjectWorkflowCreateInput = {
   /** Brightline WorkSection when pillar is omitted. */
   section?: string;
   summary?: string;
+  /** Mirotech: rough notes for optional template AI draft at create (never auto-publishes). */
+  projectBrief?: string;
+  /** Mirotech: when true with templateId + projectBrief, seed draft copy from AI (draft only). */
+  applyTemplateDraft?: boolean;
   /** When slug collides — Brightline defaults to reject; Mirotech hub may suffix. */
   slugConflictPolicy?: ProjectSlugConflictPolicy;
 };

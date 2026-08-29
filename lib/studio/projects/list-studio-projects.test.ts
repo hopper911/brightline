@@ -7,6 +7,7 @@ const mockListHub = vi.fn();
 const mockEvaluate = vi.fn();
 const mockDerive = vi.fn();
 const mockSiteSettingFindMany = vi.fn();
+const mockSiteSettingFindUnique = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -15,6 +16,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     siteSetting: {
       findMany: (...args: unknown[]) => mockSiteSettingFindMany(...args),
+      findUnique: (...args: unknown[]) => mockSiteSettingFindUnique(...args),
     },
   },
 }));
@@ -41,6 +43,7 @@ describe("listStudioProjects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSiteSettingFindMany.mockResolvedValue([]);
+    mockSiteSettingFindUnique.mockResolvedValue(null);
     mockFindMany.mockResolvedValue([
       {
         id: "wp-1",

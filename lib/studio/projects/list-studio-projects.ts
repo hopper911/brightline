@@ -16,6 +16,11 @@ import {
   canReadMirotechStudioProjects,
 } from "@/lib/studio/access";
 import { studioProjectEditHref } from "@/lib/studio/projects/edit-href";
+import { getStoredProjectPublishedSnapshot } from "@/lib/platform/projects/published-snapshot";
+import {
+  verificationDisplayLabel,
+  verificationDisplayStatus,
+} from "@/lib/platform/projects/verification/types";
 import {
   lifecycleDisplayLabel,
   matchesStudioProjectStatusFilter,
@@ -45,6 +50,26 @@ export type ListStudioProjectsInput = {
 function parsePage(value: number | undefined): number {
   if (!value || !Number.isFinite(value) || value < 1) return 1;
   return Math.floor(value);
+}
+
+function verificationFieldsFromStored(
+  stored: import("@/lib/platform/projects/workflow-state").StoredProjectWorkflowState | null,
+  publishedSnapshot: Awaited<ReturnType<typeof getStoredProjectPublishedSnapshot>>
+): Pick<
+  StudioProjectDashboardRow,
+  "verificationStatus" | "verificationLabel" | "verificationReason" | "publicPath"
+> {
+  const verificationStatus = verificationDisplayStatus({
+    verificationHealthy: stored?.verificationHealthy,
+    verificationWarning: stored?.verificationWarning,
+    verificationFailed: stored?.verificationFailed,
+  });
+  return {
+    verificationStatus,
+    verificationLabel: verificationDisplayLabel(verificationStatus),
+    verificationReason: stored?.verificationReason ?? null,
+    publicPath: publishedSnapshot?.publicPath ?? null,
+  };
 }
 
 function parsePageSize(value: number | undefined): number {
@@ -102,7 +127,8 @@ export async function listBrightlineWorkflowProjects(
     orderBy: { updatedAt: "desc" },
   });
 
-  return projects.map((row) => {
+  return Promise.all(
+    projects.map(async (row) => {
     const snapshot = {
       title: row.title,
       slug: row.slug,
@@ -135,6 +161,12 @@ export async function listBrightlineWorkflowProjects(
       lifecycle,
       row.published
     );
+    const publishedSnapshot = await getStoredProjectPublishedSnapshot({
+      tenant: "brightline",
+      type: "work-project",
+      id: row.id,
+    });
+    const verification = verificationFieldsFromStored(stored, publishedSnapshot);
 
     return {
       id: row.id,
@@ -151,14 +183,16 @@ export async function listBrightlineWorkflowProjects(
       published: row.published,
       updatedAt: row.updatedAt.toISOString(),
       editHref: studioProjectEditHref("brightline", "work-project", row.id),
+      ...verification,
     };
-  });
+    })
+  );
 }
 
-function hubProjectToDashboardRow(
+async function hubProjectToDashboardRow(
   project: HubProject,
   storedStates: Map<string, import("@/lib/platform/projects/workflow-state").StoredProjectWorkflowState>
-): StudioProjectDashboardRow {
+): Promise<StudioProjectDashboardRow> {
   const snapshot = {
     title: project.title,
     slug: project.slug,
@@ -196,6 +230,12 @@ function hubProjectToDashboardRow(
   const updatedAt = project.updatedAt
     ? new Date(project.updatedAt).toISOString()
     : new Date().toISOString();
+  const publishedSnapshot = await getStoredProjectPublishedSnapshot({
+    tenant: "mirotech",
+    type: "mirotech-case-study",
+    id: project.id,
+  });
+  const verification = verificationFieldsFromStored(stored, publishedSnapshot);
 
   return {
     id: project.id,
@@ -212,6 +252,7 @@ function hubProjectToDashboardRow(
     published,
     updatedAt,
     editHref: studioProjectEditHref("mirotech", "mirotech-case-study", project.id),
+    ...verification,
   };
 }
 
@@ -219,7 +260,7 @@ export async function listMirotechWorkflowProjects(
   storedStates: Map<string, import("@/lib/platform/projects/workflow-state").StoredProjectWorkflowState>
 ): Promise<StudioProjectDashboardRow[]> {
   const projects = await listHubProjects();
-  return projects.map((project) => hubProjectToDashboardRow(project, storedStates));
+  return Promise.all(projects.map((project) => hubProjectToDashboardRow(project, storedStates)));
 }
 
 export async function listStudioProjects(

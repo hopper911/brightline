@@ -22,7 +22,32 @@ export type StoredProjectWorkflowState = {
   /** Set when async/sync publish fails while lifecycle remains APPROVED. */
   publishFailedAt?: string | null;
   publishFailedReason?: string | null;
+  /** Phase 27 — published project public verification (does not unpublish). */
+  verificationHealthy?: boolean;
+  verificationWarning?: boolean;
+  verificationFailed?: boolean;
+  verificationCheckedAt?: string | null;
+  verificationReason?: string | null;
+  verificationDetails?: string[];
 };
+
+function normalizeStoredWorkflowState(parsed: StoredProjectWorkflowState): StoredProjectWorkflowState {
+  return {
+    lifecycle: parsed.lifecycle,
+    reviewNotes: parsed.reviewNotes ?? null,
+    updatedAt: parsed.updatedAt ?? new Date().toISOString(),
+    templateId: parsed.templateId ?? null,
+    priority: parsed.priority ?? "NORMAL",
+    publishFailedAt: parsed.publishFailedAt ?? null,
+    publishFailedReason: parsed.publishFailedReason ?? null,
+    verificationHealthy: parsed.verificationHealthy ?? false,
+    verificationWarning: parsed.verificationWarning ?? false,
+    verificationFailed: parsed.verificationFailed ?? false,
+    verificationCheckedAt: parsed.verificationCheckedAt ?? null,
+    verificationReason: parsed.verificationReason ?? null,
+    verificationDetails: parsed.verificationDetails ?? [],
+  };
+}
 
 function stateKey(ref: ContentRef): string {
   return `${STATE_PREFIX}${contentRefKey(ref)}`;
@@ -36,15 +61,7 @@ export async function getStoredProjectWorkflowState(
   try {
     const parsed = JSON.parse(row.value) as StoredProjectWorkflowState;
     if (!parsed.lifecycle) return null;
-    return {
-      lifecycle: parsed.lifecycle,
-      reviewNotes: parsed.reviewNotes ?? null,
-      updatedAt: parsed.updatedAt ?? new Date().toISOString(),
-      templateId: parsed.templateId ?? null,
-      priority: parsed.priority ?? "NORMAL",
-      publishFailedAt: parsed.publishFailedAt ?? null,
-      publishFailedReason: parsed.publishFailedReason ?? null,
-    };
+    return normalizeStoredWorkflowState(parsed);
   } catch {
     return null;
   }
@@ -55,15 +72,7 @@ export async function setStoredProjectWorkflowState(
   state: StoredProjectWorkflowState
 ): Promise<void> {
   const key = stateKey(ref);
-  const value = JSON.stringify({
-    lifecycle: state.lifecycle,
-    reviewNotes: state.reviewNotes ?? null,
-    updatedAt: state.updatedAt,
-    templateId: state.templateId ?? null,
-    priority: state.priority ?? "NORMAL",
-    publishFailedAt: state.publishFailedAt ?? null,
-    publishFailedReason: state.publishFailedReason ?? null,
-  });
+  const value = JSON.stringify(normalizeStoredWorkflowState(state));
   await prisma.siteSetting.upsert({
     where: { key },
     create: { key, value },
@@ -83,15 +92,7 @@ export async function loadAllStoredProjectWorkflowStates(): Promise<
     try {
       const parsed = JSON.parse(row.value ?? "") as StoredProjectWorkflowState;
       if (parsed.lifecycle) {
-        map.set(refKey, {
-          lifecycle: parsed.lifecycle,
-          reviewNotes: parsed.reviewNotes ?? null,
-          updatedAt: parsed.updatedAt ?? new Date().toISOString(),
-          templateId: parsed.templateId ?? null,
-          priority: parsed.priority ?? "NORMAL",
-          publishFailedAt: parsed.publishFailedAt ?? null,
-          publishFailedReason: parsed.publishFailedReason ?? null,
-        });
+        map.set(refKey, normalizeStoredWorkflowState(parsed));
       }
     } catch {
       /* skip corrupt rows */

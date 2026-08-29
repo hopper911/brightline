@@ -34,6 +34,12 @@ export async function finalizeProjectPublishSuccess(input: {
     priority: stored?.priority ?? "NORMAL",
     publishFailedAt: null,
     publishFailedReason: null,
+    verificationHealthy: false,
+    verificationWarning: false,
+    verificationFailed: false,
+    verificationCheckedAt: null,
+    verificationReason: null,
+    verificationDetails: [],
   });
 
   await setStoredProjectPublishedSnapshot(input.ref, {
@@ -55,6 +61,15 @@ export async function finalizeProjectPublishSuccess(input: {
       jobId: input.jobId ?? null,
     },
   });
+
+  try {
+    const { verifyAndStorePublishedProject } = await import(
+      "@/lib/platform/projects/verify-published-project"
+    );
+    await verifyAndStorePublishedProject(input.ref);
+  } catch {
+    /* verification is non-blocking for publish success */
+  }
 }
 
 export async function finalizeProjectPublishFailure(input: {

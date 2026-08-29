@@ -29,6 +29,10 @@ export type StudioProjectDashboardRow = {
   published: boolean;
   updatedAt: string;
   editHref: string;
+  verificationStatus: "verified" | "warning" | "failed" | "unchecked";
+  verificationLabel: string;
+  verificationReason: string | null;
+  publicPath: string | null;
 };
 
 export type StudioProjectsListResult = {

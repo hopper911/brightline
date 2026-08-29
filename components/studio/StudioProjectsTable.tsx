@@ -16,6 +16,13 @@ function lifecycleBadgeClass(lifecycle: string): string {
   return "border-white/15 bg-white/5 text-white/70";
 }
 
+function verificationBadgeClass(status: string): string {
+  if (status === "verified") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-100";
+  if (status === "warning") return "border-amber-300/30 bg-amber-300/10 text-amber-100";
+  if (status === "failed") return "border-rose-400/30 bg-rose-400/10 text-rose-100";
+  return "border-white/10 bg-white/5 text-white/45";
+}
+
 export function StudioProjectsTable({ items, emptyMessage }: Props) {
   if (!items.length) {
     return (
@@ -35,6 +42,7 @@ export function StudioProjectsTable({ items, emptyMessage }: Props) {
             <th className="px-4 py-3">Type</th>
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3">Complete</th>
+            <th className="px-4 py-3">Verify</th>
             <th className="px-4 py-3">Updated</th>
             <th className="px-4 py-3" />
           </tr>
@@ -67,6 +75,22 @@ export function StudioProjectsTable({ items, emptyMessage }: Props) {
                   </p>
                 ) : (
                   <p className="mt-1 text-xs text-emerald-200/70">Ready</p>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                {row.published ? (
+                  <div>
+                    <span
+                      className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${verificationBadgeClass(row.verificationStatus)}`}
+                    >
+                      {row.verificationLabel}
+                    </span>
+                    {row.verificationReason ? (
+                      <p className="mt-1 max-w-[14rem] text-xs text-white/45">{row.verificationReason}</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <span className="text-xs text-white/35">—</span>
                 )}
               </td>
               <td className="px-4 py-3 text-xs text-white/50">

@@ -63,6 +63,8 @@ function assignQueueSections(input: {
   complete: boolean;
   blockers: ReturnType<typeof categorizeMissingBlockers>;
   publishFailedAt: string | null;
+  verificationFailed?: boolean;
+  verificationWarning?: boolean;
 }): CompletionQueueSectionId[] {
   const sections: CompletionQueueSectionId[] = [];
 
@@ -70,7 +72,15 @@ function assignQueueSections(input: {
     sections.push("publish-failed");
   }
 
-  if (input.published && (!input.complete || input.blockers.content.length > 0 || input.blockers.media.length > 0 || input.blockers.seo.length > 0)) {
+  if (
+    input.published &&
+    (!input.complete ||
+      input.blockers.content.length > 0 ||
+      input.blockers.media.length > 0 ||
+      input.blockers.seo.length > 0 ||
+      input.verificationFailed ||
+      input.verificationWarning)
+  ) {
     sections.push("published-needs-verification");
   }
 
@@ -142,6 +152,8 @@ export async function buildCompletionQueueItem(
     complete: row.completenessComplete,
     blockers,
     publishFailedAt,
+    verificationFailed: stored?.verificationFailed,
+    verificationWarning: stored?.verificationWarning,
   });
 
   return {

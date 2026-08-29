@@ -80,4 +80,7 @@ export type ProjectWorkflowTransitionResult = {
   reviewNotes: string | null;
   allowedTransitions: ProjectWorkflowLifecycle[];
   missing?: string[];
+  jobId?: string;
+  publicPath?: string | null;
+  publishPending?: boolean;
 };

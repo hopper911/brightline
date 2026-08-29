@@ -37,6 +37,13 @@ export class DefaultPublishingService implements PublishingService {
         id: valid.source.id,
       });
     }
+    if (
+      valid.source.type === "work-project" &&
+      valid.source.tenant === "brightline" &&
+      valid.operation === "publish"
+    ) {
+      await assertProjectPublishAllowed(valid.source);
+    }
     const provider = this.providerFor(valid);
     return provider.publish(context, valid);
   }

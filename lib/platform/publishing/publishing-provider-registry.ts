@@ -1,4 +1,5 @@
 import { mirotechPublishingAdapter } from "@/lib/platform/publishing/adapters/mirotech-publishing-adapter";
+import { brightlinePublishingAdapter } from "@/lib/platform/publishing/adapters/brightline-publishing-adapter";
 import type { PublishingProvider } from "@/lib/platform/publishing/publishing-provider";
 import type { PublishTargetId } from "@/lib/platform/publishing/types";
 import type { TenantSlug } from "@/lib/platform/tenants/types";
@@ -9,13 +10,15 @@ export class DefaultPublishingProviderRegistry {
 
   constructor(providers?: Partial<Record<PublishTargetId, PublishingProvider>>) {
     const mirotech = providers?.["mirotech-site"] ?? mirotechPublishingAdapter;
+    const brightline = providers?.["brightline-site"] ?? brightlinePublishingAdapter;
     this.byTarget = Object.freeze({
       "mirotech-site": mirotech,
+      "brightline-site": brightline,
       ...providers,
     });
     this.byTenant = Object.freeze({
       mirotech,
-      brightline: providers?.["brightline-site"] ?? undefined,
+      brightline,
     });
   }
 

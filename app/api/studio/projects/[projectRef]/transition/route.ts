@@ -87,6 +87,9 @@ export async function POST(
       ok: true,
       transition: result,
       view,
+      jobId: result.jobId,
+      publicPath: result.publicPath,
+      publishPending: result.publishPending,
     });
   } catch (error) {
     if (error instanceof ProjectWorkflowTransitionError) {

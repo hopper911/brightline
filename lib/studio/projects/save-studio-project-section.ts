@@ -1,11 +1,12 @@
 import "server-only";
 
 import type { ContentRef } from "@/lib/platform/content/types";
+import { createPlatformContextForTenant } from "@/lib/platform/context/types";
 import { isAsyncPublishAccepted } from "@/lib/platform/publishing/async-publish-types";
 import { resolveStudioHubProjectPatch } from "@/lib/platform/publishing/integrations/studio-hub-publish";
+import { publishApprovedProject } from "@/lib/platform/projects/project-publish-service";
 import type { StudioProjectEditorSection } from "@/lib/studio/projects/validate-studio-project-section";
 import { validateStudioProjectSectionSave } from "@/lib/studio/projects/validate-studio-project-section";
-import { assertProjectPublishAllowed } from "@/lib/platform/projects/publish-gate";
 import { prisma } from "@/lib/prisma";
 import {
   getPillarBySlug,
@@ -24,8 +25,17 @@ export async function saveStudioProjectSection(
       ref.type === "work-project"
         ? Boolean((data as { published?: boolean }).published)
         : String((data as { status?: string }).status ?? "").toUpperCase() === "PUBLISHED";
+
     if (wantsPublish) {
-      await assertProjectPublishAllowed(ref);
+      const context = createPlatformContextForTenant(ref.tenant);
+      const outcome = await publishApprovedProject(context, { kind: "legacy_admin" }, ref);
+      if (!outcome.ok) {
+        return { ok: false, error: outcome.error ?? "Publish not allowed." };
+      }
+      if (outcome.async) {
+        return { ok: true, jobId: outcome.jobId };
+      }
+      return { ok: true };
     }
   }
 

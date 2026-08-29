@@ -11,6 +11,7 @@ import type { ContentRef } from "@/lib/platform/content/types";
 import { isPlatformFeatureEnabled } from "@/lib/platform/features";
 import { createBrightlineWorkProjectDraft } from "@/lib/platform/projects/adapters/brightline-work-adapter";
 import { createMirotechCaseStudyDraft } from "@/lib/platform/projects/adapters/mirotech-case-study-adapter";
+import { publishApprovedProject } from "@/lib/platform/projects/project-publish-service";
 import { applyDomainLifecycleForTransition } from "@/lib/platform/projects/apply-domain-lifecycle";
 import {
   validateBrightlineProjectCompleteness,
@@ -374,6 +375,35 @@ export class DefaultProjectWorkflowService implements ProjectWorkflowService {
       if (fromLifecycle !== "APPROVED" && fromLifecycle !== "PUBLISHED") {
         throw new ProjectWorkflowTransitionError("Project must be approved before publication.");
       }
+    }
+
+    if (toLifecycle === "PUBLISHED") {
+      const writePermission = createPermissionForKind(input.tenant, kind, "write");
+      await this.assertPermission(subject, input.tenant, writePermission);
+      await this.assertPermission(subject, input.tenant, approvePermissionForTenant(input.tenant));
+
+      const publishOutcome = await publishApprovedProject(context, subject, input.ref);
+      if (!publishOutcome.ok) {
+        throw new ProjectWorkflowTransitionError(
+          publishOutcome.error ?? "Project publish failed.",
+          publishOutcome.missing ?? []
+        );
+      }
+
+      const reviewNotes =
+        input.reviewNotes !== undefined
+          ? input.reviewNotes.trim() || null
+          : stored?.reviewNotes ?? null;
+
+      return {
+        lifecycle: publishOutcome.lifecycle,
+        completeness,
+        reviewNotes,
+        allowedTransitions: filterAllowedTransitions(publishOutcome.lifecycle, completeness),
+        jobId: publishOutcome.jobId,
+        publicPath: publishOutcome.publicPath,
+        publishPending: publishOutcome.async,
+      };
     }
 
     const writePermission = createPermissionForKind(input.tenant, kind, "write");

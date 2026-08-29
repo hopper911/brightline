@@ -141,12 +141,31 @@ export function StudioProjectEditor({ initialView, projectRefParam, canWrite }: 
           error?: string;
           missing?: string[];
           view?: StudioProjectEditorView;
+          jobId?: string;
+          publicPath?: string | null;
+          publishPending?: boolean;
         };
         if (!res.ok || !json.ok) {
           const missing =
             json.missing?.length ? ` Missing: ${json.missing.join(", ")}.` : "";
           setTransitionError(`${json.error ?? "Transition failed."}${missing}`);
           return;
+        }
+        if (json.jobId) {
+          const job = await pollPlatformJobUntilDone(json.jobId);
+          if (job.status === "FAILED" || !job.result?.ok) {
+            setTransitionError(job.result?.error ?? job.errorSummary ?? "Publish job failed.");
+            return;
+          }
+          const refreshRes = await fetch(`/api/studio/projects/${projectRefParam}`, {
+            credentials: "include",
+          });
+          if (refreshRes.ok) {
+            const refreshed = (await refreshRes.json()) as { view?: StudioProjectEditorView };
+            if (refreshed.view) {
+              json.view = refreshed.view;
+            }
+          }
         }
         if (json.view) {
           setView(json.view);

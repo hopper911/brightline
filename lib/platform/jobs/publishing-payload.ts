@@ -10,6 +10,7 @@ import type { PlatformAuditActor } from "@/lib/platform/audit/types";
 import { isPlatformAuditActorType } from "@/lib/platform/audit/types";
 import { JobPayloadError } from "@/lib/platform/jobs/errors";
 import {
+  PUBLISHING_BRIGHTLINE_WORK_PROJECT_JOB,
   PUBLISHING_MIROTECH_HUB_PATCH_JOB,
   PUBLISHING_MIROTECH_JOURNAL_SYNC_JOB,
   type JobPayload,
@@ -25,6 +26,7 @@ export type PublishingJobResult = {
   ok: boolean;
   resourceId?: string | null;
   error?: string;
+  publicPath?: string | null;
   /** Hub project body returned from Mirotech CMS write (hub patch jobs). */
   hubProject?: Record<string, unknown>;
   /** Hub journal write result (hub journal patch jobs). */
@@ -49,6 +51,17 @@ export type PublishingMirotechHubPatchPayload = {
   contentVersion: string;
   hubPatch: Record<string, unknown>;
   actor: PlatformAuditActor;
+  workflowRef?: ContentRef;
+  result?: PublishingJobResult;
+};
+
+export type PublishingBrightlineWorkProjectPayload = {
+  source: ContentRef;
+  target: PublishTargetId;
+  operation: PublishOperation;
+  contentVersion: string;
+  actor: PlatformAuditActor;
+  workflowRef: ContentRef;
   result?: PublishingJobResult;
 };
 
@@ -241,6 +254,16 @@ export function parsePublishingMirotechHubPatchPayload(
 
   const result = readPublishingJobResult(payload) ?? undefined;
 
+  const workflowRefRaw = payload.workflowRef;
+  let workflowRef: ContentRef | undefined;
+  if (workflowRefRaw && typeof workflowRefRaw === "object" && !Array.isArray(workflowRefRaw)) {
+    try {
+      workflowRef = assertValidContentRef(workflowRefRaw as ContentRef);
+    } catch {
+      workflowRef = undefined;
+    }
+  }
+
   return {
     source,
     target,
@@ -248,7 +271,101 @@ export function parsePublishingMirotechHubPatchPayload(
     contentVersion: contentVersion.trim(),
     hubPatch: hubPatchRaw as Record<string, unknown>,
     actor,
+    workflowRef,
     result,
+  };
+}
+
+export function buildPublishingBrightlineWorkProjectIdempotencyKey(input: {
+  source: ContentRef;
+  target: PublishTargetId;
+  operation: PublishOperation;
+  contentVersion: string;
+}): string {
+  const source = assertValidContentRef(input.source);
+  return [
+    PUBLISHING_BRIGHTLINE_WORK_PROJECT_JOB,
+    source.tenant,
+    source.type,
+    source.id,
+    input.target,
+    input.operation,
+    input.contentVersion.trim(),
+  ].join(":");
+}
+
+export function parsePublishingBrightlineWorkProjectPayload(
+  payload: JobPayload
+): PublishingBrightlineWorkProjectPayload {
+  const sourceRaw = payload.source;
+  if (!sourceRaw || typeof sourceRaw !== "object" || Array.isArray(sourceRaw)) {
+    throw new JobPayloadError("Brightline work project job payload missing source ContentRef.");
+  }
+  const source = assertValidContentRef(sourceRaw as ContentRef);
+  if (source.type !== "work-project" || source.tenant !== "brightline") {
+    throw new JobPayloadError("Brightline work project job requires brightline work-project source.");
+  }
+
+  const target = payload.target;
+  if (typeof target !== "string" || !isPublishTargetId(target)) {
+    throw new JobPayloadError("Brightline work project job payload missing valid target.");
+  }
+
+  const operation = payload.operation;
+  if (typeof operation !== "string" || !isPublishOperation(operation)) {
+    throw new JobPayloadError("Brightline work project job payload missing valid operation.");
+  }
+
+  const contentVersion = payload.contentVersion;
+  if (typeof contentVersion !== "string" || !contentVersion.trim()) {
+    throw new JobPayloadError("Brightline work project job payload missing contentVersion.");
+  }
+
+  const workflowRefRaw = payload.workflowRef;
+  if (!workflowRefRaw || typeof workflowRefRaw !== "object" || Array.isArray(workflowRefRaw)) {
+    throw new JobPayloadError("Brightline work project job payload missing workflowRef.");
+  }
+  const workflowRef = assertValidContentRef(workflowRefRaw as ContentRef);
+
+  const actorRaw = payload.actor;
+  if (!actorRaw || typeof actorRaw !== "object" || Array.isArray(actorRaw)) {
+    throw new JobPayloadError("Brightline work project job payload missing actor.");
+  }
+  const actorType = (actorRaw as PlatformAuditActor).type;
+  if (!isPlatformAuditActorType(actorType)) {
+    throw new JobPayloadError("Brightline work project job payload has invalid actor type.");
+  }
+
+  const actor: PlatformAuditActor = {
+    type: actorType,
+    id:
+      typeof (actorRaw as PlatformAuditActor).id === "string"
+        ? (actorRaw as PlatformAuditActor).id
+        : null,
+  };
+
+  return {
+    source,
+    target,
+    operation,
+    contentVersion: contentVersion.trim(),
+    actor,
+    workflowRef,
+    result: readPublishingJobResult(payload) ?? undefined,
+  };
+}
+
+export function publishingBrightlineWorkProjectJobPayload(input: {
+  source: ContentRef;
+  target: PublishTargetId;
+  operation: PublishOperation;
+  contentVersion: string;
+  actor: PlatformAuditActor;
+  workflowRef: ContentRef;
+}): JobPayload {
+  return {
+    ...publishingJobPayload(input),
+    workflowRef: assertValidContentRef(input.workflowRef),
   };
 }
 
@@ -259,10 +376,12 @@ export function publishingHubPatchJobPayload(input: {
   contentVersion: string;
   hubPatch: Record<string, unknown>;
   actor: PlatformAuditActor;
+  workflowRef?: ContentRef;
 }): JobPayload {
   return {
     ...publishingJobPayload(input),
     hubPatch: input.hubPatch,
+    ...(input.workflowRef ? { workflowRef: assertValidContentRef(input.workflowRef) } : {}),
   };
 }
 
@@ -282,6 +401,10 @@ export function readPublishingJobResult(payload: JobPayload): PublishingJobResul
           typeof (resultRaw as PublishingJobResult).error === "string"
             ? (resultRaw as PublishingJobResult).error
             : undefined,
+        publicPath:
+          typeof (resultRaw as PublishingJobResult).publicPath === "string"
+            ? (resultRaw as PublishingJobResult).publicPath
+            : null,
         hubProject:
           hubProjectRaw && typeof hubProjectRaw === "object" && !Array.isArray(hubProjectRaw)
             ? (hubProjectRaw as Record<string, unknown>)
@@ -310,7 +433,11 @@ export function readPublishingJobResult(payload: JobPayload): PublishingJobResul
     try {
       return parsePublishingMirotechHubPatchPayload(payload).result ?? null;
     } catch {
-      return null;
+      try {
+        return parsePublishingBrightlineWorkProjectPayload(payload).result ?? null;
+      } catch {
+        return null;
+      }
     }
   }
 }

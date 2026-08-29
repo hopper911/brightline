@@ -10,6 +10,9 @@ import {
   type PublishingJobResult,
 } from "@/lib/platform/jobs/publishing-payload";
 import type { JobRecord } from "@/lib/platform/jobs/types";
+import { finalizeProjectPublishFailure, finalizeProjectPublishSuccess } from "@/lib/platform/projects/finalize-project-publish";
+import { loadProjectWorkflowSnapshot } from "@/lib/platform/projects/workflow-snapshot";
+import { mirotechCaseStudyPublicPath } from "@/lib/platform/content/integrations/map-mirotech-content";
 import { defaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { isPublishingError } from "@/lib/platform/publishing/errors";
@@ -100,6 +103,32 @@ export function createPublishingMirotechHubPatchHandler(
             jobId: job.id,
           },
         });
+
+        if (
+          parsed.workflowRef &&
+          String(parsed.hubPatch.status ?? "").toUpperCase() === "PUBLISHED"
+        ) {
+          const snapshot = await loadProjectWorkflowSnapshot(parsed.workflowRef);
+          const slug = String(snapshot.snapshot.slug ?? "");
+          const publicPath = slug ? mirotechCaseStudyPublicPath(slug) : null;
+          const heroKey =
+            typeof snapshot.snapshot.heroImage === "string" ? snapshot.snapshot.heroImage : null;
+          await finalizeProjectPublishSuccess({
+            context,
+            actor: parsed.actor,
+            ref: parsed.workflowRef,
+            publicPath,
+            snapshot: {
+              title: String(snapshot.snapshot.title ?? ""),
+              slug,
+              heroKey,
+              summary:
+                typeof snapshot.snapshot.summary === "string" ? snapshot.snapshot.summary : null,
+            },
+            jobId: job.id,
+          });
+          result.publicPath = publicPath;
+        }
       } else {
         const error = publishResult.message || "Hub patch publish failed";
         result = { ok: false, error };
@@ -111,6 +140,15 @@ export function createPublishingMirotechHubPatchHandler(
           metadata: { target: parsed.target, error, jobId: job.id },
         });
         await storePublishingJobResult(provider, job, result);
+        if (parsed.workflowRef && String(parsed.hubPatch.status ?? "").toUpperCase() === "PUBLISHED") {
+          await finalizeProjectPublishFailure({
+            context,
+            actor: parsed.actor,
+            ref: parsed.workflowRef,
+            error,
+            jobId: job.id,
+          });
+        }
         throw new PublishingJobExecutionError(error);
       }
     } catch (error) {
@@ -131,6 +169,18 @@ export function createPublishingMirotechHubPatchHandler(
         metadata: { target: parsed.target, error: message, jobId: job.id },
       });
       await storePublishingJobResult(provider, job, result);
+      if (
+        parsed.workflowRef &&
+        String(parsed.hubPatch.status ?? "").toUpperCase() === "PUBLISHED"
+      ) {
+        await finalizeProjectPublishFailure({
+          context,
+          actor: parsed.actor,
+          ref: parsed.workflowRef,
+          error: message,
+          jobId: job.id,
+        });
+      }
       throw new PublishingJobExecutionError(message);
     }
 

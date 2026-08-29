@@ -61,7 +61,7 @@ describe("POST /api/studio/projects", () => {
     const data = await res.json();
     expect(res.status).toBe(200);
     expect(data.ok).toBe(true);
-    expect(data.project.editHref).toBe("/admin/work/new-1");
+    expect(data.project.editHref).toContain("/studio/projects/");
     expect(mockCreate).toHaveBeenCalledOnce();
   });
 

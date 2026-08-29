@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { TenantSlug } from "@/lib/platform/tenants/types";
 
 type Template = {
@@ -60,51 +60,48 @@ export function StudioProjectCreateForm({
     };
   }, [open, tenant, kind, creatableTenants]);
 
-  const onSubmit = useCallback(
-    async (event: React.FormEvent) => {
-      event.preventDefault();
-      if (!title.trim()) {
-        setError("Title is required.");
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!title.trim()) {
+      setError("Title is required.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/studio/projects", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenant,
+          kind,
+          title: title.trim(),
+          templateId: templateId || undefined,
+        }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        project?: { editHref?: string };
+      };
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? "Create failed.");
         return;
       }
-      setSubmitting(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/studio/projects", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tenant,
-            kind,
-            title: title.trim(),
-            templateId: templateId || undefined,
-          }),
-        });
-        const data = (await res.json()) as {
-          ok?: boolean;
-          error?: string;
-          project?: { editHref?: string };
-        };
-        if (!res.ok || !data.ok) {
-          setError(data.error ?? "Create failed.");
-          return;
-        }
-        const href = data.project?.editHref;
-        if (href) {
-          router.push(href);
-          return;
-        }
-        setOpen(false);
-        router.refresh();
-      } catch {
-        setError("Network error.");
-      } finally {
-        setSubmitting(false);
+      const href = data.project?.editHref;
+      if (href) {
+        router.push(href);
+        return;
       }
-    },
-    [tenant, kind, title, templateId, router]
-  );
+      setOpen(false);
+      router.refresh();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (!creatableTenants.length) return null;
 

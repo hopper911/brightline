@@ -57,6 +57,7 @@ export type ListPlatformAuditEventsInput = {
   action?: string;
   actorType?: PlatformAuditActorType;
   resourceType?: string;
+  resourceId?: string;
   since?: Date;
   until?: Date;
   limit?: number;
@@ -120,6 +121,7 @@ export async function listPlatformAuditEvents(
       ...(input.action?.trim() ? { action: { contains: input.action.trim(), mode: "insensitive" } } : {}),
       ...(input.actorType ? { actorType: input.actorType } : {}),
       ...(input.resourceType?.trim() ? { resourceType: input.resourceType.trim() } : {}),
+      ...(input.resourceId?.trim() ? { resourceId: input.resourceId.trim() } : {}),
       ...(Object.keys(createdAtFilter).length ? { createdAt: createdAtFilter } : {}),
       ...(input.cursor ? { id: { lt: input.cursor } } : {}),
     },

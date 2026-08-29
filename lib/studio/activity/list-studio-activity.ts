@@ -27,6 +27,7 @@ export type StudioActivityFilters = {
   action?: string;
   actorType?: PlatformAuditActorType;
   resourceType?: string;
+  resourceId?: string;
   since?: string;
   until?: string;
   cursor?: string;
@@ -99,6 +100,7 @@ export async function listStudioAuditActivity(input: {
     action: input.filters.action,
     actorType: input.filters.actorType,
     resourceType: input.filters.resourceType,
+    resourceId: input.filters.resourceId,
     since: parseDate(input.filters.since),
     until: parseDate(input.filters.until),
     cursor: input.filters.cursor,

@@ -183,6 +183,31 @@ export function canCreateMirotechCaseStudy(
   return permissions.includes("mirotech.project.write");
 }
 
+export function canWriteBrightlineProject(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (legacyAdmin) return true;
+  return permissions.includes("brightline.project.write");
+}
+
+export function canWriteMirotechProject(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (legacyAdmin) return true;
+  return permissions.includes("mirotech.project.write");
+}
+
+export function canWriteStudioProject(
+  tenant: TenantSlug,
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (tenant === "brightline") return canWriteBrightlineProject(permissions, legacyAdmin);
+  return canWriteMirotechProject(permissions, legacyAdmin);
+}
+
 export function allowedProjectTenants(
   permissions: PlatformPermission[],
   legacyAdmin: boolean,

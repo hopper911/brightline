@@ -1,5 +1,7 @@
+/** @vitest-environment jsdom */
 import { describe, expect, it } from "vitest";
-import { replaceTemplateVariables, htmlToPlainText, escapeHtml, sanitizeHtmlForClientPreview } from "@/lib/contracts/render";
+import { replaceTemplateVariables, htmlToPlainText, escapeHtml } from "@/lib/contracts/render";
+import { sanitizeHtmlForClientPreview } from "@/lib/contracts/sanitize-html";
 import { sanitizePathSegment } from "@/lib/contracts/r2-keys";
 import { parseFieldValue } from "@/lib/forms/validate";
 import { FormFieldType } from "@prisma/client";

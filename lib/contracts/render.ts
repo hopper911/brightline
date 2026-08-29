@@ -1,5 +1,3 @@
-import DOMPurify from "isomorphic-dompurify";
-
 /**
  * Escape text for safe inclusion in HTML (attribute or text nodes when building strings).
  */
@@ -21,18 +19,6 @@ export function replaceTemplateVariables(html: string, variables: Record<string,
     if (val === undefined) return `{{${key}}}`;
     return escapeHtml(val);
   });
-}
-
-/**
- * Sanitize operator-authored HTML for client-facing contract/document preview.
- */
-export function sanitizeHtmlForClientPreview(html: string): string {
-  const cleaned = DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form"],
-  });
-  // Block SVG data URIs (XSS vector) while allowing raster data:image/* if present.
-  return cleaned.replace(/data:image\/svg\+xml[^"'\s>]*/gi, "about:blank");
 }
 
 /** Very small HTML → plain text for PDF body (blocks + breaks). */

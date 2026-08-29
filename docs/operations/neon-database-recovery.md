@@ -152,6 +152,7 @@ Same as B — PITR branch or instant restore within plan window. **Do not** `pri
 | 2026-08-28 | `npm run deploy:check:env` | DB URLs set; **66 migrations; in sync**; branch `architecture/platform-foundation` |
 | 2026-08-28 | `GET https://brightlinephotography.com/api/platform/health` | **404** — platform routes not on current production deployment (pre–`platform-foundation` promote) |
 | 2026-08-28 | Neon MCP in Cursor | **Not authenticated** — project-specific audit deferred to console worksheet |
+| 2026-08-29 | Phase 18 recovery validation | Safe checks + `neonctl`: Brightline project `sparkling-shadow-45459849`, PITR **6h**, branches listed; no production rollback or restore |
 
 ---
 

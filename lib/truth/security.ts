@@ -59,7 +59,7 @@ export const SECURITY_MUST_USE = Object.freeze({
   trustedImageToDataUrl: "@/lib/safe-fetch-image",
   fetchPublicUrlBytes: "@/lib/safe-fetch-url",
   normalizeUploadContentType: "@/lib/upload-mime",
-  sanitizeHtmlForClientPreview: "@/lib/contracts/render",
+  sanitizeHtmlForClientPreview: "@/lib/contracts/sanitize-html",
 } as const);
 
 export function pathRequiresCsrf(pathname: string): boolean {

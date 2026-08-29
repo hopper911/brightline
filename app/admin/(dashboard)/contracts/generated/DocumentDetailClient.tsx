@@ -4,7 +4,7 @@ import { GeneratedDocumentStatus } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { sanitizeHtmlForClientPreview } from "@/lib/contracts/render";
+import { sanitizeHtmlForClientPreview } from "@/lib/contracts/sanitize-html";
 
 type Doc = {
   id: string;

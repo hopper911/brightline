@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { sanitizeHtmlForClientPreview } from "@/lib/contracts/render";
+import { sanitizeHtmlForClientPreview } from "@/lib/contracts/sanitize-html";
 
 type LoadState =
   | { status: "loading" }

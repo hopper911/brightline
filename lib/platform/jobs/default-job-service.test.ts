@@ -8,7 +8,12 @@ vi.mock("@/lib/platform/audit/record-safely", () => ({
 
 import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
-import { createMemoryJobService } from "@/lib/platform/jobs/default-job-service";
+import {
+  createMemoryJobService,
+  DefaultJobService,
+} from "@/lib/platform/jobs/default-job-service";
+import { JobHandlerRegistry } from "@/lib/platform/jobs/job-handler-registry";
+import { MemoryJobProvider } from "@/lib/platform/jobs/memory-job-provider";
 import {
   JobForbiddenError,
   JobInvalidStateError,
@@ -113,5 +118,21 @@ describe("DefaultJobService", () => {
 
     expect(second.reused).toBe(true);
     expect(second.jobId).toBe(first.jobId);
+  });
+
+  it("marks job FAILED when health handler is replaced with a failing handler", async () => {
+    const registry = new JobHandlerRegistry();
+    registry.register(PLATFORM_HEALTH_TEST_JOB, async () => {
+      throw new Error("health probe failed");
+    });
+    const service = new DefaultJobService(new MemoryJobProvider(), registry);
+    const context = createPlatformContextForTenant("brightline");
+
+    const { jobId } = await service.enqueue(context, { type: PLATFORM_HEALTH_TEST_JOB });
+    const record = await service.runJob(context, jobId);
+
+    expect(record.status).toBe("FAILED");
+    expect(record.errorSummary).toContain("health probe failed");
+    expect(record.failedAt).toBeTruthy();
   });
 });

@@ -3,7 +3,6 @@ import { revalidatePath } from "next/cache";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { revalidatePublicChrome } from "@/lib/revalidate-public-chrome";
 import { getBlogPosts, saveBlogPosts } from "@/lib/blog-posts";
-import { resolveBlogPostsMirotechSync } from "@/lib/platform/publishing/integrations/blog-mirotech-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,6 +58,9 @@ export async function PATCH(req: Request) {
 
     if (!skipMirotechSync) {
       try {
+        const { resolveBlogPostsMirotechSync } = await import(
+          "@/lib/platform/publishing/integrations/blog-mirotech-sync"
+        );
         const synced = await resolveBlogPostsMirotechSync(posts);
         mirotechSync = synced.results.map((r) => {
           if ("accepted" in r && r.accepted) {

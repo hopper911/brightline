@@ -15,7 +15,7 @@ import {
   finalizeProjectPublishSuccess,
 } from "@/lib/platform/projects/finalize-project-publish";
 import { loadProjectWorkflowSnapshot } from "@/lib/platform/projects/workflow-snapshot";
-import { defaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
+import { getDefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { isPublishingError } from "@/lib/platform/publishing/errors";
 import { brightlineWorkProjectPublicPath } from "@/lib/platform/content/integrations/map-brightline-content";
@@ -48,10 +48,11 @@ async function resolveBrightlinePublicPath(projectId: string): Promise<string | 
  * Worker handler — Brightline work project publish (Phase 22E).
  */
 export function createPublishingBrightlineWorkProjectHandler(
-  publishingService: DefaultPublishingService = defaultPublishingService,
+  publishingService?: DefaultPublishingService,
   provider?: JobProvider
 ): JobHandler {
   return async (context: PlatformContext, job: JobRecord) => {
+    const service = publishingService ?? getDefaultPublishingService();
     const parsed = parsePublishingBrightlineWorkProjectPayload(job.payload);
     const resource = { type: parsed.source.type, id: parsed.source.id };
 
@@ -70,7 +71,7 @@ export function createPublishingBrightlineWorkProjectHandler(
 
     let result: PublishingJobResult;
     try {
-      const publishResult = await publishingService.publish(context, {
+      const publishResult = await service.publish(context, {
         source: parsed.source,
         target: parsed.target,
         operation: parsed.operation,

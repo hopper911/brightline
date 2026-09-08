@@ -6,11 +6,15 @@ vi.mock("@/lib/platform/audit/record-safely", () => ({
   recordAuditSafely: vi.fn().mockResolvedValue({ ok: true, skipped: true }),
 }));
 
-vi.mock("@/lib/platform/publishing/default-publishing-service", () => ({
-  defaultPublishingService: {
+vi.mock("@/lib/platform/publishing/default-publishing-service", () => {
+  const defaultPublishingService = {
     publish: vi.fn(),
-  },
-}));
+  };
+  return {
+    defaultPublishingService,
+    getDefaultPublishingService: () => defaultPublishingService,
+  };
+});
 
 import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
 import { createPublishingMirotechJournalSyncHandler } from "@/lib/platform/jobs/handlers/publishing-mirotech-journal-sync";

@@ -13,7 +13,7 @@ import type { JobRecord } from "@/lib/platform/jobs/types";
 import { finalizeProjectPublishFailure, finalizeProjectPublishSuccess } from "@/lib/platform/projects/finalize-project-publish";
 import { loadProjectWorkflowSnapshot } from "@/lib/platform/projects/workflow-snapshot";
 import { mirotechCaseStudyPublicPath } from "@/lib/platform/content/integrations/map-mirotech-content";
-import { defaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
+import { getDefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { isPublishingError } from "@/lib/platform/publishing/errors";
 
@@ -33,10 +33,11 @@ async function storePublishingJobResult(
  * Uses hubPatch from job payload; idempotent via contentVersion hash.
  */
 export function createPublishingMirotechHubPatchHandler(
-  publishingService: DefaultPublishingService = defaultPublishingService,
+  publishingService?: DefaultPublishingService,
   provider?: JobProvider
 ): JobHandler {
   return async (context: PlatformContext, job: JobRecord) => {
+    const service = publishingService ?? getDefaultPublishingService();
     const parsed = parsePublishingMirotechHubPatchPayload(job.payload);
     const resource = { type: parsed.source.type, id: parsed.source.id };
 
@@ -55,7 +56,7 @@ export function createPublishingMirotechHubPatchHandler(
 
     let result: PublishingJobResult;
     try {
-      const publishResult = await publishingService.publish(context, {
+      const publishResult = await service.publish(context, {
         source: parsed.source,
         target: parsed.target,
         operation: parsed.operation,

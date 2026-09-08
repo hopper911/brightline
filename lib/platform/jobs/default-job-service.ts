@@ -213,7 +213,21 @@ export class DefaultJobService implements JobService {
   }
 }
 
-export const defaultJobService = new DefaultJobService();
+let defaultJobServiceInstance: DefaultJobService | undefined;
+
+/** Safe across circular imports — function exports are initialized before module evaluation. */
+export function getDefaultJobService(): DefaultJobService {
+  defaultJobServiceInstance ??= new DefaultJobService();
+  return defaultJobServiceInstance;
+}
+
+export const defaultJobService: DefaultJobService = new Proxy({} as DefaultJobService, {
+  get(_target, prop, _receiver) {
+    const service = getDefaultJobService();
+    const value = Reflect.get(service, prop, service);
+    return typeof value === "function" ? value.bind(service) : value;
+  },
+});
 
 /** @internal Vitest helper — isolated in-memory job service. */
 export function createMemoryJobService(): DefaultJobService {

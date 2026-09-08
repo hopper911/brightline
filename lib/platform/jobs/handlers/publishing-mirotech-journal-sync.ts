@@ -9,7 +9,7 @@ import {
   type PublishingJobResult,
 } from "@/lib/platform/jobs/publishing-payload";
 import type { JobRecord } from "@/lib/platform/jobs/types";
-import { defaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
+import { getDefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 import { isPublishingError } from "@/lib/platform/publishing/errors";
 
@@ -20,10 +20,11 @@ import { PublishingJobExecutionError } from "@/lib/platform/jobs/handlers/publis
  * Mirotech journal ingest upserts by brightlinePostId; safe for at-least-once execution.
  */
 export function createPublishingMirotechJournalSyncHandler(
-  publishingService: DefaultPublishingService = defaultPublishingService,
+  publishingService?: DefaultPublishingService,
   provider?: JobProvider
 ): JobHandler {
   return async (context: PlatformContext, job: JobRecord) => {
+    const service = publishingService ?? getDefaultPublishingService();
     const parsed = parsePublishingMirotechJournalSyncPayload(job.payload);
     const resource = { type: parsed.source.type, id: parsed.source.id };
 
@@ -42,7 +43,7 @@ export function createPublishingMirotechJournalSyncHandler(
 
     let result: PublishingJobResult;
     try {
-      const publishResult = await publishingService.publish(context, {
+      const publishResult = await service.publish(context, {
         source: parsed.source,
         target: parsed.target,
         operation: parsed.operation,

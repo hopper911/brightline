@@ -10,7 +10,6 @@ import {
 import type { PublishingService } from "@/lib/platform/publishing/publishing-service";
 import type { PublishRequest, PublishResult } from "@/lib/platform/publishing/types";
 import { assertValidPublishRequest } from "@/lib/platform/publishing/types";
-import { assertProjectPublishAllowed } from "@/lib/platform/projects/publish-gate";
 
 /**
  * Default PublishingService — routes to target adapters (Phase 6B).
@@ -19,6 +18,9 @@ import { assertProjectPublishAllowed } from "@/lib/platform/projects/publish-gat
  * has already verified operator identity. This service does NOT call authorizeAdminRequest.
  *
  * Legacy blog sync routes use `blog-mirotech-sync` integration (journal-ingest under the hood).
+ *
+ * Publish-gate is loaded lazily so this module can initialize without the
+ * workflow → jobs → publishing cycle (webpack TDZ during Next page collect).
  */
 export class DefaultPublishingService implements PublishingService {
   constructor(
@@ -31,6 +33,7 @@ export class DefaultPublishingService implements PublishingService {
       valid.source.type === "dual-brand-work" &&
       String(valid.hubPatch?.status ?? "").toUpperCase() === "PUBLISHED"
     ) {
+      const { assertProjectPublishAllowed } = await import("@/lib/platform/projects/publish-gate");
       await assertProjectPublishAllowed({
         tenant: "mirotech",
         type: "mirotech-case-study",
@@ -42,6 +45,7 @@ export class DefaultPublishingService implements PublishingService {
       valid.source.tenant === "brightline" &&
       valid.operation === "publish"
     ) {
+      const { assertProjectPublishAllowed } = await import("@/lib/platform/projects/publish-gate");
       await assertProjectPublishAllowed(valid.source);
     }
     const provider = this.providerFor(valid);
@@ -59,4 +63,14 @@ export class DefaultPublishingService implements PublishingService {
   }
 }
 
-export const defaultPublishingService = new DefaultPublishingService();
+let defaultPublishingServiceInstance: DefaultPublishingService | undefined;
+
+/** Safe across circular imports — function exports are initialized before module evaluation. */
+export function getDefaultPublishingService(): DefaultPublishingService {
+  defaultPublishingServiceInstance ??= new DefaultPublishingService();
+  return defaultPublishingServiceInstance;
+}
+
+export const defaultPublishingService: DefaultPublishingService = {
+  publish: (context, request) => getDefaultPublishingService().publish(context, request),
+} as DefaultPublishingService;

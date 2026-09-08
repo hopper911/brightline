@@ -34,6 +34,9 @@ vi.mock("@/lib/platform/publishing/default-publishing-service", () => ({
   defaultPublishingService: {
     publish: (...args: unknown[]) => mockPublish(...args),
   },
+  getDefaultPublishingService: () => ({
+    publish: (...args: unknown[]) => mockPublish(...args),
+  }),
 }));
 
 vi.mock("@/lib/platform/publishing/is-async-publishing-jobs", () => ({

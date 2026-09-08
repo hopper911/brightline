@@ -32,4 +32,5 @@ export {
 export {
   DefaultPublishingService,
   defaultPublishingService,
+  getDefaultPublishingService,
 } from "@/lib/platform/publishing/default-publishing-service";

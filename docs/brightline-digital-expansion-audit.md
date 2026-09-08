@@ -23,7 +23,7 @@
 | framer-motion | 11.11.17 |
 | @aws-sdk/client-s3 | R2 uploads |
 
-**Engines:** `node: "20.x"`  
+**Engines:** `node: "24.x"` (Vercel requires 24.x before 2026-10-01)  
 **Deploy:** Vercel (`vercel.json`, `scripts/deploy-prod.sh`)  
 **Scripts:** `lint` (eslint), `test` (vitest run), `build` (`prisma generate && next build --webpack`). **No dedicated `typecheck` script.**
 

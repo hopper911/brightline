@@ -46,7 +46,7 @@ Mirotech follows the same pattern on its own Vercel project and GitHub repo/bran
 | --- | --- |
 | Config file | `vercel.json` — crons, redirects |
 | Build | `npm run build` (`prisma generate && next build --webpack`) |
-| Node | 20.x (`package.json` engines) |
+| Node | 24.x (`package.json` engines) |
 | Crons | `/api/cron/followups` (14:00 UTC), `/api/cron/platform-jobs` (15:30 UTC) |
 | Production domain | `brightlinephotography.com` |
 

@@ -13,7 +13,7 @@ This document describes **what exists today**. It is observational only — not 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  brightlinephotography.com (Vercel Hobby, Node 20)              │
+│  brightlinephotography.com (Vercel Hobby, Node 24)              │
 │  Next.js 16 App Router · TypeScript · Tailwind 4                │
 ├─────────────────────────────────────────────────────────────────┤
 │  Public marketing · Work · Galleries · Journal · Client delivery│

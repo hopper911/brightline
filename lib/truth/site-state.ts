@@ -14,7 +14,7 @@ export const SITE_STATE = Object.freeze({
   productionOrigin: "https://brightlinephotography.com",
   stack: Object.freeze({
     framework: "Next.js App Router",
-    runtime: "Node 20 / Vercel",
+    runtime: "Node 24 / Vercel",
     data: "Prisma + Neon Postgres",
     media: "Cloudflare R2",
     edgeGate: "proxy.ts (CSP nonce + admin/studio/accountant CSRF + admin session)",

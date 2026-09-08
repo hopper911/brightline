@@ -14,7 +14,7 @@ This runbook documents **restore and recovery** procedures. It does not invent i
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ Vercel Hobby — brightlinephotography.com                                │
-│ Next.js 16 App Router · Node 20 · ~272 API routes                       │
+│ Next.js 16 App Router · Node 24 · ~272 API routes                       │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ Public site · /admin · /studio · /accountant · /client                  │
 │ proxy.ts — CSP, admin CSRF, route gates                                 │

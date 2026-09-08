@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { ACCOUNTANT_SESSION_COOKIE } from "@/lib/accountant/constants";
-import { verifyAccountantSessionToken } from "@/lib/accountant/jwt";
+import { ACCOUNTANT_SESSION_COOKIE, verifyAccountantSessionToken } from "@/lib/accountant-cookie";
 import { adminCookieIndicatesAccess } from "@/lib/admin-cookie";
 import { rejectCrossSiteMutation } from "@/lib/admin-request-origin";
 import { buildContentSecurityPolicy, createCspNonce } from "@/lib/csp";

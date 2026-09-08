@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getPublicR2Url } from "@/lib/r2";
 import { putObjectBuffer } from "@/lib/storage-r2";
+import { isAllowedImageOrVideoUpload } from "@/lib/upload-mime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,8 +36,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "File is too large." }, { status: 400 });
   }
 
-  const contentType = file.type || "application/octet-stream";
-  if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
+  const contentType = isAllowedImageOrVideoUpload(file.type);
+  if (!contentType) {
     return NextResponse.json({ ok: false, error: "Only image and video uploads are supported." }, { status: 400 });
   }
 

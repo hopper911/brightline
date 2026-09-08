@@ -69,14 +69,23 @@ Gated by `PLATFORM_IDENTITY_ENABLED` (default off).
 
 No AI agent runtime in 8B — scopes are typed and tested only.
 
-### No enforcement cutover
+### Destructive-route enforcement (identity on)
 
-**Existing checks are NOT replaced.** One controlled dual-auth test:
+Existing checks are **not replaced**. When `PLATFORM_IDENTITY_ENABLED` is on, destructive Mission Control mutations also call `rejectUnlessPlatformPermission` after `authorizeAdminRequest`:
 
-1. `authorizeAdminRequest` (legacy) — required
-2. `requirePermission(..., platform.identity.read)` (platform) — when identity flag on
+| Permission | Routes |
+| --- | --- |
+| `platform.media.write` | `POST /api/admin/r2/delete`, `POST /api/admin/r2/compact-selected` |
+| `brightline.gallery.write` | `DELETE /api/admin/galleries/[id]`, `DELETE /api/admin/clients/[id]` (revokes gallery tokens) |
+| `brightline.project.write` | `DELETE /api/admin/work-projects/[id]` |
+| `platform.identity.manage` | `POST /api/admin/seed` (admin cookie path; bearer `SEED_TOKEN` skipped) |
 
-Routes: `GET /api/admin/platform/identity/me`, `GET /api/admin/platform/authorization/me`.
+Probe routes remain:
+
+- `GET /api/admin/platform/identity/me`
+- `GET /api/admin/platform/authorization/me`
+
+Unlinked admin cookies still resolve as `legacy_admin` (synthetic OWNER). Linked PlatformUsers with lesser roles are denied.
 
 Accountant bootstrap linking from prior 8B slice remains in `link-legacy.ts`.
 
@@ -90,8 +99,8 @@ Accountant bootstrap linking from prior 8B slice remains in `link-legacy.ts`.
 
 **Negative**
 
-- Two systems until cutover — developers must not assume platform RBAC replaces cookies
-- Admin shared-code sessions use `legacy_admin` synthetic grant only on probe routes
+- Two systems until full cutover — developers must not assume platform RBAC replaces cookies
+- Unlinked admin cookies still map to `legacy_admin` synthetic OWNER on probes and destructive routes
 
 ## Rollback
 

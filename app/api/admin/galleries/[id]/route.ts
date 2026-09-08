@@ -3,6 +3,7 @@ import type { GalleryStatus, GalleryType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { getAdminGalleryDetail } from "@/lib/admin-gallery-detail";
+import { rejectUnlessPlatformPermission } from "@/lib/platform/authorization/require-route-permission";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -150,6 +151,8 @@ export async function DELETE(
   if (!isAdmin) {
     return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
   }
+  const rbacDenied = await rejectUnlessPlatformPermission("brightline.gallery.write");
+  if (rbacDenied) return rbacDenied;
   const { id } = await context.params;
   await prisma.gallery.delete({ where: { id } });
   return NextResponse.json({ ok: true });

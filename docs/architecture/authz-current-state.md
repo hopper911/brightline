@@ -6,7 +6,7 @@
 
 ## Summary
 
-Authorization is **layered and legacy-first**. Platform RBAC (`lib/platform/authorization/`) sits beside existing guards and is gated by `PLATFORM_IDENTITY_ENABLED` (default off). No production route has replaced `authorizeAdminRequest` or accountant permission flags.
+Authorization is **layered and legacy-first**. Platform RBAC (`lib/platform/authorization/`) sits beside existing guards and is gated by `PLATFORM_IDENTITY_ENABLED` (default off). Destructive admin mutations also call `rejectUnlessPlatformPermission` when identity is on; `authorizeAdminRequest` remains required.
 
 ---
 
@@ -87,10 +87,11 @@ Authorization is **layered and legacy-first**. Platform RBAC (`lib/platform/auth
 | `lib/platform/authorization/agent-scopes.ts` | Future agent scope presets (no agents yet) |
 | `lib/platform/identity/` | PlatformUser, membership, legacy links |
 
-**Dual-auth probe routes (controlled test only):**
+**Dual-auth probe routes plus destructive mutations when identity is on:**
 
 - `GET /api/admin/platform/identity/me` — legacy admin cookie **+** `platform.identity.read`
 - `GET /api/admin/platform/authorization/me?tenant=brightline|mirotech` — effective permissions list
+- `rejectUnlessPlatformPermission` on R2 delete/compact, gallery/project DELETE, and cookie-path seed
 
 ---
 
@@ -99,4 +100,4 @@ Authorization is **layered and legacy-first**. Platform RBAC (`lib/platform/auth
 - `authorizeAdminRequest` — primary API guard
 - `requireAdmin` — **not used**
 - `isAdmin` — upload sign helper only
-- Platform `hasTenantRole` / `AuthorizationService` — opt-in probe routes only
+- Platform `AuthorizationService` — probe routes plus `rejectUnlessPlatformPermission` on destructive admin mutations when identity is on

@@ -18,6 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { FORBIDDEN_UPLOAD_CONTENT_TYPES } from "@/lib/truth/security";
 import {
   isAllowedImageOrVideoUpload,
+  isAllowedImageUpload,
   normalizeUploadContentType,
 } from "@/lib/upload-mime";
 import { isAcceptedVideoFile } from "@/lib/video-port/keys";
@@ -212,6 +213,9 @@ describe("authz — upload MIME (legacy + Image/Video Port)", () => {
     expect(isAllowedImageOrVideoUpload("image/webp")).toBe("image/webp");
     expect(isAllowedImageOrVideoUpload("video/mp4")).toBe("video/mp4");
     expect(isAllowedImageOrVideoUpload("application/pdf")).toBeNull();
+    expect(isAllowedImageUpload("image/svg+xml")).toBeNull();
+    expect(isAllowedImageUpload("video/mp4")).toBeNull();
+    expect(isAllowedImageUpload("image/jpeg")).toBe("image/jpeg");
   });
 
   it("Video Port rejects non-video uploads by MIME/extension", () => {

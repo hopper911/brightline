@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { hashAccessCode } from "@/lib/client-access";
+import { timingSafeUtf8Equal } from "@/lib/crypto-buffer";
+import { rejectUnlessPlatformPermission } from "@/lib/platform/authorization/require-route-permission";
 import { getPrimaryWorkSection, getWorkPillarList } from "@/lib/work-pillar-settings";
 
 export const runtime = "nodejs";
@@ -19,11 +21,15 @@ export async function POST(req: Request) {
   }
 
   const authHeader = req.headers.get("authorization");
-  const providedToken = authHeader?.replace("Bearer ", "").trim();
-  const bearerOk = providedToken === seedToken;
+  const providedToken = authHeader?.replace(/^Bearer\s+/i, "").trim() ?? "";
+  const bearerOk = Boolean(providedToken) && timingSafeUtf8Equal(providedToken, seedToken);
   const sessionOk = await authorizeAdminRequest(req);
   if (!sessionOk && !bearerOk) {
     return new Response(null, { status: 404 });
+  }
+  if (!bearerOk) {
+    const rbacDenied = await rejectUnlessPlatformPermission("platform.identity.manage");
+    if (rbacDenied) return rbacDenied;
   }
 
   const url = new URL(req.url);

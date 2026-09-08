@@ -10,6 +10,7 @@ import {
   invalidateReferencedR2KeyCache,
 } from "@/lib/admin-r2-manager";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
+import { rejectUnlessPlatformPermission } from "@/lib/platform/authorization/require-route-permission";
 import { deleteObjects } from "@/lib/storage-r2";
 import { normalizeR2VaultId } from "@/lib/r2-vaults";
 
@@ -22,6 +23,8 @@ export async function POST(req: Request) {
   }
   const originDenied = assertSameOriginAdminMutation(req);
   if (originDenied) return originDenied;
+  const rbacDenied = await rejectUnlessPlatformPermission("platform.media.write");
+  if (rbacDenied) return rbacDenied;
   if (await isRateLimitedAsync(getClientIp(req), { scope: "r2-delete", max: 60, windowMs: 60 * 60_000 })) {
     return NextResponse.json({ ok: false, error: "Too many delete requests." }, { status: 429 });
   }

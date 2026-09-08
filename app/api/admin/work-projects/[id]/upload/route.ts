@@ -5,6 +5,7 @@ import {
   type WorkProjectUploadSubfolder,
 } from "@/lib/admin/work-project-upload";
 import { putObjectBuffer } from "@/lib/storage-r2";
+import { isAllowedImageOrVideoUpload, isAllowedImageUpload } from "@/lib/upload-mime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,7 +64,7 @@ export async function POST(
     const resolved = await resolveWorkProjectUploadTarget({
       projectId,
       filename: file.name,
-      contentType: file.type || undefined,
+      contentType: isAllowedImageOrVideoUpload(file.type) || undefined,
       subfolder,
     });
 
@@ -72,22 +73,19 @@ export async function POST(
       return NextResponse.json({ ok: false, error: resolved.error }, { status });
     }
 
-    const contentType = resolved.contentType;
-
-    if (resolved.subfolder === "poster" && !contentType.startsWith("image/")) {
+    const contentType =
+      resolved.subfolder === "poster"
+        ? isAllowedImageUpload(resolved.contentType)
+        : isAllowedImageOrVideoUpload(resolved.contentType);
+    if (!contentType) {
       return NextResponse.json(
-        { ok: false, error: "Poster must be an image file." },
-        { status: 400 }
-      );
-    }
-
-    if (
-      resolved.subfolder !== "poster" &&
-      !contentType.startsWith("image/") &&
-      !contentType.startsWith("video/")
-    ) {
-      return NextResponse.json(
-        { ok: false, error: "Only image and video uploads are supported." },
+        {
+          ok: false,
+          error:
+            resolved.subfolder === "poster"
+              ? "Poster must be an image file."
+              : "Only image and video uploads are supported.",
+        },
         { status: 400 }
       );
     }

@@ -4,6 +4,7 @@ import {
   canReadBrightlineStudioContent,
   canReadMirotechStudioContent,
   canReadStudioMedia,
+  canWriteStudioMedia,
   canViewStudioPublishing,
   allowedPublishingTenants,
   allowedAuditTenants,
@@ -21,6 +22,7 @@ describe("studio access", () => {
     expect(canReadBrightlineStudioContent([], true)).toBe(true);
     expect(canReadMirotechStudioContent([], true)).toBe(true);
     expect(canReadStudioMedia([], true)).toBe(true);
+    expect(canWriteStudioMedia([], true)).toBe(true);
   });
 
   it("requires tenant-scoped permissions for platform users", () => {
@@ -29,6 +31,8 @@ describe("studio access", () => {
     expect(canReadMirotechStudioContent(["mirotech.project.read"], false)).toBe(true);
     expect(canReadStudioMedia(["platform.media.read"], false)).toBe(true);
     expect(canReadStudioMedia(["brightline.journal.read"], false)).toBe(false);
+    expect(canWriteStudioMedia(["platform.media.write"], false)).toBe(true);
+    expect(canWriteStudioMedia(["platform.media.read"], false)).toBe(false);
   });
 
   it("enforces tenant route match", () => {

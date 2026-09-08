@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
+import { rejectUnlessPlatformPermission } from "@/lib/platform/authorization/require-route-permission";
 import {
   getPillarBySlug,
   getPrimaryWorkSection,
@@ -388,6 +389,8 @@ export async function DELETE(
     if (!isAdmin) {
       return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
     }
+    const rbacDenied = await rejectUnlessPlatformPermission("brightline.project.write");
+    if (rbacDenied) return rbacDenied;
     const { id } = await context.params;
 
     const existing = await prisma.workProject.findUnique({ where: { id } });

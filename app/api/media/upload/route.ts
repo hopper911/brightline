@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireProjectsApiAuth } from "@/lib/api/automation-auth";
 import { getPublicR2Url } from "@/lib/r2";
+import { isAllowedImageUpload } from "@/lib/upload-mime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,8 +86,8 @@ export async function POST(req: Request) {
   const idPart = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const keyFull = `studio/${idPart}/${safe}`;
 
-  const contentType = file.type || "image/jpeg";
-  if (!contentType.startsWith("image/")) {
+  const contentType = isAllowedImageUpload(file.type);
+  if (!contentType) {
     return NextResponse.json({ ok: false, error: "Only image uploads are supported." }, { status: 400 });
   }
 
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
     access: "public-read",
   });
 
-  const thumbBuf = await sharp(buf)
+  const thumbBuf = await sharp(buf, { failOn: "none" })
     .rotate()
     .resize({ width: 800, withoutEnlargement: true })
     .jpeg({ quality: 85 })

@@ -1,8 +1,7 @@
-import { createHash } from "node:crypto";
-import { timingSafeEqual } from "@/lib/crypto-buffer";
 import { NextResponse } from "next/server";
 import { ADMIN_ACCESS_COOKIE } from "@/lib/admin-cookie";
 import { ADMIN_SESSION_MAX_AGE_SEC, createAdminSessionToken } from "@/lib/admin-session";
+import { timingSafeUtf8Equal } from "@/lib/crypto-buffer";
 import { ensureAdminPlatformUser } from "@/lib/platform/identity/link-legacy";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { resolveAdminAccessCode } from "@/lib/resolve-admin-access-code";
@@ -29,9 +28,7 @@ function cookieSecure(req: Request): boolean {
 
 /** Constant-time compare via SHA-256 digests (avoids length oracle on raw strings). */
 function timingSafeMatch(provided: string, expected: string): boolean {
-  const a = createHash("sha256").update(provided, "utf8").digest();
-  const b = createHash("sha256").update(expected, "utf8").digest();
-  return timingSafeEqual(a, b);
+  return timingSafeUtf8Equal(provided, expected);
 }
 
 export async function POST(req: Request) {

@@ -2,6 +2,7 @@ import type { NextResponse } from "next/server";
 import { authorizeAdminRequest } from "@/lib/admin-auth";
 import { requireProjectsApiAuth } from "@/lib/api/automation-auth";
 import { jsonErr } from "@/lib/api/http";
+import { timingSafeUtf8Equal } from "@/lib/crypto-buffer";
 
 /** Admin cookie session; returns an error response or null when OK. */
 export async function guardAdminJson(req: Request): Promise<NextResponse | null> {
@@ -30,7 +31,9 @@ export function guardCronBearer(req: Request): NextResponse | null {
   if (!secret) {
     return jsonErr("Unauthorized.", 401);
   }
-  if (req.headers.get("authorization") !== `Bearer ${secret}`) {
+  const auth = req.headers.get("authorization") || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length).trim() : "";
+  if (!token || !timingSafeUtf8Equal(token, secret)) {
     return jsonErr("Unauthorized.", 401);
   }
   return null;

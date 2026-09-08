@@ -35,7 +35,7 @@ async function cropAndStore(options: {
   entityId: string;
   label: string;
 }): Promise<string> {
-  const out = await sharp(options.bytes)
+  const out = await sharp(options.bytes, { failOn: "none" })
     .rotate()
     .resize(options.width, options.height, {
       fit: "cover",

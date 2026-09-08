@@ -1,5 +1,6 @@
 import { jsonErr, jsonOk } from "@/lib/api/http";
 import { parseJsonWithSchema } from "@/lib/api/parse";
+import { rejectCrossSiteMutation } from "@/lib/admin-request-origin";
 import { contactSchema } from "@/lib/contact/schema";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
 import { createInquiry, notifyInquiry } from "@/lib/services/contact";
@@ -8,10 +9,8 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const fetchSite = (req.headers.get("sec-fetch-site") || "").toLowerCase();
-    if (fetchSite === "cross-site") {
-      return jsonErr("Forbidden origin.", 403);
-    }
+    const csrf = rejectCrossSiteMutation(req);
+    if (csrf) return csrf;
 
     if (
       await isRateLimitedAsync(getClientIp(req), {

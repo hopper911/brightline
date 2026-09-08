@@ -31,6 +31,14 @@ export function canReadStudioMedia(
   return permissions.includes("platform.media.read");
 }
 
+export function canWriteStudioMedia(
+  permissions: PlatformPermission[],
+  legacyAdmin: boolean
+): boolean {
+  if (legacyAdmin) return true;
+  return permissions.includes("platform.media.write");
+}
+
 export function canViewStudioPublishing(
   permissions: PlatformPermission[],
   legacyAdmin: boolean

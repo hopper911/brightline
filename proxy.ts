@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { ACCOUNTANT_SESSION_COOKIE } from "@/lib/accountant/constants";
+import { verifyAccountantSessionToken } from "@/lib/accountant/jwt";
 import { adminCookieIndicatesAccess } from "@/lib/admin-cookie";
 import { rejectCrossSiteMutation } from "@/lib/admin-request-origin";
 import { buildContentSecurityPolicy, createCspNonce } from "@/lib/csp";
@@ -18,7 +20,11 @@ function withCsp(
   return response;
 }
 
-export function proxy(request: NextRequest) {
+function isClientApiPath(pathname: string): boolean {
+  return pathname === "/api/client" || pathname.startsWith("/api/client/");
+}
+
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const nonce = createCspNonce();
   const csp = buildContentSecurityPolicy(nonce, "brightline");
@@ -27,8 +33,8 @@ export function proxy(request: NextRequest) {
   // Next.js reads CSP from the *request* to stamp framework scripts with the nonce.
   requestHeaders.set("Content-Security-Policy", csp);
 
-  // Permanent CSRF baseline (lib/truth/security) — admin / studio / accountant / ai.
-  if (pathRequiresCsrf(pathname)) {
+  // Permanent CSRF baseline (lib/truth/security) plus client-gallery mutations.
+  if (pathRequiresCsrf(pathname) || isClientApiPath(pathname)) {
     const csrf = rejectCrossSiteMutation(request, {
       requestOrigin: request.nextUrl.origin,
     });
@@ -41,6 +47,29 @@ export function proxy(request: NextRequest) {
   // Accountant + AI APIs: CSRF above; auth is enforced per-route.
   if (pathname.startsWith("/api/accountant") || pathname.startsWith("/api/ai")) {
     const res = NextResponse.next({ request: { headers: requestHeaders } });
+    return withCsp(request, res, nonce, csp);
+  }
+
+  // Accountant pages: require admin session or accountant JWT (not just layout redirect).
+  if (pathname.startsWith("/accountant")) {
+    if (pathname.startsWith("/accountant/login")) {
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
+      return withCsp(request, res, nonce, csp);
+    }
+    const adminAccess = adminCookieIndicatesAccess(
+      request.cookies.get("admin_access")?.value
+    );
+    const accountantId = await verifyAccountantSessionToken(
+      request.cookies.get(ACCOUNTANT_SESSION_COOKIE)?.value
+    );
+    if (adminAccess || accountantId) {
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
+      return withCsp(request, res, nonce, csp);
+    }
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/accountant/login";
+    loginUrl.search = "";
+    const res = NextResponse.redirect(loginUrl);
     return withCsp(request, res, nonce, csp);
   }
 

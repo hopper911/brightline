@@ -4,6 +4,7 @@ import { rejectCrossSiteMutation } from "@/lib/admin-request-origin";
 import { compactExistingKey } from "@/lib/admin-r2-compact";
 import { assertR2ManagerKeyAllowed, detectR2Kind } from "@/lib/admin-r2-manager";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
+import { rejectUnlessPlatformPermission } from "@/lib/platform/authorization/require-route-permission";
 import { normalizeR2VaultId } from "@/lib/r2-vaults";
 
 export const runtime = "nodejs";
@@ -16,6 +17,8 @@ export async function POST(req: Request) {
   }
   const csrf = rejectCrossSiteMutation(req);
   if (csrf) return csrf;
+  const rbacDenied = await rejectUnlessPlatformPermission("platform.media.write");
+  if (rbacDenied) return rbacDenied;
   if (
     await isRateLimitedAsync(getClientIp(req), {
       scope: "r2-compact-selected",

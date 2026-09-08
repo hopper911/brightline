@@ -23,3 +23,10 @@ export function isAllowedImageOrVideoUpload(raw: unknown): string | null {
   if (ct.startsWith("image/") || ct.startsWith("video/")) return ct;
   return null;
 }
+
+/** Raster/photo uploads only — never SVG/HTML even if the client sends `image/*`. */
+export function isAllowedImageUpload(raw: unknown): string | null {
+  const ct = normalizeUploadContentType(raw);
+  if (!ct?.startsWith("image/")) return null;
+  return ct;
+}

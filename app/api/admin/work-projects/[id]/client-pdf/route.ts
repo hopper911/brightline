@@ -18,7 +18,7 @@ async function imageBufferForPdf(key: string | null | undefined) {
   if (/^(https?:|data:|blob:|\/)/i.test(key)) return null;
   try {
     const source = await getObjectBuffer(key);
-    return await sharp(source).rotate().jpeg({ quality: 82 }).toBuffer();
+    return await sharp(source, { failOn: "none" }).rotate().jpeg({ quality: 82 }).toBuffer();
   } catch (err) {
     console.warn("CLIENT_PDF_IMAGE_SKIP", key, err);
     return null;

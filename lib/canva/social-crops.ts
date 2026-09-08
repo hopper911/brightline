@@ -18,7 +18,7 @@ export async function cropSocialFromSource(options: {
   slug: string;
 }): Promise<string> {
   const dims = CANVA_DESIGN_SIZES[options.size];
-  const out = await sharp(options.sourceBytes)
+  const out = await sharp(options.sourceBytes, { failOn: "none" })
     .rotate()
     .resize(dims.width, dims.height, {
       fit: "cover",

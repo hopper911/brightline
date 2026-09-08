@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isAllowedPublicMediaKey } from "@/lib/media-key-access";
 import { publicMediaKeyFallbacks } from "@/lib/media-key-fallback";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
-import { extractPublicMediaKey } from "@/lib/r2";
+import { extractPublicMediaKey } from "@/lib/r2-key";
 import { headPublicR2Object, signPublicR2Get } from "@/lib/storage-r2-public";
 
 export const runtime = "nodejs";

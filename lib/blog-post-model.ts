@@ -7,7 +7,7 @@ import {
   migrateLegacyGalleryBlocks,
   type GalleryBlock,
 } from "@/lib/gallery-blocks";
-import { isTrustedR2Host } from "@/lib/r2";
+import { isTrustedR2Host } from "@/lib/r2-key";
 import { cleanStoryChapters, type StoryChapter } from "@/lib/story-chapters";
 
 export type BlogPostStatus = "DRAFT" | "PUBLISHED";

@@ -32,7 +32,7 @@ function encodeR2Key(key: string) {
 function getR2Config() {
   mergeParentDotenvIntoProcess();
   const endpoint = normalizeCredential(process.env.R2_ENDPOINT).replace(/\/$/, "");
-  const region = process.env.R2_REGION || "auto";
+  const region = normalizeCredential(process.env.R2_REGION) || "auto";
   const accessKeyId = normalizeCredential(process.env.R2_ACCESS_KEY_ID);
   const secretAccessKey = normalizeCredential(process.env.R2_SECRET_ACCESS_KEY);
   const bucket = normalizeCredential(process.env.R2_BUCKET).replace(/\/$/, "");
@@ -106,4 +106,24 @@ export async function listPublicR2Objects({
   return [...body.matchAll(/<Key>([\s\S]*?)<\/Key>/g)].map((match) =>
     decodeXmlEntity(match[1] ?? "")
   );
+}
+
+/** True when the object exists. Fail-open (true) on unexpected errors so we still sign the original key. */
+export async function headPublicR2Object(key: string): Promise<boolean> {
+  try {
+    const { endpoint, region, accessKeyId, secretAccessKey, bucket } = getR2Config();
+    const url = new URL(`${endpoint}/${bucket}/${encodeR2Key(key)}`);
+    const client = new AwsClient({
+      accessKeyId,
+      secretAccessKey,
+      service: "s3",
+      region,
+    });
+    const signed = await client.sign(url.toString(), { method: "HEAD" });
+    const response = await fetch(signed);
+    if (response.status === 404 || response.status === 403) return false;
+    return response.ok;
+  } catch {
+    return true;
+  }
 }

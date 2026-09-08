@@ -1,10 +1,55 @@
 import { NextResponse } from "next/server";
 import { isAllowedPublicMediaKey } from "@/lib/media-key-access";
+import { publicMediaKeyFallbacks } from "@/lib/media-key-fallback";
 import { getClientIp, isRateLimitedAsync } from "@/lib/permissions/rate-limit";
-import { signPublicR2Get } from "@/lib/storage-r2-public";
+import { extractPublicMediaKey } from "@/lib/r2";
+import { headPublicR2Object, signPublicR2Get } from "@/lib/storage-r2-public";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const FALLBACK_TTL_MS = 10 * 60 * 1000;
+const resolvedKeyCache = new Map<string, { key: string; exp: number }>();
+
+function normalizeRequestedKey(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")) {
+    return extractPublicMediaKey(trimmed)?.replace(/^\/+/, "") || "";
+  }
+  const extracted = extractPublicMediaKey(trimmed);
+  if (extracted && !/^https?:\/\//i.test(extracted)) return extracted.replace(/^\/+/, "");
+  return trimmed.replace(/^\/+/, "");
+}
+
+async function resolveExistingPublicKey(key: string): Promise<string> {
+  const cached = resolvedKeyCache.get(key);
+  if (cached && cached.exp > Date.now()) return cached.key;
+
+  const fallbacks = publicMediaKeyFallbacks(key);
+  let resolved = key;
+  if (fallbacks.length > 0) {
+    const exists = await headPublicR2Object(key);
+    if (!exists) {
+      for (const alt of fallbacks) {
+        if (!isAllowedPublicMediaKey(alt)) continue;
+        if (await headPublicR2Object(alt)) {
+          resolved = alt;
+          break;
+        }
+      }
+    }
+  }
+
+  resolvedKeyCache.set(key, { key: resolved, exp: Date.now() + FALLBACK_TTL_MS });
+  if (resolvedKeyCache.size > 2000) {
+    const now = Date.now();
+    for (const [k, v] of resolvedKeyCache) {
+      if (v.exp <= now) resolvedKeyCache.delete(k);
+    }
+  }
+  return resolved;
+}
 
 export async function GET(req: Request) {
   const ip = getClientIp(req);
@@ -19,7 +64,7 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const key = url.searchParams.get("key")?.trim().replace(/^\/+/, "") || "";
+  const key = normalizeRequestedKey(url.searchParams.get("key") || "");
   if (!key || !isAllowedPublicMediaKey(key)) {
     return NextResponse.json({ ok: false, error: "Invalid media key." }, { status: 400 });
   }
@@ -29,10 +74,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "Invalid media key." }, { status: 400 });
   }
 
+  const resolvedKey = await resolveExistingPublicKey(key);
+
   let signed: { url: string };
   try {
     // Keep signature TTL well above any CDN/browser cache of this redirect.
-    signed = await signPublicR2Get({ key, expiresIn: 3600 });
+    signed = await signPublicR2Get({ key: resolvedKey, expiresIn: 3600 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Storage error";
     console.error("MEDIA_PUBLIC_SIGN_ERROR", msg);

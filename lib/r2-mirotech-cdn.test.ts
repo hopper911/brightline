@@ -25,4 +25,23 @@ describe("resolveStoredMediaUrl Mirotech CDN", () => {
   it("does not treat unrelated https URLs as Mirotech CDN", () => {
     expect(isMirotechSitePublicUrl("https://example.com/projects/x.webp")).toBe(false);
   });
+
+  it("unwraps nested r2.dev URLs stuffed into ?key=", () => {
+    const nested =
+      "/api/media/public?key=" +
+      encodeURIComponent(
+        "https://pub-e4f27d327e8c4c10ba1bf416083a4e72.r2.dev/portfolio/cam/web_full/cam-260324-01.webp"
+      );
+    expect(resolveStoredMediaUrl(nested)).toBe(
+      "/api/media/public?key=portfolio%2Fcam%2Fweb_full%2Fcam-260324-01.webp"
+    );
+  });
+
+  it("extracts object keys from public r2.dev URLs", () => {
+    expect(
+      resolveStoredMediaUrl(
+        "https://pub-e4f27d327e8c4c10ba1bf416083a4e72.r2.dev/portfolio/cam/web_full/cam-260324-01.webp"
+      )
+    ).toBe("/api/media/public?key=portfolio%2Fcam%2Fweb_full%2Fcam-260324-01.webp");
+  });
 });

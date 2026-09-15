@@ -441,6 +441,8 @@ export default function StudioHubEditor({ initial }: Props) {
   const [heroUploadBusy, setHeroUploadBusy] = useState(false);
   const [heroFieldError, setHeroFieldError] = useState("");
   const heroVideoInputRef = useRef<HTMLInputElement>(null);
+  const blogHeroVideoInputRef = useRef<HTMLInputElement>(null);
+  const blogHeroBlVideoInputRef = useRef<HTMLInputElement>(null);
 
   const [r2PickTarget, setR2PickTarget] = useState<
     | "hero"
@@ -471,7 +473,11 @@ export default function StudioHubEditor({ initial }: Props) {
     setAiNotes((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function uploadHeroVideo(file: File) {
+  async function uploadHeroVideoTo(
+    file: File,
+    applyKey: (key: string) => void,
+    label: string
+  ) {
     const segment = inferMirotechUploadSegment(categories);
     if (!isValidSegment("mirotech", segment)) {
       const msg = "Pick a Mirotech category (e.g. product, editorial) before uploading video.";
@@ -482,12 +488,12 @@ export default function StudioHubEditor({ initial }: Props) {
     setHeroUploadBusy(true);
     setHeroFieldError("");
     setError("");
-    setMessage("Encoding hero video…");
+    setMessage(`Encoding ${label}…`);
     try {
       const encoded = await encodeVideoPortWebMp4(file, (p) => {
-        setMessage(p.message || "Encoding hero video…");
+        setMessage(p.message || `Encoding ${label}…`);
       });
-      setMessage("Uploading hero video…");
+      setMessage(`Uploading ${label}…`);
       const { videoKey, posterKey } = await uploadEncodedVideoPort(
         encoded.videoBlob,
         segment,
@@ -497,16 +503,28 @@ export default function StudioHubEditor({ initial }: Props) {
       if (encoded.posterBlob && posterKey) {
         await uploadVideoPortPoster(encoded.posterBlob, posterKey);
       }
-      setHeroImage(normalizePortfolioVideoKey(videoKey));
-      setMessage("Hero video uploaded.");
+      applyKey(normalizePortfolioVideoKey(videoKey));
+      setMessage(`${label} uploaded. Save blog version (or project) to persist.`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Hero video upload failed.";
+      const msg = err instanceof Error ? err.message : `${label} upload failed.`;
       setHeroFieldError(msg);
       setError(msg);
       setMessage("");
     } finally {
       setHeroUploadBusy(false);
     }
+  }
+
+  async function uploadHeroVideo(file: File) {
+    await uploadHeroVideoTo(file, setHeroImage, "Hero video");
+  }
+
+  async function uploadBlogHeroVideo(file: File, target: "blogHero" | "blogHeroBl") {
+    await uploadHeroVideoTo(
+      file,
+      target === "blogHero" ? setBlogHero : setBlogHeroBl,
+      target === "blogHero" ? "Blog hero (Mirotech)" : "Blog hero (Brightline)"
+    );
   }
 
   function projectCopyBrief() {
@@ -2340,38 +2358,156 @@ export default function StudioHubEditor({ initial }: Props) {
               <div className="block text-sm text-white/70">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>Hero (Mirotech)</span>
-                  <button
-                    type="button"
-                    className="rounded-md border border-white/20 bg-white/5 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/80 hover:bg-white/10"
-                    onClick={() => setR2PickTarget("blogHero")}
-                  >
-                    Browse R2
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="rounded-md border border-white/20 bg-white/5 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/80 hover:bg-white/10"
+                      onClick={() => setR2PickTarget("blogHero")}
+                    >
+                      Browse R2
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-md border border-white/20 bg-white/5 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/80 hover:bg-white/10 disabled:opacity-40"
+                      disabled={heroUploadBusy || blogBusy}
+                      onClick={() => blogHeroVideoInputRef.current?.click()}
+                    >
+                      {heroUploadBusy ? "Uploading…" : "Upload video"}
+                    </button>
+                    {blogHero.trim() ? (
+                      <button
+                        type="button"
+                        className="rounded-md border border-white/15 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/50 hover:text-white"
+                        onClick={() => setBlogHero("")}
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
+                <input
+                  ref={blogHeroVideoInputRef}
+                  type="file"
+                  accept="video/*,.mp4,.webm,.mov,.m4v"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void uploadBlogHeroVideo(f, "blogHero");
+                    e.target.value = "";
+                  }}
+                />
+                {blogHero.trim() ? (
+                  <div className="mt-2 flex items-start gap-3">
+                    {looksLikeVideo(blogHero) ? (
+                      <video
+                        src={mediaPreviewSrc(blogHero)}
+                        poster={heroPosterPreviewSrc(blogHero) || undefined}
+                        className="h-20 w-32 rounded-lg border border-white/10 bg-black object-cover"
+                        muted
+                        playsInline
+                        controls
+                        preload="metadata"
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={mediaPreviewSrc(blogHero)}
+                        alt=""
+                        className="h-20 w-32 rounded-lg border border-white/10 object-cover"
+                      />
+                    )}
+                    <p className="min-w-0 flex-1 break-all font-mono text-[0.7rem] text-white/45">
+                      {blogHero}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-white/40">
+                    Upload a video (encoded to web_video), browse R2, or paste a key / URL.
+                  </p>
+                )}
                 <input
                   className="mt-1 w-full rounded-lg border border-white/15 bg-black/50 px-3 py-2 font-mono text-xs text-white"
                   value={blogHero}
                   onChange={(e) => setBlogHero(e.target.value)}
                   placeholder="R2 key or https://…"
-            />
+                />
               </div>
               <div className="block text-sm text-white/70">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>Hero (Brightline)</span>
-                  <button
-                    type="button"
-                    className="rounded-md border border-white/20 bg-white/5 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/80 hover:bg-white/10"
-                    onClick={() => setR2PickTarget("blogHeroBl")}
-                  >
-                    Browse R2
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="rounded-md border border-white/20 bg-white/5 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/80 hover:bg-white/10"
+                      onClick={() => setR2PickTarget("blogHeroBl")}
+                    >
+                      Browse R2
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-md border border-white/20 bg-white/5 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/80 hover:bg-white/10 disabled:opacity-40"
+                      disabled={heroUploadBusy || blogBusy}
+                      onClick={() => blogHeroBlVideoInputRef.current?.click()}
+                    >
+                      {heroUploadBusy ? "Uploading…" : "Upload video"}
+                    </button>
+                    {blogHeroBl.trim() ? (
+                      <button
+                        type="button"
+                        className="rounded-md border border-white/15 px-2 py-1 text-[0.65rem] uppercase tracking-wider text-white/50 hover:text-white"
+                        onClick={() => setBlogHeroBl("")}
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
+                <input
+                  ref={blogHeroBlVideoInputRef}
+                  type="file"
+                  accept="video/*,.mp4,.webm,.mov,.m4v"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void uploadBlogHeroVideo(f, "blogHeroBl");
+                    e.target.value = "";
+                  }}
+                />
+                {blogHeroBl.trim() ? (
+                  <div className="mt-2 flex items-start gap-3">
+                    {looksLikeVideo(blogHeroBl) ? (
+                      <video
+                        src={mediaPreviewSrc(blogHeroBl)}
+                        poster={heroPosterPreviewSrc(blogHeroBl) || undefined}
+                        className="h-20 w-32 rounded-lg border border-white/10 bg-black object-cover"
+                        muted
+                        playsInline
+                        controls
+                        preload="metadata"
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={mediaPreviewSrc(blogHeroBl)}
+                        alt=""
+                        className="h-20 w-32 rounded-lg border border-white/10 object-cover"
+                      />
+                    )}
+                    <p className="min-w-0 flex-1 break-all font-mono text-[0.7rem] text-white/45">
+                      {blogHeroBl}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-white/40">
+                    Upload a video (encoded to web_video), browse R2, or paste a key / URL.
+                  </p>
+                )}
                 <input
                   className="mt-1 w-full rounded-lg border border-white/15 bg-black/50 px-3 py-2 font-mono text-xs text-white"
                   value={blogHeroBl}
                   onChange={(e) => setBlogHeroBl(e.target.value)}
                   placeholder="R2 key or https://…"
-            />
+                />
               </div>
               <button
                 type="button"

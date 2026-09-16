@@ -9,6 +9,7 @@ import {
 import { resolveStudioHubProjectPatch } from "@/lib/platform/publishing/integrations/studio-hub-publish";
 import { isAsyncPublishAccepted } from "@/lib/platform/publishing/async-publish-types";
 import { sanitizeHubProjectPayload } from "@/lib/dual-brand/studio-hub-payload";
+import { ProjectWorkflowError } from "@/lib/platform/projects/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,7 +56,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return NextResponse.json({ ok: true, project: outcome });
   } catch (e) {
     console.error("STUDIO_HUB_PATCH_ERROR", e);
-    return NextResponse.json({ ok: false, error: "Save failed" }, { status: 502 });
+    const message = e instanceof Error ? e.message : "Save failed";
+    const status = e instanceof ProjectWorkflowError ? 400 : 502;
+    return NextResponse.json({ ok: false, error: message || "Save failed" }, { status });
   }
 }
 

@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { HubJournalPost, HubJournalSummary, HubProject } from "@/lib/dual-brand/studio-hub";
-import { updateHubBlog, updateHubProject } from "@/lib/dual-brand/studio-hub";
+import { getHubProject, updateHubBlog, updateHubProject } from "@/lib/dual-brand/studio-hub";
 import { recordAuditSafely } from "@/lib/platform/audit/record-safely";
 import type { PlatformAuditActor } from "@/lib/platform/audit/types";
 import { createPlatformContextForTenant } from "@/lib/platform/context/types";
@@ -84,19 +84,41 @@ export async function platformPatchStudioHubProject(
   }
 }
 
+/**
+ * Gate publish completeness only when moving into PUBLISHED.
+ * Already-live projects must still accept content edits (summary, sections, etc.).
+ */
+async function assertPublishingTransitionAllowed(
+  id: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  const nextStatus = String(payload.status ?? "").toUpperCase();
+  if (nextStatus !== "PUBLISHED") return;
+
+  let previousStatus = "";
+  try {
+    const existing = await getHubProject(id);
+    previousStatus = String(existing?.status ?? "").toUpperCase();
+  } catch {
+    // If we cannot load current status, fall through and gate — safer for first publish.
+    previousStatus = "";
+  }
+
+  if (previousStatus === "PUBLISHED") return;
+
+  await assertProjectPublishAllowed({
+    tenant: "mirotech",
+    type: "mirotech-case-study",
+    id,
+  });
+}
+
 export async function resolveStudioHubProjectPatch(
   id: string,
   payload: Record<string, unknown>,
   options?: { publishingService?: DefaultPublishingService; actor?: PlatformAuditActor }
 ): Promise<HubProject | AsyncPublishAccepted> {
-  const status = payload.status;
-  if (String(status ?? "").toUpperCase() === "PUBLISHED") {
-    await assertProjectPublishAllowed({
-      tenant: "mirotech",
-      type: "mirotech-case-study",
-      id,
-    });
-  }
+  await assertPublishingTransitionAllowed(id, payload);
 
   if (!isPlatformFeatureEnabled("publishing")) {
     return legacyPatchStudioHubProject(id, payload);

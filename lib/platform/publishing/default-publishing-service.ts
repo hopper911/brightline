@@ -29,17 +29,9 @@ export class DefaultPublishingService implements PublishingService {
 
   async publish(context: PlatformContext, request: PublishRequest): Promise<PublishResult> {
     const valid = assertValidPublishRequest(request);
-    if (
-      valid.source.type === "dual-brand-work" &&
-      String(valid.hubPatch?.status ?? "").toUpperCase() === "PUBLISHED"
-    ) {
-      const { assertProjectPublishAllowed } = await import("@/lib/platform/projects/publish-gate");
-      await assertProjectPublishAllowed({
-        tenant: "mirotech",
-        type: "mirotech-case-study",
-        id: valid.source.id,
-      });
-    }
+    // Hub content syncs (operation: "sync") keep status PUBLISHED while editing live
+    // projects — do not re-run publish completeness on every save. Explicit publish
+    // flows gate via project-publish-service / resolveStudioHubProjectPatch transitions.
     if (
       valid.source.type === "work-project" &&
       valid.source.tenant === "brightline" &&

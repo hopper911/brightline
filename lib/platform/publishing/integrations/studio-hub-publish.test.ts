@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/dual-brand/studio-hub", () => ({
   updateHubProject: vi.fn(),
   updateHubBlog: vi.fn(),
+  getHubProject: vi.fn(),
 }));
 
 vi.mock("@/lib/platform/audit/record-safely", () => ({
@@ -20,7 +21,8 @@ vi.mock("@/lib/platform/projects/publish-gate", () => ({
   assertProjectPublishAllowed: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { updateHubBlog, updateHubProject } from "@/lib/dual-brand/studio-hub";
+import { getHubProject, updateHubBlog, updateHubProject } from "@/lib/dual-brand/studio-hub";
+import { assertProjectPublishAllowed } from "@/lib/platform/projects/publish-gate";
 import {
   enqueueStudioHubBlogPatchJob,
   enqueueStudioHubProjectPatchJob,
@@ -33,7 +35,7 @@ import {
 } from "@/lib/platform/publishing/integrations/studio-hub-publish";
 import type { DefaultPublishingService } from "@/lib/platform/publishing/default-publishing-service";
 
-const hubProject = { id: "hub-1", title: "Case Study", slug: "case-study" };
+const hubProject = { id: "hub-1", title: "Case Study", slug: "case-study", status: "DRAFT" };
 
 describe("studio hub publish integration", () => {
   const savedPublishing = process.env.PLATFORM_PUBLISHING_ENABLED;
@@ -42,8 +44,12 @@ describe("studio hub publish integration", () => {
   beforeEach(() => {
     vi.mocked(updateHubProject).mockReset();
     vi.mocked(updateHubBlog).mockReset();
+    vi.mocked(getHubProject).mockReset();
+    vi.mocked(assertProjectPublishAllowed).mockReset();
+    vi.mocked(assertProjectPublishAllowed).mockResolvedValue(undefined);
     vi.mocked(enqueueStudioHubProjectPatchJob).mockReset();
     vi.mocked(enqueueStudioHubBlogPatchJob).mockReset();
+    vi.mocked(getHubProject).mockResolvedValue(hubProject as never);
   });
 
   afterEach(() => {
@@ -101,6 +107,29 @@ describe("studio hub publish integration", () => {
       actor: undefined,
     });
     expect(result).toEqual({ accepted: true, jobId: "job-1" });
+  });
+
+  it("skips publish gate when project is already PUBLISHED", async () => {
+    delete process.env.PLATFORM_PUBLISHING_ENABLED;
+    vi.mocked(getHubProject).mockResolvedValue({ ...hubProject, status: "PUBLISHED" } as never);
+    vi.mocked(updateHubProject).mockResolvedValue({ ...hubProject, status: "PUBLISHED" } as never);
+
+    await resolveStudioHubProjectPatch("hub-1", { status: "PUBLISHED", summary: "Updated" });
+    expect(assertProjectPublishAllowed).not.toHaveBeenCalled();
+    expect(updateHubProject).toHaveBeenCalled();
+  });
+
+  it("runs publish gate when transitioning into PUBLISHED", async () => {
+    delete process.env.PLATFORM_PUBLISHING_ENABLED;
+    vi.mocked(getHubProject).mockResolvedValue({ ...hubProject, status: "DRAFT" } as never);
+    vi.mocked(updateHubProject).mockResolvedValue({ ...hubProject, status: "PUBLISHED" } as never);
+
+    await resolveStudioHubProjectPatch("hub-1", { status: "PUBLISHED" });
+    expect(assertProjectPublishAllowed).toHaveBeenCalledWith({
+      tenant: "mirotech",
+      type: "mirotech-case-study",
+      id: "hub-1",
+    });
   });
 
   it("legacy blog patch delegates to updateHubBlog", async () => {
